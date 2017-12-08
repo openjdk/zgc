@@ -2388,6 +2388,7 @@ void Method::log_touched(TRAPS) {
 }
 
 void Method::print_touched_methods(outputStream* out) {
+  ResourceMark rm;
   MutexLockerEx ml(Thread::current()->is_VM_thread() ? NULL : TouchedMethodLog_lock);
   out->print_cr("# Method::print_touched_methods version 1");
   if (_touched_method_table) {
