@@ -56,5 +56,17 @@ class Semaphore : public CHeapObj<mtInternal> {
   bool trywait()              { return _impl.trywait(); }
 };
 
+class SemaphoreSafepointAware : public CHeapObj<mtInternal> {
+private:
+  Semaphore _sema;
+
+public:
+  SemaphoreSafepointAware(uint value = 0) : _sema(value) {}
+
+  void wait();
+
+  void signal();
+};
+
 
 #endif // SHARE_VM_RUNTIME_SEMAPHORE_HPP
