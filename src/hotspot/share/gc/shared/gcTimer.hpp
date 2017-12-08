@@ -166,8 +166,8 @@ class ConcurrentGCTimer : public GCTimer {
  public:
   ConcurrentGCTimer(): GCTimer(), _is_concurrent_phase_active(false) {};
 
-  void register_gc_pause_start(const char* name);
-  void register_gc_pause_end();
+  void register_gc_pause_start(const char* name, const Ticks& time = Ticks::now());
+  void register_gc_pause_end(const Ticks& time = Ticks::now());
 
   void register_gc_concurrent_start(const char* name, const Ticks& time = Ticks::now());
   void register_gc_concurrent_end(const Ticks& time = Ticks::now());
