@@ -332,6 +332,7 @@ void IdealGraphPrinter::begin_method() {
     print_prop(METHOD_IS_STATIC_PROPERTY, TRUE_VALUE);
   }
 
+  print_prop("compiled_id", C->compile_id());
   tail(PROPERTIES_ELEMENT);
 
   _should_send_method = true;

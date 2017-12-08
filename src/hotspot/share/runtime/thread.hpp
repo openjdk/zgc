@@ -51,6 +51,7 @@
 #if INCLUDE_ALL_GCS
 #include "gc/g1/dirtyCardQueue.hpp"
 #include "gc/g1/satbMarkQueue.hpp"
+#include "gc/z/zMarkStack.hpp"
 #endif // INCLUDE_ALL_GCS
 #ifdef ZERO
 # include "stack_zero.hpp"
@@ -106,6 +107,12 @@ class WorkerThread;
 class Thread: public ThreadShadow {
   friend class VMStructs;
   friend class JVMCIVMStructs;
+
+ protected:
+  // This mask is early in the struct so the offset to reference it from the base object will be
+  // small enough for an 8-bit offset; the value of ZAddressBadMask is copied into it.
+  uintptr_t _zaddress_bad_mask;     // thread local storage for mask value used in load barrier
+
  private:
 
 #ifndef USE_LIBRARY_BASED_TLS_ONLY
@@ -511,6 +518,14 @@ class Thread: public ThreadShadow {
   const ThreadExt& ext() const          { return _ext; }
   ThreadExt& ext()                      { return _ext; }
 
+#if INCLUDE_ALL_GCS
+ private:
+  ZMarkThreadLocalStacks _zstacks;
+
+ public:
+  ZMarkThreadLocalStacks* zstacks()     { return &_zstacks; }
+#endif // INCLUDE_ALL_GCS
+
   // VM operation support
   int vm_operation_ticket()                      { return ++_vm_operation_started_count; }
   int vm_operation_completed_count()             { return _vm_operation_completed_count; }
@@ -846,6 +861,20 @@ class JavaThread: public Thread {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class WhiteBox;
+
+ public:
+  static ByteSize zaddress_bad_mask_offset() {
+    return byte_offset_of(JavaThread, _zaddress_bad_mask);
+  }
+
+  uintptr_t zaddress_bad_mask() const {
+    return _zaddress_bad_mask;
+  }
+
+  void set_zaddress_bad_mask(uintptr_t bad_mask) {
+    _zaddress_bad_mask = bad_mask;
+  }
+
  private:
   JavaThread*    _next;                          // The next thread in the Threads list
   bool           _on_thread_list;                // Is set when this JavaThread is added to the Threads list

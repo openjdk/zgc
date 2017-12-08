@@ -30,7 +30,8 @@
 #if INCLUDE_ALL_GCS
 #define FOR_EACH_CONCRETE_INCLUDE_ALL_GC_BARRIER_SET_DO(f) \
   f(CardTableExtension)                                    \
-  f(G1SATBCTLogging)
+  f(G1SATBCTLogging)                                       \
+  f(Z)
 #else
 #define FOR_EACH_CONCRETE_INCLUDE_ALL_GC_BARRIER_SET_DO(f)
 #endif
@@ -47,7 +48,8 @@
   f(CardTableForRS)                   \
   f(CardTableExtension)               \
   f(G1SATBCT)                         \
-  f(G1SATBCTLogging)
+  f(G1SATBCTLogging)                  \
+  f(Z)
 
 // To enable runtime-resolution of GC barriers on primitives, please
 // define SUPPORT_BARRIER_ON_PRIMITIVES.

@@ -291,10 +291,11 @@ WB_ENTRY(jint, WB_StressVirtualSpaceResize(JNIEnv* env, jobject o,
                                         (size_t) magnitude, (size_t) iterations);
 WB_END
 
-static const jint serial_code   = 1;
-static const jint parallel_code = 2;
-static const jint cms_code      = 4;
-static const jint g1_code       = 8;
+static const jint serial_code   =  1;
+static const jint parallel_code =  2;
+static const jint cms_code      =  4;
+static const jint g1_code       =  8;
+static const jint zgc_code      = 16;
 
 WB_ENTRY(jint, WB_CurrentGC(JNIEnv* env, jobject o, jobject obj))
   if (UseSerialGC) {
@@ -305,6 +306,8 @@ WB_ENTRY(jint, WB_CurrentGC(JNIEnv* env, jobject o, jobject obj))
     return cms_code;
   } else if (UseG1GC) {
     return g1_code;
+  } else if (UseZGC) {
+    return zgc_code;
   }
   ShouldNotReachHere();
   return 0;
@@ -312,7 +315,7 @@ WB_END
 
 WB_ENTRY(jint, WB_AllSupportedGC(JNIEnv* env, jobject o, jobject obj))
 #if INCLUDE_ALL_GCS
-  return serial_code | parallel_code | cms_code | g1_code;
+  return serial_code | parallel_code | cms_code | g1_code | zgc_code;
 #else
   return serial_code;
 #endif // INCLUDE_ALL_GCS
@@ -329,6 +332,8 @@ WB_ENTRY(jboolean, WB_GCSelectedByErgo(JNIEnv* env, jobject o, jobject obj))
     return FLAG_IS_ERGO(UseConcMarkSweepGC);
   } else if (UseG1GC) {
     return FLAG_IS_ERGO(UseG1GC);
+  } else if (UseZGC) {
+    return FLAG_IS_ERGO(UseZGC);
   }
   ShouldNotReachHere();
   return false;
@@ -347,6 +352,8 @@ WB_ENTRY(jboolean, WB_isObjectInOldGen(JNIEnv* env, jobject o, jobject obj))
   } else if (UseParallelGC) {
     ParallelScavengeHeap* psh = ParallelScavengeHeap::heap();
     return !psh->is_in_young(p);
+  } else if (UseZGC) {
+    return Universe::heap()->is_in(p);
   }
 #endif // INCLUDE_ALL_GCS
   GenCollectedHeap* gch = GenCollectedHeap::heap();

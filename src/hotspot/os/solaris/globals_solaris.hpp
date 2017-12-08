@@ -40,7 +40,9 @@
                          writeable) \
                                                                                \
   product(bool, UseExtendedFileIO, true,                                       \
-          "Enable workaround for limitations of stdio FILE structure")
+          "Enable workaround for limitations of stdio FILE structure")         \
+  product(bool, UseOSMHeap, false,                                             \
+          "Use Optimized Shared Memory for the Java heap")
 
 //
 // Defines Solaris-specific default values. The flags are available on all
@@ -50,5 +52,6 @@ define_pd_global(bool, UseLargePages, true);
 define_pd_global(bool, UseLargePagesIndividualAllocation, false);
 define_pd_global(bool, UseOSErrorReporting, false);
 define_pd_global(bool, UseThreadPriorities, false);
+define_pd_global(bool, UseBasicLoadBarrier, true);
 
 #endif // OS_SOLARIS_VM_GLOBALS_SOLARIS_HPP

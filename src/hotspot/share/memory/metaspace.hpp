@@ -84,6 +84,7 @@ class Metaspace : public CHeapObj<mtClass> {
   friend class VMStructs;
   friend class SpaceManager;
   friend class VM_CollectForMetadataAllocation;
+  friend class ZMetaspace;
   friend class MetaspaceGC;
   friend class MetaspaceAux;
   friend class MetaspaceShared;

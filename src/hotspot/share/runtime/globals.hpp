@@ -1397,7 +1397,6 @@ public:
           "Trace changes of compiled IC")                                   \
                                                                             \
   /* gc */                                                                  \
-                                                                            \
   product(bool, UseSerialGC, false,                                         \
           "Use the Serial garbage collector")                               \
                                                                             \
