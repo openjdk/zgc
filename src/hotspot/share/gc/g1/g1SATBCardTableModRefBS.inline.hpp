@@ -27,7 +27,6 @@
 
 #include "gc/shared/accessBarrierSupport.inline.hpp"
 #include "gc/g1/g1SATBCardTableModRefBS.hpp"
-#include "oops/oop.inline.hpp"
 
 template <DecoratorSet decorators, typename T>
 inline void G1SATBCardTableModRefBS::write_ref_field_pre(T* field) {

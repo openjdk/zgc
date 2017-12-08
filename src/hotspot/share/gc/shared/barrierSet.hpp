@@ -147,9 +147,8 @@ public:
   // 3) Provide specializations for BarrierSet::GetName and BarrierSet::GetType.
   template <DecoratorSet decorators, typename BarrierSetT>
   class AccessBarrier: protected RawAccessBarrier<decorators> {
-  protected:
+  private:
     typedef RawAccessBarrier<decorators> Raw;
-    typedef typename BarrierSetT::template AccessBarrier<decorators> CRTPAccessBarrier;
 
   public:
     // Primitive heap accesses. These accessors get resolved when
