@@ -113,7 +113,7 @@ class PushAndMarkClosure: public MetadataAwareOopClosure {
  public:
   PushAndMarkClosure(CMSCollector* collector,
                      MemRegion span,
-                     ReferenceProcessor* rp,
+                     ReferenceDiscoverer* rd,
                      CMSBitMap* bit_map,
                      CMSBitMap* mod_union_table,
                      CMSMarkStack* mark_stack,
@@ -141,7 +141,7 @@ class ParPushAndMarkClosure: public MetadataAwareOopClosure {
  public:
   ParPushAndMarkClosure(CMSCollector* collector,
                         MemRegion span,
-                        ReferenceProcessor* rp,
+                        ReferenceDiscoverer* rd,
                         CMSBitMap* bit_map,
                         OopTaskQueue* work_queue);
   virtual void do_oop(oop* p);
@@ -166,7 +166,7 @@ class MarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
   DO_OOP_WORK_DEFN
  public:
   MarkRefsIntoAndScanClosure(MemRegion span,
-                             ReferenceProcessor* rp,
+                             ReferenceDiscoverer* rd,
                              CMSBitMap* bit_map,
                              CMSBitMap* mod_union_table,
                              CMSMarkStack* mark_stack,
@@ -204,7 +204,7 @@ class ParMarkRefsIntoAndScanClosure: public MetadataAwareOopsInGenClosure {
  public:
   ParMarkRefsIntoAndScanClosure(CMSCollector* collector,
                                  MemRegion span,
-                                 ReferenceProcessor* rp,
+                                 ReferenceDiscoverer* rd,
                                  CMSBitMap* bit_map,
                                  OopTaskQueue* work_queue);
   virtual void do_oop(oop* p);
