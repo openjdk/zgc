@@ -248,6 +248,9 @@ Metadata** oopDesc::metadata_field_addr(int offset) const { return (Metadata**)f
 template <class T> T* oopDesc::obj_field_addr(int offset) const { return (T*)  field_base(offset); }
 address*   oopDesc::address_field_addr(int offset)  const { return (address*)  field_base(offset); }
 
+template <typename T> size_t oopDesc::field_offset(T* p) const {
+  return pointer_delta((void*)p, (void*)this, 1);
+}
 
 // Functions for getting and setting oops within instance objects.
 // If the oops are compressed, the type passed to these overloaded functions
