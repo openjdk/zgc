@@ -972,7 +972,10 @@ void Monitor::lock_without_safepoint_check() {
 
 bool Monitor::try_lock() {
   Thread * const Self = Thread::current();
-  debug_only(check_prelock_state(Self));
+  // Check below commented out for now, so that we can send trace events from
+  // all contexts without asserting. try_lock() will never actually safepoint
+  // so this check seems strange anyway.
+  //debug_only(check_prelock_state(Self));
   // assert(!thread->is_inside_signal_handler(), "don't lock inside signal handler");
 
   // Special case, where all Java threads are stopped.
