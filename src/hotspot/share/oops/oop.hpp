@@ -139,6 +139,8 @@ class oopDesc {
   // Needed for javaClasses
   inline address* address_field_addr(int offset) const;
 
+  template <typename T> inline size_t field_offset(T* p) const;
+
   inline static bool is_null(oop obj)       { return obj == NULL; }
   inline static bool is_null(narrowOop obj) { return obj == 0; }
 
