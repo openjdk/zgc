@@ -97,10 +97,6 @@ static uintx chunk_oops_do(OopClosure* f, Chunk* chunk, char* chunk_top) {
   // during GC phase 3, a handle may be a forward pointer that
   // is not yet valid, so loosen the assertion
   while (bottom < top) {
-    // This test can be moved up but for now check every oop.
-
-    assert(oopDesc::is_oop(*bottom, true), "handle should point to oop");
-
     f->do_oop(bottom++);
   }
   return handles_visited;
