@@ -630,6 +630,8 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // perform cleanup tasks serially in the VMThread.
   virtual WorkGang* get_safepoint_workers() { return NULL; }
 
+  virtual bool is_oop(oop object) const;
+
   // Non product verification and debugging.
 #ifndef PRODUCT
   // Support for PromotionFailureALot.  Return true if it's time to cause a
