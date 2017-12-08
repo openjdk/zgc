@@ -102,6 +102,7 @@ class java_lang_String : AllStatic {
 
   // Accessors
   static inline typeArrayOop value(oop java_string);
+  static inline typeArrayOop value_weak(oop java_string);
   static inline unsigned int hash(oop java_string);
   static inline bool is_latin1(oop java_string);
   static inline int length(oop java_string);
@@ -147,7 +148,7 @@ class java_lang_String : AllStatic {
 
   static unsigned int hash_code(oop java_string);
 
-  static bool equals(oop java_string, jchar* chars, int len);
+  static bool equals_weak(oop* java_string, jchar* chars, int len);
   static bool equals(oop str1, oop str2);
 
   // Conversion between '.' and '/' formats

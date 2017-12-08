@@ -136,8 +136,10 @@ oop StringTable::lookup_in_main_table(int index, jchar* name,
   for (HashtableEntry<oop, mtSymbol>* l = bucket(index); l != NULL; l = l->next()) {
     count++;
     if (l->hash() == hash) {
-      if (java_lang_String::equals(l->literal(), name, len)) {
-        return l->literal();
+      // We use equals_weak since we want to do lookups in the string
+      // table without resurrecting all Strings we compare against.
+      if (java_lang_String::equals_weak(l->literal_addr(), name, len)) {
+        return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(l->literal_addr());
       }
     }
   }
@@ -151,8 +153,8 @@ oop StringTable::lookup_in_main_table(int index, jchar* name,
 
 oop StringTable::basic_add(int index_arg, Handle string, jchar* name,
                            int len, unsigned int hashValue_arg, TRAPS) {
-
-  assert(java_lang_String::equals(string(), name, len),
+  oop java_string = string();
+  assert(java_lang_String::equals_weak(&java_string, name, len),
          "string must be properly initialized");
   // Cannot hit a safepoint in this function because the "this" pointer can move.
   NoSafepointVerifier nsv;
@@ -439,17 +441,21 @@ void StringTable::verify() {
   }
 }
 
+static oop no_keepalive_load_barrier(oop* o) {
+  return RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(o);
+}
+
 void StringTable::dump(outputStream* st, bool verbose) {
   if (!verbose) {
-    the_table()->print_table_statistics(st, "StringTable");
+    the_table()->print_table_statistics(st, "StringTable", no_keepalive_load_barrier);
   } else {
     Thread* THREAD = Thread::current();
     st->print_cr("VERSION: 1.1");
     for (int i = 0; i < the_table()->table_size(); ++i) {
       HashtableEntry<oop, mtSymbol>* p = the_table()->bucket(i);
       for ( ; p != NULL; p = p->next()) {
-        oop s = p->literal();
-        typeArrayOop value  = java_lang_String::value(s);
+        oop s = no_keepalive_load_barrier(p->literal_addr());
+        typeArrayOop value  = java_lang_String::value_weak(s);
         int          length = java_lang_String::length(s);
         bool      is_latin1 = java_lang_String::is_latin1(s);
 

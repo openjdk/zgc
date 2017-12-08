@@ -318,7 +318,8 @@ template <MEMFLAGS F> bool BasicHashtable<F>::resize(int new_size) {
 // literals.
 
 template <class T, MEMFLAGS F> void Hashtable<T, F>::print_table_statistics(outputStream* st,
-                                                                            const char *table_name) {
+                                                                            const char *table_name,
+                                                                            T (*load_barrier)(T*)) {
   NumberSeq summary;
   int literal_bytes = 0;
   for (int i = 0; i < this->table_size(); ++i) {
@@ -326,7 +327,10 @@ template <class T, MEMFLAGS F> void Hashtable<T, F>::print_table_statistics(outp
     for (HashtableEntry<T, F>* e = this->bucket(i);
          e != NULL; e = e->next()) {
       count++;
-      literal_bytes += literal_size(e->literal());
+      T l = load_barrier != NULL
+          ? (*load_barrier)(e->literal_addr())
+          : e->literal();
+      literal_bytes += literal_size(l);
     }
     summary.add((double)count);
   }

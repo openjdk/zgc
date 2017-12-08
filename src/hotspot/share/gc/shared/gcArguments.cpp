@@ -39,6 +39,7 @@
 #include "gc/parallel/parallelArguments.hpp"
 #include "gc/cms/cmsArguments.hpp"
 #include "gc/g1/g1Arguments.hpp"
+#include "gc/z/zArguments.hpp"
 #endif
 
 GCArguments* GCArguments::_instance = NULL;
@@ -54,7 +55,7 @@ bool GCArguments::is_initialized() {
 
 bool GCArguments::gc_selected() {
 #if INCLUDE_ALL_GCS
-  return UseSerialGC || UseParallelGC || UseParallelOldGC || UseConcMarkSweepGC || UseG1GC;
+  return UseSerialGC || UseParallelGC || UseParallelOldGC || UseConcMarkSweepGC || UseG1GC || UseZGC;
 #else
   return UseSerialGC;
 #endif // INCLUDE_ALL_GCS
@@ -77,6 +78,7 @@ void GCArguments::select_gc_ergonomically() {
     FLAG_SET_ERGO_IF_DEFAULT(bool, UseSerialGC, true);
   }
 #else
+  UNSUPPORTED_OPTION(UseZGC);
   UNSUPPORTED_OPTION(UseG1GC);
   UNSUPPORTED_OPTION(UseParallelGC);
   UNSUPPORTED_OPTION(UseParallelOldGC);
@@ -146,6 +148,8 @@ jint GCArguments::initialize() {
     _instance = new G1Arguments();
   } else if (UseConcMarkSweepGC) {
     _instance = new CMSArguments();
+  } else if (UseZGC) {
+    _instance = new ZArguments();
 #endif
   } else if (UseSerialGC) {
     _instance = new SerialArguments();

@@ -243,10 +243,12 @@ void CompileTask::print_impl(outputStream* st, Method* method, int compile_id, i
     if (is_osr_method) {
       st->print(" @ %d", osr_bci);
     }
-    if (method->is_native())
+    if (method->is_native()) {
       st->print(" (native)");
-    else
+    } else {
       st->print(" (%d bytes)", method->code_size());
+      st->print(" " PTR_FORMAT " - " PTR_FORMAT, p2i(method->code_base()), p2i(method->code_base() + method->code_size()) );
+    }
   }
 
   if (msg != NULL) {

@@ -83,9 +83,21 @@ class JvmtiTagHashmapEntry : public CHeapObj<mtInternal> {
  public:
 
   // accessor methods
-  inline oop object() const                           { return _object; }
+  inline oop object() {
+    return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(&_object);
+  }
+
+  // Load the object weakly. The returned object is not allowed to be seen by the GC.
+  inline oop load_object_weakly() {
+    return RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(&_object);
+  }
+
   inline oop* object_addr()                           { return &_object; }
   inline jlong tag() const                            { return _tag; }
+
+  inline bool equals(oop object) {
+    return object == load_object_weakly();
+  }
 
   inline void set_tag(jlong tag) {
     assert(tag != 0, "can't be zero");
@@ -166,6 +178,8 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
 
   // hash a given key (oop) with the specified size
   static unsigned int hash(oop key, int size) {
+    assert(ZAddressMetadataShift >= sizeof(unsigned int) * BitsPerByte, "cast removes the metadata bits");
+
     // shift right to get better distribution (as these bits will be zero
     // with aligned addresses)
     unsigned int addr = (unsigned int)(cast_from_oop<intptr_t>(key));
@@ -211,7 +225,7 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
       JvmtiTagHashmapEntry* entry = _table[i];
       while (entry != NULL) {
         JvmtiTagHashmapEntry* next = entry->next();
-        oop key = entry->object();
+        oop key = entry->load_object_weakly();
         assert(key != NULL, "jni weak reference cleared!!");
         unsigned int h = hash(key, new_size);
         JvmtiTagHashmapEntry* anchor = new_table[h];
@@ -304,7 +318,7 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
     unsigned int h = hash(key);
     JvmtiTagHashmapEntry* entry = _table[h];
     while (entry != NULL) {
-      if (entry->object() == key) {
+      if (entry->equals(key)) {
          return entry;
       }
       entry = entry->next();
@@ -345,7 +359,7 @@ class JvmtiTagHashmap : public CHeapObj<mtInternal> {
     JvmtiTagHashmapEntry* entry = _table[h];
     JvmtiTagHashmapEntry* prev = NULL;
     while (entry != NULL) {
-      if (key == entry->object()) {
+      if (entry->equals(key)) {
         break;
       }
       prev = entry;
@@ -3363,10 +3377,8 @@ void JvmtiTagMap::do_weak_oops(BoolObjectClosure* is_alive, OopClosure* f) {
     while (entry != NULL) {
       JvmtiTagHashmapEntry* next = entry->next();
 
-      oop* obj = entry->object_addr();
-
       // has object been GC'ed
-      if (!is_alive->do_object_b(entry->object())) {
+      if (!is_alive->do_object_b(entry->load_object_weakly())) {
         // grab the tag
         jlong tag = entry->tag();
         guarantee(tag != 0, "checking");
@@ -3384,7 +3396,7 @@ void JvmtiTagMap::do_weak_oops(BoolObjectClosure* is_alive, OopClosure* f) {
         ++freed;
       } else {
         f->do_oop(entry->object_addr());
-        oop new_oop = entry->object();
+        oop new_oop = entry->load_object_weakly();
 
         // if the object has moved then re-hash it and move its
         // entry to its new location.
@@ -3418,7 +3430,7 @@ void JvmtiTagMap::do_weak_oops(BoolObjectClosure* is_alive, OopClosure* f) {
   // Re-add all the entries which were kept aside
   while (delayed_add != NULL) {
     JvmtiTagHashmapEntry* next = delayed_add->next();
-    unsigned int pos = JvmtiTagHashmap::hash(delayed_add->object(), size);
+    unsigned int pos = JvmtiTagHashmap::hash(delayed_add->load_object_weakly(), size);
     delayed_add->set_next(table[pos]);
     table[pos] = delayed_add;
     delayed_add = next;

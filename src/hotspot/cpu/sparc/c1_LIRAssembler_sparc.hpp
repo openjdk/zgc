@@ -70,5 +70,6 @@
  public:
   void   pack64(LIR_Opr src, LIR_Opr dst);
   void unpack64(LIR_Opr src, LIR_Opr dst);
+  void load_barrier_test(LIR_Opr ref);
 
 #endif // CPU_SPARC_VM_C1_LIRASSEMBLER_SPARC_HPP

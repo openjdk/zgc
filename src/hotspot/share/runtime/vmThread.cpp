@@ -706,5 +706,6 @@ void VMOperationQueue::verify_queue(int prio) {
 #endif
 
 void VMThread::verify() {
-  oops_do(&VerifyOopClosure::verify_oop, NULL);
+  static VerifyOopClosure verify_oop;
+  oops_do(&verify_oop, NULL);
 }

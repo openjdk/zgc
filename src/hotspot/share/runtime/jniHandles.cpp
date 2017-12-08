@@ -32,8 +32,10 @@
 #include "runtime/thread.inline.hpp"
 #include "trace/traceMacros.hpp"
 #include "utilities/align.hpp"
+#include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1SATBCardTableModRefBS.hpp"
+#include "gc/z/zOop.inline.hpp"
 #endif
 
 JNIHandleBlock* JNIHandles::_global_handles       = NULL;
@@ -114,6 +116,13 @@ jobject JNIHandles::make_weak_global(Handle obj) {
 template<bool external_guard>
 oop JNIHandles::resolve_jweak(jweak handle) {
   assert(is_jweak(handle), "precondition");
+#if INCLUDE_ALL_GCS
+  if (UseLoadBarrier) {
+    oop* ref_addr = jweak_ref_addr(handle);
+    return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(ref_addr);
+  }
+#endif
+
   oop result = jweak_ref(handle);
   result = guard_value<external_guard>(result);
 #if INCLUDE_ALL_GCS
@@ -509,6 +518,19 @@ void JNIHandleBlock::release_handle(jobject h) {
   }
 }
 
+static bool is_deleted(oop* handle) {
+  // A handle can contain a strong oop (normal JNIHandle),
+  // a weak oop (weak JNI handle) or a native address if
+  // it's in the free list.
+  if (!Universe::heap()->is_in_reserved(*handle)) {
+    // Not an oop, so not equal to the delete_handle
+    return false;
+  }
+
+  oop obj = RootAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(handle);
+
+  return obj == JNIHandles::deleted_handle();
+}
 
 void JNIHandleBlock::rebuild_free_list() {
   assert(_allocate_before_rebuild == 0 && _free_list == NULL, "just checking");
@@ -517,7 +539,7 @@ void JNIHandleBlock::rebuild_free_list() {
   for (JNIHandleBlock* current = this; current != NULL; current = current->_next) {
     for (int index = 0; index < current->_top; index++) {
       oop* handle = &(current->_handles)[index];
-      if (*handle ==  JNIHandles::deleted_handle()) {
+      if (is_deleted(handle)) {
         // this handle was cleared out by a delete call, reuse it
         *handle = (oop) _free_list;
         _free_list = handle;

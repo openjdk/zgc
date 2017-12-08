@@ -478,6 +478,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_move:           // input and result always valid, may have info
     case lir_pack64:         // input and result always valid
     case lir_unpack64:       // input and result always valid
+    case lir_load_barrier_test:
     {
       assert(op->as_Op1() != NULL, "must be");
       LIR_Op1* op1 = (LIR_Op1*)op;
@@ -1672,6 +1673,7 @@ const char * LIR_Op::name() const {
      case lir_alloc_object:          s = "alloc_obj";     break;
      case lir_monaddr:               s = "mon_addr";      break;
      case lir_pack64:                s = "pack64";        break;
+     case lir_load_barrier_test:     s = "load_barrier_test"; break;
      case lir_unpack64:              s = "unpack64";      break;
      // LIR_Op2
      case lir_cmp:                   s = "cmp";           break;

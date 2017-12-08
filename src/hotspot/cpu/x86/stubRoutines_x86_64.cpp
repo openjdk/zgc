@@ -42,3 +42,8 @@ address StubRoutines::x86::_float_sign_mask = NULL;
 address StubRoutines::x86::_float_sign_flip = NULL;
 address StubRoutines::x86::_double_sign_mask = NULL;
 address StubRoutines::x86::_double_sign_flip = NULL;
+
+// if RegisterImpl::number_of_registers changes from 16
+// the following two arrays size would need to change.
+address StubRoutines::x86:: _load_barrier_slow_stub[16];
+address StubRoutines::x86:: _load_barrier_weak_slow_stub[16];

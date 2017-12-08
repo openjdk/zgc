@@ -46,7 +46,7 @@ inline oop CompactHashtable<T, N>::decode_entry(CompactHashtable<oop, char>* con
                                                 u4 offset, const char* name, int len) {
   narrowOop obj = (narrowOop)offset;
   oop string = oopDesc::decode_heap_oop(obj);
-  if (java_lang_String::equals(string, (jchar*)name, len)) {
+  if (java_lang_String::equals_weak(&string, (jchar*)name, len)) {
     return string;
   }
 

@@ -48,6 +48,7 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1SATBCardTableModRefBS.hpp"
 #include "gc/g1/heapRegion.hpp"
+#include "gc/z/zGlobals.hpp"
 #endif // INCLUDE_ALL_GCS
 #include "crc32c.h"
 #ifdef COMPILER2
@@ -4078,6 +4079,11 @@ void MacroAssembler::ptest(XMMRegister dst, XMMRegister src) {
   }
 }
 
+void MacroAssembler::testq(Register dst, AddressLiteral src) {
+  assert(reachable(src), "Address should be reachable");
+  testq(dst, as_Address(src));
+}
+
 void MacroAssembler::sqrtsd(XMMRegister dst, AddressLiteral src) {
   if (reachable(src)) {
     Assembler::sqrtsd(dst, as_Address(src));
@@ -5243,7 +5249,14 @@ void MacroAssembler::resolve_jobject(Register value,
   testptr(value, JNIHandles::weak_tag_mask); // Test for jweak tag.
   jcc(Assembler::zero, not_weak);
   // Resolve jweak.
-  movptr(value, Address(value, -JNIHandles::weak_tag_value));
+#if INCLUDE_ALL_GCS
+  if (UseLoadBarrier) {
+    load_barrier(value, Address(value, -JNIHandles::weak_tag_value), false /* expand call */, true /* weak */);
+  } else
+#endif
+  {
+    movptr(value, Address(value, -JNIHandles::weak_tag_value));
+  }
   verify_oop(value);
 #if INCLUDE_ALL_GCS
   if (UseG1GC) {
@@ -6688,9 +6701,115 @@ void MacroAssembler::store_klass(Register dst, Register src) {
     movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
 }
 
-void MacroAssembler::load_heap_oop(Register dst, Address src) {
+#if INCLUDE_ALL_GCS && defined(LINUX) && defined(_LP64)
+
+void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_call, bool weak) {
+  Label done;
+  const Register resolved_ref_addr = rsi;
+  assert_different_registers(ref, resolved_ref_addr);
+
+  BLOCK_COMMENT("load_barrier {");
+
+  // Save temp register
+  push(resolved_ref_addr);
+
+  // Resolve reference address now, ref_addr might use the same register as ref,
+  // which means it gets killed when we write to ref.
+  lea(resolved_ref_addr, ref_addr);
+
+  // Load reference
+  movptr(ref, Address(resolved_ref_addr, 0));
+
+  // Check if mask is not bad, which includes an implicit null check.
+  testptr(ref, ExternalAddress((address)&ZAddressBadMask));
+  jcc(Assembler::zero, done);
+
+  // Save live registers
+  push(rax);
+  push(rcx);
+  push(rdx);
+  push(rdi);
+  push(r8);
+  push(r9);
+  push(r10);
+  push(r11);
+
+  // We may end up here from generate_native_wrapper, then the method may have
+  // floats as arguments, and we must spill them before calling the VM runtime
+  // leaf. From the interpreter all floats are passed on the stack.
+  assert(Argument::n_float_register_parameters_j == 8, "Found %d float regs", Argument::n_float_register_parameters_j);
+  int f_spill_size = Argument::n_float_register_parameters_j * wordSize * 2;
+  subptr(rsp, f_spill_size);
+  movdqu(Address(rsp, 14 * wordSize), xmm7);
+  movdqu(Address(rsp, 12 * wordSize), xmm6);
+  movdqu(Address(rsp, 10 * wordSize), xmm5);
+  movdqu(Address(rsp, 8 * wordSize), xmm4);
+  movdqu(Address(rsp, 6 * wordSize), xmm3);
+  movdqu(Address(rsp, 4 * wordSize), xmm2);
+  movdqu(Address(rsp, 2 * wordSize), xmm1);
+  movdqu(Address(rsp, 0 * wordSize), xmm0);
+
+  // Call into VM to handle the slow path
+  if (expand_call) {
+    assert(ref != c_rarg1, "smashed arg");
+    pass_arg1(this, resolved_ref_addr);
+    pass_arg0(this, ref);
+    if (weak) {
+      MacroAssembler::call_VM_leaf_base(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), 2);
+    } else {
+      MacroAssembler::call_VM_leaf_base(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded), 2);
+    }
+  } else {
+    if (weak) {
+      call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), ref, resolved_ref_addr);
+    } else {
+      call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded), ref, resolved_ref_addr);
+    }
+  }
+
+  // Restore live registers
+  movdqu(xmm0, Address(rsp, 0 * wordSize));
+  movdqu(xmm1, Address(rsp, 2 * wordSize));
+  movdqu(xmm2, Address(rsp, 4 * wordSize));
+  movdqu(xmm3, Address(rsp, 6 * wordSize));
+  movdqu(xmm4, Address(rsp, 8 * wordSize));
+  movdqu(xmm5, Address(rsp, 10 * wordSize));
+  movdqu(xmm6, Address(rsp, 12 * wordSize));
+  movdqu(xmm7, Address(rsp, 14 * wordSize));
+  addptr(rsp, f_spill_size);
+
+  pop(r11);
+  pop(r10);
+  pop(r9);
+  pop(r8);
+  pop(rdi);
+  pop(rdx);
+  pop(rcx);
+
+  if (ref == rax) {
+    addptr(rsp, wordSize);
+  } else {
+    movptr(ref, rax);
+    pop(rax);
+  }
+
+  bind(done);
+
+  // Restore temp register
+  pop(resolved_ref_addr);
+
+  BLOCK_COMMENT("} load_barrier");
+}
+
+#endif
+
+void MacroAssembler::load_heap_oop(Register dst, Address src, bool expand_call, bool weak) {
 #ifdef _LP64
-  // FIXME: Must change all places where we try to load the klass.
+#if INCLUDE_ALL_GCS && defined(LINUX)
+  if (UseLoadBarrier) {
+    load_barrier(dst, src, expand_call, weak);
+  } else
+#endif
   if (UseCompressedOops) {
     movl(dst, src);
     decode_heap_oop(dst);
@@ -6711,6 +6830,18 @@ void MacroAssembler::load_heap_oop_not_null(Register dst, Address src) {
 }
 
 void MacroAssembler::store_heap_oop(Address dst, Register src) {
+#ifdef ASSERT
+  if (VerifyOops && UseLoadBarrier) {
+    // Check if mask is good
+    Label done;
+    testptr(src, as_Address(ExternalAddress((address)&ZAddressBadMask)));
+    jcc(Assembler::zero, done);
+    STOP("Writing broken oop");
+    should_not_reach_here();
+    bind(done);
+  }
+#endif
+
 #ifdef _LP64
   if (UseCompressedOops) {
     assert(!dst.uses(src), "not enough registers");
@@ -7075,6 +7206,8 @@ void MacroAssembler::reinit_heapbase() {
     } else {
       movptr(r12_heapbase, ExternalAddress((address)Universe::narrow_ptrs_base_addr()));
     }
+  } else {
+    mov64(r12, -1);
   }
 }
 

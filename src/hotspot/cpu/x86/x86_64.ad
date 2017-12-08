@@ -329,6 +329,8 @@ reg_class ptr_rex_reg(R8,  R8_H,
                       R14, R14_H);
 
 
+reg_class long_r12_reg(R12, R12_H);
+
 // Class for all long registers (excluding RSP)
 reg_class long_reg_with_rbp(RAX, RAX_H,
                             RDX, RDX_H,
@@ -536,6 +538,10 @@ reg_class int_rdi_reg(RDI);
 // Singleton class for instruction pointer
 // reg_class ip_reg(RIP);
 
+%}
+
+source_hpp %{
+  bool is_far(intptr_t addr);
 %}
 
 //----------SOURCE BLOCK-------------------------------------------------------
@@ -1780,6 +1786,11 @@ RegMask Matcher::modL_proj_mask() {
 // Register for saving SP into on method handle invokes. Not used on x86_64.
 const RegMask Matcher::method_handle_invoke_SP_save_mask() {
     return NO_REG_mask();
+}
+
+bool is_far(intptr_t addr) {
+  return !Assembler::is_simm32(addr - (intptr_t)CodeCache::low_bound()) ||
+         !Assembler::is_simm32(addr - (intptr_t)CodeCache::high_bound());
 }
 
 %}
@@ -3543,12 +3554,23 @@ operand rex_RegP()
   interface(REG_INTER);
 %}
 
+operand r12_RegL()
+%{
+  constraint(ALLOC_IN_RC(long_r12_reg));
+  match(RegL);
+  match(rRegL);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 operand rRegL()
 %{
   constraint(ALLOC_IN_RC(long_reg));
   match(RegL);
   match(rax_RegL);
   match(rdx_RegL);
+  match(r12_RegL);
 
   format %{ %}
   interface(REG_INTER);
@@ -4203,6 +4225,265 @@ operand cmpOpUCF2() %{
   %}
 %}
 
+// Operands for bound floating pointer register arguments
+operand rxmm0() %{
+  constraint(ALLOC_IN_RC(xmm0_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm1() %{
+  constraint(ALLOC_IN_RC(xmm1_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm2() %{
+  constraint(ALLOC_IN_RC(xmm2_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm3() %{
+  constraint(ALLOC_IN_RC(xmm3_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm4() %{
+  constraint(ALLOC_IN_RC(xmm4_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm5() %{
+  constraint(ALLOC_IN_RC(xmm5_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm6() %{
+  constraint(ALLOC_IN_RC(xmm6_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm7() %{
+  constraint(ALLOC_IN_RC(xmm7_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm8() %{
+  constraint(ALLOC_IN_RC(xmm8_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm9() %{
+  constraint(ALLOC_IN_RC(xmm9_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm10() %{
+  constraint(ALLOC_IN_RC(xmm10_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm11() %{
+  constraint(ALLOC_IN_RC(xmm11_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm12() %{
+  constraint(ALLOC_IN_RC(xmm12_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm13() %{
+  constraint(ALLOC_IN_RC(xmm13_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm14() %{
+  constraint(ALLOC_IN_RC(xmm14_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+operand rxmm15() %{
+  constraint(ALLOC_IN_RC(xmm15_reg));  match(VecX);
+  predicate((UseSSE > 0) && (UseAVX == 0));  format%{%}  interface(REG_INTER);
+%}
+
+operand rymm0() %{
+  constraint(ALLOC_IN_RC(ymm0_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm1() %{
+  constraint(ALLOC_IN_RC(ymm1_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm2() %{
+  constraint(ALLOC_IN_RC(ymm2_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm3() %{
+  constraint(ALLOC_IN_RC(ymm3_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm4() %{
+  constraint(ALLOC_IN_RC(ymm4_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm5() %{
+  constraint(ALLOC_IN_RC(ymm5_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm6() %{
+  constraint(ALLOC_IN_RC(ymm6_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm7() %{
+  constraint(ALLOC_IN_RC(ymm7_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm8() %{
+  constraint(ALLOC_IN_RC(ymm8_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm9() %{
+  constraint(ALLOC_IN_RC(ymm9_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm10() %{
+  constraint(ALLOC_IN_RC(ymm10_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm11() %{
+  constraint(ALLOC_IN_RC(ymm11_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm12() %{
+  constraint(ALLOC_IN_RC(ymm12_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm13() %{
+  constraint(ALLOC_IN_RC(ymm13_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm14() %{
+  constraint(ALLOC_IN_RC(ymm14_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+operand rymm15() %{
+  constraint(ALLOC_IN_RC(ymm15_reg));  match(VecY);
+  predicate((UseAVX == 1) || (UseAVX == 2));  format%{%}  interface(REG_INTER);
+%}
+
+operand rzmm0() %{
+  constraint(ALLOC_IN_RC(zmm0_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm1() %{
+  constraint(ALLOC_IN_RC(zmm1_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm2() %{
+  constraint(ALLOC_IN_RC(zmm2_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm3() %{
+  constraint(ALLOC_IN_RC(zmm3_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm4() %{
+  constraint(ALLOC_IN_RC(zmm4_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm5() %{
+  constraint(ALLOC_IN_RC(zmm5_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm6() %{
+  constraint(ALLOC_IN_RC(zmm6_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm7() %{
+  constraint(ALLOC_IN_RC(zmm7_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm8() %{
+  constraint(ALLOC_IN_RC(zmm8_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm9() %{
+  constraint(ALLOC_IN_RC(zmm9_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm10() %{
+  constraint(ALLOC_IN_RC(zmm10_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm11() %{
+  constraint(ALLOC_IN_RC(zmm11_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm12() %{
+  constraint(ALLOC_IN_RC(zmm12_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm13() %{
+  constraint(ALLOC_IN_RC(zmm13_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm14() %{
+  constraint(ALLOC_IN_RC(zmm14_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm15() %{
+  constraint(ALLOC_IN_RC(zmm15_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm16() %{
+  constraint(ALLOC_IN_RC(zmm16_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm17() %{
+  constraint(ALLOC_IN_RC(zmm17_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm18() %{
+  constraint(ALLOC_IN_RC(zmm18_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm19() %{
+  constraint(ALLOC_IN_RC(zmm19_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm20() %{
+  constraint(ALLOC_IN_RC(zmm20_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm21() %{
+  constraint(ALLOC_IN_RC(zmm21_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm22() %{
+  constraint(ALLOC_IN_RC(zmm22_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm23() %{
+  constraint(ALLOC_IN_RC(zmm23_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm24() %{
+  constraint(ALLOC_IN_RC(zmm24_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm25() %{
+  constraint(ALLOC_IN_RC(zmm25_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm26() %{
+  constraint(ALLOC_IN_RC(zmm26_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm27() %{
+  constraint(ALLOC_IN_RC(zmm27_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm28() %{
+  constraint(ALLOC_IN_RC(zmm28_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm29() %{
+  constraint(ALLOC_IN_RC(zmm29_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm30() %{
+  constraint(ALLOC_IN_RC(zmm30_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
+operand rzmm31() %{
+  constraint(ALLOC_IN_RC(zmm31_reg));  match(VecZ);
+  predicate(UseAVX == 3); format%{%}  interface(REG_INTER);
+%}
 
 //----------OPERAND CLASSES----------------------------------------------------
 // Operand Classes are groups of operands that are used as to simplify
@@ -7434,6 +7715,7 @@ instruct compareAndSwapS(rRegI res,
   ins_pipe( pipe_cmpxchg );
 %}
 
+
 instruct compareAndSwapN(rRegI res,
                           memory mem_ptr,
                           rax_RegN oldval, rRegN newval,
@@ -7639,6 +7921,48 @@ instruct xaddI( memory mem, rRegI newval, rFlagsReg cr) %{
     if (os::is_MP()) { __ lock(); }
     __ xaddl($mem$$Address, $newval$$Register);
   %}
+  ins_pipe( pipe_cmpxchg );
+%}
+
+instruct compareAndSwap2L(rax_RegL res,
+                          memory mem_ptr,
+                          rax_RegL oldval, rRegL newval,
+                          rFlagsReg cr)
+%{
+  predicate(VM_Version::supports_cx8());
+  match(Set res (CompareAndSwap2L mem_ptr (Binary oldval newval)));
+  effect(KILL cr);
+
+  format %{ "cmpxchgq $mem_ptr,$newval" %}
+
+  ins_encode %{
+    if (os::is_MP()) {
+      __ lock();
+    }
+    __ cmpxchgq($newval$$Register, $mem_ptr$$Address);
+  %}
+    
+
+  ins_pipe( pipe_cmpxchg );
+%}
+
+instruct compareAndSwap2I(rax_RegI res,
+                          memory mem_ptr,
+                          rax_RegI oldval, rRegI newval,
+                          rFlagsReg cr)
+%{
+  match(Set res (CompareAndSwap2I mem_ptr (Binary oldval newval)));
+  effect(KILL cr);
+
+  format %{ "cmpxchgl $mem_ptr,$newval" %}
+
+  ins_encode %{
+    if (os::is_MP()) {
+      __ lock();
+    }
+    __ cmpxchgl($newval$$Register, $mem_ptr$$Address);
+  %}
+
   ins_pipe( pipe_cmpxchg );
 %}
 
@@ -11529,6 +11853,41 @@ instruct testL_reg_mem(rFlagsReg cr, rRegL src, memory mem, immL0 zero)
   ins_pipe(ialu_cr_reg_mem);
 %}
 
+instruct testL_reg_reg(rFlagsReg cr, rRegP src, r12_RegL other, immL0 zero)
+%{
+  match(Set cr (CmpL (AndL (CastP2X src) other) zero));
+  ins_cost(50);  
+
+  format %{ "testq   $src, $other\t# long" %}
+  ins_encode %{
+    __ testq($src$$Register, $other$$Register);
+  %}
+  ins_pipe(ialu_cr_reg_imm);
+%}
+
+instruct testL_reg_mem3(rFlagsReg cr, rRegP src, immP addr, immL0 zero)
+%{
+  predicate(!is_far(_kids[0]->_kids[1]->_kids[0]->_leaf->bottom_type()->is_rawptr()->get_con()));
+  match(Set cr (CmpL (AndL (CastP2X src) (LoadL addr)) zero));
+
+  format %{ "testq   $src, [$addr]" %}
+  ins_encode %{
+    __ testq($src$$Register, AddressLiteral((address)$addr$$constant, relocInfo::external_word_type));
+  %}
+
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
+instruct testL_reg_mem2(rFlagsReg cr, rRegP src, memory mem, immL0 zero)
+%{
+  match(Set cr (CmpL (AndL (CastP2X src) (LoadL mem)) zero));
+
+  format %{ "testq   $src, $mem" %}
+  opcode(0x85);
+  ins_encode(REX_reg_mem_wide(src, mem), OpcP, reg_mem(src, mem));
+  ins_pipe(ialu_cr_reg_mem);
+%}
+
 // Manifest a CmpL result in an integer register.  Very painful.
 // This is the test to avoid.
 instruct cmpL3_reg_reg(rRegI dst, rRegL src1, rRegL src2, rFlagsReg flags)
@@ -12282,6 +12641,185 @@ instruct RethrowException()
   ins_pipe(pipe_jmp);
 %}
 
+// Execute GC load barrier (strong) slow path 
+
+// For XMM enabled processors
+
+instruct loadBarrierSlowRegXmm(rRegP dst, memory mem, rFlagsReg cr, 
+  rxmm0 x0, rxmm1 x1, rxmm2 x2,rxmm3 x3, rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+  rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11, rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15
+  ) %{
+
+  match(Set dst (LoadBarrierSlowReg mem)); 
+  predicate((UseSSE > 0) && (UseAVX == 0));
+
+  effect(DEF dst, KILL cr, 
+  KILL x0, KILL x1, KILL x2, KILL x3, KILL x4, KILL x5, KILL x6, KILL x7,
+  KILL x8, KILL x9, KILL x10, KILL x11, KILL x12, KILL x13, KILL x14, KILL x15
+  );
+
+  format %{"LoadBarrierSlowRegXmm $dst,$mem" %} 
+  ins_encode %{
+  Register d = $dst$$Register;
+  
+  assert( d != r12, "Can't be R12!");
+  assert( d != r15, "Can't be R15!");
+  assert( d != rsp, "Can't be RSP!");
+  __ lea(d,$mem$$Address); 
+  __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d))); 
+  %} 
+  ins_pipe(pipe_slow); 
+%} 
+ 
+// For YMM enabled processors
+
+instruct loadBarrierSlowRegYmm(rRegP dst, memory mem, rFlagsReg cr, 
+  rymm0 y0, rymm1 y1, rymm2 y2,rymm3 y3, rymm4 y4, rymm5 y5, rymm6 y6, rymm7 y7,
+  rymm8 y8, rymm9 y9, rymm10 y10, rymm11 y11, rymm12 y12, rymm13 y13, rymm14 y14, rymm15 y15
+  ) %{
+
+  match(Set dst (LoadBarrierSlowReg mem)); 
+  predicate((UseAVX == 1) || (UseAVX == 2));
+
+  effect(DEF dst, KILL cr, 
+  KILL y0, KILL y1, KILL y2, KILL y3, KILL y4, KILL y5, KILL y6, KILL y7,
+  KILL y8, KILL y9, KILL y10, KILL y11, KILL y12, KILL y13, KILL y14, KILL y15
+  );
+
+  format %{"LoadBarrierSlowRegYmm $dst,$mem" %} 
+  ins_encode %{
+  Register d = $dst$$Register;
+  
+  assert( d != r12, "Can't be R15!");
+  assert( d != r15, "Can't be R15!");
+  assert( d != rsp, "Can't be RSP!");
+  __ lea(d,$mem$$Address); 
+  __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d))); 
+  %} 
+  ins_pipe(pipe_slow); 
+%} 
+ 
+// For ZMM enabled processors
+
+instruct loadBarrierSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr, 
+  rzmm0 z0, rzmm1 z1, rzmm2 z2,rzmm3 z3, rzmm4 z4, rzmm5 z5, rzmm6 z6, rzmm7 z7,
+  rzmm8 z8, rzmm9 z9, rzmm10 z10, rzmm11 z11, rzmm12 z12, rzmm13 z13, rzmm14 z14, rzmm15 z15,
+  rzmm16 z16, rzmm17 z17, rzmm18 z18, rzmm19 z19, rzmm20 z20, rzmm21 z21, rzmm22 z22, rzmm23 z23,
+  rzmm24 z24, rzmm25 z25, rzmm26 z26, rzmm27 z27, rzmm28 z28, rzmm29 z29, rzmm30 z30, rzmm31 z31
+  ) %{
+
+  match(Set dst (LoadBarrierSlowReg mem)); 
+  predicate(UseAVX == 3);
+
+  effect(DEF dst, KILL cr, 
+  KILL z0, KILL z1, KILL z2, KILL z3, KILL z4, KILL z5, KILL z6, KILL z7,
+  KILL z8, KILL z9, KILL z10, KILL z11, KILL z12, KILL z13, KILL z14, KILL z15,
+  KILL z16, KILL z17, KILL z18, KILL z19, KILL z20, KILL z21, KILL z22, KILL z23,
+  KILL z24, KILL z25, KILL z26, KILL z27, KILL z28, KILL z29, KILL z30, KILL z31
+  );
+
+  format %{"LoadBarrierSlowRegZmm $dst,$mem" %} 
+  ins_encode %{
+  Register d = $dst$$Register;
+  
+  assert( d != r12, "Can't be R12!");
+  assert( d != r15, "Can't be R15!");
+  assert( d != rsp, "Can't be RSP!");
+  __ lea(d,$mem$$Address); 
+  __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d))); 
+  %} 
+  ins_pipe(pipe_slow); 
+%} 
+ 
+// Execute GC load barrier weak slow path 
+
+// For XMM enabled processors
+
+instruct loadBarrierWeakSlowRegXmm(rRegP dst, memory mem, rFlagsReg cr, 
+  rxmm0 x0, rxmm1 x1, rxmm2 x2,rxmm3 x3, rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+  rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11, rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15
+  ) %{
+
+  match(Set dst (LoadBarrierWeakSlowReg mem)); 
+  predicate((UseSSE > 0) && (UseAVX == 0));
+
+  effect(DEF dst, KILL cr, 
+  KILL x0, KILL x1, KILL x2, KILL x3, KILL x4, KILL x5, KILL x6, KILL x7,
+  KILL x8, KILL x9, KILL x10, KILL x11, KILL x12, KILL x13, KILL x14, KILL x15
+  );
+
+  format %{"LoadBarrierWeakSlowRegXmm $dst,$mem" %} 
+  ins_encode %{
+  Register d = $dst$$Register;
+  
+  assert( d != r12, "Can't be R12!");
+  assert( d != r15, "Can't be R15!");
+  assert( d != rsp, "Can't be RSP!");
+  __ lea(d,$mem$$Address); 
+  __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d))); 
+  %} 
+  ins_pipe(pipe_slow); 
+%} 
+ 
+// For YMM enabled processors
+
+instruct loadBarrierWeakSlowRegYmm(rRegP dst, memory mem, rFlagsReg cr, 
+  rymm0 y0, rymm1 y1, rymm2 y2,rymm3 y3, rymm4 y4, rymm5 y5, rymm6 y6, rymm7 y7,
+  rymm8 y8, rymm9 y9, rymm10 y10, rymm11 y11, rymm12 y12, rymm13 y13, rymm14 y14, rymm15 y15
+  ) %{
+
+   match(Set dst (LoadBarrierWeakSlowReg mem)); 
+  predicate((UseAVX == 1) || (UseAVX == 2));
+
+  effect(DEF dst, KILL cr, 
+  KILL y0, KILL y1, KILL y2, KILL y3, KILL y4, KILL y5, KILL y6, KILL y7,
+  KILL y8, KILL y9, KILL y10, KILL y11, KILL y12, KILL y13, KILL y14, KILL y15
+  );
+
+  format %{"LoadBarrierWeakSlowRegYmm $dst,$mem" %} 
+  ins_encode %{
+  Register d = $dst$$Register;
+  
+  assert( d != r12, "Can't be R12!");
+  assert( d != r15, "Can't be R15!");
+  assert( d != rsp, "Can't be RSP!");
+  __ lea(d,$mem$$Address); 
+  __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d))); 
+  %} 
+  ins_pipe(pipe_slow); 
+%} 
+ 
+// For ZMM enabled processors
+
+instruct loadBarrierWeakSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr, 
+  rzmm0 z0, rzmm1 z1, rzmm2 z2,rzmm3 z3, rzmm4 z4, rzmm5 z5, rzmm6 z6, rzmm7 z7,
+  rzmm8 z8, rzmm9 z9, rzmm10 z10, rzmm11 z11, rzmm12 z12, rzmm13 z13, rzmm14 z14, rzmm15 z15,
+  rzmm16 z16, rzmm17 z17, rzmm18 z18, rzmm19 z19, rzmm20 z20, rzmm21 z21, rzmm22 z22, rzmm23 z23,
+  rzmm24 z24, rzmm25 z25, rzmm26 z26, rzmm27 z27, rzmm28 z28, rzmm29 z29, rzmm30 z30, rzmm31 z31
+  ) %{
+
+  match(Set dst (LoadBarrierWeakSlowReg mem)); 
+  predicate(UseAVX == 3);
+
+  effect(DEF dst, KILL cr, 
+  KILL z0, KILL z1, KILL z2, KILL z3, KILL z4, KILL z5, KILL z6, KILL z7,
+  KILL z8, KILL z9, KILL z10, KILL z11, KILL z12, KILL z13, KILL z14, KILL z15,
+  KILL z16, KILL z17, KILL z18, KILL z19, KILL z20, KILL z21, KILL z22, KILL z23,
+  KILL z24, KILL z25, KILL z26, KILL z27, KILL z28, KILL z29, KILL z30, KILL z31
+  );
+
+  format %{"LoadBarrierWeakSlowRegZmm $dst,$mem" %} 
+  ins_encode %{
+  Register d = $dst$$Register;
+  
+  assert( d != r12, "Can't be R12!");
+  assert( d != r15, "Can't be R15!");
+  assert( d != rsp, "Can't be RSP!");
+  __ lea(d,$mem$$Address); 
+  __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d))); 
+  %} 
+  ins_pipe(pipe_slow); 
+%} 
 
 // ============================================================================
 // This name is KNOWN by the ADLC and cannot be changed.
@@ -12293,6 +12831,17 @@ instruct tlsLoadP(r15_RegP dst) %{
 
   size(0);
   format %{ "# TLS is in R15" %}
+  ins_encode( /*empty encoding*/ );
+  ins_pipe(ialu_reg_reg);
+%}
+
+instruct addr_bad_bit(r12_RegL dst) %{
+  match(Set dst (AddrBadBit));
+  effect(DEF dst);
+
+  size(0);
+  ins_cost(0);
+  format %{ "# addr_bad_bit in r12" %}
   ins_encode( /*empty encoding*/ );
   ins_pipe(ialu_reg_reg);
 %}

@@ -616,28 +616,33 @@ char* java_lang_String::as_utf8_string(oop java_string, int start, int len, char
   }
 }
 
-bool java_lang_String::equals(oop java_string, jchar* chars, int len) {
-  assert(java_string->klass() == SystemDictionary::String_klass(),
-         "must be java_string");
-  typeArrayOop value  = java_lang_String::value(java_string);
-  int          length = java_lang_String::length(java_string);
+bool java_lang_String::equals_weak(oop* java_string_addr, jchar* chars, int len) {
+  oop string = HeapAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(java_string_addr);
+  assert(string->klass() == SystemDictionary::String_klass(), "must be java_string");
+
+  int length = java_lang_String::length(string);
+
   if (length != len) {
     return false;
   }
-  bool      is_latin1 = java_lang_String::is_latin1(java_string);
-  if (!is_latin1) {
-    for (int i = 0; i < len; i++) {
-      if (value->char_at(i) != chars[i]) {
-        return false;
-      }
-    }
-  } else {
+
+  typeArrayOop value = java_lang_String::value_weak(string);
+  bool is_latin1 = java_lang_String::is_latin1(string);
+
+  if (is_latin1) {
     for (int i = 0; i < len; i++) {
       if ((((jchar) value->byte_at(i)) & 0xff) != chars[i]) {
         return false;
       }
     }
+  } else {
+    for (int i = 0; i < len; i++) {
+      if (value->char_at(i) != chars[i]) {
+        return false;
+      }
+    }
   }
+
   return true;
 }
 
@@ -659,7 +664,7 @@ bool java_lang_String::equals(oop str1, oop str2) {
     return false;
   }
   int blength1 = value1->length();
-  for (int i = 0; i < value1->length(); i++) {
+  for (int i = 0; i < blength1; i++) {
     if (value1->byte_at(i) != value2->byte_at(i)) {
       return false;
     }
@@ -1507,12 +1512,8 @@ void java_lang_Throwable::compute_offsets() {
 
 oop java_lang_Throwable::unassigned_stacktrace() {
   InstanceKlass* ik = SystemDictionary::Throwable_klass();
-  address addr = ik->static_field_addr(static_unassigned_stacktrace_offset);
-  if (UseCompressedOops) {
-    return oopDesc::load_decode_heap_oop((narrowOop *)addr);
-  } else {
-    return oopDesc::load_decode_heap_oop((oop*)addr);
-  }
+  HeapWord* addr = (HeapWord*)ik->static_field_addr(static_unassigned_stacktrace_offset);
+  return HeapAccess<>::oop_load(addr);
 }
 
 oop java_lang_Throwable::backtrace(oop throwable) {
@@ -3617,12 +3618,9 @@ int java_lang_System::err_offset_in_bytes() {
 
 bool java_lang_System::has_security_manager() {
   InstanceKlass* ik = SystemDictionary::System_klass();
-  address addr = ik->static_field_addr(static_security_offset);
-  if (UseCompressedOops) {
-    return oopDesc::load_decode_heap_oop((narrowOop *)addr) != NULL;
-  } else {
-    return oopDesc::load_decode_heap_oop((oop*)addr) != NULL;
-  }
+  HeapWord* addr = (HeapWord*)ik->static_field_addr(static_security_offset);
+  // No need to for a read barrier to figure out if addr points to null.
+  return (oop)HeapAccess<>::oop_load(addr) != NULL;
 }
 
 int java_lang_Class::_klass_offset;

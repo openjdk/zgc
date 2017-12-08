@@ -53,6 +53,11 @@ typeArrayOop java_lang_String::value(oop java_string) {
   assert(is_instance(java_string), "must be java_string");
   return (typeArrayOop) java_string->obj_field(value_offset);
 }
+typeArrayOop java_lang_String::value_weak(oop java_string) {
+  assert(initialized && (value_offset > 0), "Must be initialized");
+  assert(is_instance(java_string), "must be java_string");
+  return (typeArrayOop) java_string->obj_field_weak(value_offset);
+}
 unsigned int java_lang_String::hash(oop java_string) {
   assert(initialized && (hash_offset > 0), "Must be initialized");
   assert(is_instance(java_string), "must be java_string");
@@ -68,7 +73,7 @@ bool java_lang_String::is_latin1(oop java_string) {
 int java_lang_String::length(oop java_string) {
   assert(initialized, "Must be initialized");
   assert(is_instance(java_string), "must be java_string");
-  typeArrayOop value_array = ((typeArrayOop)java_string->obj_field(value_offset));
+  typeArrayOop value_array = ((typeArrayOop)java_string->obj_field_weak(value_offset));
   if (value_array == NULL) {
     return 0;
   }
