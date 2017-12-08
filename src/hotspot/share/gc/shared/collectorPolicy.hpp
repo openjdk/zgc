@@ -132,9 +132,9 @@ class CollectorPolicy : public CHeapObj<mtGC> {
 
   virtual CardTableRS* create_rem_set(MemRegion reserved);
 
-  MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
-                                               size_t size,
-                                               Metaspace::MetadataType mdtype);
+  virtual MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
+                                                       size_t size,
+                                                       Metaspace::MetadataType mdtype);
 };
 
 class ClearedAllSoftRefs : public StackObj {
