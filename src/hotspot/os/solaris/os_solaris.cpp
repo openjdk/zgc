@@ -273,6 +273,10 @@ julong os::Solaris::available_memory() {
   return (julong)sysconf(_SC_AVPHYS_PAGES) * os::vm_page_size();
 }
 
+int os::Solaris::getcpuid() {
+  return ::getcpuid();
+}
+
 julong os::Solaris::_physical_memory = 0;
 
 julong os::physical_memory() {
@@ -289,6 +293,10 @@ void os::Solaris::initialize_system_info() {
   _processors_online = sysconf(_SC_NPROCESSORS_ONLN);
   _physical_memory = (julong)sysconf(_SC_PHYS_PAGES) *
                                      (julong)sysconf(_SC_PAGESIZE);
+}
+
+int os::processor_id() {
+  return Solaris::getcpuid();
 }
 
 int os::active_processor_count() {
