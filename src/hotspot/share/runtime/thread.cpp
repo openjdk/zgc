@@ -112,6 +112,7 @@
 #include "gc/cms/concurrentMarkSweepThread.hpp"
 #include "gc/g1/concurrentMarkThread.inline.hpp"
 #include "gc/parallel/pcTasks.hpp"
+#include "gc/z/zHeap.inline.hpp"
 #endif // INCLUDE_ALL_GCS
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciCompiler.hpp"
@@ -1500,6 +1501,7 @@ void JavaThread::collect_counters(typeArrayOop array) {
 void JavaThread::initialize() {
   // Initialize fields
 
+  set_zaddress_bad_mask(0);
   set_saved_exception_pc(NULL);
   set_threadObj(NULL);
   _anchor.clear();
@@ -2007,6 +2009,11 @@ void JavaThread::exit(bool destroy_vm, ExitType exit_type) {
   if (UseG1GC) {
     flush_barrier_queues();
   }
+
+  if (UseZGC) {
+     // Flush and free any remaining mark stacks
+     ZHeap::heap()->mark_flush_and_free();
+  }
 #endif // INCLUDE_ALL_GCS
 
   log_info(os, thread)("JavaThread %s (tid: " UINTX_FORMAT ").",
@@ -2089,6 +2096,11 @@ void JavaThread::cleanup_failed_attach_current_thread() {
 #if INCLUDE_ALL_GCS
   if (UseG1GC) {
     flush_barrier_queues();
+  }
+
+  if (UseZGC) {
+     // Flush and free any remaining mark stacks
+     ZHeap::heap()->mark_flush_and_free();
   }
 #endif // INCLUDE_ALL_GCS
 
@@ -3266,7 +3278,7 @@ void JavaThread::trace_frames() {
 class PrintAndVerifyOopClosure: public OopClosure {
  protected:
   template <class T> inline void do_oop_work(T* p) {
-    oop obj = oopDesc::load_decode_heap_oop(p);
+    oop obj = RootAccess<>::oop_load(p);
     if (obj == NULL) return;
     tty->print(INTPTR_FORMAT ": ", p2i(p));
     if (oopDesc::is_oop_or_null(obj)) {
@@ -4351,6 +4363,9 @@ jboolean Threads::is_supported_jni_version(jint version) {
 void Threads::add(JavaThread* p, bool force_daemon) {
   // The threads lock must be owned at this point
   assert_locked_or_safepoint(Threads_lock);
+
+  // Set local mask value to current global mask value
+  p->set_zaddress_bad_mask(ZAddressBadMask);
 
   // See the comment for this method in thread.hpp for its purpose and
   // why it is called here.

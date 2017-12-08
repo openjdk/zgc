@@ -1404,6 +1404,52 @@ public:
                                                                             \
   /* gc */                                                                  \
                                                                             \
+  product(bool, UseLoadBarrier, false,                                      \
+          "Use load barrier on all reference loads")                        \
+                                                                            \
+  product(bool, UseZGC, false,                                              \
+          "Use the Z garbage collector")                                    \
+                                                                            \
+  product(uint, ZCollectionInterval, 0,                                     \
+          "Time between GCs (in seconds)")                                  \
+                                                                            \
+  product(uint, ZStatisticsInterval, 10,                                    \
+          "Time between statistics print outs (in seconds)")                \
+          range(1, (uint)-1)                                                \
+                                                                            \
+  product(bool, ZStatisticsForceTrace, false,                               \
+          "Force tracing of ZStats")                                        \
+                                                                            \
+  product(ccstr, ZPath, NULL,                                               \
+          "Filesystem path for Java heap backing storage "                  \
+          "(must be a tmpfs or a hugetlbfs filesystem)")                    \
+                                                                            \
+  product(bool, ZStallOnOutOfMemory, true,                                  \
+          "Allow Java threads to stall and wait for GC to complete "        \
+          "instead of immediately throwing an OutOfMemoryError")            \
+                                                                            \
+  product(bool, ZUnmapBadViews, false,                                      \
+          "Unmap bad address views (for debugging only)")                   \
+                                                                            \
+  product(bool, ZVerifyMarking, false,                                      \
+          "Verify marking stacks (for debugging only)")                     \
+                                                                            \
+  product(bool, ZVerifyForwarding, false,                                   \
+          "Verify forwarding tables (for debugging only)")                  \
+                                                                            \
+  product(bool, ZWeakRoots, true,                                           \
+          "Treat JNI WeakGlobalRefs and StringTable as weak roots")         \
+                                                                            \
+  product(size_t, ZMarkStacksMax, NOT_LP64(512*M) LP64_ONLY(8*G),           \
+          "Maximum number of bytes allocated for marking stacks")           \
+          range(32*M, NOT_LP64(512*M) LP64_ONLY(1024*G))                    \
+                                                                            \
+  product(double, ZFragmentationLimit, 25.0,                                \
+          "Maximum allowed heap fragmentation")                             \
+                                                                            \
+  product(double, ZAllocationSpikeTolerance, 2.0,                           \
+          "Allocation spike tolerance factor")                              \
+                                                                            \
   product(bool, UseSerialGC, false,                                         \
           "Use the Serial garbage collector")                               \
                                                                             \

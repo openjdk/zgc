@@ -79,6 +79,7 @@ void Node::verify_construction() {
   if (BreakAtNode != 0 && (_debug_idx == BreakAtNode || (int)_idx == BreakAtNode)) {
     tty->print_cr("BreakAtNode: _idx=%d _debug_idx=%d", _idx, _debug_idx);
     BREAKPOINT;
+    os::message_box("xxx", "yyy");
   }
 #if OPTO_DU_ITERATOR_ASSERT
   _last_del = NULL;
@@ -499,6 +500,9 @@ Node *Node::clone() const {
     C->add_macro_node(n);
   if (is_expensive())
     C->add_expensive_node(n);
+  if (is_LoadBarrier()) {
+    C->add_load_barrier_node(n->as_LoadBarrier());
+  }
   // If the cloned node is a range check dependent CastII, add it to the list.
   CastIINode* cast = n->isa_CastII();
   if (cast != NULL && cast->has_range_check()) {
@@ -615,6 +619,9 @@ void Node::destruct() {
 
   if (is_SafePoint()) {
     as_SafePoint()->delete_replaced_nodes();
+  }
+  if (is_LoadBarrier()) {
+    compile->remove_load_barrier_node(this->as_LoadBarrier());
   }
 #ifdef ASSERT
   // We will not actually delete the storage, but we'll make the node unusable.
@@ -1117,7 +1124,7 @@ bool Node::has_special_unique_user() const {
   if (this->is_Store()) {
     // Condition for back-to-back stores folding.
     return n->Opcode() == op && n->in(MemNode::Memory) == this;
-  } else if (this->is_Load() || this->is_DecodeN()) {
+  } else if (this->is_Load() || this->is_DecodeN() || this->is_Phi()) {
     // Condition for removing an unused LoadNode or DecodeNNode from the MemBarAcquire precedence input
     return n->Opcode() == Op_MemBarAcquire;
   } else if (op == Op_AddL) {
@@ -1352,6 +1359,9 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
       if (cast != NULL && cast->has_range_check()) {
         igvn->C->remove_range_check_cast(cast);
       }
+      if (dead->is_LoadBarrier()) {
+        igvn->C->remove_load_barrier_node(dead->as_LoadBarrier());
+      }
       igvn->C->record_dead_node(dead->_idx);
       // Kill all inputs to the dead guy
       for (uint i=0; i < dead->req(); i++) {
@@ -1370,6 +1380,8 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
             // The restriction (outcnt() <= 2) is the same as in set_req_X()
             // and remove_globally_dead_node().
             igvn->add_users_to_worklist( n );
+          } else if (n->is_LoadBarrier() && !n->as_LoadBarrier()->has_true_uses()) {
+            igvn->_worklist.push(n);
           }
         }
       }

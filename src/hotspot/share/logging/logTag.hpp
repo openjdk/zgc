@@ -61,6 +61,7 @@
   LOG_TAG(data) \
   LOG_TAG(datacreation) \
   LOG_TAG(defaultmethods) \
+  LOG_TAG(director) \
   LOG_TAG(dump) \
   LOG_TAG(ergo) \
   LOG_TAG(exceptions) \
@@ -102,6 +103,7 @@
   LOG_TAG(obsolete) \
   LOG_TAG(oopmap) \
   LOG_TAG(oopstorage) \
+  LOG_TAG(oops) \
   LOG_TAG(os) \
   LOG_TAG(pagesize) \
   LOG_TAG(patch) \
@@ -116,6 +118,7 @@
   LOG_TAG(redefine) \
   LOG_TAG(refine) \
   LOG_TAG(region) \
+  LOG_TAG(reloc) \
   LOG_TAG(remset) \
   LOG_TAG(purge) \
   LOG_TAG(resolve) \

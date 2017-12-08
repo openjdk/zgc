@@ -137,6 +137,13 @@ jobject JNIHandles::make_weak_global(Handle obj, AllocFailType alloc_failmode) {
 
 oop JNIHandles::resolve_jweak(jweak handle) {
   assert(is_jweak(handle), "precondition");
+#if INCLUDE_ALL_GCS
+  if (UseLoadBarrier) {
+    oop* ref_addr = jweak_ref_addr(handle);
+    return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(ref_addr);
+  }
+#endif
+
   oop result = jweak_ref(handle);
 #if INCLUDE_ALL_GCS
   if (result != NULL && UseG1GC) {

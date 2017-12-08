@@ -42,6 +42,7 @@ class JNIHandles : AllStatic {
 
   inline static bool is_jweak(jobject handle);
   inline static oop& jobject_ref(jobject handle); // NOT jweak!
+  inline static oop* jweak_ref_addr(jobject handle);
   inline static oop& jweak_ref(jobject handle);
 
   template<bool external_guard> inline static oop resolve_impl(jobject handle);
@@ -208,9 +209,13 @@ inline oop& JNIHandles::jobject_ref(jobject handle) {
 }
 
 inline oop& JNIHandles::jweak_ref(jobject handle) {
+  return *jweak_ref_addr(handle);
+}
+
+inline oop* JNIHandles::jweak_ref_addr(jobject handle) {
   assert(is_jweak(handle), "precondition");
   char* ptr = reinterpret_cast<char*>(handle) - weak_tag_value;
-  return *reinterpret_cast<oop*>(ptr);
+  return reinterpret_cast<oop*>(ptr);
 }
 
 // external_guard is true if called from resolve_external_guard.
