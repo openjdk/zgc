@@ -1440,9 +1440,6 @@ public:
   product(bool, ZVerifyForwarding, false,                                   \
           "Verify forwarding tables (for debugging only)")                  \
                                                                             \
-  product(bool, ZLoadBarrierMediumPath, false,                              \
-          "Enable load barrier medium path")                                \
-                                                                            \
   product(bool, ZWeakRoots, true,                                           \
           "Treat JNI WeakGlobalRefs and StringTable as weak roots")         \
                                                                             \
