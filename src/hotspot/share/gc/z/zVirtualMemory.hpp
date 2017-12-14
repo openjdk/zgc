@@ -50,6 +50,7 @@ private:
   bool           _initialized;
 
   bool reserve(uintptr_t start, size_t size);
+  void nmt_reserve(uintptr_t start, size_t size);
 
 public:
   ZVirtualMemoryManager();

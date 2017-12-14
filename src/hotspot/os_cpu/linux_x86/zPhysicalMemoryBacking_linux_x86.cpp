@@ -198,6 +198,11 @@ void ZPhysicalMemoryBacking::unmap_view(ZPhysicalMemory pmem, uintptr_t addr) co
   }
 }
 
+uintptr_t ZPhysicalMemoryBacking::nmt_address(uintptr_t offset) const {
+  // From an NMT point of view we treat the first heap mapping (marked0) as committed
+  return ZAddress::marked0(offset);
+}
+
 void ZPhysicalMemoryBacking::map(ZPhysicalMemory pmem, uintptr_t offset) const {
   if (ZUnmapBadViews) {
     // Only map the good view, for debugging only

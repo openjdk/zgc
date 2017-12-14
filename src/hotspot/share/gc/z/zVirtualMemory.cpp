@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zVirtualMemory.inline.hpp"
+#include "services/memTracker.hpp"
 
 ZVirtualMemoryManager::ZVirtualMemoryManager() :
     _manager(),
@@ -36,8 +37,16 @@ ZVirtualMemoryManager::ZVirtualMemoryManager() :
   // Make the complete address view free
   _manager.free(0, ZAddressOffsetMax);
 
+  // Register address space with native memory tracker
+  nmt_reserve(ZAddressSpaceStart, ZAddressSpaceSize);
+
   // Successfully initialized
   _initialized = true;
+}
+
+void ZVirtualMemoryManager::nmt_reserve(uintptr_t start, size_t size) {
+  MemTracker::record_virtual_memory_reserve((void*)start, size, CALLER_PC);
+  MemTracker::record_virtual_memory_type((void*)start, mtJavaHeap);
 }
 
 bool ZVirtualMemoryManager::is_initialized() const {

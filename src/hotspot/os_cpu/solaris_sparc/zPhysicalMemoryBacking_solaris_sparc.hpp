@@ -55,6 +55,8 @@ public:
   ZPhysicalMemory alloc(size_t size);
   void free(ZPhysicalMemory pmem);
 
+  uintptr_t nmt_address(uintptr_t offset) const;
+
   void map(ZPhysicalMemory pmem, uintptr_t offset) const;
   void unmap(ZPhysicalMemory pmem, uintptr_t offset) const;
   void flip(ZPhysicalMemory pmem, uintptr_t offset) const;

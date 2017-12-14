@@ -196,6 +196,11 @@ void ZPhysicalMemoryBacking::unmap_anonymous(ZPhysicalMemory pmem, uintptr_t off
   }
 }
 
+uintptr_t ZPhysicalMemoryBacking::nmt_address(uintptr_t offset) const {
+  // We only have one heap mapping, so just convert the offset to a heap address
+  return ZAddress::address(offset);
+}
+
 void ZPhysicalMemoryBacking::map(ZPhysicalMemory pmem, uintptr_t offset) const {
   if (UseOSMHeap) {
     map_osm(pmem, offset);

@@ -25,6 +25,7 @@
 #include "gc/z/zPhysicalMemory.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
+#include "services/memTracker.hpp"
 #include "utilities/debug.hpp"
 
 ZPhysicalMemory::ZPhysicalMemory() :
@@ -126,6 +127,19 @@ bool ZPhysicalMemoryManager::ensure_available(size_t size) {
   return true;
 }
 
+void ZPhysicalMemoryManager::nmt_commit(ZPhysicalMemory pmem, uintptr_t offset) {
+  const uintptr_t addr = _backing.nmt_address(offset);
+  const size_t size = pmem.size();
+  MemTracker::record_virtual_memory_commit((void*)addr, size, CALLER_PC);
+}
+
+void ZPhysicalMemoryManager::nmt_uncommit(ZPhysicalMemory pmem, uintptr_t offset) {
+  const uintptr_t addr = _backing.nmt_address(offset);
+  const size_t size = pmem.size();
+  Tracker tracker = MemTracker::get_virtual_memory_uncommit_tracker();
+  tracker.record((address)addr, size);
+}
+
 ZPhysicalMemory ZPhysicalMemoryManager::alloc(size_t size) {
   if (!ensure_available(size)) {
     // Not enough memory available
@@ -142,11 +156,19 @@ void ZPhysicalMemoryManager::free(ZPhysicalMemory pmem) {
 }
 
 void ZPhysicalMemoryManager::map(ZPhysicalMemory pmem, uintptr_t offset) {
+  // Map page
   _backing.map(pmem, offset);
+
+  // Update native memory tracker
+  nmt_commit(pmem, offset);
 }
 
 void ZPhysicalMemoryManager::unmap(ZPhysicalMemory pmem, uintptr_t offset) {
+  // Unmap page
   _backing.unmap(pmem, offset);
+
+  // Update native memory tracker
+  nmt_uncommit(pmem, offset);
 }
 
 void ZPhysicalMemoryManager::flip(ZPhysicalMemory pmem, uintptr_t offset) {

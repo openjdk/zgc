@@ -73,6 +73,9 @@ private:
 
   bool ensure_available(size_t size);
 
+  void nmt_commit(ZPhysicalMemory pmem, uintptr_t offset);
+  void nmt_uncommit(ZPhysicalMemory pmem, uintptr_t offset);
+
 public:
   ZPhysicalMemoryManager(size_t max_capacity, size_t granule_size);
 
