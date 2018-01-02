@@ -8,7 +8,7 @@
 #include "utilities/debug.hpp"
 #include "unittest.hpp"
 
-#if defined(LINUX) && defined(AMD64)
+#if defined(AMD64)
 
 TEST(ZPhysicalMemorySegmentTest, split) {
   const size_t SegmentSize = 2 * M;

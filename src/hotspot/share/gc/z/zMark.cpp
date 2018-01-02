@@ -524,7 +524,7 @@ public:
 
   ~ZMarkTimeout() {
     const Tickspan duration = Ticks::now() - _start;
-    log_debug(gc, marking)("Mark With Timeout (%s): %s, " SIZE_FORMAT " oops, %.3fms",
+    log_debug(gc, marking)("Mark With Timeout (%s): %s, " UINT64_FORMAT " oops, %.3fms",
                            ZThread::name(), _expired ? "Expired" : "Completed",
                            _check_count, TimeHelper::counter_to_millis(duration.value()));
   }

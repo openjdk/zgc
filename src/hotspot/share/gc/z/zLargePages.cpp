@@ -31,7 +31,7 @@ ZLargePages::State ZLargePages::_state;
 void ZLargePages::initialize() {
   initialize_platform();
 
-  log_info(gc, init)("Memory: " SIZE_FORMAT "M", os::physical_memory() / M);
+  log_info(gc, init)("Memory: " JULONG_FORMAT "M", os::physical_memory() / M);
   log_info(gc, init)("Large Page Support: %s", to_string());
 }
 

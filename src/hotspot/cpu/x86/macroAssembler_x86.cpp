@@ -6701,7 +6701,7 @@ void MacroAssembler::store_klass(Register dst, Register src) {
     movptr(Address(dst, oopDesc::klass_offset_in_bytes()), src);
 }
 
-#if INCLUDE_ALL_GCS && defined(LINUX) && defined(_LP64)
+#if INCLUDE_ALL_GCS && defined(_LP64)
 
 void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_call, bool weak) {
   Label done;
@@ -6805,7 +6805,7 @@ void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_ca
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, bool expand_call, bool weak) {
 #ifdef _LP64
-#if INCLUDE_ALL_GCS && defined(LINUX)
+#if INCLUDE_ALL_GCS
   if (UseLoadBarrier) {
     load_barrier(dst, src, expand_call, weak);
   } else

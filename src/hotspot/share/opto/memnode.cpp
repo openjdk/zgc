@@ -1069,7 +1069,7 @@ Node *LoadBarrierNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   bool eliminate = (optimizeLoadBarriers && !(val->is_Phi() || val->Opcode() == Op_LoadP || val->Opcode() == Op_GetAndSetP || val->is_DecodeN())) ||
-    can_reshape && (dominating_barrier != NULL || !has_true_uses());
+    (can_reshape && (dominating_barrier != NULL || !has_true_uses()));
 
   if (eliminate) {
     if (can_reshape) {

@@ -1605,7 +1605,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
     case z_load_barrier_on_oop_field_preloaded_id:
     case z_load_barrier_on_weak_oop_field_preloaded_id:
       {
-#if defined(LINUX) && defined(_LP64)
+#if defined(_LP64)
         StubFrame f(sasm, "load_barrier", dont_gc_arguments);
 
         OopMap* map = save_live_registers(sasm, 2);
