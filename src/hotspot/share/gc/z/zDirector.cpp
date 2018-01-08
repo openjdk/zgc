@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -149,13 +149,27 @@ bool ZDirector::rule_proactive() const {
   // reduction, is considered acceptable. This rule allows us to keep the heap
   // size down and allow reference processing to happen even when we have a lot
   // of free space on the heap.
+
+  // Only consider doing a proactive GC if the heap usage has grown by at least
+  // 10% of the max capacity since the previous GC, or more than 5 minutes has
+  // passed since the previous GC. This helps avoid superfluous GCs when running
+  // applications with very low allocation rate.
+  const size_t used_after_last_gc = ZStatHeap::used_at_relocate_end();
+  const size_t used_increase_threshold = ZHeap::heap()->max_capacity() * 0.10; // 10%
+  const size_t used_threshold = used_after_last_gc + used_increase_threshold;
+  const size_t used = ZHeap::heap()->used();
+  const double time_since_last_gc = ZStatPhaseCycle::time_since_last();
+  const double time_since_last_gc_threshold = 5 * 60; // 5 minutes
+  if (used < used_threshold && time_since_last_gc < time_since_last_gc_threshold) {
+    // Don't even consider doing a proactive GC
+    return false;
+  }
+
   const double assumed_throughput_drop_during_gc = 0.50; // 50%
   const double acceptable_throughput_drop = 0.01;        // 1%
-
   const AbsSeq& duration_of_gc = ZStatPhaseCycle::duration();
   const double max_duration_of_gc = duration_of_gc.davg() + (duration_of_gc.dsd() * one_in_1000);
   const double acceptable_gc_interval = max_duration_of_gc * ((assumed_throughput_drop_during_gc / acceptable_throughput_drop) - 1.0);
-  const double time_since_last_gc = ZStatPhaseCycle::time_since_last();
   const double time_until_gc = acceptable_gc_interval - time_since_last_gc;
 
   log_debug(gc, director)("Rule: Proactive, AcceptableGCInterval: %.3lfs, TimeSinceLastGC: %.3lfs, TimeUntilGC: %.3lfs",
