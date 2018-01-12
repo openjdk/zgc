@@ -134,10 +134,13 @@ void ZPhysicalMemoryManager::nmt_commit(ZPhysicalMemory pmem, uintptr_t offset) 
 }
 
 void ZPhysicalMemoryManager::nmt_uncommit(ZPhysicalMemory pmem, uintptr_t offset) {
-  const uintptr_t addr = _backing.nmt_address(offset);
-  const size_t size = pmem.size();
-  Tracker tracker = MemTracker::get_virtual_memory_uncommit_tracker();
-  tracker.record((address)addr, size);
+  if (MemTracker::tracking_level() > NMT_minimal) {
+    const uintptr_t addr = _backing.nmt_address(offset);
+    const size_t size = pmem.size();
+
+    Tracker tracker = MemTracker::get_virtual_memory_uncommit_tracker();
+    tracker.record((address)addr, size);
+  }
 }
 
 ZPhysicalMemory ZPhysicalMemoryManager::alloc(size_t size) {
@@ -164,11 +167,11 @@ void ZPhysicalMemoryManager::map(ZPhysicalMemory pmem, uintptr_t offset) {
 }
 
 void ZPhysicalMemoryManager::unmap(ZPhysicalMemory pmem, uintptr_t offset) {
-  // Unmap page
-  _backing.unmap(pmem, offset);
-
   // Update native memory tracker
   nmt_uncommit(pmem, offset);
+
+  // Unmap page
+  _backing.unmap(pmem, offset);
 }
 
 void ZPhysicalMemoryManager::flip(ZPhysicalMemory pmem, uintptr_t offset) {
