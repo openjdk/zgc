@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,8 @@
  *
  */
 
-package sun.jvm.hotspot.gc.shared;
+package sun.jvm.hotspot.gc.z;
 
-/** Mimics the enums in the VM under CollectedHeap::Name */
-
-public class CollectedHeapName {
-  private String name;
-
-  private CollectedHeapName(String name) { this.name = name; }
-
-  public static final CollectedHeapName GEN_COLLECTED_HEAP = new CollectedHeapName("GenCollectedHeap");
-  public static final CollectedHeapName CMS_HEAP = new CollectedHeapName("CMSHeap");
-  public static final CollectedHeapName SERIAL_HEAP = new CollectedHeapName("SerialHeap");
-  public static final CollectedHeapName G1_COLLECTED_HEAP = new CollectedHeapName("G1CollectedHeap");
-  public static final CollectedHeapName PARALLEL_SCAVENGE_HEAP = new CollectedHeapName("ParallelScavengeHeap");
-  public static final CollectedHeapName Z_COLLECTED_HEAP = new CollectedHeapName("ZCollectedHeap");
-
-  public String toString() {
-    return name;
-  }
+class ZForwardingTableCursor {
+    long _value;
 }

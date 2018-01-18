@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,27 @@
  *
  */
 
-package sun.jvm.hotspot.gc.shared;
+package sun.jvm.hotspot.gc.z;
 
-/** Mimics the enums in the VM under CollectedHeap::Name */
+import sun.jvm.hotspot.debugger.Address;
+import sun.jvm.hotspot.debugger.OopHandle;
+import sun.jvm.hotspot.runtime.VM;
 
-public class CollectedHeapName {
-  private String name;
+class ZOop {
+    private static final long MSB = ~0L ^ (~0L >>> 1);
 
-  private CollectedHeapName(String name) { this.name = name; }
+    private static Address msbAddress() {
+        return VM.getVM().getUniverse().heap().start().orWithMask(MSB).andWithMask(MSB);
+    }
 
-  public static final CollectedHeapName GEN_COLLECTED_HEAP = new CollectedHeapName("GenCollectedHeap");
-  public static final CollectedHeapName CMS_HEAP = new CollectedHeapName("CMSHeap");
-  public static final CollectedHeapName SERIAL_HEAP = new CollectedHeapName("SerialHeap");
-  public static final CollectedHeapName G1_COLLECTED_HEAP = new CollectedHeapName("G1CollectedHeap");
-  public static final CollectedHeapName PARALLEL_SCAVENGE_HEAP = new CollectedHeapName("ParallelScavengeHeap");
-  public static final CollectedHeapName Z_COLLECTED_HEAP = new CollectedHeapName("ZCollectedHeap");
+    static Address to_address(long value) {
+        // If the value of an Address becomes 0, null is returned instead of an Address.
+        // Start with a one-bit address and as a last step, remove that bit.
+        Address oneAddress = msbAddress();
+        return oneAddress.orWithMask(value).xorWithMask(ZAddress.as_long(oneAddress));
+    }
 
-  public String toString() {
-    return name;
-  }
+    static Address to_address(OopHandle oop) {
+        return to_address(ZAddress.as_long(oop));
+    }
 }

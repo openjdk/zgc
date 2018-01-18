@@ -36,6 +36,8 @@
 class ZPageAllocRequest;
 
 class ZPageAllocator VALUE_OBJ_CLASS_SPEC {
+  friend class VMStructs;
+
 private:
   ZLock                    _lock;
   ZVirtualMemoryManager    _virtual;

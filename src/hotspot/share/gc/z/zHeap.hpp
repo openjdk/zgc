@@ -45,6 +45,8 @@
 #include "memory/allocation.hpp"
 
 class ZHeap VALUE_OBJ_CLASS_SPEC {
+  friend class VMStructs;
+
 private:
   static ZHeap*       _heap;
 

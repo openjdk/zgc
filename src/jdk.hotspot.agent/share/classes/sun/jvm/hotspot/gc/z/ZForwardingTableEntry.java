@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,23 +22,34 @@
  *
  */
 
-package sun.jvm.hotspot.gc.shared;
+package sun.jvm.hotspot.gc.z;
 
-/** Mimics the enums in the VM under CollectedHeap::Name */
+import sun.jvm.hotspot.debugger.Address;
 
-public class CollectedHeapName {
-  private String name;
+class ZForwardingTableEntry {
+    private Address entry;
 
-  private CollectedHeapName(String name) { this.name = name; }
+    ZForwardingTableEntry(Address addr) {
+        entry = addr;
+    }
 
-  public static final CollectedHeapName GEN_COLLECTED_HEAP = new CollectedHeapName("GenCollectedHeap");
-  public static final CollectedHeapName CMS_HEAP = new CollectedHeapName("CMSHeap");
-  public static final CollectedHeapName SERIAL_HEAP = new CollectedHeapName("SerialHeap");
-  public static final CollectedHeapName G1_COLLECTED_HEAP = new CollectedHeapName("G1CollectedHeap");
-  public static final CollectedHeapName PARALLEL_SCAVENGE_HEAP = new CollectedHeapName("ParallelScavengeHeap");
-  public static final CollectedHeapName Z_COLLECTED_HEAP = new CollectedHeapName("ZCollectedHeap");
+    private static long empty() {
+        return ~0L;
+    }
 
-  public String toString() {
-    return name;
-  }
+    boolean is_empty() {
+        return entry.asLongValue() == empty();
+    }
+
+    Address to_offset() {
+        return entry.andWithMask((1L << 42) - 1);
+    }
+
+    long from_index() {
+        return entry.asLongValue() >>> 42;
+    }
+
+    public String toString() {
+        return entry + " - from_index: " + from_index() + " to_offset: " + to_offset();
+    }
 }

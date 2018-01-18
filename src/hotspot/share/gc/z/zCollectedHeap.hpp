@@ -33,6 +33,8 @@
 #include "gc/z/zStat.hpp"
 
 class ZCollectedHeap : public CollectedHeap {
+  friend class VMStructs;
+
 private:
   ZCollectorPolicy* _policy;
   ZBarrierSet       _barrier;
