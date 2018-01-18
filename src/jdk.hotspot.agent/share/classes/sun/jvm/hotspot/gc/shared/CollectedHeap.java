@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,12 @@ public abstract class CollectedHeap extends VMObject {
   }
 
   public abstract CollectedHeapName kind();
+
+  public OopHandle oop_load_at(OopHandle handle, long offset) {
+      return VM.getVM().isCompressedOopsEnabled()
+              ? handle.getCompOopHandleAt(offset)
+              : handle.getOopHandleAt(offset);
+  }
 
   public void print() { printOn(System.out); }
   public void printOn(PrintStream tty) {
