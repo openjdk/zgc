@@ -37,7 +37,7 @@ private:
 public:
   ZSerialOopsDo(T* iter);
   void oops_do(OopClosure* cl);
-} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+};
 
 template <typename T, void (T::*F)(OopClosure*)>
 class ZParallelOopsDo VALUE_OBJ_CLASS_SPEC {
@@ -48,7 +48,7 @@ private:
 public:
   ZParallelOopsDo(T* iter);
   void oops_do(OopClosure* cl);
-} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+};
 
 template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
 class ZSerialUnlinkOrOopsDo VALUE_OBJ_CLASS_SPEC {
@@ -59,7 +59,7 @@ private:
 public:
   ZSerialUnlinkOrOopsDo(T* iter);
   void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl);
-} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+};
 
 template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
 class ZParallelUnlinkOrOopsDo VALUE_OBJ_CLASS_SPEC {
@@ -70,7 +70,7 @@ private:
 public:
   ZParallelUnlinkOrOopsDo(T* iter);
   void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl);
-} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+};
 
 class ZRootsIterator VALUE_OBJ_CLASS_SPEC {
 private:
