@@ -28,78 +28,79 @@
 #include "memory/iterator.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-typedef void (*ZOopsDoFunction)(OopClosure*);
-typedef void (*ZUnlinkOrOopsDoFunction)(BoolObjectClosure*, OopClosure*);
-
-template <ZOopsDoFunction F>
+template <typename T, void (T::*F)(OopClosure*)>
 class ZSerialOopsDo VALUE_OBJ_CLASS_SPEC {
 private:
-  volatile bool _claimed ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  T* const      _iter;
+  volatile bool _claimed;
 
 public:
-  ZSerialOopsDo();
+  ZSerialOopsDo(T* iter);
   void oops_do(OopClosure* cl);
-};
+} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
 
-template <ZOopsDoFunction F>
+template <typename T, void (T::*F)(OopClosure*)>
 class ZParallelOopsDo VALUE_OBJ_CLASS_SPEC {
 private:
-  volatile bool _completed ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  T* const      _iter;
+  volatile bool _completed;
 
 public:
-  ZParallelOopsDo();
+  ZParallelOopsDo(T* iter);
   void oops_do(OopClosure* cl);
-};
+} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
 
-template <ZUnlinkOrOopsDoFunction F>
+template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
 class ZSerialUnlinkOrOopsDo VALUE_OBJ_CLASS_SPEC {
 private:
-  volatile bool _claimed ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  T* const      _iter;
+  volatile bool _claimed;
 
 public:
-  ZSerialUnlinkOrOopsDo();
+  ZSerialUnlinkOrOopsDo(T* iter);
   void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl);
-};
+} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
 
-template <ZUnlinkOrOopsDoFunction F>
+template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
 class ZParallelUnlinkOrOopsDo VALUE_OBJ_CLASS_SPEC {
 private:
-  volatile bool _completed ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  T* const      _iter;
+  volatile bool _completed;
 
 public:
-  ZParallelUnlinkOrOopsDo();
+  ZParallelUnlinkOrOopsDo(T* iter);
   void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl);
-};
+} ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
 
 class ZRootsIterator VALUE_OBJ_CLASS_SPEC {
 private:
-  static void do_universe(OopClosure* cl);
-  static void do_jni_handles(OopClosure* cl);
-  static void do_jni_weak_handles(OopClosure* cl);
-  static void do_object_synchronizer(OopClosure* cl);
-  static void do_management(OopClosure* cl);
-  static void do_jvmti_export(OopClosure* cl);
-  static void do_jvmti_weak_export(OopClosure* cl);
-  static void do_trace(OopClosure* cl);
-  static void do_system_dictionary(OopClosure* cl);
-  static void do_class_loader_data_graph(OopClosure* cl);
-  static void do_threads(OopClosure* cl);
-  static void do_code_cache(OopClosure* cl);
-  static void do_string_table(OopClosure* cl);
+  void do_universe(OopClosure* cl);
+  void do_jni_handles(OopClosure* cl);
+  void do_jni_weak_handles(OopClosure* cl);
+  void do_object_synchronizer(OopClosure* cl);
+  void do_management(OopClosure* cl);
+  void do_jvmti_export(OopClosure* cl);
+  void do_jvmti_weak_export(OopClosure* cl);
+  void do_trace(OopClosure* cl);
+  void do_system_dictionary(OopClosure* cl);
+  void do_class_loader_data_graph(OopClosure* cl);
+  void do_threads(OopClosure* cl);
+  void do_code_cache(OopClosure* cl);
+  void do_string_table(OopClosure* cl);
 
-  ZSerialOopsDo<do_universe>                  _universe;
-  ZSerialOopsDo<do_jni_handles>               _jni_handles;
-  ZSerialOopsDo<do_jni_weak_handles>          _jni_weak_handles;
-  ZSerialOopsDo<do_object_synchronizer>       _object_synchronizer;
-  ZSerialOopsDo<do_management>                _management;
-  ZSerialOopsDo<do_jvmti_export>              _jvmti_export;
-  ZSerialOopsDo<do_jvmti_weak_export>         _jvmti_weak_export;
-  ZSerialOopsDo<do_trace>                     _trace;
-  ZSerialOopsDo<do_system_dictionary>         _system_dictionary;
-  ZParallelOopsDo<do_class_loader_data_graph> _class_loader_data_graph;
-  ZParallelOopsDo<do_threads>                 _threads;
-  ZParallelOopsDo<do_code_cache>              _code_cache;
-  ZParallelOopsDo<do_string_table>            _string_table;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_universe>                  _universe;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_jni_handles>               _jni_handles;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_jni_weak_handles>          _jni_weak_handles;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_object_synchronizer>       _object_synchronizer;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_management>                _management;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_jvmti_export>              _jvmti_export;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_jvmti_weak_export>         _jvmti_weak_export;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_trace>                     _trace;
+  ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_system_dictionary>         _system_dictionary;
+  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_class_loader_data_graph> _class_loader_data_graph;
+  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_threads>                 _threads;
+  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_code_cache>              _code_cache;
+  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_string_table>            _string_table;
 
 public:
   ZRootsIterator();
@@ -110,17 +111,17 @@ public:
 
 class ZWeakRootsIterator VALUE_OBJ_CLASS_SPEC {
 private:
-  static void do_jni_weak_handles(BoolObjectClosure* is_alive, OopClosure* cl);
-  static void do_jvmti_weak_export(BoolObjectClosure* is_alive, OopClosure* cl);
-  static void do_trace(BoolObjectClosure* is_alive, OopClosure* cl);
-  static void do_symbol_table(BoolObjectClosure* is_alive, OopClosure* cl);
-  static void do_string_table(BoolObjectClosure* is_alive, OopClosure* cl);
+  void do_jni_weak_handles(BoolObjectClosure* is_alive, OopClosure* cl);
+  void do_jvmti_weak_export(BoolObjectClosure* is_alive, OopClosure* cl);
+  void do_trace(BoolObjectClosure* is_alive, OopClosure* cl);
+  void do_symbol_table(BoolObjectClosure* is_alive, OopClosure* cl);
+  void do_string_table(BoolObjectClosure* is_alive, OopClosure* cl);
 
-  ZSerialUnlinkOrOopsDo<do_jni_weak_handles>  _jni_weak_handles;
-  ZSerialUnlinkOrOopsDo<do_jvmti_weak_export> _jvmti_weak_export;
-  ZSerialUnlinkOrOopsDo<do_trace>             _trace;
-  ZParallelUnlinkOrOopsDo<do_symbol_table>    _symbol_table;
-  ZParallelUnlinkOrOopsDo<do_string_table>    _string_table;
+  ZSerialUnlinkOrOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_jni_weak_handles>  _jni_weak_handles;
+  ZSerialUnlinkOrOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_jvmti_weak_export> _jvmti_weak_export;
+  ZSerialUnlinkOrOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_trace>             _trace;
+  ZParallelUnlinkOrOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_symbol_table>    _symbol_table;
+  ZParallelUnlinkOrOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_string_table>    _string_table;
 
 public:
   ZWeakRootsIterator();
@@ -132,9 +133,9 @@ public:
 
 class ZThreadRootsIterator VALUE_OBJ_CLASS_SPEC {
 private:
-  static void do_threads(OopClosure* cl);
+  void do_threads(OopClosure* cl);
 
-  ZParallelOopsDo<do_threads> _threads;
+  ZParallelOopsDo<ZThreadRootsIterator, &ZThreadRootsIterator::do_threads> _threads;
 
 public:
   ZThreadRootsIterator();

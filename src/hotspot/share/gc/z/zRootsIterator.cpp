@@ -69,57 +69,74 @@ static const ZStatSubPhase ZSubPhasePauseWeakRootsTrace("Pause Weak Roots Trace"
 static const ZStatSubPhase ZSubPhasePauseWeakRootsSymbolTable("Pause Weak Roots SymbolTable");
 static const ZStatSubPhase ZSubPhasePauseWeakRootsStringTable("Pause Weak Roots StringTable");
 
-template <ZOopsDoFunction F>
-ZSerialOopsDo<F>::ZSerialOopsDo() :
+template <typename T, void (T::*F)(OopClosure*)>
+ZSerialOopsDo<T, F>::ZSerialOopsDo(T* iter) :
+    _iter(iter),
     _claimed(false) {}
 
-template <ZOopsDoFunction F>
-void ZSerialOopsDo<F>::oops_do(OopClosure* cl) {
+template <typename T, void (T::*F)(OopClosure*)>
+void ZSerialOopsDo<T, F>::oops_do(OopClosure* cl) {
   if (Atomic::cmpxchg(true, &_claimed, false) == false) {
-    F(cl);
+    (_iter->*F)(cl);
   }
 }
 
-template <ZOopsDoFunction F>
-ZParallelOopsDo<F>::ZParallelOopsDo() :
+template <typename T, void (T::*F)(OopClosure*)>
+ZParallelOopsDo<T, F>::ZParallelOopsDo(T* iter) :
+    _iter(iter),
     _completed(false) {}
 
-template <ZOopsDoFunction F>
-void ZParallelOopsDo<F>::oops_do(OopClosure* cl) {
+template <typename T, void (T::*F)(OopClosure*)>
+void ZParallelOopsDo<T, F>::oops_do(OopClosure* cl) {
   if (!_completed) {
-    F(cl);
+    (_iter->*F)(cl);
     if (!_completed) {
       _completed = true;
     }
   }
 }
 
-template <ZUnlinkOrOopsDoFunction F>
-ZSerialUnlinkOrOopsDo<F>::ZSerialUnlinkOrOopsDo() :
+template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
+ZSerialUnlinkOrOopsDo<T, F>::ZSerialUnlinkOrOopsDo(T* iter) :
+    _iter(iter),
     _claimed(false) {}
 
-template <ZUnlinkOrOopsDoFunction F>
-void ZSerialUnlinkOrOopsDo<F>::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl) {
+template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
+void ZSerialUnlinkOrOopsDo<T, F>::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl) {
   if (Atomic::cmpxchg(true, &_claimed, false) == false) {
-    F(is_alive, cl);
+    (_iter->*F)(is_alive, cl);
   }
 }
 
-template <ZUnlinkOrOopsDoFunction F>
-ZParallelUnlinkOrOopsDo<F>::ZParallelUnlinkOrOopsDo() :
+template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
+ZParallelUnlinkOrOopsDo<T, F>::ZParallelUnlinkOrOopsDo(T* iter) :
+    _iter(iter),
     _completed(false) {}
 
-template <ZUnlinkOrOopsDoFunction F>
-void ZParallelUnlinkOrOopsDo<F>::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl) {
+template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
+void ZParallelUnlinkOrOopsDo<T, F>::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl) {
   if (!_completed) {
-    F(is_alive, cl);
+    (_iter->*F)(is_alive, cl);
     if (!_completed) {
       _completed = true;
     }
   }
 }
 
-ZRootsIterator::ZRootsIterator() {
+ZRootsIterator::ZRootsIterator() :
+    _universe(this),
+    _jni_handles(this),
+    _jni_weak_handles(this),
+    _object_synchronizer(this),
+    _management(this),
+    _jvmti_export(this),
+    _jvmti_weak_export(this),
+    _trace(this),
+    _system_dictionary(this),
+    _class_loader_data_graph(this),
+    _threads(this),
+    _code_cache(this),
+    _string_table(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   ZStatTimer timer(ZSubPhasePauseRootsSetup);
   Threads::change_thread_claim_parity();
@@ -232,7 +249,12 @@ void ZRootsIterator::oops_do(OopClosure* cl, bool visit_jvmti_weak_export) {
   }
 }
 
-ZWeakRootsIterator::ZWeakRootsIterator() {
+ZWeakRootsIterator::ZWeakRootsIterator() :
+    _jni_weak_handles(this),
+    _jvmti_weak_export(this),
+    _trace(this),
+    _symbol_table(this),
+    _string_table(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   ZStatTimer timer(ZSubPhasePauseWeakRootsSetup);
   SymbolTable::clear_parallel_claimed_index();
@@ -286,7 +308,8 @@ void ZWeakRootsIterator::oops_do(OopClosure* cl) {
   unlink_or_oops_do(&always_alive, cl);
 }
 
-ZThreadRootsIterator::ZThreadRootsIterator() {
+ZThreadRootsIterator::ZThreadRootsIterator() :
+    _threads(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   ZStatTimer timer(ZSubPhasePauseRootsSetup);
   Threads::change_thread_claim_parity();
