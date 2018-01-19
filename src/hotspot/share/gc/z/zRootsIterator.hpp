@@ -80,6 +80,7 @@ private:
   static void do_management(OopClosure* cl);
   static void do_jvmti_export(OopClosure* cl);
   static void do_jvmti_weak_export(OopClosure* cl);
+  static void do_trace(OopClosure* cl);
   static void do_system_dictionary(OopClosure* cl);
   static void do_class_loader_data_graph(OopClosure* cl);
   static void do_threads(OopClosure* cl);
@@ -93,6 +94,7 @@ private:
   ZSerialOopsDo<do_management>                _management;
   ZSerialOopsDo<do_jvmti_export>              _jvmti_export;
   ZSerialOopsDo<do_jvmti_weak_export>         _jvmti_weak_export;
+  ZSerialOopsDo<do_trace>                     _trace;
   ZSerialOopsDo<do_system_dictionary>         _system_dictionary;
   ZParallelOopsDo<do_class_loader_data_graph> _class_loader_data_graph;
   ZParallelOopsDo<do_threads>                 _threads;
@@ -109,12 +111,16 @@ public:
 class ZWeakRootsIterator VALUE_OBJ_CLASS_SPEC {
 private:
   static void do_jni_weak_handles(BoolObjectClosure* is_alive, OopClosure* cl);
+  static void do_jvmti_weak_export(BoolObjectClosure* is_alive, OopClosure* cl);
+  static void do_trace(BoolObjectClosure* is_alive, OopClosure* cl);
   static void do_symbol_table(BoolObjectClosure* is_alive, OopClosure* cl);
   static void do_string_table(BoolObjectClosure* is_alive, OopClosure* cl);
 
-  ZSerialUnlinkOrOopsDo<do_jni_weak_handles> _jni_weak_handles;
-  ZParallelUnlinkOrOopsDo<do_symbol_table>   _symbol_table;
-  ZParallelUnlinkOrOopsDo<do_string_table>   _string_table;
+  ZSerialUnlinkOrOopsDo<do_jni_weak_handles>  _jni_weak_handles;
+  ZSerialUnlinkOrOopsDo<do_jvmti_weak_export> _jvmti_weak_export;
+  ZSerialUnlinkOrOopsDo<do_trace>             _trace;
+  ZParallelUnlinkOrOopsDo<do_symbol_table>    _symbol_table;
+  ZParallelUnlinkOrOopsDo<do_string_table>    _string_table;
 
 public:
   ZWeakRootsIterator();
