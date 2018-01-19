@@ -76,7 +76,7 @@ ZSerialOopsDo<T, F>::ZSerialOopsDo(T* iter) :
 
 template <typename T, void (T::*F)(OopClosure*)>
 void ZSerialOopsDo<T, F>::oops_do(OopClosure* cl) {
-  if (Atomic::cmpxchg(true, &_claimed, false) == false) {
+  if (!_claimed && Atomic::cmpxchg(true, &_claimed, false) == false) {
     (_iter->*F)(cl);
   }
 }
@@ -103,7 +103,7 @@ ZSerialUnlinkOrOopsDo<T, F>::ZSerialUnlinkOrOopsDo(T* iter) :
 
 template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
 void ZSerialUnlinkOrOopsDo<T, F>::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl) {
-  if (Atomic::cmpxchg(true, &_claimed, false) == false) {
+  if (!_claimed && Atomic::cmpxchg(true, &_claimed, false) == false) {
     (_iter->*F)(is_alive, cl);
   }
 }
