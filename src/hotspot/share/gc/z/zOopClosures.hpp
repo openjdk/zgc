@@ -82,6 +82,15 @@ public:
   virtual void do_oop(narrowOop* p);
 };
 
+class ZPhantomCleanOopClosure : public OopClosure {
+private:
+  void clean(volatile oop* p);
+
+public:
+  virtual void do_oop(oop* p);
+  virtual void do_oop(narrowOop* p);
+};
+
 class ZVerifyHeapOopClosure : public ExtendedOopClosure {
 private:
   const oop _base;

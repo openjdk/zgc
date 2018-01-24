@@ -69,6 +69,9 @@ static const ZStatSubPhase ZSubPhasePauseWeakRootsTrace("Pause Weak Roots Trace"
 static const ZStatSubPhase ZSubPhasePauseWeakRootsSymbolTable("Pause Weak Roots SymbolTable");
 static const ZStatSubPhase ZSubPhasePauseWeakRootsStringTable("Pause Weak Roots StringTable");
 
+static const ZStatSubPhase ZSubPhaseConcurrentWeakRoots("Concurrent Weak Roots");
+static const ZStatSubPhase ZSubPhaseConcurrentWeakRootsJNIWeakHandles("Concurrent Weak Roots JNIWeakHandles");
+
 template <typename T, void (T::*F)(OopClosure*)>
 ZSerialOopsDo<T, F>::ZSerialOopsDo(T* iter) :
     _iter(iter),
@@ -296,7 +299,9 @@ void ZWeakRootsIterator::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosu
   ZStatTimer timer(ZSubPhasePauseWeakRoots);
   _symbol_table.unlink_or_oops_do(is_alive, cl);
   if (ZWeakRoots) {
-    _jni_weak_handles.unlink_or_oops_do(is_alive, cl);
+    if (!ZConcurrentJNIWeakGlobalHandles) {
+      _jni_weak_handles.unlink_or_oops_do(is_alive, cl);
+    }
     _jvmti_weak_export.unlink_or_oops_do(is_alive, cl);
     _trace.unlink_or_oops_do(is_alive, cl);
     _string_table.unlink_or_oops_do(is_alive, cl);
@@ -306,6 +311,28 @@ void ZWeakRootsIterator::unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosu
 void ZWeakRootsIterator::oops_do(OopClosure* cl) {
   AlwaysTrueClosure always_alive;
   unlink_or_oops_do(&always_alive, cl);
+}
+
+void ZConcurrentWeakRootsIterator::do_jni_weak_handles(OopClosure* cl) {
+  ZStatTimer timer(ZSubPhaseConcurrentWeakRootsJNIWeakHandles);
+  _par_state.oops_do(cl);
+}
+
+ZConcurrentWeakRootsIterator::ZConcurrentWeakRootsIterator() :
+    _par_state(JNIHandles::weak_global_handles()),
+    _jni_weak_handles(this) {
+}
+
+ZConcurrentWeakRootsIterator::~ZConcurrentWeakRootsIterator() {
+}
+
+void ZConcurrentWeakRootsIterator::oops_do(OopClosure* cl) {
+  ZStatTimer timer(ZSubPhaseConcurrentWeakRoots);
+  if (ZWeakRoots) {
+    if (ZConcurrentJNIWeakGlobalHandles) {
+      _jni_weak_handles.oops_do(cl);
+    }
+  }
 }
 
 ZThreadRootsIterator::ZThreadRootsIterator() :

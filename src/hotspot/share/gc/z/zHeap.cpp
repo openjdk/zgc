@@ -22,6 +22,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/oopStorage.hpp"
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
@@ -48,12 +49,14 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
-static const ZStatSampler ZSamplerHeapUsedBeforeMark("Memory", "Heap Used Before Mark", ZStatUnitBytes);
-static const ZStatSampler ZSamplerHeapUsedAfterMark("Memory", "Heap Used After Mark", ZStatUnitBytes);
-static const ZStatSampler ZSamplerHeapUsedBeforeRelocation("Memory", "Heap Used Before Relocation", ZStatUnitBytes);
-static const ZStatSampler ZSamplerHeapUsedAfterRelocation("Memory", "Heap Used After Relocation", ZStatUnitBytes);
-static const ZStatCounter ZCounterUndoPageAllocation("Memory", "Undo Page Allocation", ZStatUnitOpsPerSecond);
-static const ZStatCounter ZCounterOutOfMemory("Memory", "Out Of Memory", ZStatUnitOpsPerSecond);
+static const ZStatSampler  ZSamplerHeapUsedBeforeMark("Memory", "Heap Used Before Mark", ZStatUnitBytes);
+static const ZStatSampler  ZSamplerHeapUsedAfterMark("Memory", "Heap Used After Mark", ZStatUnitBytes);
+static const ZStatSampler  ZSamplerHeapUsedBeforeRelocation("Memory", "Heap Used Before Relocation", ZStatUnitBytes);
+static const ZStatSampler  ZSamplerHeapUsedAfterRelocation("Memory", "Heap Used After Relocation", ZStatUnitBytes);
+static const ZStatCounter  ZCounterUndoPageAllocation("Memory", "Undo Page Allocation", ZStatUnitOpsPerSecond);
+static const ZStatCounter  ZCounterOutOfMemory("Memory", "Out Of Memory", ZStatUnitOpsPerSecond);
+static const ZStatSubPhase ZPhaseConcurrentReferencesProcessing("Concurrent References Processing");
+static const ZStatSubPhase ZPhaseConcurrentWeakRootsProcessing("Concurrent Weak Roots Processing");
 
 ZHeap* ZHeap::_heap = NULL;
 
@@ -65,6 +68,7 @@ ZHeap::ZHeap() :
     _pagetable(),
     _mark(&_workers, &_pagetable),
     _reference_processor(&_workers),
+    _weak_roots_processor(&_workers),
     _relocate(&_workers),
     _relocation_set(),
     _serviceability(heap_min_size(), heap_max_size()) {
@@ -314,27 +318,6 @@ void ZHeap::fixup_partial_loads() {
   _workers.run_parallel(&task);
 }
 
-class ZProcessWeakRootsTask : public ZTask {
-private:
-  ZWeakRootsIterator _weak_roots;
-
-public:
-  ZProcessWeakRootsTask() :
-      ZTask("ZProcessWeakRootsTask"),
-      _weak_roots() {}
-
-  virtual void work() {
-    ZPhantomIsAliveObjectClosure is_alive;
-    ZPhantomKeepAliveOopClosure keep_alive;
-    _weak_roots.unlink_or_oops_do(&is_alive, &keep_alive);
-  }
-};
-
-void ZHeap::process_weak_roots() {
-  ZProcessWeakRootsTask task;
-  _workers.run_parallel(&task);
-}
-
 bool ZHeap::mark_end() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
@@ -364,7 +347,7 @@ bool ZHeap::mark_end() {
   ZResurrection::block();
 
   // Clean weak roots
-  process_weak_roots();
+  _weak_roots_processor.process_weak_roots();
 
   // Verification
   if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
@@ -378,9 +361,16 @@ void ZHeap::set_soft_reference_policy(bool clear) {
   _reference_processor.set_soft_reference_policy(clear);
 }
 
-void ZHeap::process_and_enqueue_references() {
-  // Process and enqueue discovered references
-  _reference_processor.process_and_enqueue_references();
+void ZHeap::concurrent_weak_processing() {
+  {
+    ZStatTimer timer(ZPhaseConcurrentReferencesProcessing);
+    _reference_processor.process_and_enqueue_references();
+  }
+
+  {
+    ZStatTimer timer(ZPhaseConcurrentWeakRootsProcessing);
+    _weak_roots_processor.process_concurrent_weak_roots();
+  }
 
   // Unblock resurrection of weak/phantom references
   ZResurrection::unblock();

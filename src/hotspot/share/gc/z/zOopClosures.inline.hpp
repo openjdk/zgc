@@ -29,6 +29,7 @@
 #include "gc/z/zOop.inline.hpp"
 #include "gc/z/zOopClosures.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 
 inline void ZLoadBarrierOopClosure::do_oop_nv(oop* p) {
@@ -96,6 +97,23 @@ inline void ZPhantomKeepAliveOopClosure::do_oop(oop* p) {
 }
 
 inline void ZPhantomKeepAliveOopClosure::do_oop(narrowOop* p) {
+  ShouldNotReachHere();
+}
+
+inline void ZPhantomCleanOopClosure::clean(volatile oop* p) {
+  oop obj = *p;
+  if (ZBarrier::is_alive_barrier_on_phantom_oop(obj)) {
+    ZBarrier::keep_alive_barrier_on_phantom_oop_field(p);
+  } else {
+    Atomic::cmpxchg(oop(NULL), p, obj);
+  }
+}
+
+inline void ZPhantomCleanOopClosure::do_oop(oop* p) {
+  clean(p);
+}
+
+inline void ZPhantomCleanOopClosure::do_oop(narrowOop* p) {
   ShouldNotReachHere();
 }
 

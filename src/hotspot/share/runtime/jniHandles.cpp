@@ -191,6 +191,11 @@ void JNIHandles::weak_oops_do(OopClosure* f) {
 }
 
 
+OopStorage* JNIHandles::weak_global_handles() {
+  return _weak_global_handles;
+}
+
+
 void JNIHandles::initialize() {
   _global_handles = new OopStorage("JNI Global",
                                    JNIGlobalAlloc_lock,

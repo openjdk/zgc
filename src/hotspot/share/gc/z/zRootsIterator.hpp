@@ -24,6 +24,7 @@
 #ifndef SHARE_GC_Z_ZROOTSITERATOR_HPP
 #define SHARE_GC_Z_ZROOTSITERATOR_HPP
 
+#include "gc/shared/oopStorage.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -128,6 +129,21 @@ public:
   ~ZWeakRootsIterator();
 
   void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl);
+  void oops_do(OopClosure* cl);
+};
+
+class ZConcurrentWeakRootsIterator VALUE_OBJ_CLASS_SPEC {
+private:
+  OopStorage::ParState<true /* concurrent */, false /* is_const */> _par_state;
+
+  void do_jni_weak_handles(OopClosure* cl);
+
+  ZParallelOopsDo<ZConcurrentWeakRootsIterator, &ZConcurrentWeakRootsIterator::do_jni_weak_handles>  _jni_weak_handles;
+
+public:
+  ZConcurrentWeakRootsIterator();
+  ~ZConcurrentWeakRootsIterator();
+
   void oops_do(OopClosure* cl);
 };
 

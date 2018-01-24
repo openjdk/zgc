@@ -41,7 +41,7 @@ static const ZStatPhasePause      ZPhasePauseMarkStart("Pause Mark Start");
 static const ZStatPhaseConcurrent ZPhaseConcurrentMark("Concurrent Mark");
 static const ZStatPhaseConcurrent ZPhaseConcurrentMarkContinue("Concurrent Mark Continue");
 static const ZStatPhasePause      ZPhasePauseMarkEnd("Pause Mark End");
-static const ZStatPhaseConcurrent ZPhaseConcurrentReferencesProcessing("Concurrent References Processing");
+static const ZStatPhaseConcurrent ZPhaseConcurrentWeakProcessing("Concurrent Weak Processing");
 static const ZStatPhaseConcurrent ZPhaseConcurrentResetRelocationSet("Concurrent Reset Relocation Set");
 static const ZStatPhaseConcurrent ZPhaseConcurrentDestroyDetachedPages("Concurrent Destroy Detached Pages");
 static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSet("Concurrent Select Relocation Set");
@@ -325,8 +325,8 @@ void ZDriver::run_gc_cycle(GCCause::Cause cause) {
 
   // Phase 4: Concurrent Reference Processing
   {
-    ZStatTimer timer(ZPhaseConcurrentReferencesProcessing);
-    ZHeap::heap()->process_and_enqueue_references();
+    ZStatTimer timer(ZPhaseConcurrentWeakProcessing);
+    ZHeap::heap()->concurrent_weak_processing();
   }
 
   // Phase 5: Concurrent Reset Relocation Set

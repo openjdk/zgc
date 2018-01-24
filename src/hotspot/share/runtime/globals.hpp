@@ -1440,6 +1440,9 @@ public:
   product(bool, ZWeakRoots, true,                                           \
           "Treat JNI WeakGlobalRefs and StringTable as weak roots")         \
                                                                             \
+  product(bool, ZConcurrentJNIWeakGlobalHandles, true,                      \
+          "Clean JNI WeakGlobalRefs concurrently")                          \
+                                                                            \
   product(size_t, ZMarkStacksMax, NOT_LP64(512*M) LP64_ONLY(8*G),           \
           "Maximum number of bytes allocated for marking stacks")           \
           range(32*M, NOT_LP64(512*M) LP64_ONLY(1024*G))                    \

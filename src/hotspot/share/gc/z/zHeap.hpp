@@ -40,6 +40,7 @@
 #include "gc/z/zRelocationSet.hpp"
 #include "gc/z/zRelocationSetSelector.hpp"
 #include "gc/z/zRootsIterator.hpp"
+#include "gc/z/zWeakRootsProcessor.hpp"
 #include "gc/z/zServiceability.hpp"
 #include "gc/z/zWorkers.hpp"
 #include "memory/allocation.hpp"
@@ -57,6 +58,7 @@ private:
   ZPageTable          _pagetable;
   ZMark               _mark;
   ZReferenceProcessor _reference_processor;
+  ZWeakRootsProcessor _weak_roots_processor;
   ZRelocate           _relocate;
   ZRelocationSet      _relocation_set;
   ZServiceability     _serviceability;
@@ -68,7 +70,6 @@ private:
   void out_of_memory();
   void flip_views();
   void fixup_partial_loads();
-  void process_weak_roots();
 
 public:
   static ZHeap* heap();
@@ -111,7 +112,9 @@ public:
   // Reference processing
   ReferenceDiscoverer* reference_discoverer();
   void set_soft_reference_policy(bool clear);
-  void process_and_enqueue_references();
+
+  // Weak handles/references processing
+  void concurrent_weak_processing();
 
   // Page allocation
   ZPage* alloc_page(uint8_t type, size_t size, ZAllocationFlags flags);
