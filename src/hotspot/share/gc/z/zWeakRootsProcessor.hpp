@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_VM_GC_Z_ZWEAKROOTSPROCESSOR_HPP
-#define SHARE_VM_GC_Z_ZWEAKROOTSPROCESSOR_HPP
+#ifndef SHARE_GC_Z_ZWEAKROOTSPROCESSOR_HPP
+#define SHARE_GC_Z_ZWEAKROOTSPROCESSOR_HPP
 
 #include "gc/z/zValue.hpp"
 
@@ -39,4 +39,4 @@ public:
   void process_concurrent_weak_roots();
 };
 
-#endif // SHARE_VM_GC_Z_ZWEAKROOTSPROCESSOR_HPP
+#endif // SHARE_GC_Z_ZWEAKROOTSPROCESSOR_HPP

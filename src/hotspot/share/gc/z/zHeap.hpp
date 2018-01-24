@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -113,8 +113,8 @@ public:
   ReferenceDiscoverer* reference_discoverer();
   void set_soft_reference_policy(bool clear);
 
-  // Weak handles/references processing
-  void concurrent_weak_processing();
+  // Non-strong reference processing
+  void process_non_strong_references();
 
   // Page allocation
   ZPage* alloc_page(uint8_t type, size_t size, ZAllocationFlags flags);

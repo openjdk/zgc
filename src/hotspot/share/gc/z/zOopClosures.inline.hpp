@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -100,17 +100,20 @@ inline void ZPhantomKeepAliveOopClosure::do_oop(narrowOop* p) {
   ShouldNotReachHere();
 }
 
-inline void ZPhantomCleanOopClosure::clean(volatile oop* p) {
-  oop obj = *p;
+inline void ZPhantomCleanOopClosure::do_oop(oop* p) {
+  // Read the oop once, to make sure the liveness check
+  // and the later clearing uses the same value.
+  const oop obj = *(volatile oop*)p;
   if (ZBarrier::is_alive_barrier_on_phantom_oop(obj)) {
     ZBarrier::keep_alive_barrier_on_phantom_oop_field(p);
   } else {
+    // The destination could have been modified/reused, in which case
+    // we don't want to clear it. However, no one could write the same
+    // oop here again (the object would be strongly live and we would
+    // not consider clearing such oops), so therefore we don't have an
+    // ABA problem here.
     Atomic::cmpxchg(oop(NULL), p, obj);
   }
-}
-
-inline void ZPhantomCleanOopClosure::do_oop(oop* p) {
-  clean(p);
 }
 
 inline void ZPhantomCleanOopClosure::do_oop(narrowOop* p) {

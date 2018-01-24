@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -320,11 +320,7 @@ void ZConcurrentWeakRootsIterator::do_jni_weak_handles(OopClosure* cl) {
 
 ZConcurrentWeakRootsIterator::ZConcurrentWeakRootsIterator() :
     _par_state(JNIHandles::weak_global_handles()),
-    _jni_weak_handles(this) {
-}
-
-ZConcurrentWeakRootsIterator::~ZConcurrentWeakRootsIterator() {
-}
+    _jni_weak_handles(this) {}
 
 void ZConcurrentWeakRootsIterator::oops_do(OopClosure* cl) {
   ZStatTimer timer(ZSubPhaseConcurrentWeakRoots);

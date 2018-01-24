@@ -1438,10 +1438,11 @@ public:
           "Verify forwarding tables (for debugging only)")                  \
                                                                             \
   product(bool, ZWeakRoots, true,                                           \
-          "Treat JNI WeakGlobalRefs and StringTable as weak roots")         \
+          "Treat JNI WeakGlobalRefs and StringTable as weak roots "         \
+          "(for debugging only)")                                           \
                                                                             \
   product(bool, ZConcurrentJNIWeakGlobalHandles, true,                      \
-          "Clean JNI WeakGlobalRefs concurrently")                          \
+          "Clean JNI WeakGlobalRefs concurrently (for debugging only)")     \
                                                                             \
   product(size_t, ZMarkStacksMax, NOT_LP64(512*M) LP64_ONLY(8*G),           \
           "Maximum number of bytes allocated for marking stacks")           \

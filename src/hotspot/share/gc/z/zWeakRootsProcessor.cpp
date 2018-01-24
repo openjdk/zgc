@@ -63,8 +63,8 @@ public:
       _concurrent_weak_roots() {}
 
   virtual void work() {
-    ZPhantomCleanOopClosure cleaning_closure;
-    _concurrent_weak_roots.oops_do(&cleaning_closure);
+    ZPhantomCleanOopClosure cl;
+    _concurrent_weak_roots.oops_do(&cl);
   }
 };
 

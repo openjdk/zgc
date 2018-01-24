@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,8 +55,6 @@ static const ZStatSampler  ZSamplerHeapUsedBeforeRelocation("Memory", "Heap Used
 static const ZStatSampler  ZSamplerHeapUsedAfterRelocation("Memory", "Heap Used After Relocation", ZStatUnitBytes);
 static const ZStatCounter  ZCounterUndoPageAllocation("Memory", "Undo Page Allocation", ZStatUnitOpsPerSecond);
 static const ZStatCounter  ZCounterOutOfMemory("Memory", "Out Of Memory", ZStatUnitOpsPerSecond);
-static const ZStatSubPhase ZPhaseConcurrentReferencesProcessing("Concurrent References Processing");
-static const ZStatSubPhase ZPhaseConcurrentWeakRootsProcessing("Concurrent Weak Roots Processing");
 
 ZHeap* ZHeap::_heap = NULL;
 
@@ -346,7 +344,7 @@ bool ZHeap::mark_end() {
   // Block resurrection of weak/phantom references
   ZResurrection::block();
 
-  // Clean weak roots
+  // Process weak roots
   _weak_roots_processor.process_weak_roots();
 
   // Verification
@@ -361,16 +359,12 @@ void ZHeap::set_soft_reference_policy(bool clear) {
   _reference_processor.set_soft_reference_policy(clear);
 }
 
-void ZHeap::concurrent_weak_processing() {
-  {
-    ZStatTimer timer(ZPhaseConcurrentReferencesProcessing);
-    _reference_processor.process_and_enqueue_references();
-  }
+void ZHeap::process_non_strong_references() {
+  // Process and enqueue Soft/Weak/Final/PhantomReferences
+  _reference_processor.process_and_enqueue_references();
 
-  {
-    ZStatTimer timer(ZPhaseConcurrentWeakRootsProcessing);
-    _weak_roots_processor.process_concurrent_weak_roots();
-  }
+  // Process concurrent weak roots
+  _weak_roots_processor.process_concurrent_weak_roots();
 
   // Unblock resurrection of weak/phantom references
   ZResurrection::unblock();

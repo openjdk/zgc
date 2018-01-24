@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,7 +41,7 @@ static const ZStatPhasePause      ZPhasePauseMarkStart("Pause Mark Start");
 static const ZStatPhaseConcurrent ZPhaseConcurrentMark("Concurrent Mark");
 static const ZStatPhaseConcurrent ZPhaseConcurrentMarkContinue("Concurrent Mark Continue");
 static const ZStatPhasePause      ZPhasePauseMarkEnd("Pause Mark End");
-static const ZStatPhaseConcurrent ZPhaseConcurrentWeakProcessing("Concurrent Weak Processing");
+static const ZStatPhaseConcurrent ZPhaseConcurrentProcessNonStrongReferences("Concurrent Process Non-Strong References");
 static const ZStatPhaseConcurrent ZPhaseConcurrentResetRelocationSet("Concurrent Reset Relocation Set");
 static const ZStatPhaseConcurrent ZPhaseConcurrentDestroyDetachedPages("Concurrent Destroy Detached Pages");
 static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSet("Concurrent Select Relocation Set");
@@ -323,10 +323,10 @@ void ZDriver::run_gc_cycle(GCCause::Cause cause) {
     }
   }
 
-  // Phase 4: Concurrent Reference Processing
+  // Phase 4: Concurrent Process Non-Strong References
   {
-    ZStatTimer timer(ZPhaseConcurrentWeakProcessing);
-    ZHeap::heap()->concurrent_weak_processing();
+    ZStatTimer timer(ZPhaseConcurrentProcessNonStrongReferences);
+    ZHeap::heap()->process_non_strong_references();
   }
 
   // Phase 5: Concurrent Reset Relocation Set

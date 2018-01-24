@@ -228,7 +228,7 @@ public:
 // Stat unit printers
 //
 void ZStatUnitTime(LogTargetHandle log, const ZStatSampler& sampler, const ZStatSamplerHistory& history) {
-  log.print(" %10s: %-34s  "
+  log.print(" %10s: %-40s  "
             "%9.3f / %-9.3f "
             "%9.3f / %-9.3f "
             "%9.3f / %-9.3f "
@@ -246,7 +246,7 @@ void ZStatUnitTime(LogTargetHandle log, const ZStatSampler& sampler, const ZStat
 }
 
 void ZStatUnitBytes(LogTargetHandle log, const ZStatSampler& sampler, const ZStatSamplerHistory& history) {
-  log.print(" %10s: %-34s  "
+  log.print(" %10s: %-40s  "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
@@ -264,7 +264,7 @@ void ZStatUnitBytes(LogTargetHandle log, const ZStatSampler& sampler, const ZSta
 }
 
 void ZStatUnitThreads(LogTargetHandle log, const ZStatSampler& sampler, const ZStatSamplerHistory& history) {
-  log.print(" %10s: %-34s  "
+  log.print(" %10s: %-40s  "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
@@ -282,7 +282,7 @@ void ZStatUnitThreads(LogTargetHandle log, const ZStatSampler& sampler, const ZS
 }
 
 void ZStatUnitBytesPerSecond(LogTargetHandle log, const ZStatSampler& sampler, const ZStatSamplerHistory& history) {
-  log.print(" %10s: %-34s  "
+  log.print(" %10s: %-40s  "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
@@ -300,7 +300,7 @@ void ZStatUnitBytesPerSecond(LogTargetHandle log, const ZStatSampler& sampler, c
 }
 
 void ZStatUnitOpsPerSecond(LogTargetHandle log, const ZStatSampler& sampler, const ZStatSamplerHistory& history) {
-  log.print(" %10s: %-34s  "
+  log.print(" %10s: %-40s  "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
             UINT64_FORMAT_W(9) " / " UINT64_FORMAT_W(-9) " "
@@ -875,9 +875,9 @@ bool ZStat::should_print(LogTargetHandle log) const {
 
 void ZStat::print(LogTargetHandle log, const ZStatSamplerHistory* history) const {
   // Print
-  log.print("=== Garbage Collection Statistics =================================================================================================================");
-  log.print("                                                       Last 10s              Last 10m              Last 10h                Total");
-  log.print("                                                       Avg / Max             Avg / Max             Avg / Max             Avg / Max");
+  log.print("=== Garbage Collection Statistics =======================================================================================================================");
+  log.print("                                                             Last 10s              Last 10m              Last 10h                Total");
+  log.print("                                                             Avg / Max             Avg / Max             Avg / Max             Avg / Max");
 
   for (const ZStatSampler* sampler = ZStatSampler::first(); sampler != NULL; sampler = sampler->next()) {
     const ZStatSamplerHistory& sampler_history = history[sampler->id()];
@@ -885,7 +885,7 @@ void ZStat::print(LogTargetHandle log, const ZStatSamplerHistory* history) const
     printer(log, *sampler, sampler_history);
   }
 
-  log.print("===================================================================================================================================================");
+  log.print("=========================================================================================================================================================");
 }
 
 void ZStat::run_service() {
