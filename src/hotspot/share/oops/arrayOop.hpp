@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,6 +126,9 @@ class arrayOopDesc : public oopDesc {
     return (int32_t)max_elements_per_size_t;
   }
 
+  static size_t max_array_length_in_bytes(BasicType type) {
+    return (size_t)max_array_length(type) * sizeof(size_t);
+  }
 };
 
 #endif // SHARE_VM_OOPS_ARRAYOOP_HPP
