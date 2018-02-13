@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -191,6 +191,7 @@ void ZMark::follow_small_array(uintptr_t addr, size_t size, bool finalizable) {
 }
 
 void ZMark::follow_large_array(uintptr_t addr, size_t size, bool finalizable) {
+  assert(size <= arrayOopDesc::max_array_length_in_bytes(T_OBJECT), "Too large");
   assert(size > ZMarkPartialArrayMinSize, "Too small, should not be split");
   const uintptr_t start = addr;
   const uintptr_t end = start + size;
@@ -246,7 +247,7 @@ void ZMark::follow_partial_array(ZMarkStackEntry entry, bool finalizable) {
 
 void ZMark::follow_array_object(objArrayOop obj, bool finalizable) {
   const uintptr_t addr = (uintptr_t)obj->base();
-  const size_t size = obj->length() * oopSize;
+  const size_t size = (size_t)obj->length() * oopSize;
 
   follow_array(addr, size, finalizable);
 }
