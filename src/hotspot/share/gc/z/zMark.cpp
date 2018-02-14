@@ -263,13 +263,6 @@ void ZMark::follow_object(oop obj, bool finalizable) {
 }
 
 bool ZMark::try_mark_object(ZMarkCache* cache, uintptr_t addr, bool finalizable) {
-  // Prefetch the object header in preparation for object_size() and
-  // the following follow_object()/follow_array_object(). The call to
-  // mark_object() below uses atomics and has a high probability of
-  // being a cache miss, so the time from here until we access the
-  // object could be long.
-  Prefetch::read((void*)addr, HeapWordSize * 2);
-
   ZPage* const page = _pagetable->get(addr);
   if (page->is_allocating()) {
     // Newly allocated objects are implicitly marked
