@@ -36,7 +36,7 @@ class ZPage : public CHeapObj<mtGC> {
   friend class ZList<ZPage>;
 
 private:
-  // First cacheline (always hot)
+  // Always hot
   const uint8_t        _type;             // Page type
   volatile uint8_t     _pinned;           // Pinned flag
   uint8_t              _numa_id;          // NUMA node affinity
@@ -45,7 +45,7 @@ private:
   volatile uintptr_t   _top;              // Virtual top address
   ZLiveMap             _livemap;          // Live map
 
-  // Second cacheline (hot when relocated and cached)
+  // Hot when relocated and cached
   volatile uint32_t    _refcount;         // Page reference count
   ZForwardingTable     _forwarding;       // Forwarding table
   ZPhysicalMemory      _physical;         // Physical memory for page
