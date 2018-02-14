@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -189,6 +189,7 @@ class SharedRuntime: AllStatic {
 
   static oopDesc* z_load_barrier_on_oop_field_preloaded(oopDesc* ref, address ref_addr);
   static oopDesc* z_load_barrier_on_weak_oop_field_preloaded(oopDesc* ref, address ref_addr);
+  static oopDesc* z_load_barrier_on_phantom_oop_field_preloaded(oopDesc* ref, address ref_addr);
 #endif // INCLUDE_ALL_GCS
 
   // exception handling and implicit exceptions

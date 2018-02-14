@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -909,10 +909,10 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
 
     // Load the value of the referent field.
     if (Assembler::is_simm13(referent_offset)) {
-      __ load_heap_oop(Otos_i, referent_offset, Otos_i, true /* weak */);
+      __ load_heap_oop(Otos_i, referent_offset, Otos_i, MacroAssembler::LoadBarrierOnWeakOopRef);
     } else {
       __ set(referent_offset, G3_scratch);
-      __ load_heap_oop(Otos_i, G3_scratch, Otos_i, true /* weak */);
+      __ load_heap_oop(Otos_i, G3_scratch, Otos_i, MacroAssembler::LoadBarrierOnWeakOopRef);
     }
 
     // _areturn

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -798,7 +798,7 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
 
     // Weakly load the value of the referent field.
     const Address field_address(rax, referent_offset);
-    __ load_heap_oop(rax, field_address, true /* expand_call */, true /* weak */);
+    __ load_heap_oop(rax, field_address, true /* expand_call */, MacroAssembler::LoadBarrierOnWeakOopRef);
 
     // _areturn
     __ pop(rdi);                // get return address

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -5251,7 +5251,7 @@ void MacroAssembler::resolve_jobject(Register value,
   // Resolve jweak.
 #if INCLUDE_ALL_GCS
   if (UseLoadBarrier) {
-    load_barrier(value, Address(value, -JNIHandles::weak_tag_value), false /* expand call */, true /* weak */);
+    load_barrier(value, Address(value, -JNIHandles::weak_tag_value), false /* expand call */, LoadBarrierOnPhantomOopRef);
   } else
 #endif
   {
@@ -6703,7 +6703,7 @@ void MacroAssembler::store_klass(Register dst, Register src) {
 
 #if INCLUDE_ALL_GCS && defined(_LP64)
 
-void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_call, bool weak) {
+void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_call, LoadBarrierOn on) {
   Label done;
   const Register resolved_ref_addr = rsi;
   assert_different_registers(ref, resolved_ref_addr);
@@ -6754,16 +6754,33 @@ void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_ca
     assert(ref != c_rarg1, "smashed arg");
     pass_arg1(this, resolved_ref_addr);
     pass_arg0(this, ref);
-    if (weak) {
-      MacroAssembler::call_VM_leaf_base(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), 2);
-    } else {
+    switch (on) {
+    case LoadBarrierOnStrongOopRef:
       MacroAssembler::call_VM_leaf_base(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded), 2);
+      break;
+    case LoadBarrierOnWeakOopRef:
+      MacroAssembler::call_VM_leaf_base(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), 2);
+      break;
+    case LoadBarrierOnPhantomOopRef:
+      MacroAssembler::call_VM_leaf_base(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded), 2);
+      break;
+    default:
+      fatal("Unknown strength: %d", on);
+      break;
     }
   } else {
-    if (weak) {
-      call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), ref, resolved_ref_addr);
-    } else {
+    switch (on) {
+    case LoadBarrierOnStrongOopRef:
       call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded), ref, resolved_ref_addr);
+      break;
+    case LoadBarrierOnWeakOopRef:
+      call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), ref, resolved_ref_addr);
+      break;
+    case LoadBarrierOnPhantomOopRef:
+      call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded), ref, resolved_ref_addr);
+      break;
+    default: fatal("Unknown strength: %d", on);
+      break;
     }
   }
 
@@ -6803,11 +6820,11 @@ void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_ca
 
 #endif
 
-void MacroAssembler::load_heap_oop(Register dst, Address src, bool expand_call, bool weak) {
+void MacroAssembler::load_heap_oop(Register dst, Address src, bool expand_call, LoadBarrierOn on) {
 #ifdef _LP64
 #if INCLUDE_ALL_GCS
   if (UseLoadBarrier) {
-    load_barrier(dst, src, expand_call, weak);
+    load_barrier(dst, src, expand_call, on);
   } else
 #endif
   if (UseCompressedOops) {

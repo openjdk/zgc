@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3892,7 +3892,7 @@ void MacroAssembler::store_klass(Register klass, Register dst_oop) {
   }
 }
 
-void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool weak) {
+void MacroAssembler::load_barrier(Register ref, Address ref_addr, LoadBarrierOn on) {
   Label done;
   Label done_secondary;
   const Register resolved_ref_addr = G6;
@@ -3972,10 +3972,19 @@ void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool weak) {
   mov(G4, L4);
   mov(G5, L5);
   mov(G7, L6);
-  if (weak) {
-    call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded));
-  } else {
+  switch (on) {
+  case LoadBarrierOnStrongOopRef:
     call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded));
+    break;
+  case LoadBarrierOnWeakOopRef:
+    call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded));
+    break;
+  case LoadBarrierOnPhantomOopRef:
+    call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded));
+    break;
+  default:
+    fatal("Unknown strength: %d", on);
+    break;
   }
   mov(O0, G6);
   mov(L1, G1);
@@ -4020,13 +4029,13 @@ void MacroAssembler::store_klass_gap(Register s, Register d) {
   }
 }
 
-void MacroAssembler::load_heap_oop(const Address& s, Register d, bool weak) {
+void MacroAssembler::load_heap_oop(const Address& s, Register d, LoadBarrierOn on) {
   if (UseCompressedOops) {
     lduw(s, d);
     decode_heap_oop(d);
   } else {
     if (UseLoadBarrier) {
-      load_barrier(d, s, weak);
+      load_barrier(d, s, on);
     } else {
       ld_ptr(s, d);
     }
@@ -4034,35 +4043,35 @@ void MacroAssembler::load_heap_oop(const Address& s, Register d, bool weak) {
 
 }
 
-void MacroAssembler::load_heap_oop(Register s1, Register s2, Register d, bool weak) {
+void MacroAssembler::load_heap_oop(Register s1, Register s2, Register d, LoadBarrierOn on) {
   if (UseCompressedOops) {
     lduw(s1, s2, d);
     decode_heap_oop(d, d);
   } else {
     if (UseLoadBarrier) {
-      load_barrier(d, Address(s1, s2), weak);
+      load_barrier(d, Address(s1, s2), on);
     } else {
       ld_ptr(s1, s2, d);
     }
   }
 }
 
-void MacroAssembler::load_heap_oop(Register s1, int simm13a, Register d, bool weak) {
+void MacroAssembler::load_heap_oop(Register s1, int simm13a, Register d, LoadBarrierOn on) {
   if (UseCompressedOops) {
     lduw(s1, simm13a, d);
     decode_heap_oop(d, d);
   } else {
     if (UseLoadBarrier) {
-      load_barrier(d, Address(s1, simm13a), weak);
+      load_barrier(d, Address(s1, simm13a), on);
     } else {
       ld_ptr(s1, simm13a, d);
     }
   }
 }
 
-void MacroAssembler::load_heap_oop(Register s1, RegisterOrConstant s2, Register d, bool weak) {
-  if (s2.is_constant())  load_heap_oop(s1, s2.as_constant(), d, weak);
-  else                   load_heap_oop(s1, s2.as_register(), d, weak);
+void MacroAssembler::load_heap_oop(Register s1, RegisterOrConstant s2, Register d, LoadBarrierOn on) {
+  if (s2.is_constant())  load_heap_oop(s1, s2.as_constant(), d, on);
+  else                   load_heap_oop(s1, s2.as_register(), d, on);
 }
 
 void MacroAssembler::store_heap_oop(Register d, Register s1, Register s2) {

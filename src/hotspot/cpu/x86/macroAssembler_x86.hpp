@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -334,9 +334,15 @@ class MacroAssembler: public Assembler {
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
 
-  void load_barrier(Register ref, Address ref_addr, bool expand_call, bool weak);
+  enum LoadBarrierOn {
+    LoadBarrierOnStrongOopRef,
+    LoadBarrierOnWeakOopRef,
+    LoadBarrierOnPhantomOopRef
+  };
 
-  void load_heap_oop(Register dst, Address src, bool expand_call = false, bool weak = false);
+  void load_barrier(Register ref, Address ref_addr, bool expand_call, LoadBarrierOn on);
+
+  void load_heap_oop(Register dst, Address src, bool expand_call = false, LoadBarrierOn on = LoadBarrierOnStrongOopRef);
   void load_heap_oop_not_null(Register dst, Address src);
   void store_heap_oop(Address dst, Register src);
   void cmp_heap_oop(Register src1, Address src2, Register tmp = noreg);
