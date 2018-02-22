@@ -29,6 +29,7 @@
 #include "code/codeCache.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/oopStorageParState.inline.hpp"
+#include "gc/z/zGlobals.hpp"
 #include "gc/z/zNMethodTable.hpp"
 #include "gc/z/zOopClosures.inline.hpp"
 #include "gc/z/zRootsIterator.hpp"
@@ -214,10 +215,31 @@ void ZRootsIterator::do_class_loader_data_graph(OopClosure* cl) {
   ClassLoaderDataGraph::cld_do(&cld_cl);
 }
 
+class ZRootsIteratorThreadClosure : public ThreadClosure {
+private:
+  OopClosure* const _cl;
+
+public:
+  ZRootsIteratorThreadClosure(OopClosure* cl) :
+      _cl(cl) {}
+
+  virtual void do_thread(Thread* thread) {
+    if (thread->is_Java_thread()) {
+      // Update thread local adddress bad mask
+      JavaThread* const java_thread = (JavaThread*)thread;
+      java_thread->set_zaddress_bad_mask(ZAddressBadMask);
+    }
+
+    // Process thread oops
+    thread->oops_do(_cl, NULL);
+  }
+};
+
 void ZRootsIterator::do_threads(OopClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseRootsThreads);
   ResourceMark rm;
-  Threads::possibly_parallel_oops_do(true, cl, NULL);
+  ZRootsIteratorThreadClosure thread_cl(cl);
+  Threads::possibly_parallel_threads_do(true, &thread_cl);
 }
 
 void ZRootsIterator::do_code_cache(OopClosure* cl) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,6 @@ void ZAddressMasks::set_good_mask(uintptr_t mask) {
   ZAddressGoodMask = mask;
   ZAddressBadMask = ZAddressGoodMask ^ ZAddressMetadataMask;
   ZAddressWeakBadMask = (ZAddressGoodMask | ZAddressMetadataRemapped | ZAddressMetadataFinalizable) ^ ZAddressMetadataMask;
-
-  platform_set_bad_mask(old_bad_mask, ZAddressBadMask);
 }
 
 void ZAddressMasks::initialize() {

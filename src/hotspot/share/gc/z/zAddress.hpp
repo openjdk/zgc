@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,7 +55,6 @@ class ZAddressMasks : public AllStatic {
   friend class ZAddressTest;
 
 private:
-  static void platform_set_bad_mask(uintptr_t old_mask, uintptr_t new_mask);
   static void set_good_mask(uintptr_t mask);
 
 public:
