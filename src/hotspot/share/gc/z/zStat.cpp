@@ -605,31 +605,8 @@ const char* ZStatPhase::name() const {
   return _sampler.name();
 }
 
-uint64_t  ZStatPhaseCycle::_ncycles = 0;
-Ticks     ZStatPhaseCycle::_end_of_last;
-NumberSeq ZStatPhaseCycle::_duration(0.3 /* alpha */);
-
 ZStatPhaseCycle::ZStatPhaseCycle(const char* name) :
     ZStatPhase("Collector", name) {}
-
-uint64_t ZStatPhaseCycle::ncycles() {
-  return _ncycles;
-}
-
-const AbsSeq& ZStatPhaseCycle::duration() {
-  return _duration;
-}
-
-double ZStatPhaseCycle::time_since_last() {
-  if (_ncycles == 0) {
-    // Return time since VM start-up
-    return os::elapsedTime();
-  }
-
-  const Ticks now = Ticks::now();
-  const Tickspan time_since_last = now - _end_of_last;
-  return TicksToTimeHelper::seconds(time_since_last);
-}
 
 void ZStatPhaseCycle::register_start(const Ticks& start) const {
   timer()->register_gc_start(start);
@@ -656,10 +633,6 @@ void ZStatPhaseCycle::register_end(const Ticks& start, const Ticks& end) const {
 
   const Tickspan duration = end - start;
   ZStatSample(_sampler, duration.value());
-
-  _duration.add(TicksToTimeHelper::seconds(duration));
-  _end_of_last = end;
-  _ncycles++;
 
   ZStatLoad::print();
   ZStatMMU::print();
@@ -1032,6 +1005,49 @@ public:
     return ZColumn(_buffer, 0, _column0_width, _columnN_width);
   }
 };
+
+//
+// Stat cycle
+//
+uint64_t  ZStatCycle::_ncycles = 0;
+Ticks     ZStatCycle::_start_of_last;
+Ticks     ZStatCycle::_end_of_last;
+NumberSeq ZStatCycle::_normalized_duration(0.3 /* alpha */);
+
+void ZStatCycle::at_start() {
+  _start_of_last = Ticks::now();
+}
+
+void ZStatCycle::at_end(double boost_factor) {
+  _end_of_last = Ticks::now();
+  _ncycles++;
+
+  // Calculate normalized cycle duration. The measured duration is
+  // normalized using the boost factor to avoid artificial deflation
+  // of the duration when boost mode is enabled.
+  const double duration = TicksToTimeHelper::seconds(_end_of_last - _start_of_last);
+  const double normalized_duration = duration * boost_factor;
+  _normalized_duration.add(normalized_duration);
+}
+
+uint64_t ZStatCycle::ncycles() {
+  return _ncycles;
+}
+
+const AbsSeq& ZStatCycle::normalized_duration() {
+  return _normalized_duration;
+}
+
+double ZStatCycle::time_since_last() {
+  if (_ncycles == 0) {
+    // Return time since VM start-up
+    return os::elapsedTime();
+  }
+
+  const Ticks now = Ticks::now();
+  const Tickspan time_since_last = now - _end_of_last;
+  return TicksToTimeHelper::seconds(time_since_last);
+}
 
 //
 // Stat load

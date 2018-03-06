@@ -293,8 +293,21 @@ public:
       _gc_cause_setter(ZCollectedHeap::heap(), cause),
       _soft_ref_policy(cause),
       _timer(ZPhaseCycle) {
+    // Update statistics
+    ZStatCycle::at_start();
+
+    // Set boost mode
     const bool boost = should_boost_worker_threads(cause);
     ZHeap::heap()->set_boost_worker_threads(boost);
+  }
+
+  ~ZDriverCycleScope() {
+    // Calculate boost factor
+    const double boost_factor = (double)ZHeap::heap()->nconcurrent_worker_threads() /
+                                (double)ZHeap::heap()->nconcurrent_no_boost_worker_threads();
+
+    // Update statistics
+    ZStatCycle::at_end(boost_factor);
   }
 };
 

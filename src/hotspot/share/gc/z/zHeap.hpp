@@ -105,6 +105,8 @@ public:
   ZPageTableEntry* pagetable_addr() const;
 
   // Workers
+  uint nconcurrent_worker_threads() const;
+  uint nconcurrent_no_boost_worker_threads() const;
   void set_boost_worker_threads(bool boost);
   void worker_threads_do(ThreadClosure* tc) const;
   void print_worker_threads_on(outputStream* st) const;

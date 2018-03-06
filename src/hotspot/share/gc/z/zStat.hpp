@@ -218,17 +218,8 @@ public:
 };
 
 class ZStatPhaseCycle : public ZStatPhase {
-private:
-  static uint64_t  _ncycles;
-  static Ticks     _end_of_last;
-  static NumberSeq _duration;
-
 public:
   ZStatPhaseCycle(const char* name);
-
-  static uint64_t ncycles();
-  static const AbsSeq& duration();
-  static double time_since_last();
 
   virtual void register_start(const Ticks& start) const;
   virtual void register_end(const Ticks& start, const Ticks& end) const;
@@ -342,6 +333,25 @@ protected:
 
 public:
   ZStat();
+};
+
+//
+// Stat cycle
+//
+class ZStatCycle : public AllStatic {
+private:
+  static uint64_t  _ncycles;
+  static Ticks     _start_of_last;
+  static Ticks     _end_of_last;
+  static NumberSeq _normalized_duration;
+
+public:
+  static void at_start();
+  static void at_end(double boost_factor);
+
+  static uint64_t ncycles();
+  static const AbsSeq& normalized_duration();
+  static double time_since_last();
 };
 
 //

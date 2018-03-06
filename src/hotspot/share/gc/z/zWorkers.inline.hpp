@@ -28,11 +28,19 @@
 #include "utilities/globalDefinitions.hpp"
 
 inline uint ZWorkers::nparallel() const {
-  return _boost ? nworkers() : ParallelGCThreads;
+  return _boost ? nworkers() : nparallel_no_boost();
+}
+
+inline uint ZWorkers::nparallel_no_boost() const {
+  return ParallelGCThreads;
 }
 
 inline uint ZWorkers::nconcurrent() const {
-  return _boost ? nworkers() : ConcGCThreads;
+  return _boost ? nworkers() : nconcurrent_no_boost();
+}
+
+inline uint ZWorkers::nconcurrent_no_boost() const {
+  return ConcGCThreads;
 }
 
 inline uint ZWorkers::nworkers() const {

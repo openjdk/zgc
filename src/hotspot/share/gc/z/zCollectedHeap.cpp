@@ -228,7 +228,7 @@ void ZCollectedHeap::verify_nmethod(nmethod* nm) {
 }
 
 jlong ZCollectedHeap::millis_since_last_gc() {
-  return ZStatPhaseCycle::time_since_last() / MILLIUNITS;
+  return ZStatCycle::time_since_last() / MILLIUNITS;
 }
 
 void ZCollectedHeap::gc_threads_do(ThreadClosure* tc) const {

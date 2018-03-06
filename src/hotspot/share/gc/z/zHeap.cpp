@@ -194,6 +194,14 @@ ZPageTableEntry* ZHeap::pagetable_addr() const {
   return _pagetable.addr();
 }
 
+uint ZHeap::nconcurrent_worker_threads() const {
+  return _workers.nconcurrent();
+}
+
+uint ZHeap::nconcurrent_no_boost_worker_threads() const {
+  return _workers.nconcurrent_no_boost();
+}
+
 void ZHeap::set_boost_worker_threads(bool boost) {
   _workers.set_boost(boost);
 }

@@ -49,11 +49,11 @@ void ZDirector::sample_allocation_rate() const {
 }
 
 bool ZDirector::is_first() const {
-  return ZStatPhaseCycle::ncycles() == 0;
+  return ZStatCycle::ncycles() == 0;
 }
 
 bool ZDirector::is_warm() const {
-  return ZStatPhaseCycle::ncycles() >= 3;
+  return ZStatCycle::ncycles() >= 3;
 }
 
 bool ZDirector::rule_timer() const {
@@ -63,7 +63,7 @@ bool ZDirector::rule_timer() const {
   }
 
   // Perform GC if timer has expired.
-  const double time_since_last_gc = ZStatPhaseCycle::time_since_last();
+  const double time_since_last_gc = ZStatCycle::time_since_last();
   const double time_until_gc = ZCollectionInterval - time_since_last_gc;
 
   log_debug(gc, director)("Rule: Timer, Interval: %us, TimeUntilGC: %.3lfs",
@@ -83,7 +83,7 @@ bool ZDirector::rule_warmup() const {
   // duration, which is needed by the other rules.
   const size_t max_capacity = ZHeap::heap()->max_capacity();
   const size_t used = ZHeap::heap()->used();
-  const double used_threshold_percent = (ZStatPhaseCycle::ncycles() + 1) * 0.1;
+  const double used_threshold_percent = (ZStatCycle::ncycles() + 1) * 0.1;
   const size_t used_threshold = max_capacity * used_threshold_percent;
 
   log_debug(gc, director)("Rule: Warmup %.0f%%, Used: " SIZE_FORMAT "MB, UsedThreshold: " SIZE_FORMAT "MB",
@@ -124,7 +124,7 @@ bool ZDirector::rule_allocation_rate() const {
 
   // Calculate max duration of a GC cycle. The duration of GC is a moving
   // average, we add ~3.3 sigma to account for the GC duration variance.
-  const AbsSeq& duration_of_gc = ZStatPhaseCycle::duration();
+  const AbsSeq& duration_of_gc = ZStatCycle::normalized_duration();
   const double max_duration_of_gc = duration_of_gc.davg() + (duration_of_gc.dsd() * one_in_1000);
 
   // Calculate time until GC given the time until OOM and max duration of GC.
@@ -158,7 +158,7 @@ bool ZDirector::rule_proactive() const {
   const size_t used_increase_threshold = ZHeap::heap()->max_capacity() * 0.10; // 10%
   const size_t used_threshold = used_after_last_gc + used_increase_threshold;
   const size_t used = ZHeap::heap()->used();
-  const double time_since_last_gc = ZStatPhaseCycle::time_since_last();
+  const double time_since_last_gc = ZStatCycle::time_since_last();
   const double time_since_last_gc_threshold = 5 * 60; // 5 minutes
   if (used < used_threshold && time_since_last_gc < time_since_last_gc_threshold) {
     // Don't even consider doing a proactive GC
@@ -167,7 +167,7 @@ bool ZDirector::rule_proactive() const {
 
   const double assumed_throughput_drop_during_gc = 0.50; // 50%
   const double acceptable_throughput_drop = 0.01;        // 1%
-  const AbsSeq& duration_of_gc = ZStatPhaseCycle::duration();
+  const AbsSeq& duration_of_gc = ZStatCycle::normalized_duration();
   const double max_duration_of_gc = duration_of_gc.davg() + (duration_of_gc.dsd() * one_in_1000);
   const double acceptable_gc_interval = max_duration_of_gc * ((assumed_throughput_drop_during_gc / acceptable_throughput_drop) - 1.0);
   const double time_until_gc = acceptable_gc_interval - time_since_last_gc;
