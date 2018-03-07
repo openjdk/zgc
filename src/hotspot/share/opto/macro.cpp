@@ -2709,21 +2709,13 @@ void PhaseMacroExpand::expand_loadbarrier_basic(LoadBarrierNode *barrier)
   float likely  = PROB_LIKELY(0.999);
   const Type* in_val_maybe_null_t = _igvn.type(in_val);
 
-  Node* bad_mask = NULL;
-  Node* good_mask = NULL;
 #ifdef SPARC
-  bad_mask = _igvn.transform(new AddrBadBitNode());
+  Node* bad_mask = _igvn.transform(new AddrBadBitNode());
 #else
-  if (C->directive()->UseR15TestInLoadBarrierOption) {
-    Node* jthread = _igvn.transform(new ThreadLocalNode());
-    Node* adr = basic_plus_adr(jthread, in_bytes(JavaThread::zaddress_bad_mask_offset()));
-    bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
-  } else {
-    bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, makecon(TypeRawPtr::make((address)addr_bad_bit)),
-                                                  TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
-  }
+  Node* jthread = _igvn.transform(new ThreadLocalNode());
+  Node* adr = basic_plus_adr(jthread, in_bytes(JavaThread::zaddress_bad_mask_offset()));
+  Node* bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
 #endif
-
   Node* cast = _igvn.transform(new CastP2XNode(in_ctrl, in_val));
   Node* obj_masked = _igvn.transform(new AndXNode(cast, bad_mask));
   Node* cmp = _igvn.transform(new CmpXNode(obj_masked, _igvn.zerocon(TypeX_X->basic_type())));
@@ -2820,16 +2812,9 @@ void PhaseMacroExpand::expand_loadbarrier_optimized(LoadBarrierNode *barrier)
     float likely    = PROB_LIKELY(0.999);
     const Type* in_val_not_null_t = _igvn.type(in_val);
 
-    Node* bad_mask = NULL;
-    if (C->directive()->UseR15TestInLoadBarrierOption) {
-      Node* jthread = _igvn.transform(new ThreadLocalNode());
-      Node* adr = basic_plus_adr(jthread, in_bytes(JavaThread::zaddress_bad_mask_offset()));
-      bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
-    } else {
-      bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, makecon(TypeRawPtr::make((address)addr_bad_bit)),
-                                                TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
-    }
-
+    Node* jthread = _igvn.transform(new ThreadLocalNode());
+    Node* adr = basic_plus_adr(jthread, in_bytes(JavaThread::zaddress_bad_mask_offset()));
+    Node* bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
     Node* cast = _igvn.transform(new CastP2XNode(in_ctrl, in_val));
     Node* obj_masked = _igvn.transform(new AndXNode(cast, bad_mask));
     Node* cmp = _igvn.transform(new CmpXNode(obj_masked, _igvn.zerocon(TypeX_X->basic_type())));

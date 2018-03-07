@@ -759,10 +759,6 @@
   product_pd(bool, UseBasicLoadBarrier,                                     \
           "Force the original simple barrier variant")                      \
                                                                             \
-  /* ZGC temporary flags, remove later */                                   \
-  product(bool, UseR15TestInLoadBarrier, true,                              \
-          "Use R15 + offset for Loadbarrier test")                          \
-                                                                            \
   product(bool, UseCASLoadBarrier, true,                                    \
           "Turn of CAS barrier only, debug tool")                           \
                                                                             \

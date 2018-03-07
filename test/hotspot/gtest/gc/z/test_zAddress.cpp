@@ -6,24 +6,10 @@
 #include "precompiled.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zGlobals.hpp"
-#include "runtime/globals_extension.hpp"
 #include "unittest.hpp"
 
 class ZAddressTest : public ::testing::Test {
-private:
-  bool _old_UseR15TestInLoadBarrier;
-
 protected:
-  virtual void SetUp() {
-    // Have to bypass the code in set_good_mask.
-    _old_UseR15TestInLoadBarrier = UseR15TestInLoadBarrier;
-    UseR15TestInLoadBarrier = false;
-  }
-
-  virtual void TearDown() {
-    UseR15TestInLoadBarrier = _old_UseR15TestInLoadBarrier;
-  }
-
   static void is_good_bit(uintptr_t bit_mask) {
     // Setup
     uintptr_t mask_before = ZAddressGoodMask;

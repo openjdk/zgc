@@ -72,7 +72,6 @@ NOT_PRODUCT(cflags(TraceOptoOutput,     bool, TraceOptoOutput, TraceOptoOutput))
     cflags(OptimizeLoadBarriers,    bool, OptimizeLoadBarriers,    OptimizeLoadBarriers) \
     cflags(UseBasicLoadBarrier,     bool, UseBasicLoadBarrier,     UseBasicLoadBarrier) \
     /* ZGC temporary flags */                                                         \
-    cflags(UseR15TestInLoadBarrier, bool, UseR15TestInLoadBarrier, UseR15TestInLoadBarrier) \
     cflags(UseCASLoadBarrier,       bool, UseCASLoadBarrier,       UseCASLoadBarrier) \
     cflags(UseWeakCASLoadBarrier,   bool, UseWeakCASLoadBarrier,   UseWeakCASLoadBarrier) \
     cflags(UseCMPXLoadBarrier,      bool, UseCMPXLoadBarrier,      UseCMPXLoadBarrier) \

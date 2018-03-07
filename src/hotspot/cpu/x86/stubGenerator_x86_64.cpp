@@ -1114,7 +1114,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (UseLoadBarrier) {
       // Check if metadata bits indicate a bad oop
-      __ testptr(rax, ExternalAddress((address)&ZAddressBadMask));
+      __ testptr(rax, Address(r15_thread, JavaThread::zaddress_bad_mask_offset()));
       __ jcc(Assembler::notZero, error);
     }
 

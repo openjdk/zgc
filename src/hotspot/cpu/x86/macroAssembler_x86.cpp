@@ -6621,7 +6621,7 @@ void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_ca
   movptr(ref, Address(resolved_ref_addr, 0));
 
   // Check if mask is not bad, which includes an implicit null check.
-  testptr(ref, ExternalAddress((address)&ZAddressBadMask));
+  testptr(ref, Address(r15_thread, JavaThread::zaddress_bad_mask_offset()));
   jcc(Assembler::zero, done);
 
   // Save live registers
@@ -6751,7 +6751,7 @@ void MacroAssembler::store_heap_oop(Address dst, Register src) {
   if (VerifyOops && UseLoadBarrier) {
     // Check if mask is good
     Label done;
-    testptr(src, as_Address(ExternalAddress((address)&ZAddressBadMask)));
+    testptr(src, Address(r15_thread, JavaThread::zaddress_bad_mask_offset()));
     jcc(Assembler::zero, done);
     STOP("Writing broken oop");
     should_not_reach_here();
