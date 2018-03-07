@@ -1134,39 +1134,36 @@ ZStatReferences::ZCount ZStatReferences::_weak;
 ZStatReferences::ZCount ZStatReferences::_final;
 ZStatReferences::ZCount ZStatReferences::_phantom;
 
-void ZStatReferences::set(ZCount* count, size_t encountered, size_t dropped, size_t enqueued) {
+void ZStatReferences::set(ZCount* count, size_t encountered, size_t discovered, size_t enqueued) {
   count->encountered = encountered;
-  count->discovered = dropped + enqueued;
-  count->dropped = dropped;
+  count->discovered = discovered;
   count->enqueued = enqueued;
 }
 
-void ZStatReferences::set_soft(size_t encountered, size_t dropped, size_t enqueued) {
-  set(&_soft, encountered, dropped, enqueued);
+void ZStatReferences::set_soft(size_t encountered, size_t discovered, size_t enqueued) {
+  set(&_soft, encountered, discovered, enqueued);
 }
 
-void ZStatReferences::set_weak(size_t encountered, size_t dropped, size_t enqueued) {
-  set(&_weak, encountered, dropped, enqueued);
+void ZStatReferences::set_weak(size_t encountered, size_t discovered, size_t enqueued) {
+  set(&_weak, encountered, discovered, enqueued);
 }
 
-void ZStatReferences::set_final(size_t encountered, size_t dropped, size_t enqueued) {
-  set(&_final, encountered, dropped, enqueued);
+void ZStatReferences::set_final(size_t encountered, size_t discovered, size_t enqueued) {
+  set(&_final, encountered, discovered, enqueued);
 }
 
-void ZStatReferences::set_phantom(size_t encountered, size_t dropped, size_t enqueued) {
-  set(&_phantom, encountered, dropped, enqueued);
+void ZStatReferences::set_phantom(size_t encountered, size_t discovered, size_t enqueued) {
+  set(&_phantom, encountered, discovered, enqueued);
 }
 
 void ZStatReferences::print(const char* name, const ZStatReferences::ZCount& ref) {
   log_info(gc, ref)("%s: "
                     SIZE_FORMAT " encountered, "
                     SIZE_FORMAT " discovered, "
-                    SIZE_FORMAT " dropped, "
                     SIZE_FORMAT " enqueued",
                     name,
                     ref.encountered,
                     ref.discovered,
-                    ref.dropped,
                     ref.enqueued);
 }
 

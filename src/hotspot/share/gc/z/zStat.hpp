@@ -414,18 +414,17 @@ private:
   static struct ZCount {
     size_t encountered;
     size_t discovered;
-    size_t dropped;
     size_t enqueued;
   } _soft, _weak, _final, _phantom;
 
-  static void set(ZCount* count, size_t encountered, size_t dropped, size_t enqueued);
+  static void set(ZCount* count, size_t encountered, size_t discovered, size_t enqueued);
   static void print(const char* name, const ZCount& ref);
 
 public:
-  static void set_soft(size_t encountered, size_t dropped, size_t enqueued);
-  static void set_weak(size_t encountered, size_t dropped, size_t enqueued);
-  static void set_final(size_t encountered, size_t dropped, size_t enqueued);
-  static void set_phantom(size_t encountered, size_t dropped, size_t enqueued);
+  static void set_soft(size_t encountered, size_t discovered, size_t enqueued);
+  static void set_weak(size_t encountered, size_t discovered, size_t enqueued);
+  static void set_final(size_t encountered, size_t discovered, size_t enqueued);
+  static void set_phantom(size_t encountered, size_t discovered, size_t enqueued);
 
   static void print();
 };

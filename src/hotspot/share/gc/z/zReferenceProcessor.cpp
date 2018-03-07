@@ -43,7 +43,7 @@ ZReferenceProcessor::ZReferenceProcessor(ZWorkers* workers) :
     _workers(workers),
     _soft_reference_policy(NULL),
     _encountered_count(),
-    _dropped_count(),
+    _discovered_count(),
     _enqueued_count(),
     _discovered_list(NULL),
     _pending_list(NULL),
@@ -180,6 +180,9 @@ bool ZReferenceProcessor::discover_reference(oop obj, ReferenceType type) {
 void ZReferenceProcessor::discover(oop obj, ReferenceType type) {
   log_trace(gc, ref)("Discovered Reference: " PTR_FORMAT " (%s)", p2i(obj), ReferenceTypeName[type]);
 
+  // Update statistics
+  _discovered_count.get()[type]++;
+
   // Mark referent finalizable
   if (should_mark_referent(type)) {
     oop* const referent_addr = (oop*)java_lang_ref_Reference::referent_addr(obj);
@@ -195,9 +198,6 @@ void ZReferenceProcessor::discover(oop obj, ReferenceType type) {
 
 oop ZReferenceProcessor::drop(oop obj, ReferenceType type) {
   log_trace(gc, ref)("Dropped Reference: " PTR_FORMAT " (%s)", p2i(obj), ReferenceTypeName[type]);
-
-  // Update statistics
-  _dropped_count.get()[type]++;
 
   // Keep referent alive
   keep_referent_alive(obj, type);
@@ -290,9 +290,9 @@ void ZReferenceProcessor::reset_statistics() {
     }
   }
 
-  // Reset dropped
-  ZPerWorkerIterator<Counters> iter_dropped(&_dropped_count);
-  for (Counters* counters; iter_dropped.next(&counters);) {
+  // Reset discovered
+  ZPerWorkerIterator<Counters> iter_discovered(&_discovered_count);
+  for (Counters* counters; iter_discovered.next(&counters);) {
     for (int i = REF_SOFT; i <= REF_PHANTOM; i++) {
       (*counters)[i] = 0;
     }
@@ -309,7 +309,7 @@ void ZReferenceProcessor::reset_statistics() {
 
 void ZReferenceProcessor::collect_statistics() {
   Counters encountered = {};
-  Counters dropped = {};
+  Counters discovered = {};
   Counters enqueued = {};
 
   // Sum encountered
@@ -320,11 +320,11 @@ void ZReferenceProcessor::collect_statistics() {
     }
   }
 
-  // Sum dropped
-  ZPerWorkerConstIterator<Counters> iter_dropped(&_dropped_count);
-  for (const Counters* counters; iter_dropped.next(&counters);) {
+  // Sum discovered
+  ZPerWorkerConstIterator<Counters> iter_discovered(&_discovered_count);
+  for (const Counters* counters; iter_discovered.next(&counters);) {
     for (int i = REF_SOFT; i <= REF_PHANTOM; i++) {
-      dropped[i] += (*counters)[i];
+      discovered[i] += (*counters)[i];
     }
   }
 
@@ -337,16 +337,16 @@ void ZReferenceProcessor::collect_statistics() {
   }
 
   // Update statistics
-  ZStatReferences::set_soft(encountered[REF_SOFT], dropped[REF_SOFT], enqueued[REF_SOFT]);
-  ZStatReferences::set_weak(encountered[REF_WEAK], dropped[REF_WEAK], enqueued[REF_WEAK]);
-  ZStatReferences::set_final(encountered[REF_FINAL], dropped[REF_FINAL], enqueued[REF_FINAL]);
-  ZStatReferences::set_phantom(encountered[REF_PHANTOM], dropped[REF_PHANTOM], enqueued[REF_PHANTOM]);
+  ZStatReferences::set_soft(encountered[REF_SOFT], discovered[REF_SOFT], enqueued[REF_SOFT]);
+  ZStatReferences::set_weak(encountered[REF_WEAK], discovered[REF_WEAK], enqueued[REF_WEAK]);
+  ZStatReferences::set_final(encountered[REF_FINAL], discovered[REF_FINAL], enqueued[REF_FINAL]);
+  ZStatReferences::set_phantom(encountered[REF_PHANTOM], discovered[REF_PHANTOM], enqueued[REF_PHANTOM]);
 
   // Trace statistics
-  const ReferenceProcessorStats stats(dropped[REF_SOFT] + enqueued[REF_SOFT],
-                                      dropped[REF_WEAK] + enqueued[REF_WEAK],
-                                      dropped[REF_FINAL] + enqueued[REF_FINAL],
-                                      dropped[REF_PHANTOM] + enqueued[REF_PHANTOM]);
+  const ReferenceProcessorStats stats(discovered[REF_SOFT],
+                                      discovered[REF_WEAK],
+                                      discovered[REF_FINAL],
+                                      discovered[REF_PHANTOM]);
   ZTracer::tracer()->report_gc_reference_stats(stats);
 }
 

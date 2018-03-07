@@ -39,7 +39,7 @@ private:
   ZWorkers* const      _workers;
   ReferencePolicy*     _soft_reference_policy;
   ZPerWorker<Counters> _encountered_count;
-  ZPerWorker<Counters> _dropped_count;
+  ZPerWorker<Counters> _discovered_count;
   ZPerWorker<Counters> _enqueued_count;
   ZPerWorker<oop>      _discovered_list;
   ZContended<oop>      _pending_list;
