@@ -162,6 +162,9 @@ bool ZDirector::rule_proactive() const {
   const double time_since_last_gc_threshold = 5 * 60; // 5 minutes
   if (used < used_threshold && time_since_last_gc < time_since_last_gc_threshold) {
     // Don't even consider doing a proactive GC
+    log_debug(gc, director)("Rule: Proactive, UsedUntilEnabled: " SIZE_FORMAT "MB, TimeUntilEnabled: %.3lfs",
+                            (used_threshold - used) / M,
+                            time_since_last_gc_threshold - time_since_last_gc);
     return false;
   }
 
