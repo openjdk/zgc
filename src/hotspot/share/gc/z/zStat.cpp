@@ -1067,6 +1067,20 @@ size_t ZStatMark::_nterminateflush;
 size_t ZStatMark::_ntrycomplete;
 size_t ZStatMark::_ncontinue;
 
+void ZStatMark::set_at_mark_start(size_t nstripes) {
+  _nstripes = nstripes;
+}
+
+void ZStatMark::set_at_mark_end(size_t nproactiveflush,
+                                size_t nterminateflush,
+                                size_t ntrycomplete,
+                                size_t ncontinue) {
+  _nproactiveflush = nproactiveflush;
+  _nterminateflush = nterminateflush;
+  _ntrycomplete = ntrycomplete;
+  _ncontinue = ncontinue;
+}
+
 void ZStatMark::print() {
   log_info(gc, marking)("Mark: "
                         SIZE_FORMAT " stripe(s), "
@@ -1086,6 +1100,14 @@ void ZStatMark::print() {
 //
 size_t ZStatRelocation::_relocating;
 bool ZStatRelocation::_success;
+
+void ZStatRelocation::set_at_select_relocation_set(size_t relocating) {
+  _relocating = relocating;
+}
+
+void ZStatRelocation::set_at_relocate_end(bool success) {
+  _success = success;
+}
 
 void ZStatRelocation::print() {
   if (_success) {
@@ -1111,6 +1133,29 @@ ZStatReferences::ZCount ZStatReferences::_soft;
 ZStatReferences::ZCount ZStatReferences::_weak;
 ZStatReferences::ZCount ZStatReferences::_final;
 ZStatReferences::ZCount ZStatReferences::_phantom;
+
+void ZStatReferences::set(ZCount* count, size_t encountered, size_t dropped, size_t enqueued) {
+  count->encountered = encountered;
+  count->discovered = dropped + enqueued;
+  count->dropped = dropped;
+  count->enqueued = enqueued;
+}
+
+void ZStatReferences::set_soft(size_t encountered, size_t dropped, size_t enqueued) {
+  set(&_soft, encountered, dropped, enqueued);
+}
+
+void ZStatReferences::set_weak(size_t encountered, size_t dropped, size_t enqueued) {
+  set(&_weak, encountered, dropped, enqueued);
+}
+
+void ZStatReferences::set_final(size_t encountered, size_t dropped, size_t enqueued) {
+  set(&_final, encountered, dropped, enqueued);
+}
+
+void ZStatReferences::set_phantom(size_t encountered, size_t dropped, size_t enqueued) {
+  set(&_phantom, encountered, dropped, enqueued);
+}
 
 void ZStatReferences::print(const char* name, const ZStatReferences::ZCount& ref) {
   log_info(gc, ref)("%s: "
@@ -1144,6 +1189,97 @@ ZStatHeap::ZAtRelocateEnd ZStatHeap::_at_relocate_end;
 #define ZSIZE_NA               "%9s", "-"
 #define ZSIZE_ARGS(size)       SIZE_FORMAT_W(8) "M (%.0lf%%)", \
                                ((size) / M), (percent_of<size_t>(size, _at_initialize.max_capacity))
+
+size_t ZStatHeap::available(size_t used) {
+  return _at_initialize.max_capacity - used;
+}
+
+size_t ZStatHeap::reserve(size_t used) {
+  return MIN2(_at_initialize.max_reserve, available(used));
+}
+
+size_t ZStatHeap::free(size_t used) {
+  return available(used) - reserve(used);
+}
+
+void ZStatHeap::set_at_initialize(size_t max_capacity,
+                                  size_t max_reserve) {
+  _at_initialize.max_capacity = max_capacity;
+  _at_initialize.max_reserve = max_reserve;
+}
+
+void ZStatHeap::set_at_mark_start(size_t capacity,
+                                  size_t used) {
+  _at_mark_start.capacity = capacity;
+  _at_mark_start.reserve = reserve(used);
+  _at_mark_start.used = used;
+  _at_mark_start.free = free(used);
+}
+
+void ZStatHeap::set_at_mark_end(size_t capacity,
+                                size_t allocated,
+                                size_t used) {
+  _at_mark_end.capacity = capacity;
+  _at_mark_end.reserve = reserve(used);
+  _at_mark_end.allocated = allocated;
+  _at_mark_end.used = used;
+  _at_mark_end.free = free(used);
+}
+
+void ZStatHeap::set_at_select_relocation_set(size_t live,
+                                             size_t garbage,
+                                             size_t reclaimed) {
+  _at_mark_end.live = live;
+  _at_mark_end.garbage = garbage;
+
+  _at_relocate_start.garbage = garbage - reclaimed;
+  _at_relocate_start.reclaimed = reclaimed;
+}
+
+void ZStatHeap::set_at_relocate_start(size_t capacity,
+                                      size_t allocated,
+                                      size_t used) {
+  _at_relocate_start.capacity = capacity;
+  _at_relocate_start.reserve = reserve(used);
+  _at_relocate_start.allocated = allocated;
+  _at_relocate_start.used = used;
+  _at_relocate_start.free = free(used);
+}
+
+void ZStatHeap::set_at_relocate_end(size_t capacity,
+                                    size_t allocated,
+                                    size_t reclaimed,
+                                    size_t used,
+                                    size_t used_high,
+                                    size_t used_low) {
+  _at_relocate_end.capacity = capacity;
+  _at_relocate_end.capacity_high = capacity;
+  _at_relocate_end.capacity_low = _at_mark_start.capacity;
+  _at_relocate_end.reserve = reserve(used);
+  _at_relocate_end.reserve_high = reserve(used_high);
+  _at_relocate_end.reserve_low = reserve(used_low);
+  _at_relocate_end.garbage = _at_mark_end.garbage - reclaimed;
+  _at_relocate_end.allocated = allocated;
+  _at_relocate_end.reclaimed = reclaimed;
+  _at_relocate_end.used = used;
+  _at_relocate_end.used_high = used_high;
+  _at_relocate_end.used_low = used_low;
+  _at_relocate_end.free = free(used);
+  _at_relocate_end.free_high = free(used_low);
+  _at_relocate_end.free_low = free(used_high);
+}
+
+size_t ZStatHeap::max_capacity() {
+  return _at_initialize.max_capacity;
+}
+
+size_t ZStatHeap::used_at_mark_start() {
+  return _at_mark_start.used;
+}
+
+size_t ZStatHeap::used_at_relocate_end() {
+  return _at_relocate_end.used;
+}
 
 void ZStatHeap::print() {
   ZStatTablePrinter table(10, 18);
