@@ -64,10 +64,6 @@ private:
   void accumulate_statistics();
   void initialize_statistics();
 
-  void set_start(HeapWord* start)                { _start = start; }
-  void set_end(HeapWord* end)                    { _end = end; }
-  void set_top(HeapWord* top)                    { _top = top; }
-  void set_pf_top(HeapWord* pf_top)              { _pf_top = pf_top; }
   void set_desired_size(size_t desired_size)     { _desired_size = desired_size; }
   void set_refill_waste_limit(size_t waste)      { _refill_waste_limit = waste;  }
 
@@ -114,6 +110,11 @@ public:
   static size_t max_size()                       { assert(_max_size != 0, "max_size not set up"); return _max_size; }
   static size_t max_size_in_bytes()              { return max_size() * BytesPerWord; }
   static void set_max_size(size_t max_size)      { _max_size = max_size; }
+
+  void set_start(HeapWord* start)                { _start = start; }
+  void set_end(HeapWord* end)                    { _end = end; }
+  void set_top(HeapWord* top)                    { _top = top; }
+  void set_pf_top(HeapWord* pf_top)              { _pf_top = pf_top; }
 
   HeapWord* start() const                        { return _start; }
   HeapWord* end() const                          { return _end; }
