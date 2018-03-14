@@ -563,7 +563,7 @@ public class HotSpotTypeDataBase extends BasicTypeDataBase {
       nameAddr = entryAddr.getAddressAt(longConstantEntryNameOffset);
       if (nameAddr != null) {
         String name = CStringUtilities.getString(nameAddr);
-        int value = (int) entryAddr.getCIntegerAt(longConstantEntryValueOffset, C_INT64_SIZE, true);
+        long value = entryAddr.getCIntegerAt(longConstantEntryValueOffset, C_INT64_SIZE, true);
 
         // Be a little resilient
         Long oldValue = lookupLongConstant(name, false);
