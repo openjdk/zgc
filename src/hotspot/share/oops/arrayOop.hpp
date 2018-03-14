@@ -133,6 +133,9 @@ class arrayOopDesc : public oopDesc {
     return (int32_t)max_elements_per_size_t;
   }
 
+  static size_t max_array_length_in_bytes(BasicType type) {
+    return (size_t)max_array_length(type) * sizeof(size_t);
+  }
 };
 
 #endif // SHARE_VM_OOPS_ARRAYOOP_HPP
