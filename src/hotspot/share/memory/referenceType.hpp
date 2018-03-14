@@ -25,8 +25,6 @@
 #ifndef SHARE_VM_MEMORY_REFERENCETYPE_HPP
 #define SHARE_VM_MEMORY_REFERENCETYPE_HPP
 
-#include "utilities/debug.hpp"
-
 // ReferenceType is used to distinguish between java/lang/ref/Reference subclasses
 
 enum ReferenceType {
@@ -35,7 +33,17 @@ enum ReferenceType {
   REF_SOFT,      // Subclass of java/lang/ref/SoftReference
   REF_WEAK,      // Subclass of java/lang/ref/WeakReference
   REF_FINAL,     // Subclass of java/lang/ref/FinalReference
-  REF_PHANTOM    // Subclass of java/lang/ref/PhantomReference
+  REF_PHANTOM,   // Subclass of java/lang/ref/PhantomReference
+  REF_COUNT      // Number of reference types
+};
+
+const char* const ReferenceTypeName[REF_COUNT] = {
+  "None",
+  "Other",
+  "Soft",
+  "Weak",
+  "Final",
+  "Phantom"
 };
 
 #endif // SHARE_VM_MEMORY_REFERENCETYPE_HPP
