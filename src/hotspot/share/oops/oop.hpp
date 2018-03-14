@@ -127,6 +127,8 @@ class oopDesc {
   // Need this as public for garbage collection.
   template <class T> inline T* obj_field_addr_raw(int offset) const;
 
+  template <typename T> inline size_t field_offset(T* p) const;
+
   inline static bool is_null(oop obj)       { return obj == NULL; }
   inline static bool is_null(narrowOop obj) { return obj == 0; }
 
