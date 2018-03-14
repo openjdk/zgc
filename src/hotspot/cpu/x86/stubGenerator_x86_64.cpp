@@ -856,7 +856,9 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     // Setup arguments
-    __ movq(c_rarg1, raddr);
+    if (c_rarg1 != raddr) {
+      __ movq(c_rarg1, raddr);
+    }
     __ movq(c_rarg0, Address(raddr, 0));
 
     // Call barrier function
