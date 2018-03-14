@@ -186,6 +186,7 @@ class oopDesc {
   template <DecoratorSet decorator>
   oop obj_field_access(int offset) const;
   oop obj_field(int offset) const;
+  oop obj_field_weak(int offset) const;
   void obj_field_put(int offset, oop value);
   void obj_field_put_raw(int offset, oop value);
   void obj_field_put_volatile(int offset, oop value);

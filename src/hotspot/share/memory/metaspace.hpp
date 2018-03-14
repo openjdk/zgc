@@ -88,6 +88,7 @@ class Metaspace : public CHeapObj<mtClass> {
   friend class MetaspaceAux;
   friend class MetaspaceShared;
   friend class CollectedHeap;
+  friend class ZCollectedHeap;
   friend class PrintCLDMetaspaceInfoClosure;
   friend class MetaspaceAllocationTest;
 

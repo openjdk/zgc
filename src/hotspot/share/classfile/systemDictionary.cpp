@@ -1829,7 +1829,7 @@ private:
   BoolObjectClosure* _is_alive;
 
   template <class T> void do_oop_work(T* p) {
-    oop obj = oopDesc::load_decode_heap_oop(p);
+    oop obj = RootAccess<>::oop_load(p);
     guarantee(_is_alive->do_object_b(obj), "Oop in protection domain cache table must be live");
   }
 

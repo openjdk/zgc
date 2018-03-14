@@ -128,6 +128,7 @@
 #include "gc/parallel/psVirtualspace.hpp"
 #include "gc/parallel/psYoungGen.hpp"
 #include "gc/parallel/vmStructs_parallelgc.hpp"
+#include "gc/z/vmStructs_z.hpp"
 #endif // INCLUDE_ALL_GCS
 
 #if INCLUDE_JVMCI
@@ -1385,6 +1386,7 @@ typedef PaddedEnd<ObjectMonitor>              PaddedObjectMonitor;
   declare_integer_type(intptr_t)                                          \
   declare_unsigned_integer_type(uintx)                                    \
   declare_unsigned_integer_type(uintptr_t)                                \
+  declare_unsigned_integer_type(uint8_t)                                  \
   declare_unsigned_integer_type(uint32_t)                                 \
   declare_unsigned_integer_type(uint64_t)                                 \
                                                                           \
@@ -3023,6 +3025,9 @@ VMStructEntry VMStructs::localHotSpotVMStructs[] = {
 
   VM_STRUCTS_G1(GENERATE_NONSTATIC_VM_STRUCT_ENTRY,
                 GENERATE_STATIC_VM_STRUCT_ENTRY)
+
+  VM_STRUCTS_Z(GENERATE_NONSTATIC_VM_STRUCT_ENTRY,
+               GENERATE_STATIC_VM_STRUCT_ENTRY)
 #endif // INCLUDE_ALL_GCS
 
 #if INCLUDE_TRACE
@@ -3087,6 +3092,9 @@ VMTypeEntry VMStructs::localHotSpotVMTypes[] = {
   VM_TYPES_G1(GENERATE_VM_TYPE_ENTRY,
               GENERATE_TOPLEVEL_VM_TYPE_ENTRY,
               GENERATE_INTEGER_VM_TYPE_ENTRY)
+
+  VM_TYPES_Z(GENERATE_VM_TYPE_ENTRY,
+             GENERATE_TOPLEVEL_VM_TYPE_ENTRY)
 #endif // INCLUDE_ALL_GCS
 
 #if INCLUDE_TRACE
@@ -3143,6 +3151,9 @@ VMIntConstantEntry VMStructs::localHotSpotVMIntConstants[] = {
 
   VM_INT_CONSTANTS_G1(GENERATE_VM_INT_CONSTANT_ENTRY,
                       GENERATE_VM_INT_CONSTANT_WITH_VALUE_ENTRY)
+
+  VM_INT_CONSTANTS_Z(GENERATE_VM_INT_CONSTANT_ENTRY,
+                     GENERATE_VM_INT_CONSTANT_WITH_VALUE_ENTRY)
 #endif // INCLUDE_ALL_GCS
 
 #if INCLUDE_TRACE
@@ -3200,6 +3211,11 @@ VMLongConstantEntry VMStructs::localHotSpotVMLongConstants[] = {
                            GENERATE_C2_VM_LONG_CONSTANT_ENTRY,
                            GENERATE_C2_PREPROCESSOR_VM_LONG_CONSTANT_ENTRY)
 
+#if INCLUDE_ALL_GCS
+  VM_LONG_CONSTANTS_Z(GENERATE_VM_LONG_CONSTANT_ENTRY,
+                      GENERATE_VM_LONG_CONSTANT_WITH_VALUE_ENTRY)
+#endif // INCLUDE_ALL_GCS
+
   GENERATE_VM_LONG_CONSTANT_LAST_ENTRY()
 };
 
@@ -3233,6 +3249,9 @@ VMStructs::init() {
 
   VM_STRUCTS_G1(CHECK_NONSTATIC_VM_STRUCT_ENTRY,
                 CHECK_STATIC_VM_STRUCT_ENTRY);
+
+  VM_STRUCTS_Z(CHECK_NONSTATIC_VM_STRUCT_ENTRY,
+               CHECK_STATIC_VM_STRUCT_ENTRY);
 
 #endif // INCLUDE_ALL_GCS
 
@@ -3281,6 +3300,8 @@ VMStructs::init() {
               CHECK_SINGLE_ARG_VM_TYPE_NO_OP,
               CHECK_SINGLE_ARG_VM_TYPE_NO_OP);
 
+  VM_TYPES_Z(CHECK_VM_TYPE_ENTRY,
+             CHECK_SINGLE_ARG_VM_TYPE_NO_OP);
 #endif // INCLUDE_ALL_GCS
 
 #if INCLUDE_TRACE
@@ -3352,6 +3373,8 @@ VMStructs::init() {
                             ENSURE_FIELD_TYPE_PRESENT));
   debug_only(VM_STRUCTS_G1(ENSURE_FIELD_TYPE_PRESENT,
                            ENSURE_FIELD_TYPE_PRESENT));
+  debug_only(VM_STRUCTS_Z(ENSURE_FIELD_TYPE_PRESENT,
+                          ENSURE_FIELD_TYPE_PRESENT));
 #endif // INCLUDE_ALL_GCS
 
 #if INCLUDE_TRACE

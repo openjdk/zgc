@@ -755,6 +755,7 @@ int LIR_Assembler::store(LIR_Opr from_reg, Register base, int offset, BasicType 
             store_offset = code_offset();
             __ stw(G3_scratch, base, offset);
           } else {
+            __ verify_oop(from_reg->as_register());
             __ st_ptr(from_reg->as_register(), base, offset);
           }
           break;
@@ -806,6 +807,7 @@ int LIR_Assembler::store(LIR_Opr from_reg, Register base, Register disp, BasicTy
           store_offset = code_offset();
           __ stw(G3_scratch, base, disp);
         } else {
+          __ verify_oop(from_reg->as_register());
           __ st_ptr(from_reg->as_register(), base, disp);
         }
         break;
@@ -1749,6 +1751,9 @@ void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr thread, L
   }
 }
 
+void LIR_Assembler::load_barrier_test(LIR_Opr ref) {
+  __ btst(ref->as_register(), G6);
+}
 
 void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest) {
   if (right->is_constant()) {
@@ -2638,6 +2643,8 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
         __ encode_heap_oop(t2);
         __ cas(addr, t1, t2);
       } else {
+        __ verify_oop(t1);
+        __ verify_oop(t2);
         __ cas_ptr(addr, t1, t2);
       }
     } else {

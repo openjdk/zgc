@@ -1502,6 +1502,7 @@ void JavaThread::collect_counters(typeArrayOop array) {
 void JavaThread::initialize() {
   // Initialize fields
 
+  set_zaddress_bad_mask(0);
   set_saved_exception_pc(NULL);
   set_threadObj(NULL);
   _anchor.clear();
@@ -3219,7 +3220,7 @@ void JavaThread::trace_frames() {
 class PrintAndVerifyOopClosure: public OopClosure {
  protected:
   template <class T> inline void do_oop_work(T* p) {
-    oop obj = oopDesc::load_decode_heap_oop(p);
+    oop obj = RootAccess<>::oop_load(p);
     if (obj == NULL) return;
     tty->print(INTPTR_FORMAT ": ", p2i(p));
     if (oopDesc::is_oop_or_null(obj)) {

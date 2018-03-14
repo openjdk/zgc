@@ -78,5 +78,6 @@ define_pd_global(bool, UseLargePages, false);
 define_pd_global(bool, UseLargePagesIndividualAllocation, false);
 define_pd_global(bool, UseOSErrorReporting, false);
 define_pd_global(bool, UseThreadPriorities, true) ;
+define_pd_global(bool, UseBasicLoadBarrier, false);
 
 #endif // OS_LINUX_VM_GLOBALS_LINUX_HPP

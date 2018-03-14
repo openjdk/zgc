@@ -28,6 +28,7 @@
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1_specialized_oop_closures.hpp"
+#include "gc/z/zOopClosures.specialized.hpp"
 #endif // INCLUDE_ALL_GCS
 
 // The following OopClosure types get specialized versions of
@@ -111,7 +112,8 @@ class NoHeaderExtendedOopClosure;
   SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_MS(f)            \
   SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_CMS(f)           \
   SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1(f)            \
-  SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1FULL(f)
+  SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1FULL(f)        \
+  SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_Z(f)
 #else  // INCLUDE_ALL_GCS
 #define SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_2(f)       \
   SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_MS(f)

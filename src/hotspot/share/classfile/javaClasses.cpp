@@ -1866,12 +1866,8 @@ void java_lang_Throwable::serialize(SerializeClosure* f) {
 
 oop java_lang_Throwable::unassigned_stacktrace() {
   InstanceKlass* ik = SystemDictionary::Throwable_klass();
-  address addr = ik->static_field_addr(static_unassigned_stacktrace_offset);
-  if (UseCompressedOops) {
-    return oopDesc::load_decode_heap_oop((narrowOop *)addr);
-  } else {
-    return oopDesc::load_decode_heap_oop((oop*)addr);
-  }
+  HeapWord* addr = (HeapWord*)ik->static_field_addr(static_unassigned_stacktrace_offset);
+  return HeapAccess<>::oop_load(addr);
 }
 
 oop java_lang_Throwable::backtrace(oop throwable) {
@@ -4133,12 +4129,9 @@ int java_lang_System::err_offset_in_bytes() { return static_err_offset; }
 
 bool java_lang_System::has_security_manager() {
   InstanceKlass* ik = SystemDictionary::System_klass();
-  address addr = ik->static_field_addr(static_security_offset);
-  if (UseCompressedOops) {
-    return oopDesc::load_decode_heap_oop((narrowOop *)addr) != NULL;
-  } else {
-    return oopDesc::load_decode_heap_oop((oop*)addr) != NULL;
-  }
+  HeapWord* addr = (HeapWord*)ik->static_field_addr(static_security_offset);
+  // No need to for a read barrier to figure out if addr points to null.
+  return (oop)HeapAccess<>::oop_load(addr) != NULL;
 }
 
 int java_lang_Class::_klass_offset;

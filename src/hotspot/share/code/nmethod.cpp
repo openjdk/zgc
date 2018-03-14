@@ -2444,7 +2444,16 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
           return st.as_string();
         }
         case relocInfo::static_stub_type:      return "static_stub";
-        case relocInfo::external_word_type:    return "external_word";
+        case relocInfo::external_word_type: {
+          external_word_Relocation* r = iter.external_word_reloc();
+          if (r->value() == (address)&ZAddressBadMask) {
+            return "ZAddressBadMask";
+          } else if (r->value() == (address)&ZAddressGoodMask) {
+            return "ZAddressGoodMask";
+          } else {
+            return "external_word";
+          }
+        }
         case relocInfo::internal_word_type:    return "internal_word";
         case relocInfo::section_word_type:     return "section_word";
         case relocInfo::poll_type:             return "poll";

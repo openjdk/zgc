@@ -44,6 +44,10 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
+#if INCLUDE_ALL_GCS
+#include "gc/z/zBarrier.inline.hpp"
+#include "gc/z/zGlobals.hpp"
+#endif
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -798,6 +802,90 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+  address generate_load_barrier_stub(Register raddr, address runtime_entry, bool is_weak) {
+    char *name = (char *)NULL;
+    {
+      ResourceMark rm;
+      stringStream ss;
+      if (is_weak) {
+        ss.print("load_barrier_weak_slow_stub_%s", raddr->name());
+      } else {
+        ss.print("load_barrier_slow_stub_%s", raddr->name());
+      }
+      name = os::strdup(ss.as_string(),mtCode);
+    }
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    // save live registers
+    if (raddr != rax) {
+      __ push(rax);
+    }
+    if (raddr != rcx) {
+      __ push(rcx);
+    }
+    if (raddr != rdx) {
+      __ push(rdx);
+    }
+    if (raddr != rsi) {
+      __ push(rsi);
+    }
+    if (raddr != rdi) {
+      __ push(rdi);
+    }
+    if (raddr != r8) {
+      __ push(r8);
+    }
+    if (raddr != r9) {
+      __ push(r9);
+    }
+    if (raddr != r10) {
+      __ push(r10);
+    }
+    if (raddr != r11) {
+      __ push(r11);
+    }
+
+     __ movq(c_rarg1,raddr);
+     __ movq(c_rarg0,Address(c_rarg1,0));
+     __ call_VM_leaf(runtime_entry, c_rarg0, c_rarg1);
+
+    // restore saved registers
+    if (raddr != r11) {
+      __ pop(r11);
+    }
+    if (raddr != r10) {
+      __ pop(r10);
+    }
+    if (raddr != r9) {
+      __ pop(r9);
+    }
+    if (raddr != r8) {
+      __ pop(r8);
+    }
+    if (raddr != rdi) {
+      __ pop(rdi);
+    }
+    if (raddr != rsi) {
+      __ pop(rsi);
+    }
+    if (raddr != rdx) {
+      __ pop(rdx);
+    }
+    if (raddr != rcx) {
+       __ pop(rcx);
+    }
+    if (raddr != rax) {
+      __ movq(raddr,rax);
+      __ pop(rax);
+    }
+
+    __ ret(0);
+
+    return start;
+  }
+
   address generate_f2i_fixup() {
     StubCodeMark mark(this, "StubRoutines", "f2i_fixup");
     Address inout(rsp, 5 * wordSize); // return address + 4 saves
@@ -1026,6 +1114,13 @@ class StubGenerator: public StubCodeGenerator {
     // make sure object is 'reasonable'
     __ testptr(rax, rax);
     __ jcc(Assembler::zero, exit); // if obj is NULL it is OK
+
+    if (UseLoadBarrier) {
+      // Check if metadata bits indicate a bad oop
+      __ testptr(rax, Address(r15_thread, JavaThread::zaddress_bad_mask_offset()));
+      __ jcc(Assembler::notZero, error);
+    }
+
     // Check if the oop is in the right area of memory
     __ movptr(c_rarg2, rax);
     __ movptr(c_rarg3, (intptr_t) Universe::verify_oop_mask());
@@ -1194,6 +1289,43 @@ class StubGenerator: public StubCodeGenerator {
   //
   //     addr    -  starting address
   //     count   -  element count
+  //
+  //     Destroy no registers!
+  //
+  void gen_load_ref_array_barrier(Register addr, Register count) {
+    BarrierSet* bs = Universe::heap()->barrier_set();
+    switch (bs->kind()) {
+      case BarrierSet::Z:
+        __ pusha();                      // push registers
+        if (count == c_rarg0) {
+          if (addr == c_rarg1) {
+            // exactly backwards!!
+            __ xchgptr(c_rarg1, c_rarg0);
+          } else {
+            __ movptr(c_rarg1, count);
+            __ movptr(c_rarg0, addr);
+          }
+        } else {
+          __ movptr(c_rarg0, addr);
+          __ movptr(c_rarg1, count);
+        }
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<void (*)(volatile oop*, size_t)>(ZBarrier::load_barrier_on_oop_array)), 2);
+        __ popa();
+        break;
+      case BarrierSet::G1BarrierSet:
+      case BarrierSet::CardTableModRef:
+        // No barrier
+        break;
+      default:
+        ShouldNotReachHere();
+        break;
+    }
+  }
+
+  // Generate code for an array write pre barrier
+  //
+  //     addr    -  starting address
+  //     count   -  element count
   //     tmp     - scratch register
   //
   //     Destroy no registers!
@@ -1236,6 +1368,8 @@ class StubGenerator: public StubCodeGenerator {
         }
          break;
       case BarrierSet::CardTableModRef:
+      case BarrierSet::Z:
+        // No barrier
         break;
       default:
         ShouldNotReachHere();
@@ -1296,6 +1430,9 @@ class StubGenerator: public StubCodeGenerator {
           __ jcc(Assembler::greaterEqual, L_loop);
         __ BIND(L_done);
         }
+        break;
+      case BarrierSet::Z:
+        // No barrier
         break;
       default:
         ShouldNotReachHere();
@@ -1935,6 +2072,7 @@ class StubGenerator: public StubCodeGenerator {
                       // r9 and r10 may be used to save non-volatile registers
     if (is_oop) {
       __ movq(saved_to, to);
+      gen_load_ref_array_barrier(from, count);
       gen_write_ref_array_pre_barrier(to, count, dest_uninitialized);
     }
 
@@ -2024,6 +2162,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (is_oop) {
       // no registers are destroyed by this call
+      gen_load_ref_array_barrier(from, count);
       gen_write_ref_array_pre_barrier(to, count, dest_uninitialized);
     }
 
@@ -2124,6 +2263,7 @@ class StubGenerator: public StubCodeGenerator {
       // Save to and count for store barrier
       __ movptr(saved_count, qword_count);
       // no registers are destroyed by this call
+      gen_load_ref_array_barrier(from, qword_count);
       gen_write_ref_array_pre_barrier(to, qword_count, dest_uninitialized);
     }
 
@@ -2213,6 +2353,7 @@ class StubGenerator: public StubCodeGenerator {
       // Save to and count for store barrier
       __ movptr(saved_count, qword_count);
       // No registers are destroyed by this call
+      gen_load_ref_array_barrier(from, saved_count);
       gen_write_ref_array_pre_barrier(to, saved_count, dest_uninitialized);
     }
 
@@ -2389,6 +2530,7 @@ class StubGenerator: public StubCodeGenerator {
     Address from_element_addr(end_from, count, TIMES_OOP, 0);
     Address   to_element_addr(end_to,   count, TIMES_OOP, 0);
 
+    gen_load_ref_array_barrier(from, count);
     gen_write_ref_array_pre_barrier(to, count, dest_uninitialized);
 
     // Copy from low to high addresses, indexed from the end of each array.
@@ -5147,6 +5289,30 @@ class StubGenerator: public StubCodeGenerator {
 
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
+
+    // Load barrier stubs
+    if (UseLoadBarrier) {
+      address loadbarrier_address = CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded);
+      address loadbarrier_weak_address = CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded);
+
+      Register rr = as_Register(0);
+      for (int i = 0; i < RegisterImpl::number_of_registers; i++) {
+        if (rr != rsp) {
+          StubRoutines::x86::_load_barrier_slow_stub[i] = generate_load_barrier_stub(rr, loadbarrier_address, false);
+          StubRoutines::x86::_load_barrier_weak_slow_stub[i] = generate_load_barrier_stub(rr, loadbarrier_weak_address, true);
+
+        } else {
+          StubRoutines::x86::_load_barrier_slow_stub[i] = (address)NULL;
+          StubRoutines::x86::_load_barrier_weak_slow_stub[i] = (address)NULL;
+        }
+        rr = rr->successor();
+      }
+    } else {
+      for (int i = 0; i < RegisterImpl::number_of_registers; i++) {
+        StubRoutines::x86::_load_barrier_slow_stub[i] = (address)NULL;
+        StubRoutines::x86::_load_barrier_weak_slow_stub[i] = (address)NULL;
+      }
+    }
 
     // don't bother generating these AES intrinsic stubs unless global flag is set
     if (UseAESIntrinsics) {

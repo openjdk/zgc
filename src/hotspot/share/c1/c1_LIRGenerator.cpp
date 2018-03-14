@@ -44,6 +44,7 @@
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/g1/heapRegion.hpp"
+#include "gc/z/zGlobals.hpp"
 #endif // INCLUDE_ALL_GCS
 #ifdef TRACE_HAVE_INTRINSICS
 #include "trace/traceMacros.hpp"
@@ -1250,6 +1251,10 @@ void LIRGenerator::do_Reference_get(Intrinsic* x) {
 
   __ load(referent_field_adr, result, info);
 
+  if (UseLoadBarrier) {
+    load_barrier(result, LIR_OprFact::address(referent_field_adr), lir_patch_none, NULL, true /* weak */);
+  }
+
   // Register the value in the referent field with the pre-barrier
   pre_barrier(LIR_OprFact::illegalOpr /* addr_opr */,
               result /* pre_val */,
@@ -1462,6 +1467,9 @@ void LIRGenerator::pre_barrier(LIR_Opr addr_opr, LIR_Opr pre_val,
     case BarrierSet::G1BarrierSet:
       G1SATBCardTableModRef_pre_barrier(addr_opr, pre_val, do_load, patch, info);
       break;
+    case BarrierSet::Z:
+      // No post barriers
+      break;
 #endif // INCLUDE_ALL_GCS
     case BarrierSet::CardTableModRef:
       // No pre barriers
@@ -1478,6 +1486,9 @@ void LIRGenerator::post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
     case BarrierSet::G1BarrierSet:
       G1SATBCardTableModRef_post_barrier(addr,  new_val);
       break;
+    case BarrierSet::Z:
+      // No post barriers
+      break;
 #endif // INCLUDE_ALL_GCS
     case BarrierSet::CardTableModRef:
       CardTableModRef_post_barrier(addr,  new_val);
@@ -1485,6 +1496,26 @@ void LIRGenerator::post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
     default      :
       ShouldNotReachHere();
     }
+}
+
+void LIRGenerator::load_barrier(LIR_Opr ref, LIR_Opr ref_addr, LIR_PatchCode patch_code, CodeEmitInfo* info, bool weak) {
+  assert(UseLoadBarrier, "invariant");
+  assert(ref->is_register(), "invariant");
+
+  __ load_barrier_test(ref);
+
+  CodeStub* slow;
+  if (ref_addr->is_illegal()) {
+    slow = new LoadBarrierStub(ref, weak);
+  } else if (ref_addr->is_register()) {
+    slow = new LoadBarrierStub(ref, ref_addr, weak);
+  } else {
+    slow = new LoadBarrierStub(ref, ref_addr, new_pointer_register(), patch_code, info, weak);
+  }
+
+  // Branch to slow path if test failed
+  __ branch(lir_cond_notEqual, T_ADDRESS, slow);
+  __ branch_destination(slow->continuation());
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1801,6 +1832,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   bool needs_patching = x->needs_patching();
   bool is_volatile = x->field()->is_volatile();
   BasicType field_type = x->field_type();
+  bool is_oop = (field_type == T_ARRAY || field_type == T_OBJECT);
 
   CodeEmitInfo* info = NULL;
   if (needs_patching) {
@@ -1864,6 +1896,12 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   } else {
     LIR_PatchCode patch_code = needs_patching ? lir_patch_normal : lir_patch_none;
     __ load(address, reg, info, patch_code);
+  }
+
+  if (is_oop && UseLoadBarrier) {
+    LIR_PatchCode patch_code = needs_patching ? lir_patch_normal : lir_patch_none;
+    load_barrier(reg, LIR_OprFact::address(address),
+                 patch_code, (info ? new CodeEmitInfo(info) : NULL));
   }
 
   if (is_volatile && os::is_MP()) {
@@ -1937,6 +1975,8 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   LIRItem index(x->index(), this);
   LIRItem length(this);
   bool needs_range_check = x->compute_needs_range_check();
+  BasicType element_type = x->elt_type();
+  bool is_oop = (element_type == T_ARRAY || element_type == T_OBJECT);
 
   if (use_length && needs_range_check) {
     length.set_instruction(x->length());
@@ -1968,7 +2008,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 
   // emit array address setup early so it schedules better
-  LIR_Address* array_addr = emit_array_address(array.result(), index.result(), x->elt_type(), false);
+  LIR_Address* array_addr = emit_array_address(array.result(), index.result(), element_type, false);
 
   if (GenerateRangeChecks && needs_range_check) {
     if (StressLoopInvariantCodeMotion && range_check_info->deoptimize_on_exception()) {
@@ -1985,7 +2025,13 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  __ move(array_addr, rlock_result(x, x->elt_type()), null_check_info);
+  LIR_Opr result = rlock_result(x, element_type);
+  __ move(array_addr, result, null_check_info);
+
+  if (is_oop && UseLoadBarrier) {
+    load_barrier(result, LIR_OprFact::address(array_addr),
+                 lir_patch_none, (null_check_info ? new CodeEmitInfo(null_check_info) : NULL));
+  }
 }
 
 

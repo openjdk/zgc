@@ -29,7 +29,8 @@
 
 #if INCLUDE_ALL_GCS
 #define FOR_EACH_CONCRETE_INCLUDE_ALL_GC_BARRIER_SET_DO(f) \
-  f(G1BarrierSet)
+  f(G1BarrierSet) \
+  f(Z)
 #else
 #define FOR_EACH_CONCRETE_INCLUDE_ALL_GC_BARRIER_SET_DO(f)
 #endif

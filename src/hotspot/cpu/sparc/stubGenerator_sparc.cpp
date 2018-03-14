@@ -823,6 +823,33 @@ class StubGenerator: public StubCodeGenerator {
       __ delayed()->nop();
   }
 
+  // Generate code for an array load barrier
+  //
+  //     addr    -  starting address
+  //     count   -  element count
+  //
+  //     Destroy no registers!
+  //
+  void gen_load_ref_array_barrier(Register addr, Register count) {
+    BarrierSet* bs = Universe::heap()->barrier_set();
+    switch (bs->kind()) {
+      case BarrierSet::Z:
+        __ save_frame_and_mov(0, addr, O0, count, O1);
+        // Save the necessary global regs... will be used after.
+        __ call(CAST_FROM_FN_PTR(address, static_cast<void (*)(volatile oop*, size_t)>(ZBarrier::load_barrier_on_oop_array)));
+        __ delayed()->nop();
+        __ restore();
+        break;
+      case BarrierSet::G1BarrierSet:
+      case BarrierSet::CardTableModRef:
+        // No barrier
+        break;
+      default:
+        ShouldNotReachHere();
+        break;
+    }
+  }
+
   //
   //  Generate pre-write barrier for array.
   //
@@ -878,6 +905,7 @@ class StubGenerator: public StubCodeGenerator {
         }
         break;
       case BarrierSet::CardTableModRef:
+      case BarrierSet::Z:
         break;
       default:
         ShouldNotReachHere();
@@ -937,6 +965,7 @@ class StubGenerator: public StubCodeGenerator {
         }
         break;
       case BarrierSet::ModRef:
+      case BarrierSet::Z:
         break;
       default:
         ShouldNotReachHere();
@@ -2389,8 +2418,13 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     // save arguments for barrier generation
-    __ mov(to, G1);
+    if (UseLoadBarrier) {
+      __ mov(from, G1);
+    } else {
+      __ mov(to, G1);
+    }
     __ mov(count, G5);
+    gen_load_ref_array_barrier(G1, G5);
     gen_write_ref_array_pre_barrier(G1, G5, dest_uninitialized);
     assert_clean_int(count, O3);     // Make sure 'count' is clean int.
     if (UseCompressedOops) {
@@ -2439,8 +2473,13 @@ class StubGenerator: public StubCodeGenerator {
     array_overlap_test(nooverlap_target, LogBytesPerHeapOop);
 
     // save arguments for barrier generation
-    __ mov(to, G1);
+    if (UseLoadBarrier) {
+      __ mov(from, G1);
+    } else {
+      __ mov(to, G1);
+    }
     __ mov(count, G5);
+    gen_load_ref_array_barrier(G1, G5);
     gen_write_ref_array_pre_barrier(G1, G5, dest_uninitialized);
 
     if (UseCompressedOops) {
@@ -2552,6 +2591,7 @@ class StubGenerator: public StubCodeGenerator {
       // caller can pass a 64-bit byte count here (from generic stub)
       BLOCK_COMMENT("Entry:");
     }
+    gen_load_ref_array_barrier(O0_from, O2_count);
     gen_write_ref_array_pre_barrier(O1_to, O2_count, dest_uninitialized);
 
     Label load_element, store_element, do_card_marks, fail, done;
