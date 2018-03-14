@@ -30,7 +30,7 @@
 class ZPage;
 class ZRelocationSet;
 
-class ZRelocationSetSelectorGroup VALUE_OBJ_CLASS_SPEC {
+class ZRelocationSetSelectorGroup {
 private:
   const char* const    _name;
   const size_t         _page_size;

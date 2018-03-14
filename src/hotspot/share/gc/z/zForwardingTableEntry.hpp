@@ -43,7 +43,7 @@
 //  * 63-42 From Object Index (22-bits)
 //
 
-class ZForwardingTableEntry VALUE_OBJ_CLASS_SPEC {
+class ZForwardingTableEntry {
   friend struct PrimitiveConversions;
 
 private:

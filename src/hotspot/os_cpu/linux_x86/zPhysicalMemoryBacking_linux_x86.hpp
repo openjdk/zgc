@@ -31,7 +31,7 @@
 class ZErrno;
 class ZPhysicalMemory;
 
-class ZPhysicalMemoryBacking VALUE_OBJ_CLASS_SPEC {
+class ZPhysicalMemoryBacking {
 private:
   ZMemoryManager _manager;
   ZBackingFile   _file;

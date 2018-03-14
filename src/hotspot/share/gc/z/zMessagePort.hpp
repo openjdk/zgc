@@ -32,7 +32,7 @@
 template <typename T> class ZMessageRequest;
 
 template <typename T>
-class ZMessagePort VALUE_OBJ_CLASS_SPEC {
+class ZMessagePort {
 private:
   typedef ZMessageRequest<T> Request;
 
@@ -52,7 +52,7 @@ public:
   void ack();
 };
 
-class ZRendezvousPort VALUE_OBJ_CLASS_SPEC {
+class ZRendezvousPort {
 private:
   ZMessagePort<bool> _port;
 

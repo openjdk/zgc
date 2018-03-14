@@ -44,7 +44,7 @@ public:
   ZServiceabilityMemoryManager(ZServiceabilityMemoryPool* pool);
 };
 
-class ZServiceability VALUE_OBJ_CLASS_SPEC {
+class ZServiceability {
 private:
   const size_t                 _min_capacity;
   const size_t                 _max_capacity;
@@ -62,12 +62,12 @@ public:
   ZServiceabilityCounters* counters();
 };
 
-class ZServiceabilityMemoryUsageTracker VALUE_OBJ_CLASS_SPEC {
+class ZServiceabilityMemoryUsageTracker {
 public:
   ~ZServiceabilityMemoryUsageTracker();
 };
 
-class ZServiceabilityManagerStatsTracer VALUE_OBJ_CLASS_SPEC {
+class ZServiceabilityManagerStatsTracer {
 private:
   TraceMemoryManagerStats _stats;
 
@@ -75,7 +75,7 @@ public:
   ZServiceabilityManagerStatsTracer(bool is_gc_begin, bool is_gc_end);
 };
 
-class ZServiceabilityCountersTracer VALUE_OBJ_CLASS_SPEC {
+class ZServiceabilityCountersTracer {
 public:
   ZServiceabilityCountersTracer();
   ~ZServiceabilityCountersTracer();

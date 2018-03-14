@@ -29,7 +29,7 @@
 #include "gc/z/zValue.hpp"
 #include "memory/allocation.hpp"
 
-class ZObjectAllocator VALUE_OBJ_CLASS_SPEC {
+class ZObjectAllocator {
 private:
   const uint         _nworkers;
   ZPerCPU<size_t>    _used;

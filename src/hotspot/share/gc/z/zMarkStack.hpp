@@ -52,7 +52,7 @@ public:
 };
 
 template <typename T>
-class ZStackList VALUE_OBJ_CLASS_SPEC {
+class ZStackList {
 private:
   T* volatile _head;
 
@@ -73,7 +73,7 @@ typedef ZStackList<ZMarkStack>                       ZMarkStackList;
 typedef ZStack<ZMarkStack*, ZMarkStackMagazineSlots> ZMarkStackMagazine;
 typedef ZStackList<ZMarkStackMagazine>               ZMarkStackMagazineList;
 
-class ZMarkStackSpace VALUE_OBJ_CLASS_SPEC {
+class ZMarkStackSpace {
 private:
   ZLock              _expand_lock;
   volatile uintptr_t _top;
@@ -92,7 +92,7 @@ public:
   uintptr_t alloc(size_t size);
 };
 
-class ZMarkStackAllocator VALUE_OBJ_CLASS_SPEC {
+class ZMarkStackAllocator {
 private:
   ZMarkStackMagazineList _freelist ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
   ZMarkStackSpace        _space    ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
@@ -109,7 +109,7 @@ public:
   void free_magazine(ZMarkStackMagazine* magazine);
 };
 
-class ZMarkStripe VALUE_OBJ_CLASS_SPEC {
+class ZMarkStripe {
 private:
   ZMarkStackList _published  ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
   ZMarkStackList _overflowed ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
@@ -123,7 +123,7 @@ public:
   ZMarkStack* steal_stack();
 };
 
-class ZMarkStripeSet VALUE_OBJ_CLASS_SPEC {
+class ZMarkStripeSet {
 private:
   size_t      _nstripes;
   size_t      _nstripes_mask;
@@ -144,7 +144,7 @@ public:
   ZMarkStripe* stripe_for_addr(uintptr_t addr);
 };
 
-class ZMarkThreadLocalStacks VALUE_OBJ_CLASS_SPEC {
+class ZMarkThreadLocalStacks {
 private:
   ZMarkStackMagazine* _magazine;
   ZMarkStack*         _stacks[ZMarkStripesMax];

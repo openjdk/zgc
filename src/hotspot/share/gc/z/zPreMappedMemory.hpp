@@ -30,7 +30,7 @@
 
 class ZPage;
 
-class ZPreMappedMemory VALUE_OBJ_CLASS_SPEC {
+class ZPreMappedMemory {
 private:
   ZVirtualMemory  _vmem;
   ZPhysicalMemory _pmem;

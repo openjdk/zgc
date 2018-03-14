@@ -52,7 +52,7 @@ void ZStatUnitOpsPerSecond(LogTargetHandle log, const ZStatSampler& sampler, con
 //
 // Stat value
 //
-class ZStatValue VALUE_OBJ_CLASS_SPEC {
+class ZStatValue {
 private:
   static uintptr_t _base;
   static uint32_t  _cpu_offset;
@@ -158,7 +158,7 @@ public:
 //
 // Stat MMU (Mimimum Mutator Utilization)
 //
-class ZStatMMUPause VALUE_OBJ_CLASS_SPEC {
+class ZStatMMUPause {
 private:
   double _start;
   double _end;
@@ -171,7 +171,7 @@ public:
   double overlap(double start, double end) const;
 };
 
-class ZStatMMU VALUE_OBJ_CLASS_SPEC {
+class ZStatMMU {
 private:
   static size_t        _next;
   static size_t        _npauses;
@@ -196,7 +196,7 @@ public:
 //
 // Stat phases
 //
-class ZStatPhase VALUE_OBJ_CLASS_SPEC {
+class ZStatPhase {
 private:
   static ConcurrentGCTimer _timer;
 

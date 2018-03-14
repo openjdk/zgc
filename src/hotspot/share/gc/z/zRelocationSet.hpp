@@ -28,7 +28,7 @@
 
 class ZPage;
 
-class ZRelocationSet VALUE_OBJ_CLASS_SPEC {
+class ZRelocationSet {
   template <bool> friend class ZRelocationSetIteratorImpl;
 
 private:

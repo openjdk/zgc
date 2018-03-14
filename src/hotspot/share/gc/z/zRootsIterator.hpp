@@ -30,7 +30,7 @@
 #include "utilities/globalDefinitions.hpp"
 
 template <typename T, void (T::*F)(OopClosure*)>
-class ZSerialOopsDo VALUE_OBJ_CLASS_SPEC {
+class ZSerialOopsDo {
 private:
   T* const      _iter;
   volatile bool _claimed;
@@ -41,7 +41,7 @@ public:
 };
 
 template <typename T, void (T::*F)(OopClosure*)>
-class ZParallelOopsDo VALUE_OBJ_CLASS_SPEC {
+class ZParallelOopsDo {
 private:
   T* const      _iter;
   volatile bool _completed;
@@ -52,7 +52,7 @@ public:
 };
 
 template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
-class ZSerialUnlinkOrOopsDo VALUE_OBJ_CLASS_SPEC {
+class ZSerialUnlinkOrOopsDo {
 private:
   T* const      _iter;
   volatile bool _claimed;
@@ -63,7 +63,7 @@ public:
 };
 
 template <typename T, void (T::*F)(BoolObjectClosure*, OopClosure*)>
-class ZParallelUnlinkOrOopsDo VALUE_OBJ_CLASS_SPEC {
+class ZParallelUnlinkOrOopsDo {
 private:
   T* const      _iter;
   volatile bool _completed;
@@ -73,7 +73,7 @@ public:
   void unlink_or_oops_do(BoolObjectClosure* is_alive, OopClosure* cl);
 };
 
-class ZRootsIterator VALUE_OBJ_CLASS_SPEC {
+class ZRootsIterator {
 private:
   void do_universe(OopClosure* cl);
   void do_jni_handles(OopClosure* cl);
@@ -110,7 +110,7 @@ public:
   void oops_do(OopClosure* cl, bool visit_jvmti_weak_export = false);
 };
 
-class ZWeakRootsIterator VALUE_OBJ_CLASS_SPEC {
+class ZWeakRootsIterator {
 private:
   void do_jni_weak_handles(BoolObjectClosure* is_alive, OopClosure* cl);
   void do_jvmti_weak_export(BoolObjectClosure* is_alive, OopClosure* cl);
@@ -132,7 +132,7 @@ public:
   void oops_do(OopClosure* cl);
 };
 
-class ZConcurrentWeakRootsIterator VALUE_OBJ_CLASS_SPEC {
+class ZConcurrentWeakRootsIterator {
 private:
   OopStorage::ParState<true /* concurrent */, false /* is_const */> _par_state;
 
@@ -146,7 +146,7 @@ public:
   void oops_do(OopClosure* cl);
 };
 
-class ZThreadRootsIterator VALUE_OBJ_CLASS_SPEC {
+class ZThreadRootsIterator {
 private:
   void do_threads(OopClosure* cl);
 

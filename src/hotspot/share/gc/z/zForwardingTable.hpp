@@ -29,7 +29,7 @@
 
 typedef size_t ZForwardingTableCursor;
 
-class ZForwardingTable VALUE_OBJ_CLASS_SPEC {
+class ZForwardingTable {
   friend class VMStructs;
   friend class ZForwardingTableTest;
 

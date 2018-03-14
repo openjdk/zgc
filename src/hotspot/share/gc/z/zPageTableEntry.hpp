@@ -46,7 +46,7 @@
 
 class ZPage;
 
-class ZPageTableEntry VALUE_OBJ_CLASS_SPEC {
+class ZPageTableEntry {
 private:
   typedef ZBitField<uint64_t, bool,   0, 1>     field_relocating;
   typedef ZBitField<uint64_t, ZPage*, 1, 63, 1> field_page;

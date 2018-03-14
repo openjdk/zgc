@@ -31,7 +31,7 @@ template <typename T> class ZList;
 
 // Element in a double linked list
 template <typename T>
-class ZListNode VALUE_OBJ_CLASS_SPEC {
+class ZListNode {
   friend class ZList<T>;
 
 private:
@@ -63,7 +63,7 @@ public:
 
 // Double-linked list
 template <typename T>
-class ZList VALUE_OBJ_CLASS_SPEC {
+class ZList {
 private:
   ZListNode<T> _head;
   size_t       _size;

@@ -27,7 +27,7 @@
 #include "memory/allocation.hpp"
 
 template <typename T>
-class ZArray VALUE_OBJ_CLASS_SPEC {
+class ZArray {
 private:
   static const size_t initial_capacity = 32;
 

@@ -29,7 +29,7 @@
 
 class ZPage;
 
-class ZMarkCacheEntry VALUE_OBJ_CLASS_SPEC {
+class ZMarkCacheEntry {
 private:
   ZPage*   _page;
   uint32_t _objects;

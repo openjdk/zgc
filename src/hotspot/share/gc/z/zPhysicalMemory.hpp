@@ -27,7 +27,7 @@
 #include "memory/allocation.hpp"
 #include OS_CPU_HEADER(zPhysicalMemoryBacking)
 
-class ZPhysicalMemorySegment VALUE_OBJ_CLASS_SPEC {
+class ZPhysicalMemorySegment {
 private:
   uintptr_t _start;
   uintptr_t _end;
@@ -43,7 +43,7 @@ public:
   ZPhysicalMemorySegment split(size_t size);
 };
 
-class ZPhysicalMemory VALUE_OBJ_CLASS_SPEC {
+class ZPhysicalMemory {
 private:
   size_t                  _nsegments;
   ZPhysicalMemorySegment* _segments;
@@ -64,7 +64,7 @@ public:
   void clear();
 };
 
-class ZPhysicalMemoryManager VALUE_OBJ_CLASS_SPEC {
+class ZPhysicalMemoryManager {
   friend class VMStructs;
 
 private:

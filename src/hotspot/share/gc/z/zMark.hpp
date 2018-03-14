@@ -34,7 +34,7 @@ class ZMarkCache;
 class ZPageTable;
 class ZWorkers;
 
-class ZMark VALUE_OBJ_CLASS_SPEC {
+class ZMark {
   friend class ZMarkRootsTask;
   friend class ZMarkTask;
   friend class ZMarkTryCompleteTask;

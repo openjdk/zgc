@@ -29,7 +29,7 @@
 #include "gc/z/zValue.hpp"
 #include "memory/allocation.hpp"
 
-class ZPageCache VALUE_OBJ_CLASS_SPEC {
+class ZPageCache {
 private:
   size_t                  _available;
 

@@ -28,7 +28,7 @@
 #include "gc/z/zWorkers.hpp"
 #include "memory/allocation.hpp"
 
-class ZRelocate VALUE_OBJ_CLASS_SPEC {
+class ZRelocate {
   friend class ZRelocateTask;
 
 private:

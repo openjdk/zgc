@@ -31,7 +31,7 @@
 
 class ZPage;
 
-class ZPageTable VALUE_OBJ_CLASS_SPEC {
+class ZPageTable {
   friend class VMStructs;
   friend class ZPageTableIterator;
 

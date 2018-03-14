@@ -34,7 +34,7 @@
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 
-class ZNMethodWithImmediateOops VALUE_OBJ_CLASS_SPEC {
+class ZNMethodWithImmediateOops {
 private:
   nmethod* const _nm;
   const size_t   _nimmediate_oops;

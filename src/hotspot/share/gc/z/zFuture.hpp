@@ -28,7 +28,7 @@
 #include "runtime/semaphore.hpp"
 
 template <typename T>
-class ZFuture VALUE_OBJ_CLASS_SPEC {
+class ZFuture {
 private:
   SemaphoreSafepointAware _sema;
   T                       _value;

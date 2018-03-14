@@ -29,7 +29,7 @@
 
 class ZTask;
 
-class ZWorkers VALUE_OBJ_CLASS_SPEC {
+class ZWorkers {
 private:
   bool     _boost;
   WorkGang _workers;

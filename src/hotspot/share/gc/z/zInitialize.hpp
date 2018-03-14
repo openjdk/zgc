@@ -26,7 +26,7 @@
 
 #include "memory/allocation.hpp"
 
-class ZInitialize VALUE_OBJ_CLASS_SPEC {
+class ZInitialize {
 public:
   ZInitialize();
 };

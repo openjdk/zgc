@@ -65,7 +65,7 @@
 //  * 63-32 Partial Array Address Offset (32-bits)
 //
 
-class ZMarkStackEntry VALUE_OBJ_CLASS_SPEC  {
+class ZMarkStackEntry  {
 private:
   typedef ZBitField<uint64_t, bool,      0,  1>  field_finalizable;
   typedef ZBitField<uint64_t, bool,      1,  1>  field_partial_array;

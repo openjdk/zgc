@@ -35,7 +35,7 @@
 
 class ZPageAllocRequest;
 
-class ZPageAllocator VALUE_OBJ_CLASS_SPEC {
+class ZPageAllocator {
   friend class VMStructs;
 
 private:

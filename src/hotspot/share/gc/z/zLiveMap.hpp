@@ -29,7 +29,7 @@
 
 class ObjectClosure;
 
-class ZLiveMap VALUE_OBJ_CLASS_SPEC {
+class ZLiveMap {
   friend class ZLiveMapTest;
 
 private:

@@ -27,7 +27,7 @@
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-class ZMarkTerminate VALUE_OBJ_CLASS_SPEC {
+class ZMarkTerminate {
 private:
   uint          _nworkers;
   volatile uint _nworking_stage0 ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);

@@ -26,7 +26,7 @@
 
 #include "memory/allocation.hpp"
 
-class ZBackingFile VALUE_OBJ_CLASS_SPEC {
+class ZBackingFile {
 private:
   int      _fd;
   uint64_t _filesystem;

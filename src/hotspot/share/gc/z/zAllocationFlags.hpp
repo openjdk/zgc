@@ -49,7 +49,7 @@
 //  * 7-5 Unused (3-bits)
 //
 
-class ZAllocationFlags VALUE_OBJ_CLASS_SPEC {
+class ZAllocationFlags {
 private:
   typedef ZBitField<uint8_t, bool, 0, 1> field_java_thread;
   typedef ZBitField<uint8_t, bool, 1, 1> field_worker_thread;

@@ -70,7 +70,7 @@ struct ZStatCounterData {
 // Stat sampler history
 //
 template <size_t size>
-class ZStatSamplerHistoryInterval VALUE_OBJ_CLASS_SPEC {
+class ZStatSamplerHistoryInterval {
 private:
   size_t           _next;
   ZStatSamplerData _samples[size];

@@ -48,7 +48,7 @@ public:
   void grow_from_back(size_t size);
 };
 
-class ZMemoryManager VALUE_OBJ_CLASS_SPEC {
+class ZMemoryManager {
 private:
   ZList<ZMemory> _freelist;
 

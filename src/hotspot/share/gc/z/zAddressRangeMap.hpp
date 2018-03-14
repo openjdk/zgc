@@ -30,7 +30,7 @@ template<typename T, size_t AddressRangeShift>
 class ZAddressRangeMapIterator;
 
 template <typename T, size_t AddressRangeShift>
-class ZAddressRangeMap VALUE_OBJ_CLASS_SPEC {
+class ZAddressRangeMap {
   friend class VMStructs;
   friend class ZAddressRangeMapIterator<T, AddressRangeShift>;
 

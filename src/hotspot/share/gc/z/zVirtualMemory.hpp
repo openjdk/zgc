@@ -27,7 +27,7 @@
 #include "gc/z/zMemory.hpp"
 #include "memory/allocation.hpp"
 
-class ZVirtualMemory VALUE_OBJ_CLASS_SPEC {
+class ZVirtualMemory {
   friend class VMStructs;
 
 private:
@@ -46,7 +46,7 @@ public:
   void clear();
 };
 
-class ZVirtualMemoryManager VALUE_OBJ_CLASS_SPEC {
+class ZVirtualMemoryManager {
 private:
   ZMemoryManager _manager;
   bool           _initialized;

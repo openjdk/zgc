@@ -27,7 +27,7 @@
 #include "memory/allocation.hpp"
 #include <pthread.h>
 
-class ZLock VALUE_OBJ_CLASS_SPEC {
+class ZLock {
 private:
   pthread_mutex_t _lock;
 
