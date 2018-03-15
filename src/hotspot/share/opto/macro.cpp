@@ -24,8 +24,6 @@
 
 #include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeap.inline.hpp"
 #include "libadt/vectset.hpp"
 #include "opto/addnode.hpp"
 #include "opto/arraycopynode.hpp"
@@ -2695,18 +2693,7 @@ void PhaseMacroExpand::expand_loadbarrier_basic(LoadBarrierNode *barrier)
   Node* out_ctrl = barrier->proj_out(LoadBarrierNode::Control);
   Node* out_res  = barrier->proj_out(LoadBarrierNode::Oop);
 
-  const uintptr_t      in_cset_bit   = 0x1;
-  const unsigned char* in_cset_map   = (unsigned char*)ZHeap::heap()->pagetable_addr();
-  const int            in_cset_shift = ZPageSizeMinShift;
-
-  const uintptr_t* addr_good_bit = &ZAddressGoodMask;
-  const uintptr_t* addr_bad_bit  = &ZAddressBadMask;
-
-  const uintptr_t  remapped_bit = ZAddressMetadataRemapped;
-  const uintptr_t  offset_mask  = ZAddressOffsetMask;
-
   float unlikely  = PROB_UNLIKELY(0.999);
-  float likely  = PROB_LIKELY(0.999);
   const Type* in_val_maybe_null_t = _igvn.type(in_val);
 
 #ifdef SPARC
@@ -2798,19 +2785,7 @@ void PhaseMacroExpand::expand_loadbarrier_optimized(LoadBarrierNode *barrier)
     traverse( preceding_barrier_node, out_ctrl, out_res, -1 );
 #endif
 
-    const uintptr_t      in_cset_bit   = 0x1;
-    const unsigned char* in_cset_map   = (unsigned char*)ZHeap::heap()->pagetable_addr();
-    const int            in_cset_shift = ZPageSizeMinShift;
-
-    const uintptr_t* addr_good_bit = &ZAddressGoodMask;
-    const uintptr_t* addr_bad_bit  = &ZAddressBadMask;
-
-    const uintptr_t  remapped_bit  = ZAddressMetadataRemapped;
-    const uintptr_t  offset_mask   = ZAddressOffsetMask;
-
     float unlikely  = PROB_UNLIKELY(0.999);
-    float likely    = PROB_LIKELY(0.999);
-    const Type* in_val_not_null_t = _igvn.type(in_val);
 
     Node* jthread = _igvn.transform(new ThreadLocalNode());
     Node* adr = basic_plus_adr(jthread, in_bytes(JavaThread::zaddress_bad_mask_offset()));
