@@ -540,10 +540,6 @@ reg_class int_rdi_reg(RDI);
 
 %}
 
-source_hpp %{
-  bool is_far(intptr_t addr);
-%}
-
 //----------SOURCE BLOCK-------------------------------------------------------
 // This is a block of C++ code which provides values, functions, and
 // definitions necessary in the rest of the architecture description
@@ -1792,11 +1788,6 @@ RegMask Matcher::modL_proj_mask() {
 // Register for saving SP into on method handle invokes. Not used on x86_64.
 const RegMask Matcher::method_handle_invoke_SP_save_mask() {
     return NO_REG_mask();
-}
-
-bool is_far(intptr_t addr) {
-  return !Assembler::is_simm32(addr - (intptr_t)CodeCache::low_bound()) ||
-         !Assembler::is_simm32(addr - (intptr_t)CodeCache::high_bound());
 }
 
 %}
@@ -11743,19 +11734,6 @@ instruct testL_reg_reg(rFlagsReg cr, rRegP src, r12_RegL other, immL0 zero)
     __ testq($src$$Register, $other$$Register);
   %}
   ins_pipe(ialu_cr_reg_imm);
-%}
-
-instruct testL_reg_mem3(rFlagsReg cr, rRegP src, immP addr, immL0 zero)
-%{
-  predicate(!is_far(_kids[0]->_kids[1]->_kids[0]->_leaf->bottom_type()->is_rawptr()->get_con()));
-  match(Set cr (CmpL (AndL (CastP2X src) (LoadL addr)) zero));
-
-  format %{ "testq   $src, [$addr]" %}
-  ins_encode %{
-    __ testq($src$$Register, AddressLiteral((address)$addr$$constant, relocInfo::external_word_type));
-  %}
-
-  ins_pipe(ialu_cr_reg_mem);
 %}
 
 instruct testL_reg_mem2(rFlagsReg cr, rRegP src, memory mem, immL0 zero)

@@ -4087,11 +4087,6 @@ void MacroAssembler::ptest(XMMRegister dst, XMMRegister src) {
   }
 }
 
-void MacroAssembler::testq(Register dst, AddressLiteral src) {
-  assert(reachable(src), "Address should be reachable");
-  testq(dst, as_Address(src));
-}
-
 void MacroAssembler::sqrtsd(XMMRegister dst, AddressLiteral src) {
   if (reachable(src)) {
     Assembler::sqrtsd(dst, as_Address(src));

@@ -850,15 +850,13 @@ class MacroAssembler: public Assembler {
   // they will be hidden by the following overriding declaration.
   using Assembler::testl;
   void testl(Register dst, AddressLiteral src);
-  using Assembler::testq;
-  void testq(Register dst, AddressLiteral src);
 
   void orptr(Register dst, Address src) { LP64_ONLY(orq(dst, src)) NOT_LP64(orl(dst, src)); }
   void orptr(Register dst, Register src) { LP64_ONLY(orq(dst, src)) NOT_LP64(orl(dst, src)); }
   void orptr(Register dst, int32_t src) { LP64_ONLY(orq(dst, src)) NOT_LP64(orl(dst, src)); }
   void orptr(Address dst, int32_t imm32) { LP64_ONLY(orq(dst, imm32)) NOT_LP64(orl(dst, imm32)); }
 
-  void testptr(Register src, int32_t imm32) { LP64_ONLY(testq(src, imm32)) NOT_LP64(testl(src, imm32)); }
+  void testptr(Register src, int32_t imm32) {  LP64_ONLY(testq(src, imm32)) NOT_LP64(testl(src, imm32)); }
   void testptr(Register src1, Address src2) { LP64_ONLY(testq(src1, src2)) NOT_LP64(testl(src1, src2)); }
   void testptr(Register src1, Register src2);
 
