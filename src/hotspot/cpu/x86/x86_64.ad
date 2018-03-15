@@ -329,8 +329,6 @@ reg_class ptr_rex_reg(R8,  R8_H,
                       R14, R14_H);
 
 
-reg_class long_r12_reg(R12, R12_H);
-
 // Class for all long registers (excluding RSP)
 reg_class long_reg_with_rbp(RAX, RAX_H,
                             RDX, RDX_H,
@@ -3553,23 +3551,12 @@ operand rex_RegP()
   interface(REG_INTER);
 %}
 
-operand r12_RegL()
-%{
-  constraint(ALLOC_IN_RC(long_r12_reg));
-  match(RegL);
-  match(rRegL);
-
-  format %{ %}
-  interface(REG_INTER);
-%}
-
 operand rRegL()
 %{
   constraint(ALLOC_IN_RC(long_reg));
   match(RegL);
   match(rax_RegL);
   match(rdx_RegL);
-  match(r12_RegL);
 
   format %{ %}
   interface(REG_INTER);
@@ -4353,8 +4340,6 @@ operand rxmm31() %{
   constraint(ALLOC_IN_RC(xmm31_reg));  match(VecX);
   predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
 %}
-
-
 
 //----------OPERAND CLASSES----------------------------------------------------
 // Operand Classes are groups of operands that are used as to simplify
@@ -7585,7 +7570,6 @@ instruct compareAndSwapS(rRegI res,
              Opcode(0xF), Opcode(0xB6), reg_reg(res, res));
   ins_pipe( pipe_cmpxchg );
 %}
-
 
 instruct compareAndSwapN(rRegI res,
                           memory mem_ptr,
@@ -11724,18 +11708,6 @@ instruct testL_reg_mem(rFlagsReg cr, rRegL src, memory mem, immL0 zero)
   ins_pipe(ialu_cr_reg_mem);
 %}
 
-instruct testL_reg_reg(rFlagsReg cr, rRegP src, r12_RegL other, immL0 zero)
-%{
-  match(Set cr (CmpL (AndL (CastP2X src) other) zero));
-  ins_cost(50);
-
-  format %{ "testq   $src, $other\t# long" %}
-  ins_encode %{
-    __ testq($src$$Register, $other$$Register);
-  %}
-  ins_pipe(ialu_cr_reg_imm);
-%}
-
 instruct testL_reg_mem2(rFlagsReg cr, rRegP src, memory mem, immL0 zero)
 %{
   match(Set cr (CmpL (AndL (CastP2X src) (LoadL mem)) zero));
@@ -12697,17 +12669,6 @@ instruct tlsLoadP(r15_RegP dst) %{
 
   size(0);
   format %{ "# TLS is in R15" %}
-  ins_encode( /*empty encoding*/ );
-  ins_pipe(ialu_reg_reg);
-%}
-
-instruct addr_bad_bit(r12_RegL dst) %{
-  match(Set dst (AddrBadBit));
-  effect(DEF dst);
-
-  size(0);
-  ins_cost(0);
-  format %{ "# addr_bad_bit in r12" %}
   ins_encode( /*empty encoding*/ );
   ins_pipe(ialu_reg_reg);
 %}

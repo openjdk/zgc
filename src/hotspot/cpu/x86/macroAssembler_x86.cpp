@@ -7121,8 +7121,6 @@ void MacroAssembler::reinit_heapbase() {
     } else {
       movptr(r12_heapbase, ExternalAddress((address)Universe::narrow_ptrs_base_addr()));
     }
-  } else {
-    mov64(r12, -1);
   }
 }
 
