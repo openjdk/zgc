@@ -882,7 +882,6 @@ void PhaseIdealLoop::try_move_store_after_loop(Node* n) {
 Node *PhaseIdealLoop::split_if_with_blocks_pre( Node *n ) {
   // Cloning these guys is unlikely to win
   int n_op = n->Opcode();
-
   if( n_op == Op_MergeMem ) return n;
   if( n->is_Proj() ) return n;
   // Do not clone-up CmpFXXX variations, as these are always
@@ -893,10 +892,8 @@ Node *PhaseIdealLoop::split_if_with_blocks_pre( Node *n ) {
     Node *cmov = conditional_move( n );
     if( cmov ) return cmov;
   }
-
-  if (n->is_CFG() || n->is_LoadStore()) {
+  if( n->is_CFG() || n->is_LoadStore() )
     return n;
-  }
   if( n_op == Op_Opaque1 ||     // Opaque nodes cannot be mod'd
       n_op == Op_Opaque2 ) {
     if( !C->major_progress() )   // If chance of no more loop opts...
@@ -1555,7 +1552,6 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n, bool last_round) {
       n_op == Op_RangeCheck) {
     Node *bol = n->in(1);
     uint max = bol->outcnt();
-
     // Check for same test used more than once?
     if (max > 1 && bol->is_Bool()) {
       // Search up IDOMs to see if this IF is dominated.

@@ -293,10 +293,10 @@ WB_ENTRY(jint, WB_StressVirtualSpaceResize(JNIEnv* env, jobject o,
                                         (size_t) magnitude, (size_t) iterations);
 WB_END
 
-static const jint serial_code   =  1;
-static const jint parallel_code =  2;
-static const jint cms_code      =  4;
-static const jint g1_code       =  8;
+static const jint serial_code   = 1;
+static const jint parallel_code = 2;
+static const jint cms_code      = 4;
+static const jint g1_code       = 8;
 static const jint zgc_code      = 16;
 
 WB_ENTRY(jint, WB_CurrentGC(JNIEnv* env, jobject o, jobject obj))

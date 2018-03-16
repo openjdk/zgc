@@ -1417,6 +1417,7 @@ public:
   void fold_8bit_crc32(Register crc, Register table, Register tmp);
   // CRC32C code for java.util.zip.CRC32C::updateBytes/updateDirectByteBuffer intrinsic.
   void kernel_crc32c(Register crc, Register buf, Register len, Register table);
+
 };
 
 /**

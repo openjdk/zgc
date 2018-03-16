@@ -79,7 +79,6 @@ void Node::verify_construction() {
   if (BreakAtNode != 0 && (_debug_idx == BreakAtNode || (int)_idx == BreakAtNode)) {
     tty->print_cr("BreakAtNode: _idx=%d _debug_idx=%d", _idx, _debug_idx);
     BREAKPOINT;
-    os::message_box("xxx", "yyy");
   }
 #if OPTO_DU_ITERATOR_ASSERT
   _last_del = NULL;

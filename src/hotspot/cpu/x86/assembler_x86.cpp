@@ -8946,7 +8946,7 @@ void Assembler::testq(Register dst, Register src) {
   emit_arith(0x85, 0xC0, dst, src);
 }
 
-void Assembler::testq(Register dst, Address  src) {
+void Assembler::testq(Register dst, Address src) {
   InstructionMark im(this);
   prefixq(src, dst);
   emit_int8((unsigned char)0x85);

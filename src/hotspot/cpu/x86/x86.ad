@@ -1197,7 +1197,6 @@ reg_class xmm31_reg(XMM31, XMM31b, XMM31c, XMM31d);
 reg_class ymm31_reg(XMM31, XMM31b, XMM31c, XMM31d, XMM31e, XMM31f, XMM31g, XMM31h);
 reg_class zmm31_reg(XMM31, XMM31b, XMM31c, XMM31d, XMM31e, XMM31f, XMM31g, XMM31h, XMM31i, XMM31j, XMM31k, XMM31l, XMM31m, XMM31n, XMM31o, XMM31p);
 
-
 #endif
 
 %}

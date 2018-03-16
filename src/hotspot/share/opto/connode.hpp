@@ -158,5 +158,4 @@ public:
 };
 
 
-
 #endif // SHARE_VM_OPTO_CONNODE_HPP
