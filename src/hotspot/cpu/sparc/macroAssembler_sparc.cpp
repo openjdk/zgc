@@ -344,7 +344,7 @@ void MacroAssembler::save_thread(const Register thread_cache) {
 
 
 void MacroAssembler::restore_thread(const Register thread_cache) {
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
     load_ptr_contents(bad_mask, G6);
   }
@@ -1282,7 +1282,7 @@ void MacroAssembler::verify_oop_subroutine() {
   assert(_verify_oop_implicit_branch[0] == NULL, "set once");
   _verify_oop_implicit_branch[0] = pc();
 
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     // Check if mask is good
     AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
     load_ptr_contents(bad_mask, O2);
@@ -3929,7 +3929,7 @@ void MacroAssembler::load_heap_oop(const Address& s, Register d, LoadBarrierOn o
     lduw(s, d);
     decode_heap_oop(d);
   } else {
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       load_barrier(d, s, on);
     } else {
       ld_ptr(s, d);
@@ -3943,7 +3943,7 @@ void MacroAssembler::load_heap_oop(Register s1, Register s2, Register d, LoadBar
     lduw(s1, s2, d);
     decode_heap_oop(d, d);
   } else {
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       load_barrier(d, Address(s1, s2), on);
     } else {
       ld_ptr(s1, s2, d);
@@ -3956,7 +3956,7 @@ void MacroAssembler::load_heap_oop(Register s1, int simm13a, Register d, LoadBar
     lduw(s1, simm13a, d);
     decode_heap_oop(d, d);
   } else {
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       load_barrier(d, Address(s1, simm13a), on);
     } else {
       ld_ptr(s1, simm13a, d);
@@ -4191,7 +4191,7 @@ void  MacroAssembler::decode_klass_not_null(Register src, Register dst) {
 }
 
 void MacroAssembler::reinit_heapbase() {
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
     load_ptr_contents(bad_mask, G6);
   } else if (UseCompressedOops || UseCompressedClassPointers) {

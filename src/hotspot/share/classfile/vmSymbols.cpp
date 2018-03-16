@@ -756,7 +756,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
 #endif // COMPILER1
 #ifdef COMPILER2
   case vmIntrinsics::_clone:
-    if (UseLoadBarrier || !InlineObjectCopy || !InlineArrayCopy) return true;
+    if (UseZGC || !InlineObjectCopy || !InlineArrayCopy) return true;
     break;
   case vmIntrinsics::_copyOf:
   case vmIntrinsics::_copyOfRange:

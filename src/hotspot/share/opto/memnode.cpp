@@ -1174,7 +1174,7 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
-  if (UseLoadBarrier && bottom_type()->make_oopptr() != NULL) {
+  if (UseZGC && bottom_type()->make_oopptr() != NULL) {
     return NULL;
   }
 

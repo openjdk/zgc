@@ -1132,7 +1132,7 @@ class StubGenerator: public StubCodeGenerator {
     __ testptr(rax, rax);
     __ jcc(Assembler::zero, exit); // if obj is NULL it is OK
 
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       // Check if metadata bits indicate a bad oop
       __ testptr(rax, Address(r15_thread, JavaThread::zaddress_bad_mask_offset()));
       __ jcc(Assembler::notZero, error);
@@ -5308,7 +5308,7 @@ class StubGenerator: public StubCodeGenerator {
     generate_arraycopy_stubs();
 
     // Load barrier stubs
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       address loadbarrier_address = CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded);
       address loadbarrier_weak_address = CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded);
       Register rr = as_Register(0);

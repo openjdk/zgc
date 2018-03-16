@@ -979,7 +979,7 @@ void emit_call_reloc(CodeBuffer &cbuf, intptr_t entry_point, RelocationHolder co
 
   if (preserve_g2)   __ mov(L7, G2);
 
-  if (preserve_g2 && UseLoadBarrier) {
+  if (preserve_g2 && UseZGC) {
     AddressLiteral bad_base((intptr_t)&ZAddressBadMask);
     __ load_ptr_contents(bad_base, G6);
   }

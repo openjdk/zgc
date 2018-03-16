@@ -1698,7 +1698,7 @@ Node* GraphKit::store_oop_to_unknown(Node* ctl,
 }
 
 Node* GraphKit::load_barrier(Node* val, Node* adr, bool weak, bool writeback, bool oop_reload_allowed) {
-  assert(UseLoadBarrier, "invariant");
+  assert(UseZGC, "invariant");
   Node* barrier = new LoadBarrierNode(C, control(), memory(TypeRawPtr::BOTTOM), val, adr, weak, writeback, oop_reload_allowed);
   Node* transformed_barrier = _gvn.transform(barrier);
 
@@ -4415,7 +4415,7 @@ Node* GraphKit::load_String_value(Node* ctrl, Node* str) {
   Node* adr = basic_plus_adr(str, str, value_offset);
   Node* load = make_load(ctrl, adr,
                          value_type, T_OBJECT, value_field_idx, MemNode::unordered);
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     load = load_barrier(load, adr);
   }
 

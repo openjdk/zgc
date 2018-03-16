@@ -5252,7 +5252,7 @@ void MacroAssembler::resolve_jobject(Register value,
   jcc(Assembler::zero, not_weak);
   // Resolve jweak.
 #if INCLUDE_ALL_GCS
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     load_barrier(value, Address(value, -JNIHandles::weak_tag_value), false /* expand call */, LoadBarrierOnPhantomOopRef);
   } else
 #endif
@@ -6720,7 +6720,7 @@ void MacroAssembler::load_barrier(Register ref, Address ref_addr, bool expand_ca
 void MacroAssembler::load_heap_oop(Register dst, Address src, bool expand_call, LoadBarrierOn on) {
 #ifdef _LP64
 #if INCLUDE_ALL_GCS
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     load_barrier(dst, src, expand_call, on);
   } else
 #endif
@@ -6745,7 +6745,7 @@ void MacroAssembler::load_heap_oop_not_null(Register dst, Address src) {
 
 void MacroAssembler::store_heap_oop(Address dst, Register src) {
 #ifdef ASSERT
-  if (VerifyOops && UseLoadBarrier) {
+  if (VerifyOops && UseZGC) {
     // Check if mask is good
     Label done;
     testptr(src, Address(r15_thread, JavaThread::zaddress_bad_mask_offset()));

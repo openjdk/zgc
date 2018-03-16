@@ -379,7 +379,7 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
           continue;
         }
 #ifdef ASSERT
-        if (!UseLoadBarrier &&
+        if (!UseZGC &&
             ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
              !Universe::heap()->is_in_or_null(*loc))) {
           tty->print_cr("# Found non oop pointer.  Dumping state at failure");

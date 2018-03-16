@@ -43,9 +43,6 @@
   product(bool, UseZGC, false,                                              \
           "Use the Z garbage collector")                                    \
                                                                             \
-  product(bool, UseLoadBarrier, false,                                      \
-          "Use load barrier on all reference loads")                        \
-                                                                            \
   product(ccstr, ZPath, NULL,                                               \
           "Filesystem path for Java heap backing storage "                  \
           "(must be a tmpfs or a hugetlbfs filesystem)")                    \

@@ -38,11 +38,6 @@ size_t ZArguments::conservative_max_heap_alignment() {
 void ZArguments::initialize_flags() {
   GCArguments::initialize_flags();
 
-  // Enable load barriers by default. Turn off only for debugging.
-  if (FLAG_IS_DEFAULT(UseLoadBarrier)) {
-    FLAG_SET_DEFAULT(UseLoadBarrier, true);
-  }
-
   // Enable NUMA by default
   if (FLAG_IS_DEFAULT(UseNUMA)) {
     FLAG_SET_DEFAULT(UseNUMA, true);

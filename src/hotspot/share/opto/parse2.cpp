@@ -58,7 +58,7 @@ void Parse::array_load(BasicType elem_type) {
   dec_sp(2);                  // Pop array and index
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(elem_type);
   Node* ld = make_load(control(), adr, elem, elem_type, adr_type, MemNode::unordered);
-  if (UseLoadBarrier && elem_type == T_OBJECT) {
+  if (UseZGC && elem_type == T_OBJECT) {
     ld = load_barrier(ld, adr);
   }
   push(ld);

@@ -1251,7 +1251,7 @@ void LIRGenerator::do_Reference_get(Intrinsic* x) {
 
   __ load(referent_field_adr, result, info);
 
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     load_barrier(result, LIR_OprFact::address(referent_field_adr), lir_patch_none, NULL, true /* weak */);
   }
 
@@ -1499,7 +1499,7 @@ void LIRGenerator::post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val) {
 }
 
 void LIRGenerator::load_barrier(LIR_Opr ref, LIR_Opr ref_addr, LIR_PatchCode patch_code, CodeEmitInfo* info, bool weak) {
-  assert(UseLoadBarrier, "invariant");
+  assert(UseZGC, "invariant");
   assert(ref->is_register(), "invariant");
 
   __ load_barrier_test(ref);
@@ -1898,7 +1898,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     __ load(address, reg, info, patch_code);
   }
 
-  if (is_oop && UseLoadBarrier) {
+  if (is_oop && UseZGC) {
     LIR_PatchCode patch_code = needs_patching ? lir_patch_normal : lir_patch_none;
     load_barrier(reg, LIR_OprFact::address(address),
                  patch_code, (info ? new CodeEmitInfo(info) : NULL));
@@ -2028,7 +2028,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   LIR_Opr result = rlock_result(x, element_type);
   __ move(array_addr, result, null_check_info);
 
-  if (is_oop && UseLoadBarrier) {
+  if (is_oop && UseZGC) {
     load_barrier(result, LIR_OprFact::address(array_addr),
                  lir_patch_none, (null_check_info ? new CodeEmitInfo(null_check_info) : NULL));
   }

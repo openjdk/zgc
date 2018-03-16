@@ -2418,7 +2418,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     // save arguments for barrier generation
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       __ mov(from, G1);
     } else {
       __ mov(to, G1);
@@ -2473,7 +2473,7 @@ class StubGenerator: public StubCodeGenerator {
     array_overlap_test(nooverlap_target, LogBytesPerHeapOop);
 
     // save arguments for barrier generation
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       __ mov(from, G1);
     } else {
       __ mov(to, G1);

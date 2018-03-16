@@ -121,7 +121,7 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* r
          val = (oop)NULL;
       }
       // Deoptimization must make sure all oop have passed load barrier
-      if (UseLoadBarrier) {
+      if (UseZGC) {
         val = ZBarrier::load_barrier_on_oop_field_preloaded((oop*)value_addr, val);
       }
 #endif

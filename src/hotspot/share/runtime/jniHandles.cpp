@@ -151,7 +151,7 @@ oop JNIHandles::resolve_jweak(jweak handle) {
   assert(handle != NULL, "precondition");
   assert(is_jweak(handle), "precondition");
 #if INCLUDE_ALL_GCS
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     oop* ref_addr = jweak_ref_addr(handle);
     return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(ref_addr);
   }

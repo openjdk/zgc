@@ -1058,7 +1058,7 @@ Node* LibraryCallKit::generate_current_thread(Node* &tls_output) {
   Node* thread = _gvn.transform(new ThreadLocalNode());
   Node* p = basic_plus_adr(top()/*!oop*/, thread, in_bytes(JavaThread::threadObj_offset()));
   Node* threadObj = make_load(NULL, p, thread_type, T_OBJECT, MemNode::unordered);
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     threadObj = load_barrier(threadObj, p);
   }
 
@@ -2639,7 +2639,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           // is set: the barriers would be emitted by us.
           insert_pre_barrier(heap_base_oop, offset, p, !need_mem_bar);
         }
-        if (UseLoadBarrier) {
+        if (UseZGC) {
           if (!VerifyLoadBarriers) {
             p = load_barrier(p, adr);
           } else {
@@ -3131,7 +3131,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
 
     // CMH - Remove flags and simplify code when final variants are stable
 
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       switch (kind) {
         case LS_get_set:
           break;
@@ -3216,7 +3216,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
       load_store = _gvn.transform(new DecodeNNode(load_store, load_store->get_ptr_type()));
     }
 #endif
-    if (UseLoadBarrier && (kind == LS_get_set) && C->directive()->UseSwapLoadBarrierOption) {
+    if (UseZGC && (kind == LS_get_set) && C->directive()->UseSwapLoadBarrierOption) {
       load_store = load_barrier(load_store, adr, false, loadstore_requires_writeback_barrier(kind), false);
     }
 
@@ -3254,7 +3254,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
 
 Node* LibraryCallKit::make_cas_loadbarrier(CompareAndSwapNode* cas) {
 
-  assert(UseLoadBarrier, "Must be turned on");
+  assert(UseZGC, "Must be turned on");
   assert(!UseCompressedOops, "Not allowed");
 
   Node* in_ctrl     = cas->in(MemNode::Control);
@@ -3344,7 +3344,7 @@ Node* LibraryCallKit::make_cas_loadbarrier(CompareAndSwapNode* cas) {
 
 Node* LibraryCallKit::make_cmpx_loadbarrier(CompareAndExchangePNode* cmpx) {
 
-  assert(UseLoadBarrier, "Must be turned on");
+  assert(UseZGC, "Must be turned on");
   assert(!UseCompressedOops, "Not allowed");
 
   Node* in_ctrl     = cmpx->in(MemNode::Control);
@@ -6358,7 +6358,7 @@ bool LibraryCallKit::inline_reference_get() {
 
   Node* no_ctrl = NULL;
   Node* result = make_load(no_ctrl, adr, object_type, T_OBJECT, MemNode::unordered);
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     result = load_barrier(result, adr, true /* weak */);
   }
 
@@ -6427,7 +6427,7 @@ Node * LibraryCallKit::load_field_from_object(Node * fromObj, const char * field
   // Build the load.
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
   Node* loadedField = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, is_vol);
-  if (UseLoadBarrier) {
+  if (UseZGC) {
     loadedField = load_barrier(loadedField, adr);
   }
 

@@ -117,7 +117,7 @@ Node *Parse::fetch_interpreter_state(int index,
   case T_ADDRESS: l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,  MemNode::unordered); break;
   case T_OBJECT: {
     l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered);
-    if (UseLoadBarrier) {
+    if (UseZGC) {
       l = _gvn.transform(l);
       l = load_barrier(l, adr);
       return l;
