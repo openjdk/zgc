@@ -141,7 +141,10 @@ inline bool ZBarrier::is_resurrection_blocked(volatile oop* p, oop* o) {
   // would see the unblocked state and pass this invalid oop through the
   // normal barrier path, which would incorrectly try to mark this oop.
   if (p != NULL) {
-    *o = *p;
+    // First assign to reloaded_o to avoid compiler warning about
+    // implicit dereference of volatile oop.
+    const oop reloaded_o = *p;
+    *o = reloaded_o;
   }
 
   return is_blocked;
