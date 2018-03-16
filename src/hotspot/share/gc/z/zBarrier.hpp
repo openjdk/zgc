@@ -40,7 +40,7 @@ private:
 
   template <ZBarrierFastPath fast_path, ZBarrierSlowPath slow_path> static oop barrier(volatile oop* p, oop o);
   template <ZBarrierFastPath fast_path, ZBarrierSlowPath slow_path> static oop weak_barrier(volatile oop* p, oop o);
-  template <ZBarrierFastPath fast_path, ZBarrierSlowPath slow_path> static void root_barrier(volatile oop* p, oop o);
+  template <ZBarrierFastPath fast_path, ZBarrierSlowPath slow_path> static void root_barrier(oop* p, oop o);
 
   static bool is_null_fast_path(uintptr_t addr);
   static bool is_good_or_null_fast_path(uintptr_t addr);
@@ -102,10 +102,10 @@ public:
   // Mark barrier
   static void mark_barrier_on_oop_field(volatile oop* p, bool finalizable);
   static void mark_barrier_on_oop_array(volatile oop* p, size_t length, bool finalizable);
-  static void mark_barrier_on_root_oop_field(volatile oop* p);
+  static void mark_barrier_on_root_oop_field(oop* p);
 
   // Relocate barrier
-  static void relocate_barrier_on_root_oop_field(volatile oop* p);
+  static void relocate_barrier_on_root_oop_field(oop* p);
 
   // Narrow oop variants, never used.
   static oop  load_barrier_on_oop_field(volatile narrowOop* p);

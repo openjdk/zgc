@@ -99,7 +99,7 @@ inline oop ZBarrier::weak_barrier(volatile oop* p, oop o) {
 }
 
 template <ZBarrierFastPath fast_path, ZBarrierSlowPath slow_path>
-inline void ZBarrier::root_barrier(volatile oop* p, oop o) {
+inline void ZBarrier::root_barrier(oop* p, oop o) {
   const uintptr_t addr = ZOop::to_address(o);
 
   // Fast path
@@ -281,7 +281,7 @@ inline void ZBarrier::mark_barrier_on_oop_array(volatile oop* p, size_t length, 
   }
 }
 
-inline void ZBarrier::mark_barrier_on_root_oop_field(volatile oop* p) {
+inline void ZBarrier::mark_barrier_on_root_oop_field(oop* p) {
   const oop o = *p;
   root_barrier<is_good_or_null_fast_path, mark_barrier_on_root_oop_slow_path>(p, o);
 }
@@ -289,7 +289,7 @@ inline void ZBarrier::mark_barrier_on_root_oop_field(volatile oop* p) {
 //
 // Relocate barrier
 //
-inline void ZBarrier::relocate_barrier_on_root_oop_field(volatile oop* p) {
+inline void ZBarrier::relocate_barrier_on_root_oop_field(oop* p) {
   const oop o = *p;
   root_barrier<is_good_or_null_fast_path, relocate_barrier_on_root_oop_slow_path>(p, o);
 }
