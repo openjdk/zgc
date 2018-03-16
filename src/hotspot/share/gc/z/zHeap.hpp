@@ -101,9 +101,6 @@ public:
   size_t block_size(uintptr_t addr) const;
   bool block_is_obj(uintptr_t addr) const;
 
-  // Raw pagetable exposed for barriers
-  ZPageTableEntry* pagetable_addr() const;
-
   // Workers
   uint nconcurrent_worker_threads() const;
   uint nconcurrent_no_boost_worker_threads() const;

@@ -190,10 +190,6 @@ bool ZHeap::block_is_obj(uintptr_t addr) const {
   return page->block_is_obj(addr);
 }
 
-ZPageTableEntry* ZHeap::pagetable_addr() const {
-  return _pagetable.addr();
-}
-
 uint ZHeap::nconcurrent_worker_threads() const {
   return _workers.nconcurrent();
 }

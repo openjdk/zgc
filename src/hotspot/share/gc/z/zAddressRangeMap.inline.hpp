@@ -54,11 +54,6 @@ size_t ZAddressRangeMap<T, AddressRangeShift>::size() const {
 }
 
 template <typename T, size_t AddressRangeShift>
-T* ZAddressRangeMap<T, AddressRangeShift>::addr() const {
-  return _map;
-}
-
-template <typename T, size_t AddressRangeShift>
 T ZAddressRangeMap<T, AddressRangeShift>::get(uintptr_t addr) const {
   const uintptr_t index = index_for_addr(addr);
   return _map[index];

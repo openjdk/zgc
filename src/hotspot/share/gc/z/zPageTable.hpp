@@ -44,8 +44,6 @@ private:
 public:
   ZPageTable();
 
-  ZPageTableEntry* addr() const;
-
   ZPage* get(uintptr_t addr) const;
   void insert(ZPage* page);
   void remove(ZPage* page);

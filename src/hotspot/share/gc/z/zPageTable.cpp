@@ -30,10 +30,6 @@
 ZPageTable::ZPageTable() :
     _map() {}
 
-ZPageTableEntry* ZPageTable::addr() const {
-  return _map.addr();
-}
-
 ZPageTableEntry ZPageTable::get_entry(ZPage* page) const {
   const uintptr_t addr = ZAddress::good(page->start());
   return _map.get(addr);

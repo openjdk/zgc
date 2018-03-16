@@ -38,13 +38,11 @@ private:
   T* const _map;
 
   size_t index_for_addr(uintptr_t addr) const;
+  size_t size() const;
 
 public:
   ZAddressRangeMap();
   ~ZAddressRangeMap();
-
-  T* addr() const;
-  size_t size() const;
 
   T get(uintptr_t addr) const;
   void put(uintptr_t addr, T value);
