@@ -57,35 +57,34 @@
           "Allow Java threads to stall and wait for GC to complete "        \
           "instead of immediately throwing an OutOfMemoryError")            \
                                                                             \
+  product(size_t, ZMarkStacksMax, NOT_LP64(512*M) LP64_ONLY(8*G),           \
+          "Maximum number of bytes allocated for marking stacks")           \
+          range(32*M, NOT_LP64(512*M) LP64_ONLY(1024*G))                    \
+                                                                            \
   product(uint, ZCollectionInterval, 0,                                     \
-          "Time between GCs (in seconds)")                                  \
+          "Force GC at a fixed time interval (in seconds)")                 \
                                                                             \
   product(uint, ZStatisticsInterval, 10,                                    \
           "Time between statistics print outs (in seconds)")                \
           range(1, (uint)-1)                                                \
                                                                             \
-  product(bool, ZStatisticsForceTrace, false,                               \
+  diagnostic(bool, ZStatisticsForceTrace, false,                            \
           "Force tracing of ZStats")                                        \
                                                                             \
-  product(bool, ZUnmapBadViews, false,                                      \
-          "Unmap bad address views (for debugging only)")                   \
+  diagnostic(bool, ZUnmapBadViews, false,                                   \
+          "Unmap bad (inactive) heap views")                                \
                                                                             \
-  product(bool, ZVerifyMarking, false,                                      \
-          "Verify marking stacks (for debugging only)")                     \
+  diagnostic(bool, ZVerifyMarking, false,                                   \
+          "Verify marking stacks")                                          \
                                                                             \
-  product(bool, ZVerifyForwarding, false,                                   \
-          "Verify forwarding tables (for debugging only)")                  \
+  diagnostic(bool, ZVerifyForwarding, false,                                \
+          "Verify forwarding tables")                                       \
                                                                             \
-  product(bool, ZWeakRoots, true,                                           \
-          "Treat JNI WeakGlobalRefs and StringTable as weak roots "         \
-          "(for debugging only)")                                           \
+  diagnostic(bool, ZWeakRoots, true,                                        \
+          "Treat JNI WeakGlobalRefs and StringTable as weak roots")         \
                                                                             \
-  product(bool, ZConcurrentJNIWeakGlobalHandles, true,                      \
-          "Clean JNI WeakGlobalRefs concurrently (for debugging only)")     \
-                                                                            \
-  product(size_t, ZMarkStacksMax, NOT_LP64(512*M) LP64_ONLY(8*G),           \
-          "Maximum number of bytes allocated for marking stacks")           \
-          range(32*M, NOT_LP64(512*M) LP64_ONLY(1024*G))                    \
+  diagnostic(bool, ZConcurrentJNIWeakGlobalHandles, true,                   \
+          "Clean JNI WeakGlobalRefs concurrently")                          \
 
 Z_FLAGS(DECLARE_DEVELOPER_FLAG,     \
         DECLARE_PD_DEVELOPER_FLAG,  \
