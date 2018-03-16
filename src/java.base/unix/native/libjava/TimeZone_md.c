@@ -147,7 +147,10 @@ findZoneinfoFile(char *buf, size_t size, const char *dir)
         return NULL;
     }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     while (readdir64_r(dirp, entry, &dp) == 0 && dp != NULL) {
+#pragma GCC diagnostic pop
         /*
          * Skip '.' and '..' (and possibly other .* files)
          */

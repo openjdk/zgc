@@ -339,7 +339,10 @@ Java_java_io_UnixFileSystem_list(JNIEnv *env, jobject this,
     if (rv == NULL) goto error;
 
     /* Scan the directory */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     while ((readdir64_r(dir, ptr, &result) == 0)  && (result != NULL)) {
+#pragma GCC diagnostic pop
         jstring name;
         if (!strcmp(ptr->d_name, ".") || !strcmp(ptr->d_name, ".."))
             continue;
