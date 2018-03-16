@@ -4130,8 +4130,8 @@ int java_lang_System::err_offset_in_bytes() { return static_err_offset; }
 bool java_lang_System::has_security_manager() {
   InstanceKlass* ik = SystemDictionary::System_klass();
   HeapWord* addr = (HeapWord*)ik->static_field_addr(static_security_offset);
-  // No need to for a read barrier to figure out if addr points to null.
-  return (oop)HeapAccess<>::oop_load(addr) != NULL;
+  oop obj = HeapAccess<>::oop_load(addr);
+  return obj != NULL;
 }
 
 int java_lang_Class::_klass_offset;
