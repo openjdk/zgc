@@ -598,6 +598,8 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   virtual void unpin_object(JavaThread* thread, oop o);
 
+  virtual bool is_oop(oop object) const;
+
   // Non product verification and debugging.
 #ifndef PRODUCT
   // Support for PromotionFailureALot.  Return true if it's time to cause a
