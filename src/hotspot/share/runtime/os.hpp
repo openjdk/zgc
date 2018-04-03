@@ -233,6 +233,9 @@ class os: AllStatic {
   static bool has_allocatable_memory_limit(julong* limit);
   static bool is_server_class_machine();
 
+  // CPU id
+  static int processor_id();
+
   // number of CPUs
   static int processor_count() {
     return _processor_count;
