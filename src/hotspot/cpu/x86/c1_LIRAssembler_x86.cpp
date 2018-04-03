@@ -3786,11 +3786,24 @@ void LIR_Assembler::negate(LIR_Opr left, LIR_Opr dest) {
 }
 
 
-void LIR_Assembler::leal(LIR_Opr addr, LIR_Opr dest) {
-  assert(addr->is_address() && dest->is_register(), "check");
+void LIR_Assembler::leal(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_code, CodeEmitInfo* info) {
+  assert(src->is_address() && dest->is_register(), "check");
+
+  LIR_Address* addr = src->as_address_ptr();
+
+  PatchingStub* patch = NULL;
+  if (patch_code != lir_patch_none) {
+    patch = new PatchingStub(_masm, PatchingStub::access_field_id);
+    assert(addr->disp() != 0, "must have");
+  }
+
   Register reg;
   reg = dest->as_pointer_register();
-  __ lea(reg, as_Address(addr->as_address_ptr()));
+  __ lea(reg, as_Address(addr));
+
+  if (patch != NULL) {
+    patching_epilog(patch, patch_code, addr->base()->as_register(), info);
+  }
 }
 
 
