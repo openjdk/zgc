@@ -25,6 +25,7 @@
 #ifndef SHARE_VM_GC_SHARED_REFERENCEPROCESSOR_HPP
 #define SHARE_VM_GC_SHARED_REFERENCEPROCESSOR_HPP
 
+#include "gc/shared/referenceDiscoverer.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/referenceProcessorStats.hpp"
@@ -166,7 +167,7 @@ public:
   }
 };
 
-class ReferenceProcessor : public CHeapObj<mtGC> {
+class ReferenceProcessor : public ReferenceDiscoverer {
 
  private:
   size_t total_count(DiscoveredList lists[]) const;
@@ -405,7 +406,7 @@ class ReferenceProcessor : public CHeapObj<mtGC> {
   void verify_list(DiscoveredList& ref_list);
 
   // Discover a Reference object, using appropriate discovery criteria
-  bool discover_reference(oop obj, ReferenceType rt);
+  virtual bool discover_reference(oop obj, ReferenceType rt);
 
   // Has discovered references that need handling
   bool has_discovered_references();
