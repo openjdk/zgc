@@ -216,6 +216,9 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
         }
       }
       break;
+#if INCLUDE_ALL_GCS
+    case BarrierSet::Z:
+#endif // INCLUDE_ALL_GCS
     case BarrierSet::ModRef:
       if (val == noreg) {
         __ store_heap_oop_null(obj);

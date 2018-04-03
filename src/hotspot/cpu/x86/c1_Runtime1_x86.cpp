@@ -1557,6 +1557,29 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
 #if INCLUDE_ALL_GCS
+    case z_load_barrier_on_oop_field_preloaded_id:
+    case z_load_barrier_on_weak_oop_field_preloaded_id:
+      {
+#if defined(_LP64)
+        StubFrame f(sasm, "load_barrier", dont_gc_arguments);
+
+        OopMap* map = save_live_registers(sasm, 2);
+
+        // arg1 : address of oop on heap
+        // arg0 : the oop read from arg0
+        f.load_argument(1, c_rarg1);
+        f.load_argument(0, c_rarg0);
+        if (id == z_load_barrier_on_weak_oop_field_preloaded_id) {
+          __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), c_rarg0, c_rarg1);
+        } else {
+          __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded), c_rarg0, c_rarg1);
+        }
+
+        restore_live_registers_except_rax(sasm);
+#endif
+      }
+      break;
+
     case g1_pre_barrier_slow_id:
       {
         StubFrame f(sasm, "g1_pre_barrier", dont_gc_arguments);

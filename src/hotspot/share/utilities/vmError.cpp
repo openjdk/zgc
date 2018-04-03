@@ -309,6 +309,7 @@ static const char* gc_mode() {
   if (UseParallelGC)      return "parallel gc";
   if (UseConcMarkSweepGC) return "concurrent mark sweep gc";
   if (UseSerialGC)        return "serial gc";
+  if (UseZGC)             return "z gc";
   return "ERROR in GC mode";
 }
 

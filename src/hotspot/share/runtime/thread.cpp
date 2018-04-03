@@ -1503,6 +1503,7 @@ void JavaThread::collect_counters(typeArrayOop array) {
 void JavaThread::initialize() {
   // Initialize fields
 
+  set_zaddress_bad_mask(0);
   set_saved_exception_pc(NULL);
   set_threadObj(NULL);
   _anchor.clear();

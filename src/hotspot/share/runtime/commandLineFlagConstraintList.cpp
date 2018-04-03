@@ -35,6 +35,7 @@
 #include "utilities/macros.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1_globals.hpp"
+#include "gc/z/zFlags.hpp"
 #endif
 #ifdef COMPILER1
 #include "c1/c1_globals.hpp"
@@ -348,6 +349,20 @@ void CommandLineFlagConstraintList::init(void) {
                                    IGNORE_RANGE,
                                    EMIT_CONSTRAINT_CHECK,
                                    IGNORE_WRITEABLE));
+
+  emit_constraint_no(NULL Z_FLAGS(EMIT_CONSTRAINT_DEVELOPER_FLAG,
+                                  EMIT_CONSTRAINT_PD_DEVELOPER_FLAG,
+                                  EMIT_CONSTRAINT_PRODUCT_FLAG,
+                                  EMIT_CONSTRAINT_PD_PRODUCT_FLAG,
+                                  EMIT_CONSTRAINT_DIAGNOSTIC_FLAG,
+                                  EMIT_CONSTRAINT_PD_DIAGNOSTIC_FLAG,
+                                  EMIT_CONSTRAINT_EXPERIMENTAL_FLAG,
+                                  EMIT_CONSTRAINT_NOTPRODUCT_FLAG,
+                                  EMIT_CONSTRAINT_MANAGEABLE_FLAG,
+                                  EMIT_CONSTRAINT_PRODUCT_RW_FLAG,
+                                  IGNORE_RANGE,
+                                  EMIT_CONSTRAINT_CHECK,
+                                  IGNORE_WRITEABLE));
 #endif // INCLUDE_ALL_GCS
 }
 

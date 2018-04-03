@@ -30,6 +30,7 @@
 #include "gc/g1/g1_globals.hpp"
 #include "gc/g1/heapRegionBounds.inline.hpp"
 #include "gc/shared/plab.hpp"
+#include "gc/z/zFlags.hpp"
 #endif // INCLUDE_ALL_GCS
 #ifdef COMPILER1
 #include "c1/c1_globals.hpp"
@@ -191,6 +192,20 @@ void CommandLineFlagWriteableList::init(void) {
 
 #if INCLUDE_ALL_GCS
   emit_writeable_no(NULL G1_FLAGS(EMIT_WRITEABLE_DEVELOPER_FLAG,
+                              EMIT_WRITEABLE_PD_DEVELOPER_FLAG,
+                              EMIT_WRITEABLE_PRODUCT_FLAG,
+                              EMIT_WRITEABLE_PD_PRODUCT_FLAG,
+                              EMIT_WRITEABLE_DIAGNOSTIC_FLAG,
+                              EMIT_WRITEABLE_PD_DIAGNOSTIC_FLAG,
+                              EMIT_WRITEABLE_EXPERIMENTAL_FLAG,
+                              EMIT_WRITEABLE_NOTPRODUCT_FLAG,
+                              EMIT_WRITEABLE_MANAGEABLE_FLAG,
+                              EMIT_WRITEABLE_PRODUCT_RW_FLAG,
+                              IGNORE_RANGE,
+                              IGNORE_CONSTRAINT,
+                              EMIT_WRITEABLE));
+
+  emit_writeable_no(NULL Z_FLAGS(EMIT_WRITEABLE_DEVELOPER_FLAG,
                               EMIT_WRITEABLE_PD_DEVELOPER_FLAG,
                               EMIT_WRITEABLE_PRODUCT_FLAG,
                               EMIT_WRITEABLE_PD_PRODUCT_FLAG,

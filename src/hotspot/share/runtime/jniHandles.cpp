@@ -151,6 +151,13 @@ oop JNIHandles::resolve_external_guard(jobject handle) {
 oop JNIHandles::resolve_jweak(jweak handle) {
   assert(handle != NULL, "precondition");
   assert(is_jweak(handle), "precondition");
+#if INCLUDE_ALL_GCS
+  if (UseZGC) {
+    oop* ref_addr = jweak_ref_addr(handle);
+    return RootAccess<ON_PHANTOM_OOP_REF>::oop_load(ref_addr);
+  }
+#endif
+
   oop result = jweak_ref(handle);
 #if INCLUDE_ALL_GCS
   if (result != NULL && UseG1GC) {
@@ -196,6 +203,11 @@ void JNIHandles::weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f) {
 
 void JNIHandles::weak_oops_do(OopClosure* f) {
   _weak_global_handles->weak_oops_do(f);
+}
+
+
+OopStorage* JNIHandles::weak_global_handles() {
+  return _weak_global_handles;
 }
 
 
@@ -322,7 +334,9 @@ void JNIHandles::verify() {
   VerifyJNIHandles verify_handle;
 
   oops_do(&verify_handle);
-  weak_oops_do(&verify_handle);
+  if (!UseZGC) {
+    weak_oops_do(&verify_handle);
+  }
 }
 
 // This method is implemented here to avoid circular includes between

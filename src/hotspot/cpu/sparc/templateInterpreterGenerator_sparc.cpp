@@ -897,6 +897,32 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
     __ bind(slow_path);
     __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals));
     return entry;
+  } else if (UseZGC) {
+    Label slow_path;
+
+    // Check if local 0 != NULL
+    // If the receiver is null then it is OK to jump to the slow path.
+    __ ld_ptr(Gargs, G0, Otos_i ); // get local 0
+    // check if local 0 == NULL and go the slow path
+    __ cmp_and_brx_short(Otos_i, 0, Assembler::equal, Assembler::pn, slow_path);
+
+
+    // Load the value of the referent field.
+    if (Assembler::is_simm13(referent_offset)) {
+      __ load_heap_oop(Otos_i, referent_offset, Otos_i, MacroAssembler::LoadBarrierOnWeakOopRef);
+    } else {
+      __ set(referent_offset, G3_scratch);
+      __ load_heap_oop(Otos_i, G3_scratch, Otos_i, MacroAssembler::LoadBarrierOnWeakOopRef);
+    }
+
+    // _areturn
+    __ retl();                      // return from leaf routine
+    __ delayed()->mov(O5_savedSP, SP);
+
+    // Generate regular method entry
+    __ bind(slow_path);
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals));
+    return entry;
   }
 #endif // INCLUDE_ALL_GCS
 

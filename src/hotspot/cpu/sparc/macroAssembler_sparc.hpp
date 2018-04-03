@@ -973,11 +973,19 @@ public:
   void store_klass(Register klass, Register dst_oop);
   void store_klass_gap(Register s, Register dst_oop);
 
+  enum LoadBarrierOn {
+    LoadBarrierOnStrongOopRef,
+    LoadBarrierOnWeakOopRef,
+    LoadBarrierOnPhantomOopRef
+  };
+
+  void load_barrier(Register ref, Address ref_addr, LoadBarrierOn on);
+
    // oop manipulations
-  void load_heap_oop(const Address& s, Register d);
-  void load_heap_oop(Register s1, Register s2, Register d);
-  void load_heap_oop(Register s1, int simm13a, Register d);
-  void load_heap_oop(Register s1, RegisterOrConstant s2, Register d);
+  void load_heap_oop(const Address& s, Register d, LoadBarrierOn on = LoadBarrierOnStrongOopRef);
+  void load_heap_oop(Register s1, Register s2, Register d, LoadBarrierOn on = LoadBarrierOnStrongOopRef);
+  void load_heap_oop(Register s1, int simm13a, Register d, LoadBarrierOn on = LoadBarrierOnStrongOopRef);
+  void load_heap_oop(Register s1, RegisterOrConstant s2, Register d, LoadBarrierOn on = LoadBarrierOnStrongOopRef);
   void store_heap_oop(Register d, Register s1, Register s2);
   void store_heap_oop(Register d, Register s1, int simm13a);
   void store_heap_oop(Register d, const Address& a, int offset = 0);

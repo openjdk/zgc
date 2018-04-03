@@ -42,9 +42,13 @@ inline oop& JNIHandles::jobject_ref(jobject handle) {
 }
 
 inline oop& JNIHandles::jweak_ref(jobject handle) {
+  return *jweak_ref_addr(handle);
+}
+
+inline oop* JNIHandles::jweak_ref_addr(jobject handle) {
   assert(is_jweak(handle), "precondition");
   char* ptr = reinterpret_cast<char*>(handle) - weak_tag_value;
-  return *reinterpret_cast<oop*>(ptr);
+  return reinterpret_cast<oop*>(ptr);
 }
 
 // external_guard is true if called from resolve_external_guard.

@@ -524,6 +524,67 @@ void ArrayCopyStub::emit_code(LIR_Assembler* ce) {
 /////////////////////////////////////////////////////////////////////////////
 #if INCLUDE_ALL_GCS
 
+void LoadBarrierStub::emit_code(LIR_Assembler* ce) {
+  __ bind(_entry);
+
+  assert(ref()->is_register(), "must be in a register");
+  Register ref_reg = ref()->as_register();
+  Register ref_addr_reg = noreg;
+
+  switch (type()) {
+  case AddressNotAvailable:
+    assert(ref_addr()->is_illegal(), "should be illagal");
+    assert(tmp()->is_illegal(), "should be illagal");
+    break;
+
+  case AddressInRegister:
+    assert(ref_addr()->is_register(), "must be a register");
+    assert(tmp()->is_illegal(), "should be illagal");
+    ref_addr_reg = ref_addr()->as_pointer_register();
+    break;
+
+  case AddressNotInRegister:
+    assert(ref_addr()->is_address(), "must be a register");
+    assert(tmp()->is_register(), "must be a register");
+    ce->leal(ref_addr(), tmp(), patch_code(), info());
+    ref_addr_reg = tmp()->as_pointer_register();
+    break;
+
+  default:
+    ShouldNotReachHere();
+    break;
+  }
+
+  assert(ref_reg != ref_addr_reg, "must be different registers");
+
+  if (ref_reg != rax) {
+    __ push(rax);
+  }
+
+  __ subptr(rsp, 2 * BytesPerWord);
+  if (ref_addr_reg == noreg) {
+    ce->store_parameter(0, 1);
+  } else {
+    ce->store_parameter(ref_addr_reg, 1);
+  }
+  ce->store_parameter(ref_reg, 0);
+  if (_weak) {
+    __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::z_load_barrier_on_weak_oop_field_preloaded_id)));
+  } else {
+    __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::z_load_barrier_on_oop_field_preloaded_id)));
+  }
+  __ addptr(rsp, 2 * BytesPerWord);
+
+  __ verify_oop(rax, "bad oop from load barrier slow path");
+
+  if (ref_reg != rax) {
+    __ movptr(ref_reg, rax);
+    __ pop(rax);
+  }
+
+  __ jmp(_continuation);
+}
+
 void G1PreBarrierStub::emit_code(LIR_Assembler* ce) {
   // At this point we know that marking is in progress.
   // If do_load() is true then we have to emit the

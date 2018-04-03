@@ -344,6 +344,10 @@ void MacroAssembler::save_thread(const Register thread_cache) {
 
 
 void MacroAssembler::restore_thread(const Register thread_cache) {
+  if (UseZGC) {
+    AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
+    load_ptr_contents(bad_mask, G6);
+  }
   if (thread_cache->is_valid()) {
     assert(thread_cache->is_local() || thread_cache->is_in(), "bad volatile");
     mov(thread_cache, G2_thread);
@@ -1282,6 +1286,15 @@ void MacroAssembler::verify_oop_subroutine() {
   // mark lower end of faulting range
   assert(_verify_oop_implicit_branch[0] == NULL, "set once");
   _verify_oop_implicit_branch[0] = pc();
+
+  if (UseZGC) {
+    // Check if mask is good
+    AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
+    load_ptr_contents(bad_mask, O2);
+    btst(O0_obj, O2);
+    brx(notZero, false, pn, null_or_fail);
+    delayed()->nop();
+  }
 
   // We can't check the mark oop because it could be in the process of
   // locking or unlocking while this is running.
@@ -3779,6 +3792,136 @@ void MacroAssembler::store_klass(Register klass, Register dst_oop) {
   }
 }
 
+void MacroAssembler::load_barrier(Register ref, Address ref_addr, LoadBarrierOn on) {
+  Label done;
+  Label done_secondary;
+  const Register resolved_ref_addr = G6;
+  const Register fallback_reg = L7;
+  AddressLiteral bad_base((intptr_t)&ZAddressBadMask);
+  assert_different_registers(ref, resolved_ref_addr);
+
+  BLOCK_COMMENT("load_barrier {");
+
+  // Resolve reference address now, ref_addr might use the same register as ref,
+  // which means it gets killed when we write to ref.
+
+  // Either resolve the addres or load it depending on what is more optimal
+  Register resolved_ref_addr_fast = noreg;
+  if (ref_addr.has_index()) {
+    assert(!ref_addr.has_disp(), "sanity");
+    if (ref_addr.base() == ref || ref_addr.index() == ref) {
+      resolved_ref_addr_fast = fallback_reg;
+      assert_different_registers(resolved_ref_addr_fast, ref_addr.base());
+      assert_different_registers(resolved_ref_addr_fast, ref_addr.index());
+      save_frame(0);
+      add(ref_addr.base()->after_save(), ref_addr.index()->after_save(), resolved_ref_addr_fast);
+    } else {
+      ld_ptr(ref_addr.base(), ref_addr.index(), ref);
+    }
+  } else if (Assembler::is_simm13(ref_addr.disp())) {
+    if (ref_addr.base() == ref) {
+      resolved_ref_addr_fast = fallback_reg;
+      assert_different_registers(resolved_ref_addr_fast, ref_addr.base());
+      save_frame(0);
+      add(ref_addr.base()->after_save(), ref_addr.disp(), resolved_ref_addr_fast);
+    } else {
+      ld_ptr(ref_addr.base(), ref_addr.disp(), ref);
+    }
+  } else {
+    if (ref_addr.base() == ref) {
+      resolved_ref_addr_fast = fallback_reg;
+      assert_different_registers(resolved_ref_addr_fast, ref_addr.base());
+      save_frame(0);
+      set(ref_addr.disp(), resolved_ref_addr_fast);
+      add(ref_addr.base()->after_save(), resolved_ref_addr_fast, resolved_ref_addr_fast);
+    } else {
+      set(ref_addr.disp(), ref);
+      ld_ptr(ref_addr.base(), ref, ref);
+    }
+  }
+
+  // Load reference if address resolution was required
+  if (resolved_ref_addr_fast != noreg) {
+    ld_ptr(resolved_ref_addr_fast, 0, ref->after_save());
+  }
+
+  btst(resolved_ref_addr_fast == noreg ? ref : ref->after_save(), G6);
+  brx(Assembler::zero, false, Assembler::pt, done);
+  delayed()->nop();
+
+  if (resolved_ref_addr_fast == noreg) {
+    // Reconstruct the address on-demand in bad mask reg
+    if (ref_addr.has_index()) {
+      assert(!ref_addr.has_disp(), "sanity");
+      add(ref_addr.index(), ref_addr.base(), resolved_ref_addr);
+    } else if (Assembler::is_simm13(ref_addr.disp())) {
+      add(ref_addr.base(), ref_addr.disp(), resolved_ref_addr);
+    } else {
+      set(ref_addr.disp(), resolved_ref_addr);
+      add(ref_addr.base(), resolved_ref_addr, resolved_ref_addr);
+    }
+  } else {
+    mov(resolved_ref_addr_fast, resolved_ref_addr);
+  }
+
+  // Call the slow path
+  save_frame_and_mov(0, resolved_ref_addr_fast == noreg ? ref : ref->after_save(), O0, resolved_ref_addr, O1);
+  mov(G1, L1);
+  mov(G2, L2);
+  mov(G3, L3);
+  mov(G4, L4);
+  mov(G5, L5);
+  mov(G7, L6);
+  switch (on) {
+  case LoadBarrierOnStrongOopRef:
+    call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded));
+    break;
+  case LoadBarrierOnWeakOopRef:
+    call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded));
+    break;
+  case LoadBarrierOnPhantomOopRef:
+    call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded));
+    break;
+  default:
+    fatal("Unknown strength: %d", on);
+    break;
+  }
+  mov(O0, G6);
+  mov(L1, G1);
+  mov(L2, G2);
+  mov(L3, G3);
+  mov(L4, G4);
+  mov(L5, G5);
+  mov(L6, G7);
+  restore();
+
+  if (resolved_ref_addr_fast != noreg) {
+    restore();
+  }
+
+  mov(G6, ref);
+
+  // Restore bad mask
+  load_ptr_contents(bad_base, G6);
+
+  if (resolved_ref_addr_fast != noreg) {
+    br(Assembler::always, false, Assembler::pt, done_secondary);
+    delayed()->nop();
+  }
+
+  bind(done);
+
+  if (resolved_ref_addr_fast != noreg) {
+    restore();
+  }
+
+  bind(done_secondary);
+
+  verify_oop(ref);
+
+  BLOCK_COMMENT("} load_barrier");
+}
+
 void MacroAssembler::store_klass_gap(Register s, Register d) {
   if (UseCompressedClassPointers) {
     assert(s != d, "not enough registers");
@@ -3786,36 +3929,49 @@ void MacroAssembler::store_klass_gap(Register s, Register d) {
   }
 }
 
-void MacroAssembler::load_heap_oop(const Address& s, Register d) {
+void MacroAssembler::load_heap_oop(const Address& s, Register d, LoadBarrierOn on) {
   if (UseCompressedOops) {
     lduw(s, d);
     decode_heap_oop(d);
   } else {
-    ld_ptr(s, d);
+    if (UseZGC) {
+      load_barrier(d, s, on);
+    } else {
+      ld_ptr(s, d);
+    }
   }
+
 }
 
-void MacroAssembler::load_heap_oop(Register s1, Register s2, Register d) {
-   if (UseCompressedOops) {
+void MacroAssembler::load_heap_oop(Register s1, Register s2, Register d, LoadBarrierOn on) {
+  if (UseCompressedOops) {
     lduw(s1, s2, d);
     decode_heap_oop(d, d);
   } else {
-    ld_ptr(s1, s2, d);
+    if (UseZGC) {
+      load_barrier(d, Address(s1, s2), on);
+    } else {
+      ld_ptr(s1, s2, d);
+    }
   }
 }
 
-void MacroAssembler::load_heap_oop(Register s1, int simm13a, Register d) {
-   if (UseCompressedOops) {
+void MacroAssembler::load_heap_oop(Register s1, int simm13a, Register d, LoadBarrierOn on) {
+  if (UseCompressedOops) {
     lduw(s1, simm13a, d);
     decode_heap_oop(d, d);
   } else {
-    ld_ptr(s1, simm13a, d);
+    if (UseZGC) {
+      load_barrier(d, Address(s1, simm13a), on);
+    } else {
+      ld_ptr(s1, simm13a, d);
+    }
   }
 }
 
-void MacroAssembler::load_heap_oop(Register s1, RegisterOrConstant s2, Register d) {
-  if (s2.is_constant())  load_heap_oop(s1, s2.as_constant(), d);
-  else                   load_heap_oop(s1, s2.as_register(), d);
+void MacroAssembler::load_heap_oop(Register s1, RegisterOrConstant s2, Register d, LoadBarrierOn on) {
+  if (s2.is_constant())  load_heap_oop(s1, s2.as_constant(), d, on);
+  else                   load_heap_oop(s1, s2.as_register(), d, on);
 }
 
 void MacroAssembler::store_heap_oop(Register d, Register s1, Register s2) {
@@ -3824,6 +3980,7 @@ void MacroAssembler::store_heap_oop(Register d, Register s1, Register s2) {
     encode_heap_oop(d);
     st(d, s1, s2);
   } else {
+    verify_oop(d);
     st_ptr(d, s1, s2);
   }
 }
@@ -3834,6 +3991,7 @@ void MacroAssembler::store_heap_oop(Register d, Register s1, int simm13a) {
     encode_heap_oop(d);
     st(d, s1, simm13a);
   } else {
+    verify_oop(d);
     st_ptr(d, s1, simm13a);
   }
 }
@@ -3844,6 +4002,7 @@ void MacroAssembler::store_heap_oop(Register d, const Address& a, int offset) {
     encode_heap_oop(d);
     st(d, a, offset);
   } else {
+    verify_oop(d);
     st_ptr(d, a, offset);
   }
 }
@@ -4037,7 +4196,10 @@ void  MacroAssembler::decode_klass_not_null(Register src, Register dst) {
 }
 
 void MacroAssembler::reinit_heapbase() {
-  if (UseCompressedOops || UseCompressedClassPointers) {
+  if (UseZGC) {
+    AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
+    load_ptr_contents(bad_mask, G6);
+  } else if (UseCompressedOops || UseCompressedClassPointers) {
     if (Universe::heap() != NULL) {
       set((intptr_t)Universe::narrow_ptrs_base(), G6_heapbase);
     } else {
@@ -4888,7 +5050,6 @@ void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len, Regi
 
   not1(crc);
 }
-
 #define CHUNK_LEN   128          /* 128 x 8B = 1KB */
 #define CHUNK_K1    0x1307a0206  /* reverseBits(pow(x, CHUNK_LEN*8*8*3 - 32) mod P(x)) << 1 */
 #define CHUNK_K2    0x1a0f717c4  /* reverseBits(pow(x, CHUNK_LEN*8*8*2 - 32) mod P(x)) << 1 */

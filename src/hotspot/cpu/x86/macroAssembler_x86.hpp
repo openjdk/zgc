@@ -334,7 +334,15 @@ class MacroAssembler: public Assembler {
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
 
-  void load_heap_oop(Register dst, Address src);
+  enum LoadBarrierOn {
+    LoadBarrierOnStrongOopRef,
+    LoadBarrierOnWeakOopRef,
+    LoadBarrierOnPhantomOopRef
+  };
+
+  void load_barrier(Register ref, Address ref_addr, bool expand_call, LoadBarrierOn on);
+
+  void load_heap_oop(Register dst, Address src, bool expand_call = false, LoadBarrierOn on = LoadBarrierOnStrongOopRef);
   void load_heap_oop_not_null(Register dst, Address src);
   void store_heap_oop(Address dst, Register src);
   void cmp_heap_oop(Register src1, Address src2, Register tmp = noreg);
@@ -849,6 +857,7 @@ class MacroAssembler: public Assembler {
   void orptr(Address dst, int32_t imm32) { LP64_ONLY(orq(dst, imm32)) NOT_LP64(orl(dst, imm32)); }
 
   void testptr(Register src, int32_t imm32) {  LP64_ONLY(testq(src, imm32)) NOT_LP64(testl(src, imm32)); }
+  void testptr(Register src1, Address src2) { LP64_ONLY(testq(src1, src2)) NOT_LP64(testl(src1, src2)); }
   void testptr(Register src1, Register src2);
 
   void xorptr(Register dst, Register src) { LP64_ONLY(xorq(dst, src)) NOT_LP64(xorl(dst, src)); }

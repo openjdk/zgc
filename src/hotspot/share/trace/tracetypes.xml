@@ -196,6 +196,16 @@ Now we can use the content + data type in declaring event fields.
       <value type="MODULE" field="module" label="Module"/>
       <value type="BOOLEAN" field="exported" label="Exported"/>
     </content_type>
+
+    <content_type id="ZStatCounterType" hr_name="Z Stat Counter"
+                  type="U8" jvm_type="ZSTATCOUNTER">
+      <value type="STRING" field="counter" label="counter" />
+    </content_type>
+
+    <content_type id="ZStatSamplerType" hr_name="Z Stat Sampler"
+                  type="U8" jvm_type="ZSTATSAMPLER">
+      <value type="STRING" field="sampler" label="sampler" />
+    </content_type>
   </content_types>
 
 
@@ -404,5 +414,13 @@ Now we can use the content + data type in declaring event fields.
     <!-- INFLATECAUSE -->
     <primary_type symbol="INFLATECAUSE" datatype="U8" contenttype="INFLATECAUSE"
                   type="u8" sizeop="sizeof(u8)" />
+
+    <!-- ZSTATCOUNTER -->
+    <primary_type symbol="ZSTATCOUNTER" datatype="U1" contenttype="ZSTATCOUNTER"
+                  type="u1" sizeop="sizeof(u1)" />
+
+    <!-- ZSTATSAMPLER -->
+    <primary_type symbol="ZSTATSAMPLER" datatype="U1" contenttype="ZSTATSAMPLER"
+                  type="u1" sizeop="sizeof(u1)" />
   </primary_types>
 </types>

@@ -746,6 +746,12 @@ Block* PhaseCFG::insert_anti_dependences(Block* LCA, Node* load, bool verify) {
       // Add an anti-dep edge, and squeeze 'load' into the highest block.
       assert(store != load->in(0), "dependence cycle found");
       if (verify) {
+        if (store->find_edge(load) == -1) {
+          tty->print_cr("Store %i", store->_idx);
+          tty->print_cr("Load %i",  load->_idx);
+          C->print_method(PHASE_FAILURE, 1);
+          C->dump_print_inlining();
+        }
         assert(store->find_edge(load) != -1, "missing precedence edge");
       } else {
         store->add_prec(load);

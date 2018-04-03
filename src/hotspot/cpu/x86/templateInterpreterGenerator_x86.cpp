@@ -754,7 +754,7 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
 
     // Load the value of the referent field.
     const Address field_address(rax, referent_offset);
-    __ load_heap_oop(rax, field_address);
+    __ load_heap_oop(rax, field_address, true);
 
     const Register sender_sp = NOT_LP64(rsi) LP64_ONLY(r13);
     const Register thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
@@ -780,7 +780,38 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
     __ bind(slow_path);
     __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals));
     return entry;
+  } else if (UseZGC) {
+    Label slow_path;
+    // rbx: method
+
+    // Check if local 0 != NULL
+    // If the receiver is null then it is OK to jump to the slow path.
+    __ movptr(rax, Address(rsp, wordSize));
+
+    __ testptr(rax, rax);
+    __ jcc(Assembler::zero, slow_path);
+
+    // rax: local 0
+    // rbx: method (but can be used as scratch now)
+    // rdx: scratch
+    // rdi: scratch
+
+    // Weakly load the value of the referent field.
+    const Address field_address(rax, referent_offset);
+    __ load_heap_oop(rax, field_address, true /* expand_call */, MacroAssembler::LoadBarrierOnWeakOopRef);
+
+    // _areturn
+    __ pop(rdi);                // get return address
+    __ mov(rsp, r13);           // set sp to sender sp
+    __ jmp(rdi);
+    __ ret(0);
+
+    // generate a vanilla interpreter entry as the slow path
+    __ bind(slow_path);
+    __ jump_to_entry(Interpreter::entry_for_kind(Interpreter::zerolocals));
+    return entry;
   }
+
 #endif // INCLUDE_ALL_GCS
 
   // If G1 is not enabled then attempt to go through the accessor entry point
