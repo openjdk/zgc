@@ -272,4 +272,8 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define NOINLINE     __attribute__ ((noinline))
 #define ALWAYSINLINE inline __attribute__ ((always_inline))
 
+// Branch hinting
+#define LIKELY(x)                    __builtin_expect(!!(x), 1)
+#define UNLIKELY(x)                  __builtin_expect(!!(x), 0)
+
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_GCC_HPP
