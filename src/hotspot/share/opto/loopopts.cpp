@@ -1317,8 +1317,16 @@ bool PhaseIdealLoop::move_out_of_loop(LoadBarrierNode* lb) {
         return false;
       }
 
-      if (head->is_CountedLoop() && head->as_CountedLoop()->is_main_loop()) {
-        head->as_CountedLoop()->set_normal_loop();
+      if (head->is_CountedLoop()) {
+        CountedLoopNode* cloop = head->as_CountedLoop();
+        if (cloop->is_main_loop()) {
+          cloop->set_normal_loop();
+        }
+        // When we are moving barrier out of a counted loop,
+        // make sure we move it all the way out of the strip mined outer loop.
+        if (cloop->is_strip_mined()) {
+          head = cloop->outer_loop();
+        }
       }
 
       Node* mem = lb->in(LoadBarrierNode::Memory);
