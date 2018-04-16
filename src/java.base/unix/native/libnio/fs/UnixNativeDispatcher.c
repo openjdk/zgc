@@ -731,7 +731,10 @@ Java_sun_nio_fs_UnixNativeDispatcher_readdir(JNIEnv* env, jclass this, jlong val
 
     /* EINTR not listed as a possible error */
     /* TDB: reentrant version probably not required here */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     res = readdir64_r(dirp, ptr, &result);
+#pragma GCC diagnostic pop
 
 #ifdef _AIX
     /* On AIX, readdir_r() returns EBADF (i.e. '9') and sets 'result' to NULL for the */
