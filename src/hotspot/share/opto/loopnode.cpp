@@ -413,6 +413,7 @@ bool PhaseIdealLoop::is_counted_loop(Node* x, IdealLoopTree*& loop) {
   Node* trunc1 = NULL;
   Node* trunc2 = NULL;
   const TypeInt* iv_trunc_t = NULL;
+  Node* orig_incr = incr;
   if (!(incr = CountedLoopNode::match_incr_with_optional_truncation(incr, &trunc1, &trunc2, &iv_trunc_t))) {
     return false; // Funny increment opcode
   }
@@ -509,6 +510,11 @@ bool PhaseIdealLoop::is_counted_loop(Node* x, IdealLoopTree*& loop) {
     jlong init_p = (jlong)init_t->_hi + stride_con;
     if (init_p < (jlong)min_jint || init_p < (jlong)limit_t->_lo)
       return false; // cyclic loop or this loop trips only once
+  }
+
+  const TypeInt* incr_t = gvn->type(orig_incr)->is_int();
+  if (limit_t->_hi > incr_t->_hi) {
+    return false; // limit might be a value that incr never can reach
   }
 
   if (phi_incr != NULL) {
