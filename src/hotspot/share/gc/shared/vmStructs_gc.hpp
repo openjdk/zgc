@@ -39,6 +39,7 @@
 #include "gc/cms/vmStructs_cms.hpp"
 #include "gc/g1/vmStructs_g1.hpp"
 #include "gc/parallel/vmStructs_parallelgc.hpp"
+#include "gc/z/vmStructs_z.hpp"
 #endif
 
 #define VM_STRUCTS_GC(nonstatic_field,                                                                                               \
@@ -54,6 +55,9 @@
   ALL_GCS_ONLY(VM_STRUCTS_PARALLELGC(nonstatic_field,                                                                                \
                                      volatile_nonstatic_field,                                                                       \
                                      static_field))                                                                                  \
+  ALL_GCS_ONLY(VM_STRUCTS_ZGC(nonstatic_field,                                                                                       \
+                              volatile_nonstatic_field,                                                                              \
+                              static_field))                                                                                         \
   VM_STRUCTS_SERIALGC(nonstatic_field,                                                                                               \
                       volatile_nonstatic_field,                                                                                      \
                       static_field)                                                                                                  \
@@ -159,6 +163,9 @@
   ALL_GCS_ONLY(VM_TYPES_PARALLELGC(declare_type,                          \
                                    declare_toplevel_type,                 \
                                    declare_integer_type))                 \
+  ALL_GCS_ONLY(VM_TYPES_ZGC(declare_type,                                 \
+                            declare_toplevel_type,                        \
+                            declare_integer_type))                        \
   VM_TYPES_SERIALGC(declare_type,                                         \
                     declare_toplevel_type,                                \
                     declare_integer_type)                                 \
@@ -230,6 +237,8 @@
                                      declare_constant_with_value))          \
   ALL_GCS_ONLY(VM_INT_CONSTANTS_PARALLELGC(declare_constant,                \
                                            declare_constant_with_value))    \
+  ALL_GCS_ONLY(VM_INT_CONSTANTS_ZGC(declare_constant,                       \
+                                    declare_constant_with_value))           \
   VM_INT_CONSTANTS_SERIALGC(declare_constant,                               \
                             declare_constant_with_value)                    \
                                                                             \
@@ -273,7 +282,9 @@
   declare_constant(Generation::Other)                                       \
                                                                             \
   declare_constant(Generation::LogOfGenGrain)                               \
-  declare_constant(Generation::GenGrain)                                    \
+  declare_constant(Generation::GenGrain)
 
+#define VM_LONG_CONSTANTS_GC(declare_constant)                              \
+  ALL_GCS_ONLY(VM_LONG_CONSTANTS_ZGC(declare_constant))
 
 #endif // SHARE_GC_SHARED_VMSTRUCTS_GC_HPP

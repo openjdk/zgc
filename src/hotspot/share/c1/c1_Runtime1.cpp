@@ -203,6 +203,8 @@ void Runtime1::generate_blob_for(BufferBlob* buffer_blob, StubID id) {
   switch (id) {
     // These stubs don't need to have an oopmap
   case dtrace_object_alloc_id:
+  case z_load_barrier_on_oop_field_preloaded_id:
+  case z_load_barrier_on_weak_oop_field_preloaded_id:
   case g1_pre_barrier_slow_id:
   case g1_post_barrier_slow_id:
   case slow_subtype_check_id:

@@ -874,6 +874,289 @@ uint LoadNode::hash() const {
   return (uintptr_t)in(Control) + (uintptr_t)in(Memory) + (uintptr_t)in(Address);
 }
 
+const Type *LoadBarrierNode::bottom_type() const {
+  const Type **floadbarrier = (const Type **)(Compile::current()->type_arena()->Amalloc_4((Number_of_Outputs)*sizeof(Type*)));
+  const Type* val_t = in(Oop)->bottom_type();
+  floadbarrier[Control] = Type::CONTROL;
+  floadbarrier[Memory] = Type::MEMORY;
+  floadbarrier[Oop] = val_t;
+  const Type* res = TypeTuple::make(Number_of_Outputs, floadbarrier);
+  return res;
+}
+
+const Type *LoadBarrierNode::Value(PhaseGVN *phase) const {
+  const Type **floadbarrier = (const Type **)(phase->C->type_arena()->Amalloc_4((Number_of_Outputs)*sizeof(Type*)));
+  const Type* val_t = phase->type(in(Oop));
+  floadbarrier[Control] = Type::CONTROL;
+  floadbarrier[Memory] = Type::MEMORY;
+  floadbarrier[Oop] = val_t;
+  const Type* res = TypeTuple::make(Number_of_Outputs, floadbarrier);
+  return res;
+}
+
+bool LoadBarrierNode::is_dominator(PhaseIdealLoop* phase, bool linear_only, Node *d, Node *n) {
+  if (phase != NULL) {
+    return phase->is_dominator(d, n);
+  }
+  for (int i = 0; i < 10 && n != NULL; i++) {
+    n = IfNode::up_one_dom(n, linear_only);
+    if (n == d) {
+      return true;
+    }
+  }
+  return false;
+}
+
+LoadBarrierNode* LoadBarrierNode::has_dominating_barrier(PhaseIdealLoop* phase, bool linear_only, bool look_for_similar) {
+  Node* val = in(LoadBarrierNode::Oop);
+  if (in(Similar)->is_Proj() && in(Similar)->in(0)->is_LoadBarrier()) {
+    LoadBarrierNode* lb = in(Similar)->in(0)->as_LoadBarrier();
+    assert(lb->in(Address) == in(Address), "");
+    // Load barrier on Similar edge dominates so if it now has the Oop field it can replace this barrier.
+    if (lb->in(Oop) == in(Oop) ) {
+      return lb;
+    }
+    // Follow chain of load barrier through Similar edges
+    while (!lb->in(Similar)->is_top()) {
+      lb = lb->in(Similar)->in(0)->as_LoadBarrier();
+      assert(lb->in(Address) == in(Address), "");
+    }
+    if (lb != in(Similar)->in(0)) {
+      return lb;
+    }
+  }
+  for (DUIterator_Fast imax, i = val->fast_outs(imax); i < imax; i++) {
+    Node* u = val->fast_out(i);
+    if (u != this && u->is_LoadBarrier() && u->in(Oop) == val && u->as_LoadBarrier()->has_true_uses()) {
+      Node* this_ctrl = in(LoadBarrierNode::Control);
+      Node* other_ctrl = u->in(LoadBarrierNode::Control);
+      if (is_dominator(phase, linear_only, other_ctrl, this_ctrl)) {
+        return u->as_LoadBarrier();
+      }
+    }
+  }
+
+  if (VerifyLoadBarriers || can_be_eliminated()) {
+    return NULL;
+  }
+
+  if (PreventLoadBarrierDomBug) {
+    return NULL;
+  }
+
+  if (!look_for_similar) {
+    return NULL;
+  }
+
+  Node* addr = in(LoadBarrierNode::Address);
+  for (DUIterator_Fast imax, i = addr->fast_outs(imax); i < imax; i++) {
+    Node* u = addr->fast_out(i);
+    if (u != this && u->is_LoadBarrier() && u->as_LoadBarrier()->has_true_uses()) {
+      Node* this_ctrl = in(LoadBarrierNode::Control);
+      Node* other_ctrl = u->in(LoadBarrierNode::Control);
+      if (is_dominator(phase, linear_only, other_ctrl, this_ctrl)) {
+        ResourceMark rm;
+        Unique_Node_List wq;
+        wq.push(in(LoadBarrierNode::Control));
+        bool ok = true;
+        bool dom_found = false;
+        for (uint next = 0; next < wq.size(); ++next) {
+          Node *n = wq.at(next);
+          if (n->is_top()) {
+            return NULL;
+          }
+          assert(n->is_CFG(), "");
+          if (n->is_SafePoint()) {
+            ok = false;
+            break;
+          }
+          if (n == u) {
+            dom_found = true;
+            continue;
+          }
+          if (n->is_Region()) {
+            for (uint i = 1; i < n->req(); i++) {
+              Node* m = n->in(i);
+              if (m != NULL) {
+                wq.push(m);
+              }
+            }
+          } else {
+            Node* m = n->in(0);
+            if (m != NULL) {
+              wq.push(m);
+            }
+          }
+        }
+        if (ok) {
+          assert(dom_found, "");
+          return u->as_LoadBarrier();;
+        }
+        break;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+void LoadBarrierNode::push_dominated_barriers(PhaseIterGVN* igvn) const {
+  // change to that barrier may affect a dominated barrier so re-push those
+  Node* val = in(LoadBarrierNode::Oop);
+
+  for (DUIterator_Fast imax, i = val->fast_outs(imax); i < imax; i++) {
+    Node* u = val->fast_out(i);
+    if (u != this && u->is_LoadBarrier() && u->in(Oop) == val) {
+      Node* this_ctrl = in(Control);
+      Node* other_ctrl = u->in(Control);
+      if (is_dominator(NULL, false, this_ctrl, other_ctrl)) {
+        igvn->_worklist.push(u);
+      }
+    }
+
+    Node* addr = in(LoadBarrierNode::Address);
+    for (DUIterator_Fast imax, i = addr->fast_outs(imax); i < imax; i++) {
+      Node* u = addr->fast_out(i);
+      if (u != this && u->is_LoadBarrier() && u->in(Similar)->is_top()) {
+        Node* this_ctrl = in(Control);
+        Node* other_ctrl = u->in(Control);
+        if (is_dominator(NULL, false, this_ctrl, other_ctrl)) {
+          igvn->_worklist.push(u);
+        }
+      }
+    }
+  }
+}
+
+Node *LoadBarrierNode::Identity(PhaseGVN *phase) {
+  if (!phase->C->directive()->OptimizeLoadBarriersOption) {
+    return this;
+  }
+
+  bool redundant_addr = false;
+  LoadBarrierNode* dominating_barrier = has_dominating_barrier(NULL, true, false);
+  if (dominating_barrier != NULL && ParseTimeLoadBarrierOpt) {
+    assert(dominating_barrier->in(Oop) == in(Oop), "");
+    return dominating_barrier;
+  }
+  return this;
+}
+
+Node *LoadBarrierNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  if (remove_dead_region(phase, can_reshape)) return this;
+
+  Node* val = in(Oop);
+  Node* mem = in(Memory);
+  Node* ctrl = in(Control);
+  Node* adr = in(Address);
+  assert(val->Opcode() != Op_LoadN, "");
+
+  if (mem->is_MergeMem()) {
+    Node* new_mem = mem->as_MergeMem()->memory_at(Compile::AliasIdxRaw);
+    set_req(Memory, new_mem);
+    if (mem->outcnt() == 0 && can_reshape) {
+      phase->is_IterGVN()->_worklist.push(mem);
+    }
+    return this;
+  }
+
+  bool optimizeLoadBarriers = phase->C->directive()->OptimizeLoadBarriersOption;
+  LoadBarrierNode* dominating_barrier = optimizeLoadBarriers ? has_dominating_barrier(NULL, !can_reshape, !phase->C->major_progress()) : NULL;
+  if (dominating_barrier != NULL && dominating_barrier->in(Oop) != in(Oop)) {
+    assert(in(Address) == dominating_barrier->in(Address), "");
+    set_req(Similar, dominating_barrier->proj_out(Oop));
+    return this;
+  }
+
+  bool eliminate = (optimizeLoadBarriers && !(val->is_Phi() || val->Opcode() == Op_LoadP || val->Opcode() == Op_GetAndSetP || val->is_DecodeN())) ||
+    (can_reshape && (dominating_barrier != NULL || !has_true_uses()));
+
+  if (eliminate) {
+    if (can_reshape) {
+      PhaseIterGVN* igvn = phase->is_IterGVN();
+      Node* out_ctrl = proj_out_or_null(Control);
+      Node* out_res = proj_out_or_null(Oop);
+
+      if (out_ctrl != NULL) {
+        igvn->replace_node(out_ctrl, ctrl);
+      }
+      // That transformation may cause the Similar edge on the load barrier to be invalid
+      fix_similar_in_uses(igvn);
+      if (out_res != NULL) {
+        if (dominating_barrier != NULL) {
+          igvn->replace_node(out_res, dominating_barrier->proj_out(Oop));
+        } else {
+          igvn->replace_node(out_res, val);
+        }
+      }
+    } else if (!ParseTimeLoadBarrierOpt) {
+      phase->record_for_igvn(this);
+      return NULL;
+    }
+    return new ConINode(TypeInt::ZERO);
+  }
+
+  // If the Similar edge is no longer a load barrier, clear it
+  Node* similar = in(Similar);
+  if (!similar->is_top() && !(similar->is_Proj() && similar->in(0)->is_LoadBarrier())) {
+    set_req(Similar, phase->C->top());
+    return this;
+  }
+
+  if (can_reshape) {
+    // If this barrier is linked through the Similar edge by a
+    // dominated barrier and both barriers have the same Oop field,
+    // the dominated barrier can go away, so push it for reprocessing.
+    // We also want to avoid a barrier to depend on another dominating
+    // barrier through its Similar edge that itself depend on another
+    // barrier through its Similar edge and rather have the first
+    // depend on the third.
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    Node* out_res = proj_out(Oop);
+    for (DUIterator_Fast imax, i = out_res->fast_outs(imax); i < imax; i++) {
+      Node* u = out_res->fast_out(i);
+      if (u->is_LoadBarrier() && u->in(Similar) == out_res &&
+          (u->in(Oop) == val || !u->in(Similar)->is_top())) {
+        igvn->_worklist.push(u);
+      }
+    }
+
+    push_dominated_barriers(igvn);
+  }
+
+  return NULL;
+}
+
+void LoadBarrierNode::fix_similar_in_uses(PhaseIterGVN* igvn) {
+  Node* out_res = proj_out_or_null(Oop);
+  if (out_res == NULL) {
+    return;
+  }
+  for (DUIterator_Fast imax, i = out_res->fast_outs(imax); i < imax; i++) {
+    Node* u = out_res->fast_out(i);
+    if (u->is_LoadBarrier() && u->in(Similar) == out_res) {
+      igvn->replace_input_of(u, Similar, igvn->C->top());
+      --i;
+      --imax;
+    }
+  }
+}
+
+bool LoadBarrierNode::has_true_uses() const {
+  Node* out_res = proj_out_or_null(Oop);
+  if (out_res == NULL) {
+    return false;
+  }
+
+  for (DUIterator_Fast imax, i = out_res->fast_outs(imax); i < imax; i++) {
+    Node* u = out_res->fast_out(i);
+    if (!u->is_LoadBarrier() || u->in(Similar) != out_res) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp, bool eliminate_boxing) {
   if ((atp != NULL) && (atp->index() >= Compile::AliasIdxRaw)) {
     bool non_volatile = (atp->field() != NULL) && !atp->field()->is_volatile();
@@ -891,6 +1174,10 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
+  if (UseZGC && bottom_type()->make_oopptr() != NULL) {
+    return NULL;
+  }
+
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
   AllocateNode* ld_alloc = AllocateNode::Ideal_allocation(ld_adr, phase, ld_off);
@@ -1574,7 +1861,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Is there a dominating load that loads the same value?  Leave
   // anything that is not a load of a field/array element (like
   // barriers etc.) alone
-  if (in(0) != NULL && adr_type() != TypeRawPtr::BOTTOM && can_reshape) {
+  if (in(0) != NULL && !adr_type()->isa_rawptr() && can_reshape) {
     for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
       Node *use = mem->fast_out(i);
       if (use != this &&
@@ -2738,7 +3025,7 @@ uint LoadStoreNode::size_of() const { return sizeof(*this); }
 
 //=============================================================================
 //----------------------------------LoadStoreConditionalNode--------------------
-LoadStoreConditionalNode::LoadStoreConditionalNode( Node *c, Node *mem, Node *adr, Node *val, Node *ex ) : LoadStoreNode(c, mem, adr, val, NULL, TypeInt::BOOL, 5) {
+LoadStoreConditionalNode::LoadStoreConditionalNode(Node *c, Node *mem, Node *adr, Node *val, Node *ex, const Type* rt) : LoadStoreNode(c, mem, adr, val, NULL, rt, 5) {
   init_req(ExpectedIn, ex );
 }
 
@@ -2962,6 +3249,12 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Don't bother trying to transform a dead node
   if (in(0) && in(0)->is_top()) {
     return NULL;
+  }
+
+  if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
+    Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
+    set_req(MemBarNode::Precedent, load_node);
+    return this;
   }
 
   bool progress = false;

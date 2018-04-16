@@ -756,11 +756,13 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
 #endif // COMPILER1
 #ifdef COMPILER2
   case vmIntrinsics::_clone:
+    if (UseZGC || !InlineObjectCopy || !InlineArrayCopy) return true;
+    break;
   case vmIntrinsics::_copyOf:
   case vmIntrinsics::_copyOfRange:
     // These intrinsics use both the objectcopy and the arraycopy
     // intrinsic mechanism.
-    if (!InlineObjectCopy || !InlineArrayCopy) return true;
+    if (PreventLoadBarrierArrayCopyBug || !InlineObjectCopy || !InlineArrayCopy) return true;
     break;
   case vmIntrinsics::_compareToL:
   case vmIntrinsics::_compareToU:

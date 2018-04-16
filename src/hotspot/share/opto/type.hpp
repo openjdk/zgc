@@ -681,6 +681,7 @@ public:
   static const TypeTuple *LONG_PAIR;
   static const TypeTuple *INT_CC_PAIR;
   static const TypeTuple *LONG_CC_PAIR;
+  static const TypeTuple *LOADBARRIER;
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint, outputStream *st  ) const; // Specialized per-Type dumping
 #endif
@@ -1770,6 +1771,7 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 // UseOptoBiasInlining
 #define XorXNode     XorLNode
 #define StoreXConditionalNode StoreLConditionalNode
+#define CompareAndSwapXNode   CompareAndSwap2LNode
 // Opcodes
 #define Op_LShiftX   Op_LShiftL
 #define Op_AndX      Op_AndL
@@ -1815,6 +1817,7 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 // UseOptoBiasInlining
 #define XorXNode     XorINode
 #define StoreXConditionalNode StoreIConditionalNode
+#define CompareAndSwapXNode   CompareAndSwap2INode
 // Opcodes
 #define Op_LShiftX   Op_LShiftI
 #define Op_AndX      Op_AndI

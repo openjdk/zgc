@@ -338,6 +338,8 @@ WB_ENTRY(jboolean, WB_isObjectInOldGen(JNIEnv* env, jobject o, jobject obj))
   } else if (UseParallelGC) {
     ParallelScavengeHeap* psh = ParallelScavengeHeap::heap();
     return !psh->is_in_young(p);
+  } else if (UseZGC) {
+    return Universe::heap()->is_in(p);
   }
 #endif // INCLUDE_ALL_GCS
   GenCollectedHeap* gch = GenCollectedHeap::heap();

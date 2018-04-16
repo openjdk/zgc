@@ -78,6 +78,7 @@
 #endif
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1ThreadLocalData.hpp"
+#include "gc/z/zBarrier.inline.hpp"
 #endif // INCLUDE_ALL_GCS
 
 // Shared stub locations
@@ -224,6 +225,18 @@ JRT_END
 // G1 write-barrier post: executed after a pointer store.
 JRT_LEAF(void, SharedRuntime::g1_wb_post(void* card_addr, JavaThread* thread))
   G1ThreadLocalData::dirty_card_queue(thread).enqueue(card_addr);
+JRT_END
+
+JRT_LEAF(oopDesc*, SharedRuntime::z_load_barrier_on_oop_field_preloaded(oopDesc* ref, address ref_addr))
+  return ZBarrier::load_barrier_on_oop_field_preloaded((oop*)ref_addr, ref);
+JRT_END
+
+JRT_LEAF(oopDesc*, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded(oopDesc* ref, address ref_addr))
+  return ZBarrier::load_barrier_on_weak_oop_field_preloaded((oop*)ref_addr, ref);
+JRT_END
+
+JRT_LEAF(oopDesc*, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded(oopDesc* ref, address ref_addr))
+  return ZBarrier::load_barrier_on_phantom_oop_field_preloaded((oop*)ref_addr, ref);
 JRT_END
 
 #endif // INCLUDE_ALL_GCS

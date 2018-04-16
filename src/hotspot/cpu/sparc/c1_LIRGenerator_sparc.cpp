@@ -617,7 +617,6 @@ void LIRGenerator::do_LogicOp(LogicOp* x) {
 }
 
 
-
 // _lcmp, _fcmpl, _fcmpg, _dcmpl, _dcmpg
 void LIRGenerator::do_CompareOp(CompareOp* x) {
   LIRItem left(x->x(), this);
@@ -657,6 +656,12 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   __ add(obj.result(), offset.result(), addr);
 
   if (type == objectType) {  // Write-barrier needed for Object fields.
+    if (UseZGC) {
+      // Load barrier to make sure that cas_obj() sees a correct oop.
+      LIR_Opr pre_val = new_register(T_OBJECT);
+      __ load(new LIR_Address(addr, as_BasicType(type)), pre_val);
+      load_barrier(pre_val, addr);
+    }
     pre_barrier(addr, LIR_OprFact::illegalOpr /* pre_val */,
                 true /* do_load */, false /* patch */, NULL);
   }
@@ -1375,9 +1380,12 @@ void LIRGenerator::put_Object_unsafe(LIR_Opr src, LIR_Opr offset, LIR_Opr data,
 
 void LIRGenerator::get_Object_unsafe(LIR_Opr dst, LIR_Opr src, LIR_Opr offset,
                                      BasicType type, bool is_volatile) {
-    {
+  {
     LIR_Address* addr = new LIR_Address(src, offset, type);
     __ load(addr, dst);
+    if (type == T_OBJECT && UseZGC) {
+      load_barrier(dst, LIR_OprFact::address(addr));
+    }
   }
 }
 
@@ -1425,6 +1433,10 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
   }
   __ xchg(LIR_OprFact::address(addr), dst, dst, tmp);
   if (is_obj) {
+    if (UseZGC) {
+      load_barrier(dst);
+    }
+
     // Seems to be a precise address
     post_barrier(ptr, data);
   }

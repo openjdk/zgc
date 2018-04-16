@@ -41,6 +41,9 @@
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_x86.inline.hpp"
+#if INCLUDE_ALL_GCS
+#include "gc/z/zThreadLocalData.hpp"
+#endif // INCLUDE_ALL_GCS
 
 
 // These masks are used to provide 128-bit aligned bitmasks to the XMM
@@ -1346,7 +1349,10 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ decode_heap_oop(dest->as_register());
     }
 #endif
-    __ verify_oop(dest->as_register());
+    if (!UseZGC) {
+      // Load barrier not yet applied, so a verification here would fail
+      __ verify_oop(dest->as_register());
+    }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
     if (UseCompressedClassPointers) {
@@ -2989,6 +2995,9 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, jint count, LIR_Opr de
   }
 }
 
+void LIR_Assembler::load_barrier_test(LIR_Opr ref) {
+  __ testptr(ref->as_register(), Address(r15_thread, ZThreadLocalData::address_bad_mask_offset()));
+}
 
 void LIR_Assembler::store_parameter(Register r, int offset_from_rsp_in_words) {
   assert(offset_from_rsp_in_words >= 0, "invalid offset from rsp");

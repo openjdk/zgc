@@ -115,6 +115,8 @@ class JNIHandles : AllStatic {
   static void weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f);
   // Traversal of weak global handles.
   static void weak_oops_do(OopClosure* f);
+  // Expose the _weak_globa_handles to the GCs that want to do more exotic iterations.
+  static OopStorage* weak_global_handles();
 };
 
 

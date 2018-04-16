@@ -356,6 +356,10 @@ void MacroAssembler::save_thread(const Register thread_cache) {
 
 
 void MacroAssembler::restore_thread(const Register thread_cache) {
+  if (UseZGC) {
+    AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
+    load_ptr_contents(bad_mask, G6);
+  }
   if (thread_cache->is_valid()) {
     assert(thread_cache->is_local() || thread_cache->is_in(), "bad volatile");
     mov(thread_cache, G2_thread);
@@ -1286,6 +1290,15 @@ void MacroAssembler::verify_oop_subroutine() {
   // mark lower end of faulting range
   assert(_verify_oop_implicit_branch[0] == NULL, "set once");
   _verify_oop_implicit_branch[0] = pc();
+
+  if (UseZGC) {
+    // Check if mask is good
+    AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
+    load_ptr_contents(bad_mask, O2);
+    btst(O0_obj, O2);
+    brx(notZero, false, pn, null_or_fail);
+    delayed()->nop();
+  }
 
   // We can't check the mark oop because it could be in the process of
   // locking or unlocking while this is running.
@@ -3684,7 +3697,10 @@ void  MacroAssembler::decode_klass_not_null(Register src, Register dst) {
 }
 
 void MacroAssembler::reinit_heapbase() {
-  if (UseCompressedOops || UseCompressedClassPointers) {
+  if (UseZGC) {
+    AddressLiteral bad_mask((intptr_t)&ZAddressBadMask);
+    load_ptr_contents(bad_mask, G6);
+  } else if (UseCompressedOops || UseCompressedClassPointers) {
     if (Universe::heap() != NULL) {
       set((intptr_t)Universe::narrow_ptrs_base(), G6_heapbase);
     } else {
