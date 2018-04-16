@@ -254,6 +254,9 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define THREAD_LOCAL_DECL __thread
 #endif
 
+// Alignment
+#define ATTRIBUTE_ALIGNED(x)        __attribute__((aligned(x)))
+
 // Inlining support
 #define NOINLINE
 #define ALWAYSINLINE inline __attribute__((always_inline))
