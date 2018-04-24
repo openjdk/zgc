@@ -30,6 +30,7 @@
 #if INCLUDE_ALL_GCS
 #include "gc/cms/cms_specialized_oop_closures.hpp"
 #include "gc/g1/g1_specialized_oop_closures.hpp"
+#include "gc/z/zOopClosures.specialized.hpp"
 #endif // INCLUDE_ALL_GCS
 
 // The following OopClosure types get specialized versions of
@@ -63,7 +64,8 @@ class OopsInGenClosure;
                SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_MS(f)         \
   ALL_GCS_ONLY(SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_CMS(f))       \
   ALL_GCS_ONLY(SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1(f))        \
-  ALL_GCS_ONLY(SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1FULL(f))
+  ALL_GCS_ONLY(SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_G1FULL(f))    \
+  ALL_GCS_ONLY(SPECIALIZED_OOP_OOP_ITERATE_CLOSURES_Z(f))
 
 // We separate these out, because sometime the general one has
 // a different definition from the specialized ones, and sometimes it

@@ -765,6 +765,13 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   __ leal(LIR_OprFact::address(a), addr);
 
   if (type == objectType) {  // Write-barrier needed for Object fields.
+    if (UseZGC) {
+      // Load barrier to make sure that cas_obj() sees a correct oop.
+      LIR_Opr pre_val = new_register(T_OBJECT);
+      __ load(new LIR_Address(addr, as_BasicType(type)), pre_val);
+      load_barrier(pre_val, addr);
+    }
+
     // Do the pre-write barrier, if any.
     pre_barrier(addr, LIR_OprFact::illegalOpr /* pre_val */,
                 true /* do_load */, false /* patch */, NULL);
@@ -1607,6 +1614,9 @@ void LIRGenerator::get_Object_unsafe(LIR_Opr dst, LIR_Opr src, LIR_Opr offset,
   } else {
     LIR_Address* addr = new LIR_Address(src, offset, type);
     __ load(addr, dst);
+    if (type == T_OBJECT && UseZGC) {
+      load_barrier(dst, LIR_OprFact::address(addr));
+    }
   }
 }
 
@@ -1685,6 +1695,10 @@ void LIRGenerator::do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) {
     }
     __ xchg(LIR_OprFact::address(addr), dst, dst, LIR_OprFact::illegalOpr);
     if (is_obj) {
+      if (UseZGC) {
+        load_barrier(dst);
+      }
+
       // Seems to be a precise address
       post_barrier(LIR_OprFact::address(addr), data);
     }

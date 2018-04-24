@@ -304,6 +304,14 @@ int InstructForm::is_tls_instruction() const {
   return 0;
 }
 
+int InstructForm::is_addr_bad_bits_instruction() const {
+  if (_ident != NULL &&
+      ( ! strcmp( _ident,"addr_bad_bits") ) ) {
+    return 1;
+  }
+  return 0;
+}
+
 
 // Return 'true' if this instruction matches an ideal 'If' node
 bool InstructForm::is_ideal_if() const {
@@ -550,7 +558,7 @@ bool InstructForm::rematerialize(FormDict &globals, RegisterForm *registers ) {
     rematerialize = true;
 
   // Pseudo-constants (values easily available to the runtime)
-  if (is_empty_encoding() && is_tls_instruction())
+  if (is_empty_encoding() && (is_tls_instruction() || is_addr_bad_bits_instruction()))
     rematerialize = true;
 
   // 1-input, 1-output, such as copies or increments.
@@ -2279,6 +2287,9 @@ bool OperandForm::is_bound_register() const {
   if (strcmp(name, "RegD") == 0) size = 2;
   if (strcmp(name, "RegL") == 0) size = 2;
   if (strcmp(name, "RegN") == 0) size = 1;
+  if (strcmp(name, "VecX") == 0) size = 4;
+  if (strcmp(name, "VecY") == 0) size = 8;
+  if (strcmp(name, "VecZ") == 0) size = 16;
   if (strcmp(name, "RegP") == 0) size = globalAD->get_preproc_def("_LP64") ? 2 : 1;
   if (size == 0) {
     return false;
@@ -3500,12 +3511,14 @@ int MatchNode::needs_ideal_memory_edge(FormDict &globals) const {
     "LoadPLocked",
     "StorePConditional", "StoreIConditional", "StoreLConditional",
     "CompareAndSwapB", "CompareAndSwapS", "CompareAndSwapI", "CompareAndSwapL", "CompareAndSwapP", "CompareAndSwapN",
+    "CompareAndSwap2I", "CompareAndSwap2L",
     "WeakCompareAndSwapB", "WeakCompareAndSwapS", "WeakCompareAndSwapI", "WeakCompareAndSwapL", "WeakCompareAndSwapP", "WeakCompareAndSwapN",
     "CompareAndExchangeB", "CompareAndExchangeS", "CompareAndExchangeI", "CompareAndExchangeL", "CompareAndExchangeP", "CompareAndExchangeN",
     "StoreCM",
     "ClearArray",
     "GetAndSetB", "GetAndSetS", "GetAndAddI", "GetAndSetI", "GetAndSetP",
     "GetAndAddB", "GetAndAddS", "GetAndAddL", "GetAndSetL", "GetAndSetN",
+    "LoadBarrierSlowReg", "LoadBarrierWeakSlowReg"
   };
   int cnt = sizeof(needs_ideal_memory_list)/sizeof(char*);
   if( strcmp(_opType,"PrefetchAllocation")==0 )

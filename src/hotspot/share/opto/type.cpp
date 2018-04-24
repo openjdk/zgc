@@ -616,6 +616,12 @@ void Type::Initialize_shared(Compile* current) {
   longccpair[1] = TypeInt::CC;
   TypeTuple::LONG_CC_PAIR = TypeTuple::make(2, longccpair);
 
+  const Type **floadbarrier = (const Type**)shared_type_arena->Amalloc_4(LoadBarrierNode::Number_of_Outputs*sizeof(Type*));
+  floadbarrier[0] = Type::CONTROL;
+  floadbarrier[1] = Type::MEMORY;
+  floadbarrier[2] = TypeInstPtr::NOTNULL; // FIXME
+  TypeTuple::LOADBARRIER = TypeTuple::make(LoadBarrierNode::Number_of_Outputs, floadbarrier);
+
   _const_basic_type[T_NARROWOOP]   = TypeNarrowOop::BOTTOM;
   _const_basic_type[T_NARROWKLASS] = Type::BOTTOM;
   _const_basic_type[T_BOOLEAN]     = TypeInt::BOOL;
@@ -1853,6 +1859,7 @@ const TypeTuple *TypeTuple::INT_PAIR;
 const TypeTuple *TypeTuple::LONG_PAIR;
 const TypeTuple *TypeTuple::INT_CC_PAIR;
 const TypeTuple *TypeTuple::LONG_CC_PAIR;
+const TypeTuple *TypeTuple::LOADBARRIER;
 
 
 //------------------------------make-------------------------------------------
@@ -3526,7 +3533,7 @@ const Type *TypeInstPtr::cast_to_ptr_type(PTR ptr) const {
   if( ptr == _ptr ) return this;
   // Reconstruct _sig info here since not a problem with later lazy
   // construction, _sig will show up on demand.
-  return make(ptr, klass(), klass_is_exact(), const_oop(), _offset, _instance_id, _speculative, _inline_depth);
+  return make(ptr, klass(), klass_is_exact(), ptr == Constant ? const_oop() : NULL, _offset, _instance_id, _speculative, _inline_depth);
 }
 
 
@@ -4056,7 +4063,7 @@ const TypeAryPtr *TypeAryPtr::make(PTR ptr, ciObject* o, const TypeAry *ary, ciK
 //------------------------------cast_to_ptr_type-------------------------------
 const Type *TypeAryPtr::cast_to_ptr_type(PTR ptr) const {
   if( ptr == _ptr ) return this;
-  return make(ptr, const_oop(), _ary, klass(), klass_is_exact(), _offset, _instance_id, _speculative, _inline_depth);
+  return make(ptr, ptr == Constant ? const_oop() : NULL, _ary, klass(), klass_is_exact(), _offset, _instance_id, _speculative, _inline_depth);
 }
 
 

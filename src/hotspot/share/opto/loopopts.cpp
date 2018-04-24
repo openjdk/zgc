@@ -1120,15 +1120,339 @@ bool PhaseIdealLoop::can_split_if(Node *n_ctrl) {
   return true;
 }
 
+bool PhaseIdealLoop::replace_with_dominating_barrier(LoadBarrierNode* lb, bool last_round) {
+  LoadBarrierNode* lb2 = lb->has_dominating_barrier(this, false, last_round);
+  if (lb2 != NULL) {
+    if (lb->in(LoadBarrierNode::Oop) != lb2->in(LoadBarrierNode::Oop)) {
+      assert(lb->in(LoadBarrierNode::Address) == lb2->in(LoadBarrierNode::Address), "");
+      _igvn.replace_input_of(lb, LoadBarrierNode::Similar, lb2->proj_out(LoadBarrierNode::Oop));
+      C->set_major_progress();
+    } else  {
+      // That transformation may cause the Similar edge on dominated load barriers to be invalid
+      lb->fix_similar_in_uses(&_igvn);
+
+      Node* val = lb->proj_out(LoadBarrierNode::Oop);
+      assert(lb2->has_true_uses(), "");
+      assert(lb2->in(LoadBarrierNode::Oop) == lb->in(LoadBarrierNode::Oop), "");
+
+      lazy_update(lb, lb->in(LoadBarrierNode::Control));
+      lazy_replace(lb->proj_out(LoadBarrierNode::Control), lb->in(LoadBarrierNode::Control));
+      _igvn.replace_node(val, lb2->proj_out(LoadBarrierNode::Oop));
+
+      return true;
+    }
+  }
+  return false;
+}
+
+Node* PhaseIdealLoop::find_dominating_memory(Node* mem, Node* dom, int i) {
+  assert(dom->is_Region() || i == -1, "");
+  Node* m = mem;
+  while(is_dominator(dom, has_ctrl(m) ? get_ctrl(m) : m->in(0))) {
+    if (m->is_Mem()) {
+      assert(m->as_Mem()->adr_type() == TypeRawPtr::BOTTOM, "");
+      m = m->in(MemNode::Memory);
+    } else if (m->is_MergeMem()) {
+      m = m->as_MergeMem()->memory_at(Compile::AliasIdxRaw);
+    } else if (m->is_Phi()) {
+      if (m->in(0) == dom && i != -1) {
+        m = m->in(i);
+        break;
+      } else {
+        m = m->in(LoopNode::EntryControl);
+      }
+    } else if (m->is_Proj()) {
+      m = m->in(0);
+    } else if (m->is_SafePoint() || m->is_MemBar()) {
+      m = m->in(TypeFunc::Memory);
+    } else {
+#ifdef ASSERT
+      m->dump();
+#endif
+      ShouldNotReachHere();
+    }
+  }
+  return m;
+}
+
+LoadBarrierNode* PhaseIdealLoop::clone_load_barrier(LoadBarrierNode* lb, Node* ctl, Node* mem, Node* oop_in) {
+  Node* the_clone = lb->clone();
+  the_clone->set_req(LoadBarrierNode::Control, ctl);
+  the_clone->set_req(LoadBarrierNode::Memory, mem);
+  if (oop_in != NULL) {
+    the_clone->set_req(LoadBarrierNode::Oop, oop_in);
+  }
+
+  LoadBarrierNode* new_lb = the_clone->as_LoadBarrier();
+  _igvn.register_new_node_with_optimizer(new_lb);
+  IdealLoopTree *loop = get_loop(new_lb->in(0));
+  set_ctrl(new_lb, new_lb->in(0));
+  set_loop(new_lb, loop);
+  set_idom(new_lb, new_lb->in(0), dom_depth(new_lb->in(0))+1);
+  if (!loop->_child) {
+    loop->_body.push(new_lb);
+  }
+
+  Node* proj_ctl = new ProjNode(new_lb, LoadBarrierNode::Control);
+  _igvn.register_new_node_with_optimizer(proj_ctl);
+  set_ctrl(proj_ctl, proj_ctl->in(0));
+  set_loop(proj_ctl, loop);
+  set_idom(proj_ctl, new_lb, dom_depth(new_lb)+1);
+  if (!loop->_child) {
+    loop->_body.push(proj_ctl);
+  }
+
+  Node* proj_oop = new ProjNode(new_lb, LoadBarrierNode::Oop);
+  register_new_node(proj_oop, new_lb);
+
+  if (!new_lb->in(LoadBarrierNode::Similar)->is_top()) {
+    LoadBarrierNode* similar = new_lb->in(LoadBarrierNode::Similar)->in(0)->as_LoadBarrier();
+    if (!is_dominator(similar, ctl)) {
+      _igvn.replace_input_of(new_lb, LoadBarrierNode::Similar, C->top());
+    }
+  }
+
+  return new_lb;
+}
+
+void PhaseIdealLoop::replace_barrier(LoadBarrierNode* lb, Node* new_val) {
+  Node* val = lb->proj_out(LoadBarrierNode::Oop);
+  _igvn.replace_node(val, new_val);
+  lazy_update(lb, lb->in(LoadBarrierNode::Control));
+  lazy_replace(lb->proj_out(LoadBarrierNode::Control), lb->in(LoadBarrierNode::Control));
+}
+
+bool PhaseIdealLoop::split_barrier_thru_phi(LoadBarrierNode* lb) {
+  if (lb->in(LoadBarrierNode::Oop)->is_Phi()) {
+    Node* oop_phi = lb->in(LoadBarrierNode::Oop);
+
+    if (oop_phi->req() == 2) {
+      // Ignore phis with only one input
+      return false;
+    }
+
+    if (is_dominator(get_ctrl(lb->in(LoadBarrierNode::Address)), oop_phi->in(0)) && get_ctrl(lb->in(LoadBarrierNode::Address)) != oop_phi->in(0) /*&& (get_ctrl(lb->in(LoadBarrierNode::Memory)) != lb->in(0) || lb->in(LoadBarrierNode::Memory)->is_Phi())*/) {
+      // That transformation may cause the Similar edge on dominated load barriers to be invalid
+      lb->fix_similar_in_uses(&_igvn);
+
+      RegionNode* region = oop_phi->in(0)->as_Region();
+
+      int backedge = LoopNode::LoopBackControl;
+      if (region->is_Loop() && region->in(backedge)->is_Proj() && region->in(backedge)->in(0)->is_If()) {
+        Node* c = region->in(backedge)->in(0)->in(0);
+        assert(c->unique_ctrl_out() == region->in(backedge)->in(0), "");
+        Node* oop = lb->in(LoadBarrierNode::Oop)->in(backedge);
+        Node* oop_c = has_ctrl(oop) ? get_ctrl(oop) : oop;
+        if (!is_dominator(oop_c, c)) {
+          return false;
+        }
+      }
+
+      Node *phi = oop_phi->clone();
+
+      for (uint i = 1; i < region->req(); i++) {
+        Node* ctrl = region->in(i);
+        if (ctrl != C->top()) {
+          assert(!is_dominator(ctrl, region) || region->is_Loop(), "");
+
+          Node* mem = lb->in(LoadBarrierNode::Memory);
+          Node* m = find_dominating_memory(mem, region, i);
+
+          if (region->is_Loop() && i == LoopNode::LoopBackControl && ctrl->is_Proj() && ctrl->in(0)->is_If()) {
+            ctrl = ctrl->in(0)->in(0);
+          }
+
+          LoadBarrierNode* new_lb = clone_load_barrier(lb, ctrl, m, lb->in(LoadBarrierNode::Oop)->in(i));
+
+          Node* out_ctrl = new_lb->proj_out(LoadBarrierNode::Control);
+          if (ctrl == region->in(i)) {
+            _igvn.replace_input_of(region, i, new_lb->proj_out(LoadBarrierNode::Control));
+          } else {
+            Node* iff = region->in(i)->in(0);
+            Node* out_ctrl = new_lb->proj_out(LoadBarrierNode::Control);
+            _igvn.replace_input_of(iff, 0, out_ctrl);
+            set_idom(iff, out_ctrl, dom_depth(out_ctrl)+1);
+          }
+          phi->set_req(i, new_lb->proj_out(LoadBarrierNode::Oop));
+        }
+      }
+      register_new_node(phi, region);
+
+      replace_barrier(lb, phi);
+
+      if (region->is_Loop()) {
+        // Load barrier moved to the back edge of the Loop may now
+        // have a safepoint on the path to the barrier on the Similar
+        // edge
+        _igvn.replace_input_of(phi->in(LoopNode::LoopBackControl)->in(0), LoadBarrierNode::Similar, C->top());
+        Node* head = region->in(LoopNode::EntryControl);
+        set_idom(region, head, dom_depth(head)+1);
+        recompute_dom_depth();
+        if (head->is_CountedLoop() && head->as_CountedLoop()->is_main_loop()) {
+          head->as_CountedLoop()->set_normal_loop();
+        }
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PhaseIdealLoop::move_out_of_loop(LoadBarrierNode* lb) {
+  IdealLoopTree *lb_loop = get_loop(lb->in(0));
+  if (lb_loop != _ltree_root && !lb_loop->_irreducible) {
+    Node* oop_ctrl = get_ctrl(lb->in(LoadBarrierNode::Oop));
+    IdealLoopTree *oop_loop = get_loop(oop_ctrl);
+    IdealLoopTree* adr_loop = get_loop(get_ctrl(lb->in(LoadBarrierNode::Address)));
+    if (!lb_loop->is_member(oop_loop) && !lb_loop->is_member(adr_loop)) {
+      // That transformation may cause the Similar edge on dominated load barriers to be invalid
+      lb->fix_similar_in_uses(&_igvn);
+
+      Node* head = lb_loop->_head;
+      assert(head->is_Loop(), "");
+
+      if (is_dominator(head, oop_ctrl)) {
+        assert(oop_ctrl->Opcode() == Op_CProj && oop_ctrl->in(0)->Opcode() == Op_NeverBranch, "");
+        assert(lb_loop->is_member(get_loop(oop_ctrl->in(0)->in(0))), "");
+        return false;
+      }
+
+      if (head->is_CountedLoop()) {
+        CountedLoopNode* cloop = head->as_CountedLoop();
+        if (cloop->is_main_loop()) {
+          cloop->set_normal_loop();
+        }
+        // When we are moving barrier out of a counted loop,
+        // make sure we move it all the way out of the strip mined outer loop.
+        if (cloop->is_strip_mined()) {
+          head = cloop->outer_loop();
+        }
+      }
+
+      Node* mem = lb->in(LoadBarrierNode::Memory);
+      Node* m = find_dominating_memory(mem, head);
+
+      LoadBarrierNode* new_lb = clone_load_barrier(lb,  head->in(LoopNode::EntryControl), m, NULL);
+
+      assert(idom(head) == head->in(LoopNode::EntryControl), "");
+      Node* proj_ctl = new_lb->proj_out(LoadBarrierNode::Control);
+      _igvn.replace_input_of(head, LoopNode::EntryControl, proj_ctl);
+      set_idom(head, proj_ctl, dom_depth(proj_ctl)+1);
+
+      replace_barrier(lb, new_lb->proj_out(LoadBarrierNode::Oop));
+
+      recompute_dom_depth();
+
+      return true;
+    }
+  }
+  return false;
+}
+
+bool PhaseIdealLoop::common_barriers(LoadBarrierNode* lb) {
+  Node* in_val = lb->in(LoadBarrierNode::Oop);
+  for (DUIterator_Fast imax, i = in_val->fast_outs(imax); i < imax; i++) {
+    Node* u = in_val->fast_out(i);
+    if (u != lb && u->is_LoadBarrier() && u->as_LoadBarrier()->has_true_uses()) {
+      Node* this_ctrl = lb->in(LoadBarrierNode::Control);
+      Node* other_ctrl = u->in(LoadBarrierNode::Control);
+
+      Node* lca = dom_lca(this_ctrl, other_ctrl);
+      bool ok = true;
+
+      Node* proj1 = NULL;
+      Node* proj2 = NULL;
+
+      while (this_ctrl != lca && ok) {
+        if (this_ctrl->in(0) != NULL &&
+            this_ctrl->in(0)->is_MultiBranch()) {
+          if (this_ctrl->in(0)->in(0) == lca) {
+            assert(proj1 == NULL, "");
+            assert(this_ctrl->is_Proj(), "");
+            proj1 = this_ctrl;
+          } else if (!(this_ctrl->in(0)->is_If() && this_ctrl->as_Proj()->is_uncommon_trap_if_pattern(Deoptimization::Reason_none))) {
+            ok = false;
+          }
+        }
+        this_ctrl = idom(this_ctrl);
+      }
+      while (other_ctrl != lca && ok) {
+        if (other_ctrl->in(0) != NULL &&
+            other_ctrl->in(0)->is_MultiBranch()) {
+          if (other_ctrl->in(0)->in(0) == lca) {
+            assert(other_ctrl->is_Proj(), "");
+            assert(proj2 == NULL, "");
+            proj2 = other_ctrl;
+          } else if (!(other_ctrl->in(0)->is_If() && other_ctrl->as_Proj()->is_uncommon_trap_if_pattern(Deoptimization::Reason_none))) {
+            ok = false;
+          }
+        }
+        other_ctrl = idom(other_ctrl);
+      }
+      assert(proj1 == NULL || proj2 == NULL || proj1->in(0) == proj2->in(0), "");
+      if (ok && proj1 && proj2 && proj1 != proj2 && proj1->in(0)->is_If()) {
+        // That transformation may cause the Similar edge on dominated load barriers to be invalid
+        lb->fix_similar_in_uses(&_igvn);
+        u->as_LoadBarrier()->fix_similar_in_uses(&_igvn);
+
+        Node* split = lca->unique_ctrl_out();
+        assert(split->in(0) == lca, "");
+
+        Node* mem = lb->in(LoadBarrierNode::Memory);
+        Node* m = find_dominating_memory(mem, split);
+        LoadBarrierNode* new_lb = clone_load_barrier(lb, lca, m, NULL);
+
+        Node* proj_ctl = new_lb->proj_out(LoadBarrierNode::Control);
+        _igvn.replace_input_of(split, 0, new_lb->proj_out(LoadBarrierNode::Control));
+        set_idom(split, proj_ctl, dom_depth(proj_ctl)+1);
+
+        Node* proj_oop = new_lb->proj_out(LoadBarrierNode::Oop);
+        replace_barrier(lb, proj_oop);
+        replace_barrier(u->as_LoadBarrier(), proj_oop);
+
+        recompute_dom_depth();
+
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void PhaseIdealLoop::optimize_load_barrier(LoadBarrierNode* lb, bool last_round) {
+  if (!C->directive()->OptimizeLoadBarriersOption) {
+    return;
+  }
+
+  if (lb->has_true_uses()) {
+
+    if (replace_with_dominating_barrier(lb, last_round)) {
+      return;
+    }
+
+    if (split_barrier_thru_phi(lb)) {
+      return;
+    }
+
+    if (move_out_of_loop(lb)) {
+      return;
+    }
+
+    if (common_barriers(lb)) {
+      return;
+    }
+  }
+}
+
 //------------------------------split_if_with_blocks_post----------------------
 // Do the real work in a non-recursive function.  CFG hackery wants to be
 // in the post-order, so it can dirty the I-DOM info and not use the dirtied
 // info.
-void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
+void PhaseIdealLoop::split_if_with_blocks_post(Node *n, bool last_round) {
 
   // Cloning Cmp through Phi's involves the split-if transform.
   // FastLock is not used by an If
-  if (n->is_Cmp() && !n->is_FastLock()) {
+  if (n->is_Cmp() && !n->is_FastLock() && !last_round) {
     Node *n_ctrl = get_ctrl(n);
     // Determine if the Node has inputs from some local Phi.
     // Returns the block to clone thru.
@@ -1375,12 +1699,16 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
       get_loop(get_ctrl(n)) == get_loop(get_ctrl(n->in(1))) ) {
     _igvn.replace_node( n, n->in(1) );
   }
+
+  if (n->is_LoadBarrier()) {
+    optimize_load_barrier(n->as_LoadBarrier(), last_round);
+  }
 }
 
 //------------------------------split_if_with_blocks---------------------------
 // Check for aggressive application of 'split-if' optimization,
 // using basic block level info.
-void PhaseIdealLoop::split_if_with_blocks( VectorSet &visited, Node_Stack &nstack ) {
+void PhaseIdealLoop::split_if_with_blocks(VectorSet &visited, Node_Stack &nstack, bool last_round) {
   Node *n = C->root();
   visited.set(n->_idx); // first, mark node as visited
   // Do pre-visit work for root
@@ -1405,7 +1733,7 @@ void PhaseIdealLoop::split_if_with_blocks( VectorSet &visited, Node_Stack &nstac
       // All of n's children have been processed, complete post-processing.
       if (cnt != 0 && !n->is_Con()) {
         assert(has_node(n), "no dead nodes");
-        split_if_with_blocks_post( n );
+        split_if_with_blocks_post(n, last_round);
       }
       if (nstack.is_empty()) {
         // Finished all nodes on stack.

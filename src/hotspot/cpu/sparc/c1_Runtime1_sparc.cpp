@@ -515,6 +515,30 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case z_load_barrier_on_oop_field_preloaded_id:
+    case z_load_barrier_on_weak_oop_field_preloaded_id:
+      {
+        __ set_info("load_barrier", dont_gc_arguments);
+
+        __ save_frame(0);
+
+        if (id == z_load_barrier_on_weak_oop_field_preloaded_id) {
+          __ call_VM_leaf(L7_thread_cache,
+                          CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded),
+                          G4, G5);
+        } else {
+          __ call_VM_leaf(L7_thread_cache,
+                          CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded),
+                          G4, G5);
+        }
+
+        __ mov(O0, G4);
+
+        __ ret();
+        __ delayed()->restore();
+      }
+      break;
+
     case register_finalizer_id:
       {
         __ set_info("register_finalizer", dont_gc_arguments);

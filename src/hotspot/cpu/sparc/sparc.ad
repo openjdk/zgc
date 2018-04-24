@@ -358,6 +358,7 @@ reg_class long_reg(             R_G1H,R_G1,             R_G3H,R_G3, R_G4H,R_G4, 
 
 reg_class g1_regL(R_G1H,R_G1);
 reg_class g3_regL(R_G3H,R_G3);
+reg_class g6_regL(R_G6H,R_G6);
 reg_class o2_regL(R_O2H,R_O2);
 reg_class o7_regL(R_O7H,R_O7);
 
@@ -977,6 +978,11 @@ void emit_call_reloc(CodeBuffer &cbuf, intptr_t entry_point, RelocationHolder co
   else __ delayed()->nop();
 
   if (preserve_g2)   __ mov(L7, G2);
+
+  if (preserve_g2 && UseZGC) {
+    AddressLiteral bad_base((intptr_t)&ZAddressBadMask);
+    __ load_ptr_contents(bad_base, G6);
+  }
 
 #ifdef ASSERT
   if (preserve_g2 && (VerifyCompiledCode || VerifyOops)) {
@@ -2829,6 +2835,43 @@ enc_class Fast_Unlock(iRegP oop, iRegP box, o7RegP scratch, iRegP scratch2) %{
     __ casx(Rmem, Rold, Rnew);
   %}
 
+  enc_class enc_leal(memory addr_opr, iRegP dest_opr) %{
+    Address addr = $addr_opr$$Address;
+    Register dest = $dest_opr$$Register;
+    MacroAssembler _masm(&cbuf);
+    if (addr.has_index()) {
+      assert(!addr.has_disp(), "sanity");
+      __ add(addr.base(), addr.index(), dest);
+    } else if (Assembler::is_simm13(addr.disp())) {
+      __ add(addr.base(), addr.disp(), dest);
+    } else {
+      __ set(addr.disp(), dest);
+      __ add(addr.base(), addr.disp(), dest);
+    }
+  %}
+
+  enc_class enc_casi_val(iRegI cmp_val_opr, iRegI new_val_opr, iRegP addr_reg_opr, iRegI res_opr) %{
+    Register cmp_val = $cmp_val_opr$$Register;
+    Register new_val = $new_val_opr$$Register;
+    Register addr_reg = $addr_reg_opr$$Register;
+    Register res = $res_opr$$Register;
+
+    MacroAssembler _masm(&cbuf);
+    __ mov(new_val, res);
+    __ cas(addr_reg, cmp_val, res);
+  %}
+
+  enc_class enc_casl_val(iRegL cmp_val_opr, iRegL new_val_opr, iRegP addr_reg_opr, iRegL res_opr) %{
+    Register cmp_val = $cmp_val_opr$$Register;
+    Register new_val = $new_val_opr$$Register;
+    Register addr_reg = $addr_reg_opr$$Register;
+    Register res = $res_opr$$Register;
+
+    MacroAssembler _masm(&cbuf);
+    __ mov(new_val, res);
+    __ casx(addr_reg, cmp_val, res);
+  %}
+
   enc_class enc_lflags_ne_to_boolean( iRegI res ) %{
     Register Rres = reg_to_register_object($res$$reg);
 
@@ -3738,6 +3781,14 @@ operand g1RegL() %{
 
 operand g3RegL() %{
   constraint(ALLOC_IN_RC(g3_regL));
+  match(iRegL);
+
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand g6RegL() %{
+  constraint(ALLOC_IN_RC(g6_regL));
   match(iRegL);
 
   format %{ %}
@@ -6926,6 +6977,58 @@ instruct storeLConditional( iRegP mem_ptr, iRegL oldval, g3RegL newval, flagsReg
 %}
 
 // No flag versions for CompareAndSwap{P,I,L} because matcher can't match them
+
+instruct addr_bad_bit(g6RegL dst) %{
+  match(Set dst (AddrBadBit));
+  effect(DEF dst);
+
+  size(0);
+  format %{ "# addr_bad_bit in G6" %}
+  ins_encode( /*empty encoding*/ );
+  ins_pipe(ialu_reg_reg);
+%}
+
+instruct g6_testL_reg_reg(flagsRegL ccr, iRegP src, g6RegL other, immL0 zero)
+%{
+  match(Set ccr (CmpL (AndL (CastP2X src) other) zero));
+  effect(DEF ccr, USE src, USE other);
+
+  size(4);
+  format %{ "btst   $src, $other\t# long" %}
+  opcode(Assembler::andcc_op3, Assembler::arith_op);
+  ins_encode( form3_rs1_rs2_rd( src, other, R_G0 ) );
+  ins_pipe(ialu_cconly_reg_reg_zero);
+%}
+
+instruct compareAndSwap2L(iRegL res, memory mem_ptr, iRegL oldval, iRegL newval, o7RegP tmp1)
+%{
+  match(Set res (CompareAndSwap2L mem_ptr (Binary oldval newval)));
+  effect(KILL tmp1, USE oldval, USE newval, DEF res);
+
+  format %{ "CASXA $tmp1,$newval,$res" %}
+
+  ins_encode (
+    enc_leal(mem_ptr, tmp1),
+    enc_casl_val(oldval, newval, tmp1, res)
+  );
+
+  ins_pipe( long_memory_op );
+%}
+
+instruct compareAndSwap2I(iRegI res, memory mem_ptr, iRegI oldval, iRegI newval, o7RegP tmp1)
+%{
+  match(Set res (CompareAndSwap2I mem_ptr (Binary oldval newval)));
+  effect(KILL tmp1, USE oldval, USE newval, DEF res);
+
+  format %{ "CASA $tmp1,$newval,$res" %}
+
+  ins_encode (
+    enc_leal(mem_ptr, tmp1),
+    enc_casi_val(oldval, newval, tmp1, res)
+  );
+
+  ins_pipe( long_memory_op );
+%}
 
 instruct compareAndSwapL_bool(iRegP mem_ptr, iRegL oldval, iRegL newval, iRegI res, o7RegI tmp1, flagsReg ccr ) %{
   predicate(VM_Version::supports_cx8());

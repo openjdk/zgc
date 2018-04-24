@@ -569,6 +569,20 @@ const TypeFunc *OptoRuntime::g1_wb_post_Type() {
   return TypeFunc::make(domain, range);
 }
 
+const TypeFunc *OptoRuntime::load_barrier_Type() {
+  const Type **fields = TypeTuple::fields(2);
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // FIXME
+  fields[TypeFunc::Parms+1] = TypeOopPtr::BOTTOM;
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
+
+  // create result type (range)
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // FIXME
+  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+1, fields);
+
+  return TypeFunc::make(domain, range);
+}
+
 const TypeFunc *OptoRuntime::uncommon_trap_Type() {
   // create input type (domain)
   const Type **fields = TypeTuple::fields(1);
