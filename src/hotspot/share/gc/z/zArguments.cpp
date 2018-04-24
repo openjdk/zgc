@@ -58,6 +58,16 @@ void ZArguments::initialize() {
     FLAG_SET_DEFAULT(ConcGCThreads, ZWorkers::calculate_nconcurrent());
   }
 
+#ifdef COMPILER2
+  // Enable loop strip mining by default
+  if (FLAG_IS_DEFAULT(UseCountedLoopSafepoints)) {
+    FLAG_SET_DEFAULT(UseCountedLoopSafepoints, true);
+    if (FLAG_IS_DEFAULT(LoopStripMiningIter)) {
+      FLAG_SET_DEFAULT(LoopStripMiningIter, 1000);
+    }
+  }
+#endif
+
   // To avoid asserts in set_active_workers()
   FLAG_SET_DEFAULT(UseDynamicNumberOfGCThreads, true);
 
