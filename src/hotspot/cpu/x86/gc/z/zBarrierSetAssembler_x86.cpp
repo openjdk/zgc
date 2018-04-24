@@ -72,6 +72,25 @@ static address barrier_load_at_entry_point(DecoratorSet decorators) {
   }
 }
 
+static bool barrier_needed(DecoratorSet decorators, BasicType type) {
+  assert((decorators & AS_RAW) == 0, "Unexpected decorator");
+  assert((decorators & AS_NO_KEEPALIVE) == 0, "Unexpected decorator");
+  assert((decorators & IN_ARCHIVE_ROOT) == 0, "Unexpected decorator");
+  assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Unexpected decorator");
+
+  if (type == T_OBJECT || type == T_ARRAY) {
+    if (((decorators & IN_HEAP) != 0) ||
+        ((decorators & IN_CONCURRENT_ROOT) != 0) ||
+        ((decorators & ON_PHANTOM_OOP_REF) != 0)) {
+      // Barrier needed
+      return true;
+    }
+  }
+
+  // Barrier not neeed
+  return false;
+}
+
 void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
                                    DecoratorSet decorators,
                                    BasicType type,
@@ -79,7 +98,7 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
                                    Address src,
                                    Register tmp1,
                                    Register tmp_thread) {
-  if (type != T_OBJECT && type != T_ARRAY) {
+  if (!barrier_needed(decorators, type)) {
     // Barrier not needed
     BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
     return;
@@ -193,7 +212,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                     Register tmp2) {
   BLOCK_COMMENT("ZBarrierSetAssembler::store_at {");
 
-  // Verify value
+  // Verify oop store
   if (type == T_OBJECT || type == T_ARRAY) {
     // Note that src could be noreg, which means we
     // are storing null and can skip verification.
@@ -224,9 +243,8 @@ void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
                                               Register src,
                                               Register dst,
                                               Register count) {
-  if (type != T_OBJECT) {
+  if (!barrier_needed(decorators, type)) {
     // Barrier not needed
-    assert(type != T_ARRAY, "Should never happen");
     return;
   }
 
