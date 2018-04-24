@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,5 +82,7 @@ const uintptr_t ZPlatformAddressMetadataShift = ZPlatformAddressOffsetBits;
 
 const uintptr_t ZPlatformAddressSpaceStart    = (uintptr_t)1 << ZPlatformAddressOffsetBits;
 const uintptr_t ZPlatformAddressSpaceSize     = ((uintptr_t)1 << ZPlatformAddressOffsetBits) * 4;
+
+const size_t    ZPlatformCacheLineSize        = 64;
 
 #endif // OS_CPU_LINUX_X86_ZGLOBALS_LINUX_X86_HPP

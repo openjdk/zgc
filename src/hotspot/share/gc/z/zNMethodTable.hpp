@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #ifndef SHARE_GC_Z_ZNMETHODTABLE_HPP
 #define SHARE_GC_Z_ZNMETHODTABLE_HPP
 
+#include "gc/z/zGlobals.hpp"
 #include "gc/z/zNMethodTableEntry.hpp"
 #include "memory/allocation.hpp"
 
@@ -33,7 +34,7 @@ private:
   static size_t              _size;
   static size_t              _nregistered;
   static size_t              _nunregistered;
-  static volatile size_t     _claimed ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  static volatile size_t     _claimed ATTRIBUTE_ALIGNED(ZCacheLineSize);
 
   static ZNMethodTableEntry create_entry(nmethod* nm);
   static void destroy_entry(ZNMethodTableEntry entry);

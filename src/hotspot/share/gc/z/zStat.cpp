@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/z/zCollectedHeap.hpp"
 #include "gc/z/zCPU.hpp"
+#include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLargePages.inline.hpp"
 #include "gc/z/zNMethodTable.hpp"
@@ -346,11 +347,11 @@ T* ZStatValue::get_cpu_local(uint32_t cpu) const {
 
 void ZStatValue::initialize() {
   // Finalize and align CPU offset
-  _cpu_offset = align_up(_cpu_offset, DEFAULT_CACHE_LINE_SIZE);
+  _cpu_offset = align_up(_cpu_offset, ZCacheLineSize);
 
   // Allocation aligned memory
   const size_t size = _cpu_offset * ZCPU::count();
-  _base = ZUtils::alloc_aligned(DEFAULT_CACHE_LINE_SIZE, size);
+  _base = ZUtils::alloc_aligned(ZCacheLineSize, size);
   memset((void*)_base, 0, size);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,14 @@
 #ifndef SHARE_GC_Z_ZMARKTERMINATE_HPP
 #define SHARE_GC_Z_ZMARKTERMINATE_HPP
 
+#include "gc/z/zGlobals.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class ZMarkTerminate {
 private:
   uint          _nworkers;
-  volatile uint _nworking_stage0 ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  volatile uint _nworking_stage0 ATTRIBUTE_ALIGNED(ZCacheLineSize);
   volatile uint _nworking_stage1;
 
   bool enter_stage(volatile uint* nworking_stage);

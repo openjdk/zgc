@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,8 +94,8 @@ public:
 
 class ZMarkStackAllocator {
 private:
-  ZMarkStackMagazineList _freelist ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
-  ZMarkStackSpace        _space    ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  ZMarkStackMagazineList _freelist ATTRIBUTE_ALIGNED(ZCacheLineSize);
+  ZMarkStackSpace        _space    ATTRIBUTE_ALIGNED(ZCacheLineSize);
 
   void prime_freelist();
   ZMarkStackMagazine* create_magazine_from_space(uintptr_t addr, size_t size);
@@ -111,8 +111,8 @@ public:
 
 class ZMarkStripe {
 private:
-  ZMarkStackList _published  ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
-  ZMarkStackList _overflowed ATTRIBUTE_ALIGNED(DEFAULT_CACHE_LINE_SIZE);
+  ZMarkStackList _published  ATTRIBUTE_ALIGNED(ZCacheLineSize);
+  ZMarkStackList _overflowed ATTRIBUTE_ALIGNED(ZCacheLineSize);
 
 public:
   ZMarkStripe();

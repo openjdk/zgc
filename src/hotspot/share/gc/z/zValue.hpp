@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 
 #include "memory/allocation.hpp"
 #include "gc/z/zCPU.hpp"
+#include "gc/z/zGlobals.hpp"
 #include "gc/z/zNUMA.hpp"
 #include "gc/z/zThread.hpp"
 #include "gc/z/zUtils.hpp"
@@ -69,7 +70,7 @@ template <typename T> uintptr_t ZValueStorage<T>::_top = 0;
 class ZContendedStorage : public ZValueStorage<ZContendedStorage> {
 public:
   static size_t alignment() {
-    return DEFAULT_CACHE_LINE_SIZE;
+    return ZCacheLineSize;
   }
 
   static uint32_t count() {

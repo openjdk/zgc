@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #include "code/relocInfo.hpp"
 #include "code/nativeInst.hpp"
 #include "code/nmethod.hpp"
+#include "gc/z/zGlobals.hpp"
 #include "gc/z/zHash.inline.hpp"
 #include "gc/z/zNMethodTable.hpp"
 #include "logging/log.hpp"
@@ -443,8 +444,9 @@ void ZNMethodTable::entry_oops_do(ZNMethodTableEntry entry, OopClosure* cl) {
 
 void ZNMethodTable::oops_do(OopClosure* cl) {
   for (;;) {
-    // Claim table partition
-    const size_t partition_size = DEFAULT_CACHE_LINE_SIZE / sizeof(ZNMethodTableEntry);
+    // Claim table partition. Each partition is currently sized to span
+    // two cach lines. This number is just a guess, but seems to work well.
+    const size_t partition_size = (ZCacheLineSize * 2) / sizeof(ZNMethodTableEntry);
     const size_t partition_start = MIN2(Atomic::add(partition_size, &_claimed) - partition_size, _size);
     const size_t partition_end = MIN2(partition_start + partition_size, _size);
     if (partition_start == partition_end) {

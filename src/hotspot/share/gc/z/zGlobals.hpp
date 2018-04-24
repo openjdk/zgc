@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,6 +90,9 @@ const uintptr_t   ZAddressMetadataFinalizable   = (uintptr_t)1 << (ZAddressMetad
 const uintptr_t   ZAddressSpaceStart            = ZPlatformAddressSpaceStart;
 const uintptr_t   ZAddressSpaceSize             = ZPlatformAddressSpaceSize;
 const uintptr_t   ZAddressSpaceEnd              = ZAddressSpaceStart + ZAddressSpaceSize;
+
+// Cache line size
+const size_t      ZCacheLineSize                = ZPlatformCacheLineSize;
 
 // Reserved start/end
 uintptr_t ZAddressReservedStart();
