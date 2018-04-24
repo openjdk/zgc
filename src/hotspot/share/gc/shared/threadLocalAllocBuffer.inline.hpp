@@ -53,6 +53,27 @@ inline HeapWord* ThreadLocalAllocBuffer::allocate(size_t size) {
   return NULL;
 }
 
+inline bool ThreadLocalAllocBuffer::undo_allocate(HeapWord* obj, size_t size) {
+  invariants();
+
+  // The object might not be allocated in this TLAB
+  if (contains(obj, size)) {
+    return false;
+  }
+
+  HeapWord* const prev_top = top() - size;
+
+  // The object might not be the last allocated in this TLAB
+  if (prev_top != obj) {
+    return false;
+  }
+
+  set_top(prev_top);
+
+  invariants();
+  return true;
+}
+
 inline size_t ThreadLocalAllocBuffer::compute_size(size_t obj_size) {
   const size_t aligned_obj_size = align_object_size(obj_size);
 
