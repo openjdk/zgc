@@ -1248,6 +1248,7 @@ bool PhaseIdealLoop::split_barrier_thru_phi(LoadBarrierNode* lb) {
         }
       }
 
+      bool is_strip_mined = region->is_CountedLoop() && region->as_CountedLoop()->is_strip_mined();
       Node *phi = oop_phi->clone();
 
       for (uint i = 1; i < region->req(); i++) {
@@ -1260,16 +1261,23 @@ bool PhaseIdealLoop::split_barrier_thru_phi(LoadBarrierNode* lb) {
 
           if (region->is_Loop() && i == LoopNode::LoopBackControl && ctrl->is_Proj() && ctrl->in(0)->is_If()) {
             ctrl = ctrl->in(0)->in(0);
+          } else if (region->is_Loop() && is_strip_mined) {
+            // If this is a strip mined loop, control must move above OuterStripMinedLoop
+            assert(i == LoopNode::EntryControl, "check");
+            assert(ctrl->is_OuterStripMinedLoop(), "sanity");
+            ctrl = ctrl->as_OuterStripMinedLoop()->in(LoopNode::EntryControl);
           }
 
           LoadBarrierNode* new_lb = clone_load_barrier(lb, ctrl, m, lb->in(LoadBarrierNode::Oop)->in(i));
-
           Node* out_ctrl = new_lb->proj_out(LoadBarrierNode::Control);
-          if (ctrl == region->in(i)) {
-            _igvn.replace_input_of(region, i, new_lb->proj_out(LoadBarrierNode::Control));
+
+          if (is_strip_mined && (i == LoopNode::EntryControl)) {
+            assert(region->in(i)->is_OuterStripMinedLoop(), "");
+            _igvn.replace_input_of(region->in(i), i, out_ctrl);
+          } else if (ctrl == region->in(i)) {
+            _igvn.replace_input_of(region, i, out_ctrl);
           } else {
             Node* iff = region->in(i)->in(0);
-            Node* out_ctrl = new_lb->proj_out(LoadBarrierNode::Control);
             _igvn.replace_input_of(iff, 0, out_ctrl);
             set_idom(iff, out_ctrl, dom_depth(out_ctrl)+1);
           }
@@ -1277,7 +1285,6 @@ bool PhaseIdealLoop::split_barrier_thru_phi(LoadBarrierNode* lb) {
         }
       }
       register_new_node(phi, region);
-
       replace_barrier(lb, phi);
 
       if (region->is_Loop()) {
