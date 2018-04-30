@@ -186,11 +186,6 @@ class SharedRuntime: AllStatic {
   // G1 write barriers
   static void g1_wb_pre(oopDesc* orig, JavaThread *thread);
   static void g1_wb_post(void* card_addr, JavaThread* thread);
-
-  static oopDesc* z_load_barrier_on_oop_field_preloaded(oopDesc* ref, address ref_addr);
-  static oopDesc* z_load_barrier_on_weak_oop_field_preloaded(oopDesc* ref, address ref_addr);
-  static oopDesc* z_load_barrier_on_phantom_oop_field_preloaded(oopDesc* ref, address ref_addr);
-  static void z_load_barrier_on_oop_array(address ref_addr, size_t length);
 #endif // INCLUDE_ALL_GCS
 
   // exception handling and implicit exceptions

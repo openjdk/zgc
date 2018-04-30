@@ -45,7 +45,7 @@
 #include "opto/runtime.hpp"
 #endif
 #if INCLUDE_ALL_GCS
-#include "gc/z/zBarrier.inline.hpp"
+#include "gc/z/zRuntime.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #endif // INCLUDE_ALL_GCS
 
@@ -803,15 +803,15 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   // Generates a register specific stub for calling
-  // SharedRuntime::z_load_barrier_on_oop_field_preloaded() or
-  // SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded().
+  // ZRuntime::load_barrier_on_oop_field_preloaded() or
+  // ZRuntime::load_barrier_on_weak_oop_field_preloaded().
   //
   // The raddr register serves as both input and output for this stub. When the stub is
   // called the raddr register contains the object field address (oop*) where the bad oop
   // was loaded from, which caused the slow path to be taken. On return from the stub the
   // raddr register contains the good/healed oop returned from
-  // SharedRuntime::z_load_barrier_on_oop_field_preloaded() or
-  // SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded().
+  // ZRuntime::load_barrier_on_oop_field_preloaded() or
+  // ZRuntime::load_barrier_on_weak_oop_field_preloaded().
   address generate_load_barrier_stub(Register raddr, address runtime_entry, bool is_weak) {
     // Don't generate stub for invalid registers
     if (raddr == rsp || raddr == r12 || raddr == r15) {
@@ -5173,8 +5173,8 @@ class StubGenerator: public StubCodeGenerator {
 
     // Load barrier stubs
     if (UseZGC) {
-      address loadbarrier_address = CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded);
-      address loadbarrier_weak_address = CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded);
+      address loadbarrier_address = CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_oop_field_preloaded);
+      address loadbarrier_weak_address = CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_weak_oop_field_preloaded);
       Register rr = as_Register(0);
       for (int i = 0; i < RegisterImpl::number_of_registers; i++) {
         StubRoutines::x86::_load_barrier_slow_stub[i] = generate_load_barrier_stub(rr, loadbarrier_address, false);

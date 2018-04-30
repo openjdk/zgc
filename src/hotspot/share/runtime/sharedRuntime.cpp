@@ -227,22 +227,6 @@ JRT_LEAF(void, SharedRuntime::g1_wb_post(void* card_addr, JavaThread* thread))
   G1ThreadLocalData::dirty_card_queue(thread).enqueue(card_addr);
 JRT_END
 
-JRT_LEAF(oopDesc*, SharedRuntime::z_load_barrier_on_oop_field_preloaded(oopDesc* ref, address ref_addr))
-  return ZBarrier::load_barrier_on_oop_field_preloaded((oop*)ref_addr, ref);
-JRT_END
-
-JRT_LEAF(oopDesc*, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded(oopDesc* ref, address ref_addr))
-  return ZBarrier::load_barrier_on_weak_oop_field_preloaded((oop*)ref_addr, ref);
-JRT_END
-
-JRT_LEAF(oopDesc*, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded(oopDesc* ref, address ref_addr))
-  return ZBarrier::load_barrier_on_phantom_oop_field_preloaded((oop*)ref_addr, ref);
-JRT_END
-
-JRT_LEAF(void, SharedRuntime::z_load_barrier_on_oop_array(address ref_addr, size_t length))
-  ZBarrier::load_barrier_on_oop_array((oop*)ref_addr, length);
-JRT_END
-
 #endif // INCLUDE_ALL_GCS
 
 

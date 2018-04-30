@@ -45,6 +45,7 @@
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
+#include "gc/z/zRuntime.hpp"
 #endif
 
 
@@ -1571,9 +1572,9 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         f.load_argument(1, c_rarg1);
         f.load_argument(0, c_rarg0);
         if (id == z_load_barrier_on_weak_oop_field_preloaded_id) {
-          __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded), c_rarg0, c_rarg1);
+          __ call_VM_leaf(CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_weak_oop_field_preloaded), c_rarg0, c_rarg1);
         } else {
-          __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded), c_rarg0, c_rarg1);
+          __ call_VM_leaf(CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_oop_field_preloaded), c_rarg0, c_rarg1);
         }
 
         restore_live_registers_except_rax(sasm);

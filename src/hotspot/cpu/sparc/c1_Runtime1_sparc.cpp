@@ -44,6 +44,7 @@
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
+#include "gc/z/zRuntime.hpp"
 #endif
 
 // Implementation of StubAssembler
@@ -523,13 +524,9 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ save_frame(0);
 
         if (id == z_load_barrier_on_weak_oop_field_preloaded_id) {
-          __ call_VM_leaf(L7_thread_cache,
-                          CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded),
-                          G4, G5);
+          __ call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_weak_oop_field_preloaded), G4, G5);
         } else {
-          __ call_VM_leaf(L7_thread_cache,
-                          CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded),
-                          G4, G5);
+          __ call_VM_leaf(L7_thread_cache, CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_oop_field_preloaded), G4, G5);
         }
 
         __ mov(O0, G4);

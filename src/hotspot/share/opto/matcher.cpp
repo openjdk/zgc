@@ -41,6 +41,9 @@
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
+#if INCLUDE_ALL_GCS
+#include "gc/z/zRuntime.hpp"
+#endif // INCLUDE_ALL_GCS
 
 OptoReg::Name OptoReg::c_frame_pointer;
 
@@ -2156,8 +2159,8 @@ void Matcher::find_shared( Node *n ) {
         mem_op = true;
         break;
       case Op_CallLeaf:
-        if (n->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded) ||
-            n->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded)) {
+        if (n->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_oop_field_preloaded) ||
+            n->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_weak_oop_field_preloaded)) {
           mem_op = true;
           mem_addr_idx = TypeFunc::Parms+1;
         }

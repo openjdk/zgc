@@ -23,6 +23,7 @@
 
 #include "precompiled.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
+#include "gc/z/zRuntime.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.hpp"
@@ -56,14 +57,14 @@ Address ZBarrierSetAssemblerBase::address_bad_mask_from_jni_env(Register env) co
 
 address ZBarrierSetAssemblerBase::barrier_load_at_entry_point(DecoratorSet decorators) const {
   if (decorators & ON_PHANTOM_OOP_REF) {
-    return reinterpret_cast<address>(SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded);
+    return reinterpret_cast<address>(ZRuntime::load_barrier_on_phantom_oop_field_preloaded);
   } else if (decorators & ON_WEAK_OOP_REF) {
-    return reinterpret_cast<address>(SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded);
+    return reinterpret_cast<address>(ZRuntime::load_barrier_on_weak_oop_field_preloaded);
   } else {
-    return reinterpret_cast<address>(SharedRuntime::z_load_barrier_on_oop_field_preloaded);
+    return reinterpret_cast<address>(ZRuntime::load_barrier_on_oop_field_preloaded);
   }
 }
 
 address ZBarrierSetAssemblerBase::barrier_arraycopy_prologue_entry_point() const {
-  return reinterpret_cast<address>(SharedRuntime::z_load_barrier_on_oop_array);
+  return reinterpret_cast<address>(ZRuntime::load_barrier_on_oop_array);
 }
