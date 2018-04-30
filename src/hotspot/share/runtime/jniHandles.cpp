@@ -197,6 +197,11 @@ void JNIHandles::weak_oops_do(OopClosure* f) {
 }
 
 
+OopStorage* JNIHandles::weak_global_handles() {
+  return _weak_global_handles;
+}
+
+
 void JNIHandles::initialize() {
   _global_handles = new OopStorage("JNI Global",
                                    JNIGlobalAlloc_lock,
@@ -320,7 +325,9 @@ void JNIHandles::verify() {
   VerifyJNIHandles verify_handle;
 
   oops_do(&verify_handle);
-  weak_oops_do(&verify_handle);
+  if (!UseZGC) {
+    weak_oops_do(&verify_handle);
+  }
 }
 
 // This method is implemented here to avoid circular includes between

@@ -1570,6 +1570,7 @@ void GraphKit::pre_barrier(bool do_load,
       break;
 
     case BarrierSet::CardTableBarrierSet:
+    case BarrierSet::Z:
       break;
 
     default      :
@@ -1585,12 +1586,27 @@ bool GraphKit::can_move_pre_barrier() const {
       return true; // Can move it if no safepoint
 
     case BarrierSet::CardTableBarrierSet:
+    case BarrierSet::Z:
       return true; // There is no pre-barrier
 
     default      :
       ShouldNotReachHere();
   }
   return false;
+}
+
+bool GraphKit::has_post_barrier() {
+  BarrierSet* bs = BarrierSet::barrier_set();
+  switch (bs->kind()) {
+    case BarrierSet::G1BarrierSet:
+    case BarrierSet::CardTableBarrierSet:
+      return true;
+    case BarrierSet::Z:
+      return false;
+    default:
+      ShouldNotReachHere();
+      return false;
+  }
 }
 
 void GraphKit::post_barrier(Node* ctl,
@@ -1610,6 +1626,9 @@ void GraphKit::post_barrier(Node* ctl,
 
     case BarrierSet::CardTableBarrierSet:
       write_barrier_post(store, obj, adr, adr_idx, val, use_precise);
+      break;
+
+    case BarrierSet::Z:
       break;
 
     default      :
@@ -1682,6 +1701,20 @@ Node* GraphKit::store_oop_to_unknown(Node* ctl,
   return store_oop(ctl, obj, adr, adr_type, val, val_type, bt, true, mo, mismatched);
 }
 
+Node* GraphKit::load_barrier(Node* val, Node* adr, bool weak, bool writeback, bool oop_reload_allowed) {
+  assert(UseZGC, "invariant");
+  Node* barrier = new LoadBarrierNode(C, control(), memory(TypeRawPtr::BOTTOM), val, adr, weak, writeback, oop_reload_allowed);
+  Node* transformed_barrier = _gvn.transform(barrier);
+
+  if (transformed_barrier->is_LoadBarrier()) {
+    if (barrier == transformed_barrier) {
+      set_control(_gvn.transform(new ProjNode(barrier, LoadBarrierNode::Control)));
+    }
+    return _gvn.transform(new ProjNode(transformed_barrier, LoadBarrierNode::Oop));
+  } else {
+    return val;
+  }
+}
 
 //-------------------------array_element_address-------------------------
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
@@ -4378,8 +4411,13 @@ Node* GraphKit::load_String_value(Node* ctrl, Node* str) {
                                                   TypeAry::make(TypeInt::BYTE, TypeInt::POS),
                                                   ciTypeArrayKlass::make(T_BYTE), true, 0);
   int value_field_idx = C->get_alias_index(value_field_type);
-  Node* load = make_load(ctrl, basic_plus_adr(str, str, value_offset),
+  Node* adr = basic_plus_adr(str, str, value_offset);
+  Node* load = make_load(ctrl, adr,
                          value_type, T_OBJECT, value_field_idx, MemNode::unordered);
+  if (UseZGC) {
+    load = load_barrier(load, adr);
+  }
+
   // String.value field is known to be @Stable.
   if (UseImplicitStableValues) {
     load = cast_array_to_stable(load, value_type);

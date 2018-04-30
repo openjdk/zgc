@@ -271,6 +271,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   void pre_barrier(LIR_Opr addr_opr, LIR_Opr pre_val, bool do_load, bool patch, CodeEmitInfo* info);
   void post_barrier(LIR_OprDesc* addr, LIR_OprDesc* new_val);
+  void load_barrier(LIR_Opr ref, LIR_Opr ref_addr = LIR_OprFact::illegalOpr, LIR_PatchCode patch_code = lir_patch_none, CodeEmitInfo* info = NULL, bool weak = false);
 
   // specific implementations
   // pre barriers

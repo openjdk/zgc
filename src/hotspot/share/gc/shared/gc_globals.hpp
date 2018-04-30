@@ -31,6 +31,7 @@
 #include "gc/cms/cms_globals.hpp"
 #include "gc/g1/g1_globals.hpp"
 #include "gc/parallel/parallel_globals.hpp"
+#include "gc/z/zFlags.hpp"
 #endif
 
 #define GC_FLAGS(develop,                                                   \
@@ -81,6 +82,22 @@
     writeable))                                                             \
                                                                             \
   ALL_GCS_ONLY(GC_PARALLEL_FLAGS(                                           \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    diagnostic,                                                             \
+    diagnostic_pd,                                                          \
+    experimental,                                                           \
+    notproduct,                                                             \
+    manageable,                                                             \
+    product_rw,                                                             \
+    lp64_product,                                                           \
+    range,                                                                  \
+    constraint,                                                             \
+    writeable))                                                             \
+                                                                            \
+  ALL_GCS_ONLY(GC_Z_FLAGS(                                                  \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \

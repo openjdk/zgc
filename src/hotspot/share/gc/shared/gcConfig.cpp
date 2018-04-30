@@ -32,6 +32,7 @@
 #include "gc/parallel/parallelArguments.hpp"
 #include "gc/cms/cmsArguments.hpp"
 #include "gc/g1/g1Arguments.hpp"
+#include "gc/z/zArguments.hpp"
 #endif // INCLUDE_ALL_GCS
 
 struct SupportedGC {
@@ -49,6 +50,7 @@ static SerialArguments   serialArguments;
 static ParallelArguments parallelArguments;
 static CMSArguments      cmsArguments;
 static G1Arguments       g1Arguments;
+static ZArguments        zArguments;
 #endif // INCLUDE_ALL_GCS
 
 // Table of supported GCs, for translating between command
@@ -60,6 +62,7 @@ static const SupportedGC SupportedGCs[] = {
   SupportedGC(UseParallelOldGC,   CollectedHeap::Parallel, parallelArguments, "parallel gc"),
   SupportedGC(UseConcMarkSweepGC, CollectedHeap::CMS,      cmsArguments,      "concurrent mark sweep gc"),
   SupportedGC(UseG1GC,            CollectedHeap::G1,       g1Arguments,       "g1 gc"),
+  SupportedGC(UseZGC,             CollectedHeap::Z,        zArguments,        "z gc"),
 #endif // INCLUDE_ALL_GCS
 };
 
@@ -74,6 +77,7 @@ void GCConfig::select_gc_ergonomically() {
     FLAG_SET_ERGO_IF_DEFAULT(bool, UseSerialGC, true);
   }
 #else
+  UNSUPPORTED_OPTION(UseZGC);
   UNSUPPORTED_OPTION(UseG1GC);
   UNSUPPORTED_OPTION(UseParallelGC);
   UNSUPPORTED_OPTION(UseParallelOldGC);

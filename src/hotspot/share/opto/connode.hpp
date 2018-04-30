@@ -149,6 +149,13 @@ public:
     virtual uint ideal_reg() const { return Op_RegP; }
 };
 
+class AddrBadBitNode : public Node {
+public:
+    AddrBadBitNode() : Node((Node*)Compile::current()->root()) {}
+    virtual int Opcode() const;
+    virtual const Type *bottom_type() const { return TypeX_X;}
+    virtual uint ideal_reg() const { return Op_RegX; }
+};
 
 
 #endif // SHARE_VM_OPTO_CONNODE_HPP

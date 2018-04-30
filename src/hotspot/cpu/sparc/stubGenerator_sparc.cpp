@@ -823,7 +823,6 @@ class StubGenerator: public StubCodeGenerator {
       __ delayed()->nop();
   }
 
-
   //
   // Generate main code for disjoint arraycopy
   //
