@@ -276,4 +276,7 @@ inline int wcslen(const jchar* x) { return wcslen((const wchar_t*)x); }
 #define LIKELY(x)                    __builtin_expect(!!(x), 1)
 #define UNLIKELY(x)                  __builtin_expect(!!(x), 0)
 
+// Alignment
+#define ATTRIBUTE_ALIGNED(x)        __attribute__((aligned(x)))
+
 #endif // SHARE_VM_UTILITIES_GLOBALDEFINITIONS_GCC_HPP
