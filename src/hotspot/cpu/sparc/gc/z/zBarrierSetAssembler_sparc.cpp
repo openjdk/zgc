@@ -25,8 +25,6 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zThreadLocalData.hpp"
-#include "runtime/sharedRuntime.hpp"
 
 #define __ masm->
 
@@ -36,19 +34,7 @@
 #define BLOCK_COMMENT(str) __ block_comment(str)
 #endif
 
-static Address address_bad_mask() {
-  return Address(G2_thread, ZThreadLocalData::address_bad_mask_offset());
-}
-
-static address barrier_load_at_entry_point(DecoratorSet decorators) {
-  if (decorators & ON_PHANTOM_OOP_REF) {
-    return CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded);
-  } else if (decorators & ON_WEAK_OOP_REF) {
-    return CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded);
-  } else {
-    return CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded);
-  }
-}
+#define G6_badmask G6
 
 void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
                                    DecoratorSet decorators,
@@ -56,7 +42,7 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
                                    Address src,
                                    Register dst,
                                    Register tmp) {
-  if (type != T_OBJECT && type != T_ARRAY) {
+  if (!barrier_needed(decorators, type)) {
     // Barrier not needed
     BarrierSetAssembler::load_at(masm, decorators, type, src, dst, tmp);
     return;
@@ -89,11 +75,11 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
     __ add(src.base(), tmp, tmp);
   }
 
-  // Load value
+  // Load oop at address
   __ ld_ptr(Address(tmp, 0), dst);
 
-  // Check bad mask
-  __ btst(dst, G6);
+  // Test address bad mask
+  __ btst(dst, G6_badmask);
   __ brx(Assembler::zero, false, Assembler::pt, done);
   __ delayed()->nop();
 
@@ -125,8 +111,8 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
   // Restore result
   __ mov(G6, dst);
 
-  // Restore bad mask
-  __ ld_ptr(address_bad_mask(), G6);
+  // Restore address bad mask
+  __ ld_ptr(address_bad_mask_from_thread(G2_thread), G6_badmask);
 
   __ bind(done);
 
@@ -151,7 +137,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
     // are storing null and can skip verification.
     if (src != noreg) {
       Label done;
-      __ btst(src, G6);
+      __ btst(src, G6_badmask);
       __ brx(Assembler::zero, false, Assembler::pt, done);
       __ stop("Verify oop store failed");
       __ should_not_reach_here();
@@ -166,19 +152,14 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
 }
 #endif // ASSERT
 
-static address barrier_arraycopy_prologue_entry_point() {
-  return CAST_FROM_FN_PTR(address, static_cast<void (*)(volatile oop*, size_t)>(ZBarrier::load_barrier_on_oop_array));
-}
-
 void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
                                               DecoratorSet decorators,
                                               BasicType type,
                                               Register src,
                                               Register dst,
                                               Register count) {
-  if (type != T_OBJECT) {
+  if (!barrier_needed(decorators, type)) {
     // Barrier not needed
-    assert(type != T_ARRAY, "Should never happen");
     return;
   }
 
@@ -194,10 +175,6 @@ void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
   __ restore();
 
   BLOCK_COMMENT("} ZBarrierSetAssembler::arraycopy_prologue");
-}
-
-static Address address_bad_mask_from_jni_env(Register env) {
-  return Address(env, ZThreadLocalData::address_bad_mask_offset() - JavaThread::jni_environment_offset());
 }
 
 void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
@@ -217,7 +194,7 @@ void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
   // Load address bad mask
   __ ld_ptr(address_bad_mask_from_jni_env(c_rarg0), tmp);
 
-  // Check address bad mask
+  // Test address bad mask
   __ btst(obj, tmp);
   __ brx(Assembler::notZero, false, Assembler::pn, slowpath);
   __ delayed()->nop();

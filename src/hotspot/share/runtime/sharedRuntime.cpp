@@ -239,6 +239,10 @@ JRT_LEAF(oopDesc*, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded(
   return ZBarrier::load_barrier_on_phantom_oop_field_preloaded((oop*)ref_addr, ref);
 JRT_END
 
+JRT_LEAF(void, SharedRuntime::z_load_barrier_on_oop_array(address ref_addr, size_t length))
+  ZBarrier::load_barrier_on_oop_array((oop*)ref_addr, length);
+JRT_END
+
 #endif // INCLUDE_ALL_GCS
 
 

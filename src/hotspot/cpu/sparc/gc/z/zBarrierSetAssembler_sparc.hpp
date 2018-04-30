@@ -24,9 +24,7 @@
 #ifndef CPU_SPARC_GC_Z_ZBARRIERSETASSEMBLER_SPARC_HPP
 #define CPU_SPARC_GC_Z_ZBARRIERSETASSEMBLER_SPARC_HPP
 
-#include "gc/shared/barrierSetAssembler.hpp"
-
-class ZBarrierSetAssembler : public BarrierSetAssembler {
+class ZBarrierSetAssembler : public ZBarrierSetAssemblerBase {
 public:
   virtual void load_at(MacroAssembler* masm,
                        DecoratorSet decorators,

@@ -24,7 +24,23 @@
 #ifndef SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP
 #define SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP
 
+#include "asm/macroAssembler.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
+#include "oops/access.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+
+class ZBarrierSetAssemblerBase : public BarrierSetAssembler {
+protected:
+  bool barrier_needed(DecoratorSet decorators, BasicType type) const;
+
+  Address address_bad_mask_from_thread(Register thread) const;
+  Address address_bad_mask_from_jni_env(Register env) const;
+
+  address barrier_load_at_entry_point(DecoratorSet decorators) const;
+  address barrier_arraycopy_prologue_entry_point() const;
+};
+
 #include CPU_HEADER(gc/z/zBarrierSetAssembler)
 
 #endif // SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP

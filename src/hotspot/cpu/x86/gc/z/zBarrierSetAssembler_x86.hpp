@@ -24,9 +24,7 @@
 #ifndef CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
 #define CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
 
-#include "gc/shared/barrierSetAssembler.hpp"
-
-class ZBarrierSetAssembler : public BarrierSetAssembler {
+class ZBarrierSetAssembler : public ZBarrierSetAssemblerBase {
 public:
   virtual void load_at(MacroAssembler* masm,
                        DecoratorSet decorators,

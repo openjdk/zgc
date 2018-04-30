@@ -25,8 +25,6 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zThreadLocalData.hpp"
-#include "runtime/sharedRuntime.hpp"
 
 #define __ masm->
 
@@ -36,11 +34,10 @@
 #define BLOCK_COMMENT(str) __ block_comment(str)
 #endif
 
-static Address address_bad_mask() {
-  return Address(r15_thread, ZThreadLocalData::address_bad_mask_offset());
-}
-
-static void call_vm(MacroAssembler* masm, address entry_point, Register arg0, Register arg1) {
+static void call_vm(MacroAssembler* masm,
+                    address entry_point,
+                    Register arg0,
+                    Register arg1) {
   // Setup arguments
   if (arg1 == c_rarg0) {
     if (arg0 == c_rarg1) {
@@ -60,35 +57,6 @@ static void call_vm(MacroAssembler* masm, address entry_point, Register arg0, Re
 
   // Call VM
   __ MacroAssembler::call_VM_leaf_base(entry_point, 2);
-}
-
-static address barrier_load_at_entry_point(DecoratorSet decorators) {
-  if (decorators & ON_PHANTOM_OOP_REF) {
-    return CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_phantom_oop_field_preloaded);
-  } else if (decorators & ON_WEAK_OOP_REF) {
-    return CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_weak_oop_field_preloaded);
-  } else {
-    return CAST_FROM_FN_PTR(address, SharedRuntime::z_load_barrier_on_oop_field_preloaded);
-  }
-}
-
-static bool barrier_needed(DecoratorSet decorators, BasicType type) {
-  assert((decorators & AS_RAW) == 0, "Unexpected decorator");
-  assert((decorators & AS_NO_KEEPALIVE) == 0, "Unexpected decorator");
-  assert((decorators & IN_ARCHIVE_ROOT) == 0, "Unexpected decorator");
-  assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Unexpected decorator");
-
-  if (type == T_OBJECT || type == T_ARRAY) {
-    if (((decorators & IN_HEAP) != 0) ||
-        ((decorators & IN_CONCURRENT_ROOT) != 0) ||
-        ((decorators & ON_PHANTOM_OOP_REF) != 0)) {
-      // Barrier needed
-      return true;
-    }
-  }
-
-  // Barrier not neeed
-  return false;
 }
 
 void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
@@ -127,8 +95,8 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
   // Load oop at address
   __ movptr(dst, Address(scratch, 0));
 
-  // Check address bad mask
-  __ testptr(dst, address_bad_mask());
+  // Test address bad mask
+  __ testptr(dst, address_bad_mask_from_thread(r15_thread));
   __ jcc(Assembler::zero, done);
 
   //
@@ -218,7 +186,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
     // are storing null and can skip verification.
     if (src != noreg) {
       Label done;
-      __ testptr(src, address_bad_mask());
+      __ testptr(src, address_bad_mask_from_thread(r15_thread));
       __ jcc(Assembler::zero, done);
       __ stop("Verify oop store failed");
       __ should_not_reach_here();
@@ -232,10 +200,6 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
   BLOCK_COMMENT("} ZBarrierSetAssembler::store_at");
 }
 #endif // ASSERT
-
-static address barrier_arraycopy_prologue_entry_point() {
-  return CAST_FROM_FN_PTR(address, static_cast<void (*)(volatile oop*, size_t)>(ZBarrier::load_barrier_on_oop_array));
-}
 
 void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
                                               DecoratorSet decorators,
@@ -262,10 +226,6 @@ void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
   BLOCK_COMMENT("} ZBarrierSetAssembler::arraycopy_prologue");
 }
 
-static Address address_bad_mask_from_jni_env(Register env) {
-  return Address(env, ZThreadLocalData::address_bad_mask_offset() - JavaThread::jni_environment_offset());
-}
-
 void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
                                                          Register obj,
                                                          Register tmp,
@@ -280,7 +240,7 @@ void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
   // Resolve jobject
   BarrierSetAssembler::try_resolve_jobject_in_native(masm, obj, tmp, slowpath);
 
-  // Check address bad mask
+  // Test address bad mask
   __ testptr(obj, address_bad_mask_from_jni_env(c_rarg0));
   __ jcc(Assembler::notZero, slowpath);
 
