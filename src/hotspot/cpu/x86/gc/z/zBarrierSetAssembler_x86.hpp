@@ -52,6 +52,11 @@ public:
                                   Register src,
                                   Register dst,
                                   Register count);
+
+  virtual void try_resolve_jobject_in_native(MacroAssembler* masm,
+                                             Register obj,
+                                             Register tmp,
+                                             Label& slowpath);
 };
 
 #endif // CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
