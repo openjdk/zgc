@@ -33,15 +33,60 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
-#include <sys/va_mask.h>
+#include <dlfcn.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+// Support for building on Solaris systems older than 11.3
+#ifndef VA_MASK_OVERLAP
+#define VA_MASK_OVERLAP      1
+#endif
+
+#ifndef _SC_OSM_PAGESIZE_MIN
+#define _SC_OSM_PAGESIZE_MIN 519
+#endif
+
+#ifndef MC_LOCK_GRANULE
+#define MC_LOCK_GRANULE      8
+#endif
+
+#ifndef MC_UNLOCK_GRANULE
+#define MC_UNLOCK_GRANULE    9
+#endif
+
+typedef int (*shmget_osm_func_t)(key_t, size_t, int, size_t);
+typedef int (*va_mask_alloc_func_t)(int, int, int*);
+
+static shmget_osm_func_t shmget_osm_func = NULL;
+static va_mask_alloc_func_t va_mask_alloc_func = NULL;
+
+static bool initialize_symbols() {
+  va_mask_alloc_func = (va_mask_alloc_func_t)dlsym(RTLD_DEFAULT, "va_mask_alloc");
+  if (va_mask_alloc_func == NULL) {
+    log_error(gc, init)("System does not support VA masking");
+    return false;
+  }
+
+  if (UseOSMHeap) {
+    shmget_osm_func = (shmget_osm_func_t)dlsym(RTLD_DEFAULT, "shmget_osm");
+    if (shmget_osm_func == NULL) {
+      log_error(gc, init)("System does not support OSM");
+      return false;
+    }
+  }
+
+  return true;
+}
+
 ZPhysicalMemoryBacking::ZPhysicalMemoryBacking(size_t max_capacity, size_t granule_size) :
     _granule_size(granule_size),
     _initialized(false) {
+
+  if (!initialize_symbols()) {
+    return;
+  }
 
   if (!initialize_vamask()) {
     return;
@@ -59,7 +104,7 @@ bool ZPhysicalMemoryBacking::initialize_vamask() const {
   const int alloc_vamask_bits = total_vamask_bits - ZPlatformADIBits;
   int lsb;
 
-  if (va_mask_alloc(alloc_vamask_bits, VA_MASK_OVERLAP, &lsb) == -1) {
+  if (va_mask_alloc_func(alloc_vamask_bits, VA_MASK_OVERLAP, &lsb) == -1) {
     log_error(gc, init)("Failed to allocate VA mask");
     return false;
   }
@@ -82,7 +127,7 @@ bool ZPhysicalMemoryBacking::initialize_osm() const {
     return false;
   }
 
-  const int osm = shmget_osm(IPC_PRIVATE, size, IPC_CREAT | 0600, _granule_size);
+  const int osm = shmget_osm_func(IPC_PRIVATE, size, IPC_CREAT | 0600, _granule_size);
   if (osm == -1) {
     log_error(gc, init)("Failed to create OSM for Java heap");
     return false;

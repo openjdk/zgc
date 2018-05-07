@@ -28,6 +28,10 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#ifndef MC_RESERVE_AS
+#define MC_RESERVE_AS 12
+#endif
+
 bool ZVirtualMemoryManager::reserve(uintptr_t start, size_t size) {
   // Reserve address space
   const int res = memcntl((char*)start, size, MC_RESERVE_AS, NULL, 0, 0);
