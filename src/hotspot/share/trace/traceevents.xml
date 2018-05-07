@@ -514,6 +514,22 @@ Declares a structure type that can be used in other events.
     <value type="BYTES64" field="used" label="Used" />
   </event>
 
+  <event id="ZThreadPhase" path="vm/gc/z/thread_phase" label="Z Thread Phase" has_thread="true">
+    <value type="UINT" field="gcId" label="GC Identifier" relation="GcId"/>
+    <value type="STRING" field="name" label="Name" />
+  </event>
+
+  <event id="ZStatCounter" path="vm/gc/z/stat/counter" label="Z Stat Counter" has_thread="true">
+    <value type="ZSTATCOUNTER" field="id" label="Id" />
+    <value type="ULONG" field="increment" label="Increment" />
+    <value type="ULONG" field="value" label="Value" />
+  </event>
+
+  <event id="ZStatSampler" path="vm/gc/z/stat/sampler" label="Z Stat Sampler" has_thread="true">
+    <value type="ZSTATSAMPLER" field="id" label="Id" />
+    <value type="ULONG" field="value" label="Value" />
+  </event>
+
   <!-- Compiler events -->
 
   <event id="Compilation" path="vm/compiler/compilation" label="Compilation"
@@ -633,6 +649,17 @@ Declares a structure type that can be used in other events.
   </event>
 
   <!-- Allocation events -->
+
+  <event id="ZPageAlloc" path="vm/gc/z/page_alloc" label="Z Page Allocation"
+         description="Allocation of a ZPage" has_thread="true" has_stacktrace="false" is_instant="true">
+     <value type="BYTES64" field="pageSize" label="Page Size" />
+     <value type="BYTES64" field="usedAfterPageAlloc" label="Used After Page Alloc" />
+     <value type="BYTES64" field="freeAfterPageAlloc" label="Free After Page Alloc" />
+     <value type="BYTES64" field="inCacheAfterPageAlloc" label="In Cache After Page Alloc" />
+     <value type="BOOLEAN" field="nonblocking" label="Non-blocking" />
+     <value type="BOOLEAN" field="noreserve" label="No Reserve" />
+  </event>
+
   <event id="ObjectAllocationInNewTLAB" path="java/object_alloc_in_new_TLAB" label="Allocation in new TLAB"
          description="Allocation in new Thread Local Allocation Buffer" has_thread="true" has_stacktrace="true" is_instant="true">
     <value type="CLASS" field="objectClass" label="Object Class" description="Class of allocated object"/>

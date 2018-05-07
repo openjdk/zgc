@@ -2688,6 +2688,8 @@ void IdealLoopTree::adjust_loop_exit_prob( PhaseIdealLoop *phase ) {
              (bol->in(1)->Opcode() == Op_CompareAndSwapS ) ||
              (bol->in(1)->Opcode() == Op_CompareAndSwapI ) ||
              (bol->in(1)->Opcode() == Op_CompareAndSwapL ) ||
+             (bol->in(1)->Opcode() == Op_CompareAndSwap2I ) ||
+             (bol->in(1)->Opcode() == Op_CompareAndSwap2L ) ||
              (bol->in(1)->Opcode() == Op_CompareAndSwapP ) ||
              (bol->in(1)->Opcode() == Op_CompareAndSwapN )))
           return;               // Allocation loops RARELY take backedge

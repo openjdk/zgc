@@ -1751,6 +1751,9 @@ void LIR_Assembler::intrinsic_op(LIR_Code code, LIR_Opr value, LIR_Opr thread, L
   }
 }
 
+void LIR_Assembler::load_barrier_test(LIR_Opr ref) {
+  __ btst(ref->as_register(), G6);
+}
 
 void LIR_Assembler::logic_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest) {
   if (right->is_constant()) {

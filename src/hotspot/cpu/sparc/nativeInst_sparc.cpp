@@ -585,9 +585,20 @@ void NativeMovRegMem::verify() {
   NativeInstruction::verify();
   // make sure code pattern is actually a "ld" or "st" of some sort.
   int i0 = long_at(0);
+  int i1 = long_at(add_offset);
   int op3 = inv_op3(i0);
 
   assert((int)add_offset == NativeMovConstReg::add_offset, "sethi size ok");
+
+  // verify the pattern "sethi %hi22(imm), reg ;  add reg, %lo10(imm), reg"
+  Register rd = inv_rd(i0);
+  if ((is_op2(i0, Assembler::sethi_op2) && rd != G0 &&
+        is_op3(i1, Assembler::add_op3, Assembler::arith_op) &&
+        inv_immed(i1) && (unsigned)get_simm13(i1) < (1 << 10) &&
+        rd == inv_rs1(i1) && rd == inv_rd(i1))) {
+    // Offset for patchable lea
+    return;
+  }
 
   if (!(is_op(i0, Assembler::ldst_op) &&
         inv_immed(i0) &&

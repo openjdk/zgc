@@ -533,4 +533,113 @@ class ArrayCopyStub: public CodeStub {
 #endif // PRODUCT
 };
 
+//////////////////////////////////////////////////////////////////////////////////////////
+#if INCLUDE_ALL_GCS
+
+class LoadBarrierStub: public CodeStub {
+private:
+  enum StubType {
+    AddressNotAvailable,
+    AddressInRegister,
+    AddressNotInRegister
+  };
+
+  StubType      _type;
+  LIR_Opr       _ref;
+  LIR_Opr       _ref_addr;
+  LIR_Opr       _tmp;
+  LIR_PatchCode _patch_code;
+  CodeEmitInfo* _info;
+  bool          _weak;
+
+public:
+  // Address not available, only fix the reference in the register
+  LoadBarrierStub(LIR_Opr ref, bool weak) :
+    _type(AddressNotAvailable),
+    _ref(ref),
+    _ref_addr(LIR_OprFact::illegalOpr),
+    _tmp(LIR_OprFact::illegalOpr),
+    _patch_code(lir_patch_none),
+    _info(NULL),
+    _weak(weak)
+  {
+    assert(_ref->is_register(), "must be a register");
+  }
+
+  // Address available in a register, fix both the reference at address and in the register
+  LoadBarrierStub(LIR_Opr ref, LIR_Opr ref_addr, bool weak) :
+    _type(AddressInRegister),
+    _ref(ref),
+    _ref_addr(ref_addr),
+    _tmp(LIR_OprFact::illegalOpr),
+    _patch_code(lir_patch_none),
+    _info(NULL),
+    _weak(weak)
+  {
+    assert(_ref->is_register(), "must be a register");
+    assert(_ref_addr->is_register(), "must be a register");
+  }
+
+  // Address available but not in a register, fix both the reference at address and in the register
+  LoadBarrierStub(LIR_Opr ref, LIR_Opr ref_addr, LIR_Opr tmp, LIR_PatchCode patch_code, CodeEmitInfo* info, bool weak) :
+    _type(AddressNotInRegister),
+    _ref(ref),
+    _ref_addr(ref_addr),
+    _tmp(tmp),
+    _patch_code(patch_code),
+    _info(info),
+    _weak(weak)
+  {
+    assert(_ref->is_register(), "must be a register");
+    assert(_ref_addr->is_address(), "must be an address");
+    assert(_tmp->is_register(), "must be a register");
+  }
+
+  StubType type() const { return _type; }
+  LIR_Opr ref() const { return _ref; }
+  LIR_Opr ref_addr() const { return _ref_addr; }
+  LIR_Opr tmp() const { return _tmp; }
+  LIR_PatchCode patch_code() const { return _patch_code; }
+  CodeEmitInfo* info() const { return _info; }
+
+  virtual void emit_code(LIR_Assembler* e);
+
+  virtual void visit(LIR_OpVisitState* visitor) {
+    switch (_type) {
+    case AddressNotAvailable:
+      visitor->do_slow_case();
+      visitor->do_output(_ref);
+      break;
+
+    case AddressInRegister:
+      visitor->do_slow_case();
+      visitor->do_output(_ref);
+      visitor->do_input(_ref_addr);
+      break;
+
+    case AddressNotInRegister:
+      if (_info) {
+        visitor->do_slow_case(_info);
+      } else {
+        visitor->do_slow_case();
+      }
+      visitor->do_output(_ref);
+      visitor->do_input(_ref_addr);
+      visitor->do_temp(_tmp);
+      break;
+
+    default:
+      ShouldNotReachHere();
+      break;
+    }
+  }
+
+#ifndef PRODUCT
+  virtual void print_name(outputStream* out) const { out->print("LoadBarrierStub"); }
+#endif // PRODUCT
+};
+
+#endif // INCLUDE_ALL_GCS
+//////////////////////////////////////////////////////////////////////////////////////////
+
 #endif // SHARE_VM_C1_C1_CODESTUBS_HPP

@@ -59,7 +59,6 @@ class GCCause : public AllStatic {
     _allocation_failure,
 
     /* implementation specific */
-
     _tenured_generation_full,
     _metadata_GC_threshold,
     _metadata_GC_clear_soft_refs,
@@ -77,6 +76,12 @@ class GCCause : public AllStatic {
     _g1_humongous_allocation,
 
     _dcmd_gc_run,
+
+    _z_timer,
+    _z_warmup,
+    _z_allocation_rate,
+    _z_allocation_stall,
+    _z_proactive,
 
     _last_gc_cause
   };

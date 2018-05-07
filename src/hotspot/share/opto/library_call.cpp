@@ -286,7 +286,10 @@ class LibraryCallKit : public GraphKit {
   typedef enum { LS_get_add, LS_get_set, LS_cmp_swap, LS_cmp_swap_weak, LS_cmp_exchange } LoadStoreKind;
   MemNode::MemOrd access_kind_to_memord_LS(AccessKind access_kind, bool is_store);
   MemNode::MemOrd access_kind_to_memord(AccessKind access_kind);
+  bool loadstore_requires_writeback_barrier(LoadStoreKind kind);
   bool inline_unsafe_load_store(BasicType type,  LoadStoreKind kind, AccessKind access_kind);
+  Node* make_cas_loadbarrier(CompareAndSwapNode* cas);
+  Node* make_cmpx_loadbarrier(CompareAndExchangePNode* cmpx);
   bool inline_unsafe_fence(vmIntrinsics::ID id);
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
@@ -1056,6 +1059,10 @@ Node* LibraryCallKit::generate_current_thread(Node* &tls_output) {
   Node* thread = _gvn.transform(new ThreadLocalNode());
   Node* p = basic_plus_adr(top()/*!oop*/, thread, in_bytes(JavaThread::threadObj_offset()));
   Node* threadObj = make_load(NULL, p, thread_type, T_OBJECT, MemNode::unordered);
+  if (UseZGC) {
+    threadObj = load_barrier(threadObj, p);
+  }
+
   tls_output = thread;
   return threadObj;
 }
@@ -2633,6 +2640,30 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           // is set: the barriers would be emitted by us.
           insert_pre_barrier(heap_base_oop, offset, p, !need_mem_bar);
         }
+        if (UseZGC) {
+          if (!VerifyLoadBarriers) {
+            p = load_barrier(p, adr);
+          } else {
+            if (!TypePtr::NULL_PTR->higher_equal(_gvn.type(heap_base_oop))) {
+              p = load_barrier(p, adr);
+            } else {
+              IdealKit ideal(this);
+              IdealVariable res(ideal);
+#define __ ideal.
+              __ declarations_done();
+              __ set(res, p);
+              __ if_then(heap_base_oop, BoolTest::ne, null(), PROB_UNLIKELY(0.999)); {
+                sync_kit(ideal);
+                p = load_barrier(p, adr);
+                __ set(res, p);
+                __ sync_kit(this);
+              } __ end_if();
+              final_sync(ideal);
+              p = __ value(res);
+#undef __
+            }
+          }
+        }
         break;
       case T_ADDRESS:
         // Cast to an int type.
@@ -2693,6 +2724,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   if (need_mem_bar) insert_mem_bar(Op_MemBarCPUOrder);
 
   return true;
+}
+
+bool LibraryCallKit::loadstore_requires_writeback_barrier(const LoadStoreKind kind) {
+  return (kind != LS_get_set);
 }
 
 //----------------------------inline_unsafe_load_store----------------------------
@@ -2919,6 +2954,8 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   //          dependency which will confuse the scheduler.
   Node *mem = memory(alias_idx);
 
+  bool add_scmemproj = true; // Depending on barrier and kind we sometimes need a scmemproj to keep barrier alive
+
   // For now, we handle only those cases that actually exist: ints,
   // longs, and Object. Adding others should be straightforward.
   Node* load_store = NULL;
@@ -3089,6 +3126,45 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
         ShouldNotReachHere();
     }
 
+    // Optimization: expected_is_null
+    // For CAS and weakCAS - if the expected value (oldval) is null, then
+    // we can avoid expanding a load barrier (null can't have bad bits)
+
+    // CMH - Remove flags and simplify code when final variants are stable
+
+    if (UseZGC) {
+      switch (kind) {
+        case LS_get_set:
+          break;
+        case LS_cmp_swap_weak:
+          {
+            bool expected_is_null = (oldval->get_ptr_type() == TypePtr::NULL_PTR);
+            if (!expected_is_null && C->directive()->UseWeakCASLoadBarrierOption) {
+              add_scmemproj = false;
+              load_store = make_cas_loadbarrier((CompareAndSwapNode*) load_store);
+            }
+          }
+          break;
+        case LS_cmp_swap:
+          {
+            bool expected_is_null = (oldval->get_ptr_type() == TypePtr::NULL_PTR);
+            if (!expected_is_null && C->directive()->UseCASLoadBarrierOption) {
+              add_scmemproj = false;
+              load_store = make_cas_loadbarrier((CompareAndSwapNode*) load_store);
+            }
+          }
+          break;
+        case LS_cmp_exchange:
+          if (C->directive()->UseCMPXLoadBarrierOption) {
+            add_scmemproj = false;
+            load_store = make_cmpx_loadbarrier((CompareAndExchangePNode*) load_store);
+          }
+          break;
+        default:
+          ShouldNotReachHere();
+      }
+    }
+
     // Emit the post barrier only when the actual store happened. This makes sense
     // to check only for LS_cmp_* that can fail to set the value.
     // LS_cmp_exchange does not produce any branches by default, so there is no
@@ -3099,25 +3175,27 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
     // CAS success path is marked more likely since we anticipate this is a performance
     // critical path, while CAS failure path can use the penalty for going through unlikely
     // path as backoff. Which is still better than doing a store barrier there.
-    switch (kind) {
-      case LS_get_set:
-      case LS_cmp_exchange: {
-        post_barrier(control(), load_store, base, adr, alias_idx, newval, T_OBJECT, true);
-        break;
+    if (has_post_barrier()) {
+      switch (kind) {
+        case LS_get_set:
+        case LS_cmp_exchange: {
+          post_barrier(control(), load_store, base, adr, alias_idx, newval, T_OBJECT, true);
+          break;
+        }
+        case LS_cmp_swap_weak:
+        case LS_cmp_swap: {
+          IdealKit ideal(this);
+          ideal.if_then(load_store, BoolTest::ne, ideal.ConI(0), PROB_STATIC_FREQUENT); {
+            sync_kit(ideal);
+            post_barrier(ideal.ctrl(), load_store, base, adr, alias_idx, newval, T_OBJECT, true);
+            ideal.sync_kit(this);
+          } ideal.end_if();
+          final_sync(ideal);
+          break;
+        }
+        default:
+          ShouldNotReachHere();
       }
-      case LS_cmp_swap_weak:
-      case LS_cmp_swap: {
-        IdealKit ideal(this);
-        ideal.if_then(load_store, BoolTest::ne, ideal.ConI(0), PROB_STATIC_FREQUENT); {
-          sync_kit(ideal);
-          post_barrier(ideal.ctrl(), load_store, base, adr, alias_idx, newval, T_OBJECT, true);
-          ideal.sync_kit(this);
-        } ideal.end_if();
-        final_sync(ideal);
-        break;
-      }
-      default:
-        ShouldNotReachHere();
     }
     break;
   default:
@@ -3128,8 +3206,10 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   // SCMemProjNodes represent the memory state of a LoadStore. Their
   // main role is to prevent LoadStore nodes from being optimized away
   // when their results aren't used.
-  Node* proj = _gvn.transform(new SCMemProjNode(load_store));
-  set_memory(proj, alias_idx);
+  if (add_scmemproj) {
+    Node* proj = _gvn.transform(new SCMemProjNode(load_store));
+    set_memory(proj, alias_idx);
+  }
 
   if (type == T_OBJECT && (kind == LS_get_set || kind == LS_cmp_exchange)) {
 #ifdef _LP64
@@ -3137,7 +3217,11 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
       load_store = _gvn.transform(new DecodeNNode(load_store, load_store->get_ptr_type()));
     }
 #endif
-    if (can_move_pre_barrier() && kind == LS_get_set) {
+    if (UseZGC && (kind == LS_get_set) && C->directive()->UseSwapLoadBarrierOption) {
+      load_store = load_barrier(load_store, adr, false, loadstore_requires_writeback_barrier(kind), false);
+    }
+
+    if (can_move_pre_barrier()) {
       // Don't need to load pre_val. The old value is returned by load_store.
       // The pre_barrier can execute after the xchg as long as no safepoint
       // gets inserted between them.
@@ -3167,6 +3251,176 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   assert(type2size[load_store->bottom_type()->basic_type()] == type2size[rtype], "result type should match");
   set_result(load_store);
   return true;
+}
+
+Node* LibraryCallKit::make_cas_loadbarrier(CompareAndSwapNode* cas) {
+
+  assert(UseZGC, "Must be turned on");
+  assert(!UseCompressedOops, "Not allowed");
+
+  Node* in_ctrl     = cas->in(MemNode::Control);
+  Node* in_mem      = cas->in(MemNode::Memory);
+  Node* in_adr      = cas->in(MemNode::Address);
+  Node* in_val      = cas->in(MemNode::ValueIn);
+  Node* in_expected = cas->in(LoadStoreConditionalNode::ExpectedIn);
+
+  float likely                   = PROB_LIKELY(0.999);
+
+  const TypePtr *adr_type        = _gvn.type(in_adr)->isa_ptr();
+  Compile::AliasType* alias_type = C->alias_type(adr_type);
+  int alias_idx                  = C->get_alias_index(adr_type);
+
+  // Outer check - true: continue, false: load and check
+  Node* region   = new RegionNode(3);
+  Node* phi      = new PhiNode(region, TypeInt::BOOL);
+  Node* phi_mem  = new PhiNode(region, Type::MEMORY, adr_type);
+
+  // Inner check - is the healed ref equal to the expected
+  Node* region2  = new RegionNode(3);
+  Node* phi2     = new PhiNode(region2, TypeInt::BOOL);
+  Node* phi_mem2 = new PhiNode(region2, Type::MEMORY, adr_type);
+
+  // CAS node returns 0 or 1
+  Node* cmp     = _gvn.transform(new CmpINode(cas, intcon(0)));
+  Node* bol     = _gvn.transform(new BoolNode(cmp, BoolTest::ne))->as_Bool();
+  IfNode* iff   = _gvn.transform(new IfNode(in_ctrl, bol, likely, COUNT_UNKNOWN))->as_If();
+  Node* then    = _gvn.transform(new IfTrueNode(iff));
+  Node* elsen   = _gvn.transform(new IfFalseNode(iff));
+
+  Node* scmemproj1   = _gvn.transform(new SCMemProjNode(cas));
+
+  set_memory(scmemproj1, alias_idx);
+  phi_mem->init_req(1, scmemproj1);
+  phi_mem2->init_req(2, scmemproj1);
+
+  // CAS fail - reload and heal oop
+  Node* reload      = make_load(elsen, in_adr, TypeOopPtr::BOTTOM, T_OBJECT, MemNode::unordered);
+  Node* barrier     = _gvn.transform(new LoadBarrierNode(C, elsen, scmemproj1, reload, in_adr, false, true, false));
+  Node* barrierctrl = _gvn.transform(new ProjNode(barrier, LoadBarrierNode::Control));
+  Node* barrierdata = _gvn.transform(new ProjNode(barrier, LoadBarrierNode::Oop));
+
+  // Check load
+  Node* tmpX    = _gvn.transform(new CastP2XNode(NULL, barrierdata));
+  Node* in_expX = _gvn.transform(new CastP2XNode(NULL, in_expected));
+  Node* cmp2    = _gvn.transform(new CmpXNode(tmpX, in_expX));
+  Node *bol2    = _gvn.transform(new BoolNode(cmp2, BoolTest::ne))->as_Bool();
+  IfNode* iff2  = _gvn.transform(new IfNode(barrierctrl, bol2, likely, COUNT_UNKNOWN))->as_If();
+  Node* then2   = _gvn.transform(new IfTrueNode(iff2));
+  Node* elsen2  = _gvn.transform(new IfFalseNode(iff2));
+
+  // redo CAS
+  Node* cas2       = _gvn.transform(new CompareAndSwapPNode(elsen2, memory(alias_idx), in_adr, in_val, in_expected, cas->order()));
+  Node* scmemproj2 = _gvn.transform(new SCMemProjNode(cas2));
+  set_control(elsen2);
+  set_memory(scmemproj2, alias_idx);
+
+  // Merge inner flow - check if healed oop was equal too expected.
+  region2->set_req(1, control());
+  region2->set_req(2, then2);
+  phi2->set_req(1, cas2);
+  phi2->set_req(2, intcon(0));
+  phi_mem2->init_req(1, scmemproj2);
+  set_memory(phi_mem2, alias_idx);
+
+  // Merge outer flow - then check if first cas succeded
+  region->set_req(1, then);
+  region->set_req(2, region2);
+  phi->set_req(1, intcon(1));
+  phi->set_req(2, phi2);
+  phi_mem->init_req(2, phi_mem2);
+  set_memory(phi_mem, alias_idx);
+
+  _gvn.transform(region2);
+  _gvn.transform(phi2);
+  _gvn.transform(phi_mem2);
+  _gvn.transform(region);
+  _gvn.transform(phi);
+  _gvn.transform(phi_mem);
+
+  set_control(region);
+  insert_mem_bar(Op_MemBarCPUOrder);
+
+  return phi;
+}
+
+Node* LibraryCallKit::make_cmpx_loadbarrier(CompareAndExchangePNode* cmpx) {
+
+  assert(UseZGC, "Must be turned on");
+  assert(!UseCompressedOops, "Not allowed");
+
+  Node* in_ctrl     = cmpx->in(MemNode::Control);
+  Node* in_mem      = cmpx->in(MemNode::Memory);
+  Node* in_adr      = cmpx->in(MemNode::Address);
+  Node* in_val      = cmpx->in(MemNode::ValueIn);
+  Node* in_expected = cmpx->in(LoadStoreConditionalNode::ExpectedIn);
+
+  float likely                   = PROB_LIKELY(0.999);
+
+  const TypePtr *adr_type        = cmpx->get_ptr_type();
+  Compile::AliasType* alias_type = C->alias_type(adr_type);
+  int alias_idx                  = C->get_alias_index(adr_type);
+
+  // Outer check - true: continue, false: load and check
+  Node* region  = new RegionNode(3);
+  Node* phi     = new PhiNode(region, adr_type);
+
+  // Inner check - is the healed ref equal to the expected
+  Node* region2 = new RegionNode(3);
+  Node* phi2    = new PhiNode(region2, adr_type);
+
+  // Check if cmpx succeded
+  Node* cmp     = _gvn.transform(new CmpPNode(cmpx, in_expected));
+  Node* bol     = _gvn.transform(new BoolNode(cmp, BoolTest::eq))->as_Bool();
+  IfNode* iff   = _gvn.transform(new IfNode(in_ctrl, bol, likely, COUNT_UNKNOWN))->as_If();
+  Node* then    = _gvn.transform(new IfTrueNode(iff));
+  Node* elsen   = _gvn.transform(new IfFalseNode(iff));
+
+  Node* scmemproj1  = _gvn.transform(new SCMemProjNode(cmpx));
+  set_memory(scmemproj1, alias_idx);
+
+  // CAS fail - reload and heal oop
+  Node* reload      = make_load(elsen, in_adr, TypeOopPtr::BOTTOM, T_OBJECT, MemNode::unordered);
+  Node* barrier     = _gvn.transform(new LoadBarrierNode(C, elsen, scmemproj1, reload, in_adr, false, true, false));
+  Node* barrierctrl = _gvn.transform(new ProjNode(barrier, LoadBarrierNode::Control));
+  Node* barrierdata = _gvn.transform(new ProjNode(barrier, LoadBarrierNode::Oop));
+
+  // Check load
+  Node* tmpX    = _gvn.transform(new CastP2XNode(NULL, barrierdata));
+  Node* in_expX = _gvn.transform(new CastP2XNode(NULL, in_expected));
+  Node* cmp2    = _gvn.transform(new CmpXNode(tmpX, in_expX));
+  Node *bol2    = _gvn.transform(new BoolNode(cmp2, BoolTest::ne))->as_Bool();
+  IfNode* iff2  = _gvn.transform(new IfNode(barrierctrl, bol2, likely, COUNT_UNKNOWN))->as_If();
+  Node* then2   = _gvn.transform(new IfTrueNode(iff2));
+  Node* elsen2  = _gvn.transform(new IfFalseNode(iff2));
+
+  // Redo CAS
+  Node* cmpx2      = _gvn.transform(new CompareAndExchangePNode(elsen2, memory(alias_idx), in_adr, in_val, in_expected, adr_type, cmpx->get_ptr_type(), cmpx->order()));
+  Node* scmemproj2 = _gvn.transform(new SCMemProjNode(cmpx2));
+  set_control(elsen2);
+  set_memory(scmemproj2, alias_idx);
+
+  // Merge inner flow - check if healed oop was equal too expected.
+  region2->set_req(1, control());
+  region2->set_req(2, then2);
+  phi2->set_req(1, cmpx2);
+  phi2->set_req(2, barrierdata);
+
+  // Merge outer flow - then check if first cas succeded
+  region->set_req(1, then);
+  region->set_req(2, region2);
+  phi->set_req(1, cmpx);
+  phi->set_req(2, phi2);
+
+  _gvn.transform(region2);
+  _gvn.transform(phi2);
+  _gvn.transform(region);
+  _gvn.transform(phi);
+
+  set_control(region);
+  set_memory(in_mem, alias_idx);
+  insert_mem_bar(Op_MemBarCPUOrder);
+
+  return phi;
 }
 
 MemNode::MemOrd LibraryCallKit::access_kind_to_memord_LS(AccessKind kind, bool is_store) {
@@ -6106,6 +6360,9 @@ bool LibraryCallKit::inline_reference_get() {
 
   Node* no_ctrl = NULL;
   Node* result = make_load(no_ctrl, adr, object_type, T_OBJECT, MemNode::unordered);
+  if (UseZGC) {
+    result = load_barrier(result, adr, true /* weak */);
+  }
 
   // Use the pre-barrier to record the value in the referent field
   pre_barrier(false /* do_load */,
@@ -6172,6 +6429,10 @@ Node * LibraryCallKit::load_field_from_object(Node * fromObj, const char * field
   // Build the load.
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
   Node* loadedField = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, is_vol);
+  if (UseZGC) {
+    loadedField = load_barrier(loadedField, adr);
+  }
+
   // If reference is volatile, prevent following memory ops from
   // floating up past the volatile read.  Also prevents commoning
   // another volatile read.

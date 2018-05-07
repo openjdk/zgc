@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/register.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -42,3 +43,6 @@ address StubRoutines::x86::_float_sign_mask = NULL;
 address StubRoutines::x86::_float_sign_flip = NULL;
 address StubRoutines::x86::_double_sign_mask = NULL;
 address StubRoutines::x86::_double_sign_flip = NULL;
+
+address StubRoutines::x86:: _load_barrier_slow_stub[RegisterImpl::number_of_registers] = { NULL };
+address StubRoutines::x86:: _load_barrier_weak_slow_stub[RegisterImpl::number_of_registers] = { NULL };

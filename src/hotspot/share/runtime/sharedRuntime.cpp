@@ -78,6 +78,7 @@
 #endif
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1ThreadLocalData.hpp"
+#include "gc/z/zBarrier.inline.hpp"
 #endif // INCLUDE_ALL_GCS
 
 // Shared stub locations
