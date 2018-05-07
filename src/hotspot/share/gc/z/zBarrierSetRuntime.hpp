@@ -21,19 +21,28 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZRUNTIME_HPP
-#define SHARE_GC_Z_ZRUNTIME_HPP
+#ifndef SHARE_GC_Z_ZBARRIERSETRUNTIME_HPP
+#define SHARE_GC_Z_ZBARRIERSETRUNTIME_HPP
 
 #include "memory/allocation.hpp"
+#include "oops/accessDecorators.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 class oopDesc;
 
-class ZRuntime : public AllStatic {
-public:
+class ZBarrierSetRuntime : public AllStatic {
+private:
   static oopDesc* load_barrier_on_oop_field_preloaded(oopDesc* o, oop* p);
   static oopDesc* load_barrier_on_weak_oop_field_preloaded(oopDesc* o, oop* p);
   static oopDesc* load_barrier_on_phantom_oop_field_preloaded(oopDesc* o, oop* p);
   static void load_barrier_on_oop_array(oop* p, size_t length);
+
+public:
+  static address load_barrier_on_oop_field_preloaded_addr(DecoratorSet decorators);
+  static address load_barrier_on_oop_field_preloaded_addr();
+  static address load_barrier_on_weak_oop_field_preloaded_addr();
+  static address load_barrier_on_phantom_oop_field_preloaded_addr();
+  static address load_barrier_on_oop_array_addr();
 };
 
-#endif // SHARE_GC_Z_ZRUNTIME_HPP
+#endif // SHARE_GC_Z_ZBARRIERSETRUNTIME_HPP

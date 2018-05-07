@@ -23,48 +23,13 @@
 
 #include "precompiled.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zRuntime.hpp"
 #include "gc/z/zThreadLocalData.hpp"
-#include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.hpp"
 
-bool ZBarrierSetAssemblerBase::barrier_needed(DecoratorSet decorators, BasicType type) const {
-  assert((decorators & AS_RAW) == 0, "Unexpected decorator");
-  assert((decorators & AS_NO_KEEPALIVE) == 0, "Unexpected decorator");
-  assert((decorators & IN_ARCHIVE_ROOT) == 0, "Unexpected decorator");
-  assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Unexpected decorator");
-
-  if (type == T_OBJECT || type == T_ARRAY) {
-    if (((decorators & IN_HEAP) != 0) ||
-        ((decorators & IN_CONCURRENT_ROOT) != 0) ||
-        ((decorators & ON_PHANTOM_OOP_REF) != 0)) {
-      // Barrier needed
-      return true;
-    }
-  }
-
-  // Barrier not neeed
-  return false;
-}
-
-Address ZBarrierSetAssemblerBase::address_bad_mask_from_thread(Register thread) const {
+Address ZBarrierSetAssemblerBase::address_bad_mask_from_thread(Register thread) {
   return Address(thread, ZThreadLocalData::address_bad_mask_offset());
 }
 
-Address ZBarrierSetAssemblerBase::address_bad_mask_from_jni_env(Register env) const {
+Address ZBarrierSetAssemblerBase::address_bad_mask_from_jni_env(Register env) {
   return Address(env, ZThreadLocalData::address_bad_mask_offset() - JavaThread::jni_environment_offset());
-}
-
-address ZBarrierSetAssemblerBase::barrier_load_at_entry_point(DecoratorSet decorators) const {
-  if (decorators & ON_PHANTOM_OOP_REF) {
-    return reinterpret_cast<address>(ZRuntime::load_barrier_on_phantom_oop_field_preloaded);
-  } else if (decorators & ON_WEAK_OOP_REF) {
-    return reinterpret_cast<address>(ZRuntime::load_barrier_on_weak_oop_field_preloaded);
-  } else {
-    return reinterpret_cast<address>(ZRuntime::load_barrier_on_oop_field_preloaded);
-  }
-}
-
-address ZBarrierSetAssemblerBase::barrier_arraycopy_prologue_entry_point() const {
-  return reinterpret_cast<address>(ZRuntime::load_barrier_on_oop_array);
 }

@@ -26,9 +26,14 @@
 
 #include "gc/shared/barrierSet.hpp"
 
+class ZBarrierSetAssembler;
+
 class ZBarrierSet: public BarrierSet {
 public:
   ZBarrierSet();
+
+  static ZBarrierSetAssembler* assembler();
+  static bool barrier_needed(DecoratorSet decorators, BasicType type);
 
   virtual void on_thread_create(Thread* thread);
   virtual void on_thread_destroy(Thread* thread);

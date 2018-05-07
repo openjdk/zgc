@@ -583,10 +583,6 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       break;
 #endif
 
-    case lir_load_barrier_test:
-      load_barrier_test(op->in_opr());
-      break;
-
     case lir_unwind:
       unwind_op(op->in_opr());
       break;

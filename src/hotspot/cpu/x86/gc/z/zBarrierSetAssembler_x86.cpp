@@ -24,8 +24,14 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
+#include "gc/z/zBarrierSet.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
+#include "gc/z/zBarrierSetRuntime.hpp"
+#ifdef COMPILER1
+#include "gc/z/c1/zBarrierSetC1.hpp"
+#endif // COMPILER1
 
+#undef __
 #define __ masm->
 
 #ifdef PRODUCT
@@ -66,7 +72,7 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
                                    Address src,
                                    Register tmp1,
                                    Register tmp_thread) {
-  if (!barrier_needed(decorators, type)) {
+  if (!ZBarrierSet::barrier_needed(decorators, type)) {
     // Barrier not needed
     BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
     return;
@@ -131,7 +137,7 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
   __ movdqu(Address(rsp, xmm_size * 0), xmm0);
 
   // Call VM
-  call_vm(masm, barrier_load_at_entry_point(decorators), dst, scratch);
+  call_vm(masm, ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(decorators), dst, scratch);
 
   // Restore registers
   __ movdqu(xmm0, Address(rsp, xmm_size * 0));
@@ -171,6 +177,7 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
 }
 
 #ifdef ASSERT
+
 void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                     DecoratorSet decorators,
                                     BasicType type,
@@ -199,6 +206,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
 
   BLOCK_COMMENT("} ZBarrierSetAssembler::store_at");
 }
+
 #endif // ASSERT
 
 void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
@@ -207,7 +215,7 @@ void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
                                               Register src,
                                               Register dst,
                                               Register count) {
-  if (!barrier_needed(decorators, type)) {
+  if (!ZBarrierSet::barrier_needed(decorators, type)) {
     // Barrier not needed
     return;
   }
@@ -218,7 +226,7 @@ void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
   __ pusha();
 
   // Call VM
-  call_vm(masm, barrier_arraycopy_prologue_entry_point(), src, count);
+  call_vm(masm, ZBarrierSetRuntime::load_barrier_on_oop_array_addr(), src, count);
 
   // Restore registers
   __ popa();
@@ -246,3 +254,95 @@ void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
 
   BLOCK_COMMENT("} ZBarrierSetAssembler::try_resolve_jobject_in_native");
 }
+
+#ifdef COMPILER1
+
+#undef __
+#define __ ce->masm()->
+
+void ZBarrierSetAssembler::generate_c1_load_barrier_test(LIR_Assembler* ce,
+                                                         LIR_Opr ref) const {
+  __ testptr(ref->as_register(), address_bad_mask_from_thread(r15_thread));
+}
+
+void ZBarrierSetAssembler::generate_c1_load_barrier_stub(LIR_Assembler* ce,
+                                                         ZLoadBarrierStubC1* stub) const {
+  const LIR_Opr ref = stub->ref();
+  const LIR_Opr ref_addr = stub->ref_addr();
+  const LIR_Opr tmp = stub->tmp();
+
+  assert(ref->is_register(), "Must be a register");
+  assert(ref_addr->is_register() != tmp->is_register(), "Only one should be a register");
+
+  // Stub entry
+  __ bind(*stub->entry());
+
+  Register ref_reg = ref->as_register();
+  Register ref_addr_reg = noreg;
+
+  if (ref_addr->is_register()) {
+    // Address already in register
+    ref_addr_reg = ref_addr->as_pointer_register();
+  } else {
+    assert(ref_addr->is_address(), "Must be an address");
+    if (ref_addr->as_address_ptr()->index()->is_valid() ||
+        ref_addr->as_address_ptr()->disp() != 0) {
+      // Has index or displacement, need to load address into register
+      ce->leal(ref_addr, tmp, stub->patch_code(), stub->patch_info());
+      ref_addr_reg = tmp->as_pointer_register();
+    } else {
+      // No index or displacement, address available in base register
+      ref_addr_reg = ref_addr->as_address_ptr()->base()->as_pointer_register();
+    }
+  }
+
+  assert_different_registers(ref_reg, ref_addr_reg, noreg);
+
+  // Save rax unless it is the result register
+  if (ref_reg != rax) {
+    __ push(rax);
+  }
+
+  // Setup arguments and call runtime stub
+  __ subptr(rsp, 2 * BytesPerWord);
+  ce->store_parameter(ref_addr_reg, 1);
+  ce->store_parameter(ref_reg, 0);
+  __ call(RuntimeAddress(stub->runtime_stub()));
+  __ addptr(rsp, 2 * BytesPerWord);
+
+  // Verify result
+  __ verify_oop(rax, "Bad oop");
+
+  // Restore rax unless it is the result register
+  if (ref_reg != rax) {
+    __ movptr(ref_reg, rax);
+    __ pop(rax);
+  }
+
+  // Stub exit
+  __ jmp(*stub->continuation());
+}
+
+#undef __
+#define __ sasm->
+
+void ZBarrierSetAssembler::generate_c1_load_barrier_runtime_stub(StubAssembler* sasm,
+                                                                 DecoratorSet decorators) const {
+  // Enter and save registers
+  __ enter();
+  __ save_live_registers_no_oop_map(true /* save_fpu_registers */);
+
+  // Setup arguments
+  __ load_parameter(1, c_rarg1);
+  __ load_parameter(0, c_rarg0);
+
+  // Call VM
+  __ call_VM_leaf(ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(decorators), c_rarg0, c_rarg1);
+
+  // Restore registers and return
+  __ restore_live_registers_except_rax(true /* restore_fpu_registers */);
+  __ leave();
+  __ ret(0);
+}
+
+#endif // COMPILER1

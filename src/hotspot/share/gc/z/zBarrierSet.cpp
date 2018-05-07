@@ -22,6 +22,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/z/c1/zBarrierSetC1.hpp"
 #include "gc/z/zBarrierSet.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
 #include "gc/z/zGlobals.hpp"
@@ -31,7 +32,32 @@
 
 ZBarrierSet::ZBarrierSet() :
     BarrierSet(make_barrier_set_assembler<ZBarrierSetAssembler>(),
+               make_barrier_set_c1<ZBarrierSetC1>(),
                BarrierSet::FakeRtti(BarrierSet::Z)) {}
+
+ZBarrierSetAssembler* ZBarrierSet::assembler() {
+  BarrierSetAssembler* const bsa = BarrierSet::barrier_set()->barrier_set_assembler();
+  return reinterpret_cast<ZBarrierSetAssembler*>(bsa);
+}
+
+bool ZBarrierSet::barrier_needed(DecoratorSet decorators, BasicType type) {
+  assert((decorators & AS_RAW) == 0, "Unexpected decorator");
+  assert((decorators & AS_NO_KEEPALIVE) == 0, "Unexpected decorator");
+  assert((decorators & IN_ARCHIVE_ROOT) == 0, "Unexpected decorator");
+  //assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Unexpected decorator");
+
+  if (type == T_OBJECT || type == T_ARRAY) {
+    if (((decorators & IN_HEAP) != 0) ||
+        ((decorators & IN_CONCURRENT_ROOT) != 0) ||
+        ((decorators & ON_PHANTOM_OOP_REF) != 0)) {
+      // Barrier needed
+      return true;
+    }
+  }
+
+  // Barrier not neeed
+  return false;
+}
 
 void ZBarrierSet::on_thread_create(Thread* thread) {
   // Create thread local data

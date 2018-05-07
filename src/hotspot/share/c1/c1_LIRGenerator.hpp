@@ -301,7 +301,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   LIR_Opr atomic_cmpxchg(BasicType type, LIR_Opr addr, LIRItem& cmp_value, LIRItem& new_value);
   LIR_Opr atomic_xchg(BasicType type, LIR_Opr addr, LIRItem& new_value);
   LIR_Opr atomic_add(BasicType type, LIR_Opr addr, LIRItem& new_value);
-  void load_barrier(LIR_Opr ref, LIR_Opr ref_addr = LIR_OprFact::illegalOpr, LIR_PatchCode patch_code = lir_patch_none, CodeEmitInfo* info = NULL, bool weak = false);
 
   // specific implementations
   void array_store_check(LIR_Opr value, LIR_Opr array, CodeEmitInfo* store_check_info, ciMethod* profiled_method, int profiled_bci);

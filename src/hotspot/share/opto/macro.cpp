@@ -49,7 +49,7 @@
 #include "runtime/sharedRuntime.hpp"
 #if INCLUDE_ALL_GCS
 #include "gc/g1/g1ThreadLocalData.hpp"
-#include "gc/z/zRuntime.hpp"
+#include "gc/z/zBarrierSetRuntime.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #endif // INCLUDE_ALL_GCS
 
@@ -2730,9 +2730,15 @@ void PhaseMacroExpand::expand_loadbarrier_basic(LoadBarrierNode *barrier)
   const TypeFunc *tf = OptoRuntime::load_barrier_Type();
   Node* call;
   if (barrier->is_weak()) {
-    call = new CallLeafNode(tf, CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_weak_oop_field_preloaded), "load_barrier", TypeRawPtr::BOTTOM);
+    call = new CallLeafNode(tf,
+                            ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr(),
+                            "ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded",
+                            TypeRawPtr::BOTTOM);
   } else {
-    call = new CallLeafNode(tf, CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_oop_field_preloaded), "load_barrier", TypeRawPtr::BOTTOM);
+    call = new CallLeafNode(tf,
+                            ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(),
+                            "ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded",
+                            TypeRawPtr::BOTTOM);
   }
 
   call->init_req(TypeFunc::Control, then);

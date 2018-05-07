@@ -2992,9 +2992,6 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, jint count, LIR_Opr de
   }
 }
 
-void LIR_Assembler::load_barrier_test(LIR_Opr ref) {
-  __ testptr(ref->as_register(), Address(r15_thread, ZThreadLocalData::address_bad_mask_offset()));
-}
 
 void LIR_Assembler::store_parameter(Register r, int offset_from_rsp_in_words) {
   assert(offset_from_rsp_in_words >= 0, "invalid offset from rsp");

@@ -56,7 +56,6 @@
   };
 
 public:
-  void load_barrier_test(LIR_Opr ref);
 
   void store_parameter(Register r,  int offset_from_esp_in_words);
   void store_parameter(jint c,      int offset_from_esp_in_words);

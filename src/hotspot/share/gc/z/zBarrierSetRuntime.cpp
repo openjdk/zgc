@@ -23,21 +23,47 @@
 
 #include "precompiled.hpp"
 #include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zRuntime.hpp"
+#include "gc/z/zBarrierSetRuntime.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 
-JRT_LEAF(oopDesc*, ZRuntime::load_barrier_on_oop_field_preloaded(oopDesc* o, oop* p))
+JRT_LEAF(oopDesc*, ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded(oopDesc* o, oop* p))
   return ZBarrier::load_barrier_on_oop_field_preloaded(p, o);
 JRT_END
 
-JRT_LEAF(oopDesc*, ZRuntime::load_barrier_on_weak_oop_field_preloaded(oopDesc* o, oop* p))
+JRT_LEAF(oopDesc*, ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded(oopDesc* o, oop* p))
   return ZBarrier::load_barrier_on_weak_oop_field_preloaded(p, o);
 JRT_END
 
-JRT_LEAF(oopDesc*, ZRuntime::load_barrier_on_phantom_oop_field_preloaded(oopDesc* o, oop* p))
+JRT_LEAF(oopDesc*, ZBarrierSetRuntime::load_barrier_on_phantom_oop_field_preloaded(oopDesc* o, oop* p))
   return ZBarrier::load_barrier_on_phantom_oop_field_preloaded(p, o);
 JRT_END
 
-JRT_LEAF(void, ZRuntime::load_barrier_on_oop_array(oop* p, size_t length))
+JRT_LEAF(void, ZBarrierSetRuntime::load_barrier_on_oop_array(oop* p, size_t length))
   ZBarrier::load_barrier_on_oop_array(p, length);
 JRT_END
+
+address ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(DecoratorSet decorators) {
+  if (decorators & ON_PHANTOM_OOP_REF) {
+    return load_barrier_on_phantom_oop_field_preloaded_addr();
+  } else if (decorators & ON_WEAK_OOP_REF) {
+    return load_barrier_on_weak_oop_field_preloaded_addr();
+  } else {
+    return load_barrier_on_oop_field_preloaded_addr();
+  }
+}
+
+address ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr() {
+  return reinterpret_cast<address>(load_barrier_on_oop_field_preloaded);
+}
+
+address ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr() {
+  return reinterpret_cast<address>(load_barrier_on_weak_oop_field_preloaded);
+}
+
+address ZBarrierSetRuntime::load_barrier_on_phantom_oop_field_preloaded_addr() {
+  return reinterpret_cast<address>(load_barrier_on_phantom_oop_field_preloaded);
+}
+
+address ZBarrierSetRuntime::load_barrier_on_oop_array_addr() {
+  return reinterpret_cast<address>(load_barrier_on_oop_array);
+}

@@ -1455,26 +1455,6 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   set_result(x, result);
 }
 
-void LIRGenerator::load_barrier(LIR_Opr ref, LIR_Opr ref_addr, LIR_PatchCode patch_code, CodeEmitInfo* info, bool weak) {
-  assert(UseZGC, "invariant");
-  assert(ref->is_register(), "invariant");
-
-  __ load_barrier_test(ref);
-
-  CodeStub* slow;
-  if (ref_addr->is_illegal()) {
-    slow = new LoadBarrierStub(ref, weak);
-  } else if (ref_addr->is_register()) {
-    slow = new LoadBarrierStub(ref, ref_addr, weak);
-  } else {
-    slow = new LoadBarrierStub(ref, ref_addr, new_pointer_register(), patch_code, info, weak);
-  }
-
-  // Branch to slow path if test failed
-  __ branch(lir_cond_notEqual, T_ADDRESS, slow);
-  __ branch_destination(slow->continuation());
-}
-
 // Comment copied form templateTable_i486.cpp
 // ----------------------------------------------------------------------------
 // Volatile variables demand their effects be made known to all CPU's in

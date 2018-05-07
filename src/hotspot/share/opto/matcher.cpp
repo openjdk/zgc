@@ -42,7 +42,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
 #if INCLUDE_ALL_GCS
-#include "gc/z/zRuntime.hpp"
+#include "gc/z/zBarrierSetRuntime.hpp"
 #endif // INCLUDE_ALL_GCS
 
 OptoReg::Name OptoReg::c_frame_pointer;
@@ -2159,8 +2159,8 @@ void Matcher::find_shared( Node *n ) {
         mem_op = true;
         break;
       case Op_CallLeaf:
-        if (n->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_oop_field_preloaded) ||
-            n->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, ZRuntime::load_barrier_on_weak_oop_field_preloaded)) {
+        if (n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr() ||
+            n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr()) {
           mem_op = true;
           mem_addr_idx = TypeFunc::Parms+1;
         }

@@ -24,6 +24,12 @@
 #ifndef CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
 #define CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
 
+#ifdef COMPILER1
+#include "c1/c1_LIRAssembler.hpp"
+#include "c1/c1_MacroAssembler.hpp"
+class ZLoadBarrierStubC1;
+#endif // COMPILER1
+
 class ZBarrierSetAssembler : public ZBarrierSetAssemblerBase {
 public:
   virtual void load_at(MacroAssembler* masm,
@@ -55,6 +61,17 @@ public:
                                              Register obj,
                                              Register tmp,
                                              Label& slowpath);
+
+#ifdef COMPILER1
+  void generate_c1_load_barrier_test(LIR_Assembler* ce,
+                                     LIR_Opr ref) const;
+
+  void generate_c1_load_barrier_stub(LIR_Assembler* ce,
+                                     ZLoadBarrierStubC1* stub) const;
+
+  void generate_c1_load_barrier_runtime_stub(StubAssembler* sasm,
+                                             DecoratorSet decorators) const;
+#endif // COMPILER1
 };
 
 #endif // CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP

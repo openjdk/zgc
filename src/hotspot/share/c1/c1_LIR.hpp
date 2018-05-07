@@ -923,7 +923,6 @@ enum LIR_Code {
       , lir_pack64
       , lir_unpack64
       , lir_unwind
-      , lir_load_barrier_test
   , end_op1
   , begin_op2
       , lir_cmp
@@ -2113,8 +2112,6 @@ class LIR_List: public CompilationResourceObj {
   void safepoint(LIR_Opr tmp, CodeEmitInfo* info)  { append(new LIR_Op1(lir_safepoint, tmp, info)); }
 
   void convert(Bytecodes::Code code, LIR_Opr left, LIR_Opr dst, ConversionStub* stub = NULL/*, bool is_32bit = false*/) { append(new LIR_OpConvert(code, left, dst, stub)); }
-
-  void load_barrier_test (LIR_Opr ref) { append(new LIR_Op1(lir_load_barrier_test, ref)); }
 
   void logical_and (LIR_Opr left, LIR_Opr right, LIR_Opr dst) { append(new LIR_Op2(lir_logic_and,  left, right, dst)); }
   void logical_or  (LIR_Opr left, LIR_Opr right, LIR_Opr dst) { append(new LIR_Op2(lir_logic_or,   left, right, dst)); }
