@@ -263,46 +263,32 @@ void ZBarrierSetAssembler::generate_c1_load_barrier_test(LIR_Assembler* ce,
 
 void ZBarrierSetAssembler::generate_c1_load_barrier_stub(LIR_Assembler* ce,
                                                          ZLoadBarrierStubC1* stub) const {
-  const LIR_Opr ref = stub->ref();
-  const LIR_Opr ref_addr = stub->ref_addr();
-  const LIR_Opr tmp = stub->tmp();
-
-  assert(ref->is_register(), "Must be a register");
-  assert(ref_addr->is_register() != tmp->is_register(), "Only one should be a register");
-
   // Stub entry
   __ bind(*stub->entry());
 
-  Register ref_reg = ref->as_register();
-  Register ref_addr_reg = noreg;
+  Register ref = stub->ref()->as_register();
+  Register ref_addr = noreg;
 
-  if (ref_addr->is_register()) {
+  if (stub->ref_addr()->is_register()) {
     // Address already in register
-    ref_addr_reg = ref_addr->as_pointer_register();
+    ref_addr = stub->ref_addr()->as_pointer_register();
   } else {
-    assert(ref_addr->is_address(), "Must be an address");
-    if (ref_addr->as_address_ptr()->index()->is_valid() ||
-        ref_addr->as_address_ptr()->disp() != 0) {
-      // Has index or displacement, need to load address into register
-      ce->leal(ref_addr, tmp, stub->patch_code(), stub->patch_info());
-      ref_addr_reg = tmp->as_pointer_register();
-    } else {
-      // No index or displacement, address available in base register
-      ref_addr_reg = ref_addr->as_address_ptr()->base()->as_pointer_register();
-    }
+    // Load address into tmp register
+    ce->leal(stub->ref_addr(), stub->tmp(), stub->patch_code(), stub->patch_info());
+    ref_addr = stub->tmp()->as_pointer_register();
   }
 
-  assert_different_registers(ref_reg, ref_addr_reg, noreg);
+  assert_different_registers(ref, ref_addr, noreg);
 
   // Save rax unless it is the result register
-  if (ref_reg != rax) {
+  if (ref != rax) {
     __ push(rax);
   }
 
   // Setup arguments and call runtime stub
   __ subptr(rsp, 2 * BytesPerWord);
-  ce->store_parameter(ref_addr_reg, 1);
-  ce->store_parameter(ref_reg, 0);
+  ce->store_parameter(ref_addr, 1);
+  ce->store_parameter(ref, 0);
   __ call(RuntimeAddress(stub->runtime_stub()));
   __ addptr(rsp, 2 * BytesPerWord);
 
@@ -310,8 +296,8 @@ void ZBarrierSetAssembler::generate_c1_load_barrier_stub(LIR_Assembler* ce,
   __ verify_oop(rax, "Bad oop");
 
   // Restore rax unless it is the result register
-  if (ref_reg != rax) {
-    __ movptr(ref_reg, rax);
+  if (ref != rax) {
+    __ movptr(ref, rax);
     __ pop(rax);
   }
 
