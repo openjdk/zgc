@@ -52,7 +52,7 @@
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=-Xmx128M ${test.vm.opts} ${test.java.opts}"
+ *      "-debugee.vmkeys=-Xmx256M ${test.vm.opts} ${test.java.opts}"
  *      -testClassNames nsk.jdi.ReferenceType.instances.instances003.instances003$TestClassLoader:java.lang.String:java.lang.Thread
  */
 
@@ -124,6 +124,11 @@ public class instances003 extends HeapwalkingDebugger {
         pipe.println(HeapwalkingDebuggee.COMMAND_CREATE_INSTANCES + ":" + className + ":" + createInstanceCount +
             ":" + referrerCount + ":" + referrerType +
             (referrerType.equals(ObjectInstancesManager.WEAK_REFERENCE) ? "|" + ObjectInstancesManager.STRONG_REFERENCE : ""));
+
+        // Note!
+        // Test broken - assumes that no GC is run before heap walk.
+        // G1 fails, just like ZGC, if en explicitly GC is done here.
+        // forceGC();
 
         // the instance counts should not be affected by creating multiple references
         checkDebugeeAnswer_instanceCounts(className, createInstanceCount, objectsToFilter);
