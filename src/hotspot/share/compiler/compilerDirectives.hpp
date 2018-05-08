@@ -66,7 +66,15 @@ NOT_PRODUCT(cflags(TraceOptoOutput,     bool, TraceOptoOutput, TraceOptoOutput))
     cflags(VectorizeDebug,          uintx, 0, VectorizeDebug) \
     cflags(CloneMapDebug,           bool, false, CloneMapDebug) \
     cflags(IGVPrintLevel,           intx, PrintIdealGraphLevel, IGVPrintLevel) \
-    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit)
+    cflags(MaxNodeLimit,            intx, MaxNodeLimit, MaxNodeLimit) \
+    /* ZGC */                                                                       \
+    cflags(OptimizeLoadBarriers,    bool, OptimizeLoadBarriers,    OptimizeLoadBarriers) \
+    cflags(UseBasicLoadBarrier,     bool, UseBasicLoadBarrier,     UseBasicLoadBarrier) \
+    /* ZGC temporary flags */                                                         \
+    cflags(UseCASLoadBarrier,       bool, UseCASLoadBarrier,       UseCASLoadBarrier) \
+    cflags(UseWeakCASLoadBarrier,   bool, UseWeakCASLoadBarrier,   UseWeakCASLoadBarrier) \
+    cflags(UseCMPXLoadBarrier,      bool, UseCMPXLoadBarrier,      UseCMPXLoadBarrier) \
+    cflags(UseSwapLoadBarrier,      bool, UseSwapLoadBarrier,      UseSwapLoadBarrier)
 #else
   #define compilerdirectives_c2_flags(cflags)
 #endif

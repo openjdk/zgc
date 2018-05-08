@@ -1346,7 +1346,10 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ decode_heap_oop(dest->as_register());
     }
 #endif
-    __ verify_oop(dest->as_register());
+    if (!UseZGC) {
+      // Load barrier not yet applied, so a verification here would fail
+      __ verify_oop(dest->as_register());
+    }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
 #ifdef _LP64
     if (UseCompressedClassPointers) {

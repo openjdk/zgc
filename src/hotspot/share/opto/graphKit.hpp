@@ -631,6 +631,7 @@ class GraphKit : public Phase {
                    Node* pre_val,
                    BasicType bt);
 
+  bool has_post_barrier();
   void post_barrier(Node* ctl, Node* store, Node* obj, Node* adr, uint adr_idx,
                     Node* val, BasicType bt, bool use_precise);
 
@@ -798,6 +799,9 @@ class GraphKit : public Phase {
 #endif // INCLUDE_G1GC
 
   public:
+
+  Node* load_barrier(Node* val, Node* adr, bool weak = false, bool writeback = true, bool oop_reload_allowed = true);
+
   // Helper function to round double arguments before a call
   void round_double_arguments(ciMethod* dest_method);
   void round_double_result(ciMethod* dest_method);

@@ -50,6 +50,10 @@
 #if INCLUDE_G1GC
 #include "gc/g1/g1ThreadLocalData.hpp"
 #endif // INCLUDE_G1GC
+#if INCLUDE_ZGC
+#include "gc/z/zBarrierSetRuntime.hpp"
+#include "gc/z/zThreadLocalData.hpp"
+#endif // INCLUDE_ZGC
 
 
 //
@@ -2613,6 +2617,244 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   _igvn.replace_node(_memproj_fallthrough, mem_phi);
 }
 
+void PhaseMacroExpand::expand_loadbarrier_node(LoadBarrierNode *barrier) {
+  Node* in_ctrl = barrier->in(LoadBarrierNode::Control);
+  Node* in_mem  = barrier->in(LoadBarrierNode::Memory);
+  Node* in_val  = barrier->in(LoadBarrierNode::Oop);
+  Node* in_adr  = barrier->in(LoadBarrierNode::Address);
+
+  Node* out_ctrl = barrier->proj_out(LoadBarrierNode::Control);
+  Node* out_res  = barrier->proj_out(LoadBarrierNode::Oop);
+
+  if (VerifyLoadBarriers) {
+    _igvn.replace_node(out_res, in_val);
+    _igvn.replace_node(out_ctrl, in_ctrl);
+    return;
+  }
+
+  if (barrier->can_be_eliminated()) {
+    // Clone and pin the load for this barrier below the dominating
+    // barrier: the load cannot be allowed to float above the
+    // dominating barrier
+    Node* load = in_val;
+    Node* decode = NULL;
+    if (load->is_DecodeN()) {
+      decode = load;
+      load = load->in(1);
+    }
+    if (load->is_Load()) {
+      Node* new_load = load->clone();
+      Node* addp = new_load->in(MemNode::Address);
+      assert(addp->is_AddP() || addp->is_Phi(), "bad address");
+      Node* cast = new CastPPNode(addp, _igvn.type(addp), true);
+      Node* ctrl = NULL;
+      Node* similar = barrier->in(LoadBarrierNode::Similar);
+      if (similar->is_Phi()) {
+        // already expanded
+        ctrl = similar->in(0);
+      } else {
+        assert(similar->is_Proj() && similar->in(0)->is_LoadBarrier(), "unexpected graph shape");
+        ctrl = similar->in(0)->as_LoadBarrier()->proj_out(LoadBarrierNode::Control);
+      }
+      assert(ctrl != NULL, "bad control");
+      cast->set_req(0, ctrl);
+      _igvn.transform(cast);
+      new_load->set_req(MemNode::Address, cast);
+      _igvn.transform(new_load);
+
+      Node* new_in_val = new_load;
+      if (decode != NULL) {
+        new_in_val = decode->clone();
+        new_in_val->set_req(1, new_load);
+        _igvn.transform(new_in_val);
+      }
+
+      _igvn.replace_node(out_res, new_in_val);
+      _igvn.replace_node(out_ctrl, in_ctrl);
+      return;
+    }
+    // cannot eliminate
+  }
+
+  // There are two cases that require the basic loadbarrier
+  // 1) When the writeback of a healed oop must be avoided (swap)
+  // 2) When we must guarantee that no reload of is done (swap, cas, cmpx)
+  if (!barrier->is_writeback()) {
+    assert(!barrier->oop_reload_allowed(), "writeback barriers should be marked as requires oop");
+  }
+
+  if (!barrier->oop_reload_allowed() || C->directive()->UseBasicLoadBarrierOption) {
+    expand_loadbarrier_basic(barrier);
+  } else {
+    expand_loadbarrier_optimized(barrier);
+  }
+}
+
+// CMH - Recfactor out overlap between barrier variants
+
+// Original basic loadbarrier using conventional arg passing
+void PhaseMacroExpand::expand_loadbarrier_basic(LoadBarrierNode *barrier)
+{
+  Node* in_ctrl = barrier->in(LoadBarrierNode::Control);
+  Node* in_mem  = barrier->in(LoadBarrierNode::Memory);
+  Node* in_val  = barrier->in(LoadBarrierNode::Oop);
+  Node* in_adr  = barrier->in(LoadBarrierNode::Address);
+
+  Node* out_ctrl = barrier->proj_out(LoadBarrierNode::Control);
+  Node* out_res  = barrier->proj_out(LoadBarrierNode::Oop);
+
+  float unlikely  = PROB_UNLIKELY(0.999);
+  const Type* in_val_maybe_null_t = _igvn.type(in_val);
+
+#ifdef SPARC
+  Node* bad_mask = _igvn.transform(new AddrBadBitNode());
+#else
+  Node* jthread = _igvn.transform(new ThreadLocalNode());
+  Node* adr = basic_plus_adr(jthread, in_bytes(ZThreadLocalData::address_bad_mask_offset()));
+  Node* bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
+#endif
+  Node* cast = _igvn.transform(new CastP2XNode(in_ctrl, in_val));
+  Node* obj_masked = _igvn.transform(new AndXNode(cast, bad_mask));
+  Node* cmp = _igvn.transform(new CmpXNode(obj_masked, _igvn.zerocon(TypeX_X->basic_type())));
+  Node *bol = _igvn.transform(new BoolNode(cmp, BoolTest::ne))->as_Bool();
+  IfNode* iff = _igvn.transform(new IfNode(in_ctrl, bol, unlikely, COUNT_UNKNOWN))->as_If();
+  Node* then = _igvn.transform(new IfTrueNode(iff));
+  Node* elsen = _igvn.transform(new IfFalseNode(iff));
+
+  Node* result_region;
+  Node* result_val;
+
+  result_region = new RegionNode(3);
+  result_val = new PhiNode(result_region, TypeInstPtr::BOTTOM);
+
+  result_region->set_req(1, elsen);
+  Node* res = _igvn.transform(new CastPPNode(in_val, in_val_maybe_null_t));
+  res->init_req(0, elsen);
+  result_val->set_req(1, res);
+
+  const TypeFunc *tf = OptoRuntime::load_barrier_Type();
+  Node* call;
+  if (barrier->is_weak()) {
+    call = new CallLeafNode(tf,
+                            ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr(),
+                            "ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded",
+                            TypeRawPtr::BOTTOM);
+  } else {
+    call = new CallLeafNode(tf,
+                            ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(),
+                            "ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded",
+                            TypeRawPtr::BOTTOM);
+  }
+
+  call->init_req(TypeFunc::Control, then);
+  call->init_req(TypeFunc::I_O    , top());
+  call->init_req(TypeFunc::Memory , in_mem);
+  call->init_req(TypeFunc::FramePtr, top());
+  call->init_req(TypeFunc::ReturnAdr, top());
+  call->init_req(TypeFunc::Parms+0, in_val);
+  if (barrier->is_writeback()) {
+    call->init_req(TypeFunc::Parms+1, in_adr);
+  } else {
+    // when slow path is called with a null adr, the healed oop will not be written back
+    call->init_req(TypeFunc::Parms+1, _igvn.zerocon(T_OBJECT));
+  }
+  call = _igvn.transform(call);
+
+  Node* ctrl = _igvn.transform(new ProjNode(call, TypeFunc::Control));
+  res = _igvn.transform(new ProjNode(call, TypeFunc::Parms));
+  res = _igvn.transform(new CheckCastPPNode(ctrl, res, in_val_maybe_null_t));
+
+  result_region->set_req(2, ctrl);
+  result_val->set_req(2, res);
+
+  result_region = _igvn.transform(result_region);
+  result_val = _igvn.transform(result_val);
+
+  if ( out_ctrl != NULL ) { // added if cond
+    _igvn.replace_node(out_ctrl, result_region);
+  }
+  _igvn.replace_node(out_res, result_val);
+}
+
+// Low spill loadbarrier variant using stub specialized on register used
+void PhaseMacroExpand::expand_loadbarrier_optimized(LoadBarrierNode *barrier)
+{
+#ifdef PRINT_NODE_TRAVERSALS
+    Node* preceding_barrier_node = barrier->in(LoadBarrierNode::Oop);
+#endif
+
+    Node* in_ctrl = barrier->in(LoadBarrierNode::Control);
+    Node* in_mem = barrier->in(LoadBarrierNode::Memory);
+    Node* in_val = barrier->in(LoadBarrierNode::Oop);
+    Node* in_adr = barrier->in(LoadBarrierNode::Address);
+
+    Node* out_ctrl = barrier->proj_out(LoadBarrierNode::Control);
+    Node* out_res = barrier->proj_out(LoadBarrierNode::Oop);
+
+    assert( barrier->in(LoadBarrierNode::Oop) != NULL, "oop to loadbarrier node cannot be null" );
+
+#ifdef PRINT_NODE_TRAVERSALS
+    tty->print( "\n\n\nBefore barrier optimization:\n" );
+    traverse( barrier, out_ctrl, out_res, -1 );
+
+    tty->print( "\nBefore barrier optimization:  preceding_barrier_node\n" );
+    traverse( preceding_barrier_node, out_ctrl, out_res, -1 );
+#endif
+
+    float unlikely  = PROB_UNLIKELY(0.999);
+
+    Node* jthread = _igvn.transform(new ThreadLocalNode());
+    Node* adr = basic_plus_adr(jthread, in_bytes(ZThreadLocalData::address_bad_mask_offset()));
+    Node* bad_mask = _igvn.transform(LoadNode::make(_igvn, in_ctrl, in_mem, adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
+    Node* cast = _igvn.transform(new CastP2XNode(in_ctrl, in_val));
+    Node* obj_masked = _igvn.transform(new AndXNode(cast, bad_mask));
+    Node* cmp = _igvn.transform(new CmpXNode(obj_masked, _igvn.zerocon(TypeX_X->basic_type())));
+    Node *bol = _igvn.transform(new BoolNode(cmp, BoolTest::ne))->as_Bool();
+    IfNode* iff = _igvn.transform(new IfNode(in_ctrl, bol, unlikely, COUNT_UNKNOWN))->as_If();
+    Node* then = _igvn.transform(new IfTrueNode(iff));
+    Node* elsen = _igvn.transform(new IfFalseNode(iff));
+
+    Node* slow_path_surrogate;
+    if (!barrier->is_weak()) {
+      slow_path_surrogate = _igvn.transform( new LoadBarrierSlowRegNode(then, in_mem, in_adr, in_val->adr_type(), (const TypePtr*) in_val->bottom_type(), MemNode::unordered) );
+    } else {
+      slow_path_surrogate = _igvn.transform( new LoadBarrierWeakSlowRegNode(then, in_mem, in_adr, in_val->adr_type(), (const TypePtr*) in_val->bottom_type(), MemNode::unordered) );
+    }
+
+    Node *new_loadp;
+    new_loadp = slow_path_surrogate;
+    // create the final region/phi pair to converge cntl/data paths to downstream code
+    Node* result_region = _igvn.transform(new RegionNode(3));
+    result_region->set_req(1, then);
+    result_region->set_req(2, elsen);
+
+    Node* result_phi = _igvn.transform(new PhiNode(result_region, TypeInstPtr::BOTTOM));
+    result_phi->set_req(1, new_loadp);
+    result_phi->set_req(2, barrier->in(LoadBarrierNode::Oop));
+
+    // finally, connect the original outputs to the barrier region and phi to complete the expansion/substitution
+    // _igvn.replace_node(out_ctrl, result_region);
+    if ( out_ctrl != NULL ) { // added if cond
+      _igvn.replace_node(out_ctrl, result_region);
+    }
+    _igvn.replace_node(out_res, result_phi);
+
+    assert(barrier->outcnt() == 0,"LoadBarrier macro node has non-null outputs after expansion!");
+
+#ifdef PRINT_NODE_TRAVERSALS
+    tty->print( "\nAfter barrier optimization:  old out_ctrl\n" );
+    traverse( out_ctrl, out_ctrl, out_res, -1 );
+    tty->print( "\nAfter barrier optimization:  old out_res\n" );
+    traverse( out_res, out_ctrl, out_res, -1 );
+    tty->print( "\nAfter barrier optimization:  old barrier\n" );
+    traverse( barrier, out_ctrl, out_res, -1 );
+    tty->print( "\nAfter barrier optimization:  preceding_barrier_node\n" );
+    traverse( preceding_barrier_node, result_region, result_phi, -1 );
+#endif
+
+    return;
+}
+
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
 void PhaseMacroExpand::eliminate_macro_nodes() {
@@ -2670,10 +2912,11 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       case Node::Class_OuterStripMinedLoop:
         break;
       default:
-        assert(n->Opcode() == Op_LoopLimit ||
-               n->Opcode() == Op_Opaque1   ||
-               n->Opcode() == Op_Opaque2   ||
-               n->Opcode() == Op_Opaque3, "unknown node type in macro list");
+        assert(n->Opcode() == Op_LoopLimit   ||
+               n->Opcode() == Op_Opaque1     ||
+               n->Opcode() == Op_Opaque2     ||
+               n->Opcode() == Op_Opaque3     ||
+               n->Opcode() == Op_LoadBarrier, "unknown node type in macro list");
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;
@@ -2755,7 +2998,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   while (macro_idx >= 0) {
     Node * n = C->macro_node(macro_idx);
     assert(n->is_macro(), "only macro nodes expected here");
-    if (_igvn.type(n) == Type::TOP || n->in(0)->is_top() ) {
+    if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
     } else if (n->is_ArrayCopy()){
@@ -2773,7 +3016,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     int macro_count = C->macro_count();
     Node * n = C->macro_node(macro_count-1);
     assert(n->is_macro(), "only macro nodes expected here");
-    if (_igvn.type(n) == Type::TOP || n->in(0)->is_top() ) {
+    if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
       continue;
@@ -2801,5 +3044,40 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   _igvn.set_delay_transform(false);
   _igvn.optimize();
   if (C->failing())  return true;
+  if (C->load_barrier_count() > 0) {
+#ifdef ASSERT
+    C->verify_load_barriers(false);
+#endif
+    _igvn.set_delay_transform(true);
+    int skipped = 0;
+    while (C->load_barrier_count() > skipped) {
+      int load_barrier_count = C->load_barrier_count();
+      LoadBarrierNode * n = C->load_barrier_node(load_barrier_count-1-skipped);
+      if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
+        // node is unreachable, so don't try to expand it
+        C->remove_load_barrier_node(n);
+        continue;
+      }
+      if (!n->can_be_eliminated()) {
+        skipped++;
+        continue;
+      }
+      expand_loadbarrier_node(n);
+      assert(C->load_barrier_count() < load_barrier_count, "must have deleted a node from load barrier list");
+      if (C->failing())  return true;
+    }
+    while (C->load_barrier_count() > 0) {
+      int load_barrier_count = C->load_barrier_count();
+      LoadBarrierNode * n = C->load_barrier_node(load_barrier_count-1);
+      assert(!(_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())), "should have been processed already");
+      assert(!n->can_be_eliminated(), "should have been processed already");
+      expand_loadbarrier_node(n);
+      assert(C->load_barrier_count() < load_barrier_count, "must have deleted a node from load barrier list");
+      if (C->failing())  return true;
+    }
+    _igvn.set_delay_transform(false);
+    _igvn.optimize();
+    if (C->failing())  return true;
+  }
   return false;
 }
