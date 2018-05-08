@@ -5241,6 +5241,10 @@ int os::active_processor_count() {
   return active_cpus;
 }
 
+int os::processor_id() {
+  return Linux::sched_getcpu();
+}
+
 void os::set_native_thread_name(const char *name) {
   if (Linux::_pthread_setname_np) {
     char buf [16]; // according to glibc manpage, 16 chars incl. '/0'

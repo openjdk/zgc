@@ -261,6 +261,8 @@ class Solaris {
   }
   static lgrp_cookie_t lgrp_cookie()                 { return _lgrp_cookie; }
 
+  static int getcpuid();
+
   static sigset_t* unblocked_signals();
   static sigset_t* vm_signals();
 
