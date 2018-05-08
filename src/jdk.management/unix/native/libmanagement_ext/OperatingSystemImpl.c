@@ -80,7 +80,14 @@ static struct dirent* read_dir(DIR* dirp, struct dirent* entry) {
     return dbuf;
 #else /* __linux__ || _ALLBSD_SOURCE */
     struct dirent* p;
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
     if (readdir_r(dirp, entry, &p) == 0) {
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
         return p;
     } else {
         return NULL;
