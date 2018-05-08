@@ -47,7 +47,9 @@ private:
   ZDriver*          _driver;
   ZStat*            _stat;
 
-  virtual HeapWord* allocate_new_tlab(size_t word_size);
+  virtual HeapWord* allocate_new_tlab(size_t min_size,
+                                      size_t requested_size,
+                                      size_t* actual_size);
 
 public:
   static ZCollectedHeap* heap();

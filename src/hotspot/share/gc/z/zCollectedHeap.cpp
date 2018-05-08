@@ -116,13 +116,19 @@ bool ZCollectedHeap::is_in_closed_subset(const void* p) const {
   return is_in(p);
 }
 
-HeapWord* ZCollectedHeap::allocate_new_tlab(size_t size) {
-  size_t size_in_bytes = ZUtils::words_to_bytes(align_object_size(size));
-  return (HeapWord*)_heap.alloc_tlab(size_in_bytes);
+HeapWord* ZCollectedHeap::allocate_new_tlab(size_t min_size, size_t requested_size, size_t* actual_size) {
+  const size_t size_in_bytes = ZUtils::words_to_bytes(align_object_size(requested_size));
+  const uintptr_t addr = _heap.alloc_tlab(size_in_bytes);
+
+  if (addr != 0) {
+    *actual_size = requested_size;
+  }
+
+  return (HeapWord*)addr;
 }
 
 HeapWord* ZCollectedHeap::mem_allocate(size_t size, bool* gc_overhead_limit_was_exceeded) {
-  size_t size_in_bytes = ZUtils::words_to_bytes(align_object_size(size));
+  const size_t size_in_bytes = ZUtils::words_to_bytes(align_object_size(size));
   return (HeapWord*)_heap.alloc_object(size_in_bytes);
 }
 
