@@ -47,7 +47,8 @@ ZCollectedHeap::ZCollectedHeap(ZCollectorPolicy* policy) :
     _heap(),
     _director(new ZDirector()),
     _driver(new ZDriver()),
-    _stat(new ZStat()) {}
+    _stat(new ZStat()),
+    _runtime_workers() {}
 
 CollectedHeap::Name ZCollectedHeap::kind() const {
   return CollectedHeap::Z;
@@ -266,6 +267,10 @@ void ZCollectedHeap::verify_nmethod(nmethod* nm) {
   // Does nothing
 }
 
+WorkGang* ZCollectedHeap::get_safepoint_workers() {
+  return _runtime_workers.workers();
+}
+
 jlong ZCollectedHeap::millis_since_last_gc() {
   return ZStatCycle::time_since_last() / MILLIUNITS;
 }
@@ -275,6 +280,7 @@ void ZCollectedHeap::gc_threads_do(ThreadClosure* tc) const {
   tc->do_thread(_driver);
   tc->do_thread(_stat);
   _heap.worker_threads_do(tc);
+  _runtime_workers.threads_do(tc);
 }
 
 VirtualSpaceSummary ZCollectedHeap::create_heap_space_summary() {
@@ -326,6 +332,7 @@ void ZCollectedHeap::print_gc_threads_on(outputStream* st) const {
   _stat->print_on(st);
   st->cr();
   _heap.print_worker_threads_on(st);
+  _runtime_workers.print_threads_on(st);
 }
 
 void ZCollectedHeap::print_tracing_info() const {

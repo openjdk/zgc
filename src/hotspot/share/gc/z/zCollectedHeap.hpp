@@ -32,6 +32,7 @@
 #include "gc/z/zDriver.hpp"
 #include "gc/z/zInitialize.hpp"
 #include "gc/z/zHeap.hpp"
+#include "gc/z/zRuntimeWorkers.hpp"
 #include "gc/z/zStat.hpp"
 
 class ZCollectedHeap : public CollectedHeap {
@@ -46,6 +47,7 @@ private:
   ZDirector*        _director;
   ZDriver*          _driver;
   ZStat*            _stat;
+  ZRuntimeWorkers   _runtime_workers;
 
   virtual HeapWord* allocate_new_tlab(size_t min_size,
                                       size_t requested_size,
@@ -108,6 +110,8 @@ public:
   virtual void register_nmethod(nmethod* nm);
   virtual void unregister_nmethod(nmethod* nm);
   virtual void verify_nmethod(nmethod* nmethod);
+
+  virtual WorkGang* get_safepoint_workers();
 
   virtual jlong millis_since_last_gc();
 
