@@ -195,11 +195,6 @@ inline bool ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_i
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
-  // Note that cloning a java.lang.ref.Reference instance is not handled here.
-  // Doing so is in general a really bad idea, since copying the referent, next
-  // and discovered fields comes with all kinds of problems. To solve this we
-  // should think about adding a clone() method on Reference, which always throws
-  // CloneNotSupportedException.
   ZBarrier::load_barrier_on_oop_fields(src);
   Raw::clone_in_heap(src, dst, size);
 }
