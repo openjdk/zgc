@@ -235,21 +235,17 @@ void ZBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm,
 }
 
 void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
+                                                         Register jni_env,
                                                          Register obj,
                                                          Register tmp,
                                                          Label& slowpath) {
-  // NOTE! The code generated here is executed in native context, and therefore
-  // we don't have the thread pointer in r15_thread. However, we do have the
-  // JNIEnv* in c_rarg0 from the call to JNI_FastGetField and so we use that to
-  // get the address bad mask.
-
   BLOCK_COMMENT("ZBarrierSetAssembler::try_resolve_jobject_in_native {");
 
   // Resolve jobject
-  BarrierSetAssembler::try_resolve_jobject_in_native(masm, obj, tmp, slowpath);
+  BarrierSetAssembler::try_resolve_jobject_in_native(masm, jni_env, obj, tmp, slowpath);
 
   // Test address bad mask
-  __ testptr(obj, address_bad_mask_from_jni_env(c_rarg0));
+  __ testptr(obj, address_bad_mask_from_jni_env(jni_env));
   __ jcc(Assembler::notZero, slowpath);
 
   BLOCK_COMMENT("} ZBarrierSetAssembler::try_resolve_jobject_in_native");

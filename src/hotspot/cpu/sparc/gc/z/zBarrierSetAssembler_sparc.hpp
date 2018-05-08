@@ -56,6 +56,7 @@ public:
                                   Register count);
 
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm,
+                                             Register jni_env,
                                              Register obj,
                                              Register tmp,
                                              Label& slowpath);
