@@ -85,7 +85,9 @@ define_pd_global(uintx, CodeCacheMinimumUseSpace,    400*K);
 
 define_pd_global(bool,  TrapBasedRangeChecks,        false); // Not needed on sparc.
 
+#if INCLUDE_ZGC
 define_pd_global(bool,  PreventLoadBarrierMatcherAssert, true);
+#endif
 
 // Heap related flags
 define_pd_global(size_t, MetaspaceSize,              ScaleForWordSize(16*M));

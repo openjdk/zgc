@@ -414,6 +414,7 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_opaque4_node(opaq);
     }
   }
+#if INCLUDE_ZGC
   // Remove useless LoadBarrier nodes
   for (int i = C->load_barrier_count()-1; i >= 0; i--) {
     LoadBarrierNode* n = C->load_barrier_node(i);
@@ -421,6 +422,7 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_load_barrier_node(n);
     }
   }
+#endif
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
   remove_useless_late_inlines(&_boxing_late_inlines, useful);
@@ -779,7 +781,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       StartNode* s = new StartNode(root(), tf()->domain());
       initial_gvn()->set_type_bottom(s);
       init_start(s);
-      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && (UseG1GC || UseZGC)) {
+      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && (UseG1GC ZGC_ONLY(|| UseZGC))) {
         // With java.lang.ref.reference.get() we must go through the
         // intrinsic when G1 is enabled - even when get() is the root
         // method of the compile - so that, if necessary, the value in
@@ -1197,7 +1199,9 @@ void Compile::Init(int aliaslevel) {
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+#if INCLUDE_ZGC
   _load_barrier_nodes = new(comp_arena()) GrowableArray<LoadBarrierNode*>(comp_arena(), 8,  0, NULL);
+#endif
   register_library_intrinsics();
 }
 
@@ -2171,7 +2175,7 @@ void Compile::Optimize() {
 
 #endif
 
-#ifdef ASSERT
+#if INCLUDE_ZGC && defined(ASSERT)
   verify_load_barriers(true);
 #endif
 
@@ -2347,6 +2351,7 @@ void Compile::Optimize() {
     }
   }
 
+#if INCLUDE_ZGC
   // Look for dominating barriers on the same address only once all
   // other loop opts are over: loop opts may cause a safepoint to be
   // inserted between a barrier and its dominating barrier.
@@ -2356,6 +2361,7 @@ void Compile::Optimize() {
     if (major_progress()) print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
     if (failing())  return;
   }
+#endif
 
   // Ensure that major progress is now clear
   C->clear_major_progress();
@@ -2373,7 +2379,7 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
-#ifdef ASSERT
+#if INCLUDE_ZGC && defined(ASSERT)
   verify_load_barriers(false);
 #endif
 
@@ -2911,8 +2917,10 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   case Op_LoadL_unaligned:
   case Op_LoadPLocked:
   case Op_LoadP:
+#if INCLUDE_ZGC
   case Op_LoadBarrierSlowReg:
   case Op_LoadBarrierWeakSlowReg:
+#endif
   case Op_LoadN:
   case Op_LoadRange:
   case Op_LoadS: {
@@ -4700,7 +4708,7 @@ void CloneMap::dump(node_idx_t key) const {
   }
 }
 
-#ifdef ASSERT
+#if INCLUDE_ZGC && defined(ASSERT)
 
 static bool look_for_barrier(Node* n, bool post_parse, VectorSet& visited) {
   if (visited.test_set(n->_idx)) {
@@ -4802,4 +4810,5 @@ void Compile::verify_load_barriers(bool post_parse) {
     }
   }
 }
-#endif
+
+#endif // INCLUDE_ZGC && defined(ASSERT)

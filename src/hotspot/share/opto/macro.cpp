@@ -2617,6 +2617,8 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   _igvn.replace_node(_memproj_fallthrough, mem_phi);
 }
 
+#if INCLUDE_ZGC
+
 void PhaseMacroExpand::expand_loadbarrier_node(LoadBarrierNode *barrier) {
   Node* in_ctrl = barrier->in(LoadBarrierNode::Control);
   Node* in_mem  = barrier->in(LoadBarrierNode::Memory);
@@ -2855,6 +2857,8 @@ void PhaseMacroExpand::expand_loadbarrier_optimized(LoadBarrierNode *barrier)
     return;
 }
 
+#endif // INCLUDE_ZGC
+
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
 void PhaseMacroExpand::eliminate_macro_nodes() {
@@ -3044,6 +3048,8 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   _igvn.set_delay_transform(false);
   _igvn.optimize();
   if (C->failing())  return true;
+
+#if INCLUDE_ZGC
   if (C->load_barrier_count() > 0) {
 #ifdef ASSERT
     C->verify_load_barriers(false);
@@ -3079,5 +3085,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     _igvn.optimize();
     if (C->failing())  return true;
   }
+#endif // INCLUDE_ZGC
+
   return false;
 }

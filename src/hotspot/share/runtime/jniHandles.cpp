@@ -328,7 +328,8 @@ void JNIHandles::verify() {
   VerifyJNIHandles verify_handle;
 
   oops_do(&verify_handle);
-  if (!UseZGC) {
+  ZGC_ONLY(if (!UseZGC))
+  {
     weak_oops_do(&verify_handle);
   }
 }

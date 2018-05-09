@@ -154,6 +154,9 @@
   product(bool, UseParallelOldGC, false,                                    \
           "Use the Parallel Old garbage collector")                         \
                                                                             \
+  product(bool, UseZGC, false,                                              \
+          "Use the Z garbage collector")                                    \
+                                                                            \
   product(uint, ParallelGCThreads, 0,                                       \
           "Number of parallel threads parallel gc will use")                \
           constraint(ParallelGCThreadsConstraintFunc,AfterErgo)             \

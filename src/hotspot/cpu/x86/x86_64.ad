@@ -4278,67 +4278,67 @@ operand rxmm15() %{
 %}
 operand rxmm16() %{
   constraint(ALLOC_IN_RC(xmm16_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm17() %{
   constraint(ALLOC_IN_RC(xmm17_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm18() %{
   constraint(ALLOC_IN_RC(xmm18_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm19() %{
   constraint(ALLOC_IN_RC(xmm19_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm20() %{
   constraint(ALLOC_IN_RC(xmm20_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm21() %{
   constraint(ALLOC_IN_RC(xmm21_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm22() %{
   constraint(ALLOC_IN_RC(xmm22_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm23() %{
   constraint(ALLOC_IN_RC(xmm23_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm24() %{
   constraint(ALLOC_IN_RC(xmm24_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm25() %{
   constraint(ALLOC_IN_RC(xmm25_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm26() %{
   constraint(ALLOC_IN_RC(xmm26_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm27() %{
   constraint(ALLOC_IN_RC(xmm27_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm28() %{
   constraint(ALLOC_IN_RC(xmm28_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm29() %{
   constraint(ALLOC_IN_RC(xmm29_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm30() %{
   constraint(ALLOC_IN_RC(xmm30_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 operand rxmm31() %{
   constraint(ALLOC_IN_RC(xmm31_reg));  match(VecX);
-  predicate((UseAVX == 3));  format%{%}  interface(REG_INTER);
+  predicate(UseAVX == 3);  format%{%}  interface(REG_INTER);
 %}
 
 //----------OPERAND CLASSES----------------------------------------------------
@@ -12485,6 +12485,7 @@ instruct loadBarrierSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
 
   format %{"LoadBarrierSlowRegNoVec $dst, $mem" %}
   ins_encode %{
+#if INCLUDE_ZGC
     Register d = $dst$$Register;
 
     assert(d != r12, "Can't be R12!");
@@ -12493,6 +12494,9 @@ instruct loadBarrierSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
 
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d)));
+#else
+    fatal("ZGC specific code");
+#endif
   %}
   ins_pipe(pipe_slow);
 %}
@@ -12515,6 +12519,7 @@ instruct loadBarrierSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
 
   format %{"LoadBarrierSlowRegXmm $dst, $mem" %}
   ins_encode %{
+#if INCLUDE_ZGC
     Register d = $dst$$Register;
 
     assert(d != r12, "Can't be R12!");
@@ -12523,6 +12528,9 @@ instruct loadBarrierSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
 
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d)));
+#else
+    fatal("ZGC specific code");
+#endif
   %}
   ins_pipe(pipe_slow);
 %}
@@ -12553,6 +12561,7 @@ instruct loadBarrierSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
 
   format %{"LoadBarrierSlowRegZmm $dst, $mem" %}
   ins_encode %{
+#if INCLUDE_ZGC
     Register d = $dst$$Register;
 
     assert(d != r12, "Can't be R12!");
@@ -12561,6 +12570,9 @@ instruct loadBarrierSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
 
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d)));
+#else
+    fatal("ZGC specific code");
+#endif
   %}
   ins_pipe(pipe_slow);
 %}
@@ -12579,6 +12591,7 @@ instruct loadBarrierWeakSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
 
   format %{"LoadBarrierSlowRegNoVec $dst, $mem" %}
   ins_encode %{
+#if INCLUDE_ZGC
     Register d = $dst$$Register;
 
     assert(d != r12, "Can't be R12!");
@@ -12587,6 +12600,9 @@ instruct loadBarrierWeakSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
 
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d)));
+#else
+    fatal("ZGC specific code");
+#endif
   %}
   ins_pipe(pipe_slow);
 %}
@@ -12609,6 +12625,7 @@ instruct loadBarrierWeakSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
 
   format %{"LoadBarrierWeakSlowRegXmm $dst, $mem" %}
   ins_encode %{
+#if INCLUDE_ZGC
     Register d = $dst$$Register;
 
     assert(d != r12, "Can't be R12!");
@@ -12617,6 +12634,9 @@ instruct loadBarrierWeakSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
 
     __ lea(d,$mem$$Address);
     __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d)));
+#else
+    fatal("ZGC specific code");
+#endif
   %}
   ins_pipe(pipe_slow);
 %}
@@ -12647,6 +12667,7 @@ instruct loadBarrierWeakSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
 
   format %{"LoadBarrierWeakSlowRegZmm $dst, $mem" %}
   ins_encode %{
+#if INCLUDE_ZGC
     Register d = $dst$$Register;
 
     assert(d != r12, "Can't be R12!");
@@ -12655,6 +12676,9 @@ instruct loadBarrierWeakSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
 
     __ lea(d,$mem$$Address);
     __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d)));
+#else
+    fatal("ZGC specific code");
+#endif
   %}
   ins_pipe(pipe_slow);
 %}

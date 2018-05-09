@@ -1655,7 +1655,7 @@ MachNode *Matcher::ReduceInst( State *s, int rule, Node *&mem ) {
   // Check for instruction or instruction chain rule
   if( rule >= _END_INST_CHAIN_RULE || rule < _BEGIN_INST_CHAIN_RULE ) {
     // TODO ZGC: Find out why this triggers (seems to only happen on SPARC)
-    assert(PreventLoadBarrierMatcherAssert || C->node_arena()->contains(s->_leaf) || !has_new_node(s->_leaf),
+    assert(ZGC_ONLY(PreventLoadBarrierMatcherAssert ||) C->node_arena()->contains(s->_leaf) || !has_new_node(s->_leaf),
            "duplicating node that's already been matched");
     // Instruction
     mach->add_req( leaf->in(0) ); // Set initial control
@@ -2158,6 +2158,7 @@ void Matcher::find_shared( Node *n ) {
       case Op_SafePoint:
         mem_op = true;
         break;
+#if INCLUDE_ZGC
       case Op_CallLeaf:
         if (n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr() ||
             n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr()) {
@@ -2165,6 +2166,7 @@ void Matcher::find_shared( Node *n ) {
           mem_addr_idx = TypeFunc::Parms+1;
         }
         break;
+#endif
       default:
         if( n->is_Store() ) {
           // Do match stores, despite no ideal reg

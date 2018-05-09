@@ -52,6 +52,8 @@ define_pd_global(bool, UseLargePages, true);
 define_pd_global(bool, UseLargePagesIndividualAllocation, false);
 define_pd_global(bool, UseOSErrorReporting, false);
 define_pd_global(bool, UseThreadPriorities, false);
+#if INCLUDE_ZGC
 define_pd_global(bool, UseBasicLoadBarrier, true);
+#endif // INCLUDE_ZGC
 
 #endif // OS_SOLARIS_VM_GLOBALS_SOLARIS_HPP

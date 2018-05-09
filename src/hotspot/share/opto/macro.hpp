@@ -201,9 +201,12 @@ private:
                             Node* length);
 
   Node* make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, Node* ctl, Node* mem, BasicType ft, const Type *ftype, AllocateNode *alloc);
+
+#if INCLUDE_ZGC
   void expand_loadbarrier_node(LoadBarrierNode *barrier);
   void expand_loadbarrier_basic(LoadBarrierNode *barrier);
   void expand_loadbarrier_optimized(LoadBarrierNode *barrier);
+#endif
 
 public:
   PhaseMacroExpand(PhaseIterGVN &igvn) : Phase(Macro_Expand), _igvn(igvn), _has_locks(false) {

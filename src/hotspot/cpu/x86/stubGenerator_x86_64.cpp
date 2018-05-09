@@ -802,6 +802,8 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+#if INCLUDE_ZGC
+
   // Generates a register specific stub for calling
   // ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded() or
   // ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded().
@@ -903,6 +905,8 @@ class StubGenerator: public StubCodeGenerator {
 
     return start;
   }
+
+#endif // INCLUDE_ZGC
 
   address generate_f2i_fixup() {
     StubCodeMark mark(this, "StubRoutines", "f2i_fixup");
@@ -1133,11 +1137,13 @@ class StubGenerator: public StubCodeGenerator {
     __ testptr(rax, rax);
     __ jcc(Assembler::zero, exit); // if obj is NULL it is OK
 
+#if INCLUDE_ZGC
     if (UseZGC) {
       // Check if metadata bits indicate a bad oop
       __ testptr(rax, Address(r15_thread, ZThreadLocalData::address_bad_mask_offset()));
       __ jcc(Assembler::notZero, error);
     }
+#endif
 
     // Check if the oop is in the right area of memory
     __ movptr(c_rarg2, rax);
@@ -1302,6 +1308,7 @@ class StubGenerator: public StubCodeGenerator {
     __ movptr(rsi, saved_rsi);
 #endif
   }
+
 
   // Copy big chunks forward
   //
@@ -5172,6 +5179,7 @@ class StubGenerator: public StubCodeGenerator {
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
 
+#if INCLUDE_ZGC
     // Load barrier stubs
     if (UseZGC) {
       Register rr = as_Register(0);
@@ -5181,6 +5189,7 @@ class StubGenerator: public StubCodeGenerator {
         rr = rr->successor();
       }
     }
+#endif // INCLUDE_ZGC
 
     // don't bother generating these AES intrinsic stubs unless global flag is set
     if (UseAESIntrinsics) {

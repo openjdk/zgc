@@ -874,6 +874,8 @@ uint LoadNode::hash() const {
   return (uintptr_t)in(Control) + (uintptr_t)in(Memory) + (uintptr_t)in(Address);
 }
 
+#if INCLUDE_ZGC
+
 const Type *LoadBarrierNode::bottom_type() const {
   const Type **floadbarrier = (const Type **)(Compile::current()->type_arena()->Amalloc_4((Number_of_Outputs)*sizeof(Type*)));
   const Type* val_t = in(Oop)->bottom_type();
@@ -1157,6 +1159,8 @@ bool LoadBarrierNode::has_true_uses() const {
   return false;
 }
 
+#endif // INCLUDE_ZGC
+
 static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp, bool eliminate_boxing) {
   if ((atp != NULL) && (atp->index() >= Compile::AliasIdxRaw)) {
     bool non_volatile = (atp->field() != NULL) && !atp->field()->is_volatile();
@@ -1174,9 +1178,11 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
+#if INCLUDE_ZGC
   if (UseZGC && bottom_type()->make_oopptr() != NULL) {
     return NULL;
   }
+#endif
 
   Node* ld_adr = in(MemNode::Address);
   intptr_t ld_off = 0;
@@ -3255,11 +3261,13 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return NULL;
   }
 
+#if INCLUDE_ZGC
   if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
     Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
     set_req(MemBarNode::Precedent, load_node);
     return this;
   }
+#endif
 
   bool progress = false;
   // Eliminate volatile MemBars for scalar replaced objects.

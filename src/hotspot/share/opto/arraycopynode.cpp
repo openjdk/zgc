@@ -190,6 +190,7 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
         ciType* field_klass = field->type();
         type = TypeOopPtr::make_from_klass(field_klass->as_klass());
       }
+#if INCLUDE_ZGC
       if (UseZGC) {
         if (can_reshape) {
           PhaseIterGVN* igvn = phase->is_IterGVN();
@@ -197,6 +198,7 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
         }
         return NodeSentinel;
       }
+#endif
     } else {
       type = Type::get_const_basic_type(bt);
     }
@@ -270,9 +272,11 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
+#if INCLUDE_ZGC
     if (dest_elem == T_OBJECT && UseZGC) {
       return false;
     }
+#endif
 
     value_type = ary_src->elem();
 
@@ -317,9 +321,11 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     if (elem == T_ARRAY)  elem = T_OBJECT;
 
+#if INCLUDE_ZGC
     if (elem == T_OBJECT && UseZGC) {
       return false;
     }
+#endif
 
     int diff = arrayOopDesc::base_offset_in_bytes(elem) - phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con();
     assert(diff >= 0, "clone should not start after 1st array element");
@@ -376,7 +382,7 @@ Node* ArrayCopyNode::array_copy_forward(PhaseGVN *phase,
                                         BasicType copy_type,
                                         const Type* value_type,
                                         int count) {
-  guarantee(!UseZGC || copy_type != T_OBJECT, "Must be");
+  ZGC_ONLY(guarantee(!UseZGC || copy_type != T_OBJECT, "Must be");)
   Node* mem = phase->C->top();
   if (!forward_ctl->is_top()) {
     // copy forward
@@ -419,7 +425,7 @@ Node* ArrayCopyNode::array_copy_backward(PhaseGVN *phase,
                                          BasicType copy_type,
                                          const Type* value_type,
                                          int count) {
-  guarantee(!UseZGC || copy_type != T_OBJECT, "Must be");
+  ZGC_ONLY(guarantee(!UseZGC || copy_type != T_OBJECT, "Must be");)
   Node* mem = phase->C->top();
   if (!backward_ctl->is_top()) {
     // copy backward
@@ -771,4 +777,3 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
   }
   return false;
 }
-

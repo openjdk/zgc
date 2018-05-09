@@ -1120,31 +1120,6 @@ bool PhaseIdealLoop::can_split_if(Node *n_ctrl) {
   return true;
 }
 
-bool PhaseIdealLoop::replace_with_dominating_barrier(LoadBarrierNode* lb, bool last_round) {
-  LoadBarrierNode* lb2 = lb->has_dominating_barrier(this, false, last_round);
-  if (lb2 != NULL) {
-    if (lb->in(LoadBarrierNode::Oop) != lb2->in(LoadBarrierNode::Oop)) {
-      assert(lb->in(LoadBarrierNode::Address) == lb2->in(LoadBarrierNode::Address), "");
-      _igvn.replace_input_of(lb, LoadBarrierNode::Similar, lb2->proj_out(LoadBarrierNode::Oop));
-      C->set_major_progress();
-    } else  {
-      // That transformation may cause the Similar edge on dominated load barriers to be invalid
-      lb->fix_similar_in_uses(&_igvn);
-
-      Node* val = lb->proj_out(LoadBarrierNode::Oop);
-      assert(lb2->has_true_uses(), "");
-      assert(lb2->in(LoadBarrierNode::Oop) == lb->in(LoadBarrierNode::Oop), "");
-
-      lazy_update(lb, lb->in(LoadBarrierNode::Control));
-      lazy_replace(lb->proj_out(LoadBarrierNode::Control), lb->in(LoadBarrierNode::Control));
-      _igvn.replace_node(val, lb2->proj_out(LoadBarrierNode::Oop));
-
-      return true;
-    }
-  }
-  return false;
-}
-
 Node* PhaseIdealLoop::find_dominating_memory(Node* mem, Node* dom, int i) {
   assert(dom->is_Region() || i == -1, "");
   Node* m = mem;
@@ -1173,6 +1148,33 @@ Node* PhaseIdealLoop::find_dominating_memory(Node* mem, Node* dom, int i) {
     }
   }
   return m;
+}
+
+#if INCLUDE_ZGC
+
+bool PhaseIdealLoop::replace_with_dominating_barrier(LoadBarrierNode* lb, bool last_round) {
+  LoadBarrierNode* lb2 = lb->has_dominating_barrier(this, false, last_round);
+  if (lb2 != NULL) {
+    if (lb->in(LoadBarrierNode::Oop) != lb2->in(LoadBarrierNode::Oop)) {
+      assert(lb->in(LoadBarrierNode::Address) == lb2->in(LoadBarrierNode::Address), "");
+      _igvn.replace_input_of(lb, LoadBarrierNode::Similar, lb2->proj_out(LoadBarrierNode::Oop));
+      C->set_major_progress();
+    } else  {
+      // That transformation may cause the Similar edge on dominated load barriers to be invalid
+      lb->fix_similar_in_uses(&_igvn);
+
+      Node* val = lb->proj_out(LoadBarrierNode::Oop);
+      assert(lb2->has_true_uses(), "");
+      assert(lb2->in(LoadBarrierNode::Oop) == lb->in(LoadBarrierNode::Oop), "");
+
+      lazy_update(lb, lb->in(LoadBarrierNode::Control));
+      lazy_replace(lb->proj_out(LoadBarrierNode::Control), lb->in(LoadBarrierNode::Control));
+      _igvn.replace_node(val, lb2->proj_out(LoadBarrierNode::Oop));
+
+      return true;
+    }
+  }
+  return false;
 }
 
 LoadBarrierNode* PhaseIdealLoop::clone_load_barrier(LoadBarrierNode* lb, Node* ctl, Node* mem, Node* oop_in) {
@@ -1458,6 +1460,8 @@ void PhaseIdealLoop::optimize_load_barrier(LoadBarrierNode* lb, bool last_round)
   }
 }
 
+#endif // INCLUDE_ZGC
+
 //------------------------------split_if_with_blocks_post----------------------
 // Do the real work in a non-recursive function.  CFG hackery wants to be
 // in the post-order, so it can dirty the I-DOM info and not use the dirtied
@@ -1714,9 +1718,11 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n, bool last_round) {
     _igvn.replace_node( n, n->in(1) );
   }
 
+#if INCLUDE_ZGC
   if (n->is_LoadBarrier()) {
     optimize_load_barrier(n->as_LoadBarrier(), last_round);
   }
+#endif
 }
 
 //------------------------------split_if_with_blocks---------------------------

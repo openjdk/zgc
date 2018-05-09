@@ -288,8 +288,10 @@ class LibraryCallKit : public GraphKit {
   MemNode::MemOrd access_kind_to_memord(AccessKind access_kind);
   bool loadstore_requires_writeback_barrier(LoadStoreKind kind);
   bool inline_unsafe_load_store(BasicType type,  LoadStoreKind kind, AccessKind access_kind);
+#if INCLUDE_ZGC
   Node* make_cas_loadbarrier(CompareAndSwapNode* cas);
   Node* make_cmpx_loadbarrier(CompareAndExchangePNode* cmpx);
+#endif
   bool inline_unsafe_fence(vmIntrinsics::ID id);
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
@@ -1059,9 +1061,11 @@ Node* LibraryCallKit::generate_current_thread(Node* &tls_output) {
   Node* thread = _gvn.transform(new ThreadLocalNode());
   Node* p = basic_plus_adr(top()/*!oop*/, thread, in_bytes(JavaThread::threadObj_offset()));
   Node* threadObj = make_load(NULL, p, thread_type, T_OBJECT, MemNode::unordered);
+#if INCLUDE_ZGC
   if (UseZGC) {
     threadObj = load_barrier(threadObj, p);
   }
+#endif
 
   tls_output = thread;
   return threadObj;
@@ -2640,6 +2644,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           // is set: the barriers would be emitted by us.
           insert_pre_barrier(heap_base_oop, offset, p, !need_mem_bar);
         }
+#if INCLUDE_ZGC
         if (UseZGC) {
           if (!VerifyLoadBarriers) {
             p = load_barrier(p, adr);
@@ -2664,6 +2669,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
             }
           }
         }
+#endif // INCLUDE_ZGC
         break;
       case T_ADDRESS:
         // Cast to an int type.
@@ -3130,6 +3136,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
     // For CAS and weakCAS - if the expected value (oldval) is null, then
     // we can avoid expanding a load barrier (null can't have bad bits)
 
+#if INCLUDE_ZGC
     // CMH - Remove flags and simplify code when final variants are stable
 
     if (UseZGC) {
@@ -3164,6 +3171,7 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
           ShouldNotReachHere();
       }
     }
+#endif // INCLUDE_ZGC
 
     // Emit the post barrier only when the actual store happened. This makes sense
     // to check only for LS_cmp_* that can fail to set the value.
@@ -3217,9 +3225,11 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
       load_store = _gvn.transform(new DecodeNNode(load_store, load_store->get_ptr_type()));
     }
 #endif
+#if INCLUDE_ZGC
     if (UseZGC && (kind == LS_get_set) && C->directive()->UseSwapLoadBarrierOption) {
       load_store = load_barrier(load_store, adr, false, loadstore_requires_writeback_barrier(kind), false);
     }
+#endif
 
     if (can_move_pre_barrier()) {
       // Don't need to load pre_val. The old value is returned by load_store.
@@ -3252,6 +3262,8 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   set_result(load_store);
   return true;
 }
+
+#if INCLUDE_ZGC
 
 Node* LibraryCallKit::make_cas_loadbarrier(CompareAndSwapNode* cas) {
 
@@ -3422,6 +3434,8 @@ Node* LibraryCallKit::make_cmpx_loadbarrier(CompareAndExchangePNode* cmpx) {
 
   return phi;
 }
+
+#endif // INCLUDE_ZGC
 
 MemNode::MemOrd LibraryCallKit::access_kind_to_memord_LS(AccessKind kind, bool is_store) {
   MemNode::MemOrd mo = MemNode::unset;
@@ -6360,9 +6374,11 @@ bool LibraryCallKit::inline_reference_get() {
 
   Node* no_ctrl = NULL;
   Node* result = make_load(no_ctrl, adr, object_type, T_OBJECT, MemNode::unordered);
+#if INCLUDE_ZGC
   if (UseZGC) {
     result = load_barrier(result, adr, true /* weak */);
   }
+#endif
 
   // Use the pre-barrier to record the value in the referent field
   pre_barrier(false /* do_load */,
@@ -6429,9 +6445,11 @@ Node * LibraryCallKit::load_field_from_object(Node * fromObj, const char * field
   // Build the load.
   MemNode::MemOrd mo = is_vol ? MemNode::acquire : MemNode::unordered;
   Node* loadedField = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, is_vol);
+#if INCLUDE_ZGC
   if (UseZGC) {
     loadedField = load_barrier(loadedField, adr);
   }
+#endif
 
   // If reference is volatile, prevent following memory ops from
   // floating up past the volatile read.  Also prevents commoning

@@ -22,6 +22,8 @@
  *
  */
 
+#include "utilities/macros.hpp"
+
 // The giant table of Node classes.
 // One entry per class, sorted by class name.
 
@@ -189,9 +191,14 @@ macro(LoadP)
 macro(LoadN)
 macro(LoadRange)
 macro(LoadS)
-macro(LoadBarrier)
-macro(LoadBarrierSlowReg)
-macro(LoadBarrierWeakSlowReg)
+#if INCLUDE_ZGC
+#define zgcmacro(x) macro(x)
+#else
+#define zgcmacro(x) optionalmacro(x)
+#endif
+zgcmacro(LoadBarrier)
+zgcmacro(LoadBarrierSlowReg)
+zgcmacro(LoadBarrierWeakSlowReg)
 macro(Lock)
 macro(Loop)
 macro(LoopLimit)

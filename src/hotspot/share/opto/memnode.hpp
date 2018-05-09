@@ -287,6 +287,8 @@ protected:
   }
 };
 
+#if INCLUDE_ZGC
+
 class LoadBarrierNode: public MultiNode {
 private:
   bool _weak;
@@ -336,6 +338,8 @@ public:
   bool is_writeback() const { return _writeback; }
   bool oop_reload_allowed() const { return _oop_reload_allowed; }
 };
+
+#endif // INCLUDE_ZGC
 
 //------------------------------LoadBNode--------------------------------------
 // Load a byte (8bits signed) from memory
