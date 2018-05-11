@@ -616,12 +616,6 @@ void Type::Initialize_shared(Compile* current) {
   longccpair[1] = TypeInt::CC;
   TypeTuple::LONG_CC_PAIR = TypeTuple::make(2, longccpair);
 
-  const Type **floadbarrier = (const Type**)shared_type_arena->Amalloc_4(LoadBarrierNode::Number_of_Outputs*sizeof(Type*));
-  floadbarrier[0] = Type::CONTROL;
-  floadbarrier[1] = Type::MEMORY;
-  floadbarrier[2] = TypeInstPtr::NOTNULL; // FIXME
-  TypeTuple::LOADBARRIER = TypeTuple::make(LoadBarrierNode::Number_of_Outputs, floadbarrier);
-
   _const_basic_type[T_NARROWOOP]   = TypeNarrowOop::BOTTOM;
   _const_basic_type[T_NARROWKLASS] = Type::BOTTOM;
   _const_basic_type[T_BOOLEAN]     = TypeInt::BOOL;
