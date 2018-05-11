@@ -1231,6 +1231,14 @@ bool PhaseIdealLoop::split_barrier_thru_phi(LoadBarrierNode* lb) {
       return false;
     }
 
+    // Catch any self looping PhiNode
+    for (uint i = 1; i < oop_phi->req(); i++) {
+      if (oop_phi->in(i) == oop_phi) {
+        assert(0, "Fix this where the self looping PhiNode was produced");
+        return false;
+      }
+    }
+
     if (is_dominator(get_ctrl(lb->in(LoadBarrierNode::Address)), oop_phi->in(0)) && get_ctrl(lb->in(LoadBarrierNode::Address)) != oop_phi->in(0) /*&& (get_ctrl(lb->in(LoadBarrierNode::Memory)) != lb->in(0) || lb->in(LoadBarrierNode::Memory)->is_Phi())*/) {
       // That transformation may cause the Similar edge on dominated load barriers to be invalid
       lb->fix_similar_in_uses(&_igvn);
