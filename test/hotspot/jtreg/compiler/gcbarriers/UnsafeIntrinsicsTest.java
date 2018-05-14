@@ -274,7 +274,7 @@ class Runner implements Runnable {
 
     private Node mergeImplCAS(Node startNode, Node expectedNext, Node head) {
         // CAS - should always be true within a single thread - no other thread can have overwritten
-        if (!UNSAFE.compareAndSwapObject(startNode, offset, expectedNext, head)) {
+        if (!UNSAFE.compareAndSetObject(startNode, offset, expectedNext, head)) {
             throw new Error("CAS should always succeed on thread local objects, check you barrier implementation");
         }
         return expectedNext; // continue on old circle
@@ -282,7 +282,7 @@ class Runner implements Runnable {
 
     private Node mergeImplCASFail(Node startNode, Node expectedNext, Node head) {
         // Force a fail
-        if (UNSAFE.compareAndSwapObject(startNode, offset, "fail", head)) {
+        if (UNSAFE.compareAndSetObject(startNode, offset, "fail", head)) {
             throw new Error("This CAS should always fail, check you barrier implementation");
         }
         if (startNode.next() != expectedNext) {
@@ -293,7 +293,7 @@ class Runner implements Runnable {
 
     private Node mergeImplWeakCAS(Node startNode, Node expectedNext, Node head) {
         // Weak CAS - should always be true within a single thread - no other thread can have overwritten
-        if (!UNSAFE.weakCompareAndSwapObject(startNode, offset, expectedNext, head)) {
+        if (!UNSAFE.weakCompareAndSetObject(startNode, offset, expectedNext, head)) {
             throw new Error("Weak CAS should always succeed on thread local objects, check you barrier implementation");
         }
         return expectedNext; // continue on old circle
@@ -301,7 +301,7 @@ class Runner implements Runnable {
 
     private Node mergeImplWeakCASFail(Node startNode, Node expectedNext, Node head) {
         // Force a fail
-        if (UNSAFE.weakCompareAndSwapObject(startNode, offset, "fail", head)) {
+        if (UNSAFE.weakCompareAndSetObject(startNode, offset, "fail", head)) {
             throw new Error("This weak CAS should always fail, check you barrier implementation");
         }
         if (startNode.next() != expectedNext) {
@@ -312,7 +312,7 @@ class Runner implements Runnable {
 
     private Node mergeImplCMPX(Node startNode, Node expectedNext, Node head) {
         // CmpX - should always be true within a single thread - no other thread can have overwritten
-        Object res = UNSAFE.compareAndExchangeObjectVolatile(startNode, offset, expectedNext, head);
+        Object res = UNSAFE.compareAndExchangeObject(startNode, offset, expectedNext, head);
         if (!res.equals(expectedNext)) {
             throw new Error("Fail CmpX should always succeed on thread local objects, check you barrier implementation");
         }
@@ -320,7 +320,7 @@ class Runner implements Runnable {
     }
 
     private Node mergeImplCMPXFail(Node startNode, Node expectedNext, Node head) {
-        Object res = UNSAFE.compareAndExchangeObjectVolatile(startNode, offset, head, head);
+        Object res = UNSAFE.compareAndExchangeObject(startNode, offset, head, head);
         if (startNode.next() != expectedNext) {
             throw new Error("Shouldn't have changed");
         }
