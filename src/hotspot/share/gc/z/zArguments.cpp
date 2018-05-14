@@ -62,15 +62,9 @@ void ZArguments::initialize() {
   // Enable loop strip mining by default
   if (FLAG_IS_DEFAULT(UseCountedLoopSafepoints)) {
     FLAG_SET_DEFAULT(UseCountedLoopSafepoints, true);
-#if 0
     if (FLAG_IS_DEFAULT(LoopStripMiningIter)) {
       FLAG_SET_DEFAULT(LoopStripMiningIter, 1000);
     }
-#else
-    // NOTE! Loop strip mining is temporarily disabled
-    // until JDK-8193935 and JDK-8201532 have be fixed
-    FLAG_SET_DEFAULT(LoopStripMiningIter, 1);
-#endif
   }
 #endif
 
