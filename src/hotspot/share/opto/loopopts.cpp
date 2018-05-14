@@ -1234,7 +1234,6 @@ bool PhaseIdealLoop::split_barrier_thru_phi(LoadBarrierNode* lb) {
     // Catch any self looping PhiNode
     for (uint i = 1; i < oop_phi->req(); i++) {
       if (oop_phi->in(i) == oop_phi) {
-        assert(0, "Fix this where the self looping PhiNode was produced");
         return false;
       }
     }
