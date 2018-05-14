@@ -56,19 +56,11 @@ inline HeapWord* ThreadLocalAllocBuffer::allocate(size_t size) {
 inline bool ThreadLocalAllocBuffer::undo_allocate(HeapWord* obj, size_t size) {
   invariants();
 
-  // The object might not be allocated in this TLAB
-  if (contains(obj, size)) {
+  if (!is_last_allocation(obj, size)) {
     return false;
   }
 
-  HeapWord* const prev_top = top() - size;
-
-  // The object might not be the last allocated in this TLAB
-  if (prev_top != obj) {
-    return false;
-  }
-
-  set_top(prev_top);
+  set_top(obj);
 
   invariants();
   return true;

@@ -79,7 +79,7 @@ private:
 
   size_t remaining() const                       { return end() == NULL ? 0 : pointer_delta(hard_end(), top()); }
 
-  bool contains(HeapWord* obj, size_t size)      { return (obj >= start()) && (obj + size <= top()); }
+  bool is_last_allocation(HeapWord* obj, size_t size) { return pointer_delta(top(), obj) == size; }
 
   // Make parsable and release it.
   void reset();
