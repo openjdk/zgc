@@ -109,7 +109,8 @@ bool ZReferenceProcessor::is_referent_alive_or_null(oop obj, ReferenceType type)
   volatile oop* const p = reference_referent_addr(obj);
 
   // Check if the referent is alive or null, in which case we don't want to discover
-  // the reference. It can only be null if the application called Reference.clear().
+  // the reference. It can only be null if the application called Reference.enqueue()
+  // or Reference.clear().
   if (type == REF_PHANTOM) {
     const oop o = ZBarrier::weak_load_barrier_on_phantom_oop_field(p);
     return o == NULL || ZHeap::heap()->is_object_live(ZOop::to_address(o));
@@ -136,11 +137,14 @@ bool ZReferenceProcessor::should_drop_reference(oop obj, ReferenceType type) con
   // This check is racing with a call to Reference.clear() from the application.
   // If the application clears the reference after this check it will still end
   // up on the pending list, and there's nothing we can do about that without
-  // changing the Reference.clear() API.
+  // changing the Reference.clear() API. This check is also racing with a call
+  // to Reference.enqueue() from the application, which is unproblematic, since
+  // the application wants the reference to be enqueued anyway.
   const oop o = reference_referent(obj);
   if (o == NULL) {
-    // Reference has already been cleared, by an application call to
-    // Reference.clear(), which means we should drop the reference.
+    // Reference has been cleared, by a call to Reference.enqueue()
+    // or Reference.clear() from the application, which means we
+    // should drop the reference.
     return true;
   }
 
