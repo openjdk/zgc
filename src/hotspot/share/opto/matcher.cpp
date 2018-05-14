@@ -2164,6 +2164,7 @@ void Matcher::find_shared( Node *n ) {
           mem_op = true;
           mem_addr_idx = TypeFunc::Parms+1;
         }
+        break;
       default:
         if( n->is_Store() ) {
           // Do match stores, despite no ideal reg
