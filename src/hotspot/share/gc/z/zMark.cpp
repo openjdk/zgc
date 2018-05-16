@@ -194,7 +194,7 @@ void ZMark::follow_small_array(uintptr_t addr, size_t size, bool finalizable) {
 }
 
 void ZMark::follow_large_array(uintptr_t addr, size_t size, bool finalizable) {
-  assert(size <= arrayOopDesc::max_array_length_in_bytes(T_OBJECT), "Too large");
+  assert(size <= (size_t)arrayOopDesc::max_array_length(T_OBJECT) * oopSize, "Too large");
   assert(size > ZMarkPartialArrayMinSize, "Too small, should not be split");
   const uintptr_t start = addr;
   const uintptr_t end = start + size;
