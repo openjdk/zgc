@@ -27,13 +27,10 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "crc32c.h"
 
-#ifdef _MSC_VER
-#define ALIGNED_(x) __declspec(align(x))
-#else
-#define ALIGNED_(x) __attribute__ ((aligned(x)))
-#endif
+#define ALIGNED_(x) ATTRIBUTE_ALIGNED(x)
 
 // Implementation of the platform-specific part of StubRoutines - for
 // a description of how to extend it, see the stubRoutines.hpp file.

@@ -28,12 +28,9 @@
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "macroAssembler_x86.hpp"
+#include "utilities/globalDefinitions.hpp"
 
-#ifdef _MSC_VER
-#define ALIGNED_(x) __declspec(align(x))
-#else
-#define ALIGNED_(x) __attribute__ ((aligned(x)))
-#endif
+#define ALIGNED_(x) ATTRIBUTE_ALIGNED(x)
 
 /******************************************************************************/
 //                     ALGORITHM DESCRIPTION - LOG()
