@@ -551,7 +551,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // At this point we know we do not need type checks on oop stores.
 
     // Let's see if we need card marks:
-    if (alloc != NULL && GraphKit::use_ReduceInitialCardMarks()) {
+    if (alloc != NULL && GraphKit::use_ReduceInitialCardMarks() ZGC_ONLY(&& !UseZGC)) {
       // If we do not need card marks, copy using the jint or jlong stub.
       copy_type = LP64_ONLY(UseCompressedOops ? T_INT : T_LONG) NOT_LP64(T_INT);
       assert(type2aelembytes(basic_elem_type) == type2aelembytes(copy_type),

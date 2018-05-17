@@ -54,6 +54,7 @@ class CloneMap;
 class ConnectionGraph;
 class InlineTree;
 class Int_Array;
+class LoadBarrierNode;
 class Matcher;
 class MachConstantNode;
 class MachConstantBaseNode;
@@ -417,6 +418,9 @@ class Compile : public Phase {
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
   GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
+#if INCLUDE_ZGC
+  GrowableArray<LoadBarrierNode*>* _load_barrier_nodes;    // List of load barrier nodes which need to be expanded before matching.
+#endif
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -767,9 +771,15 @@ class Compile : public Phase {
   int           macro_count()             const { return _macro_nodes->length(); }
   int           predicate_count()         const { return _predicate_opaqs->length();}
   int           expensive_count()         const { return _expensive_nodes->length(); }
+#if INCLUDE_ZGC
+  int           load_barrier_count()      const { return _load_barrier_nodes->length(); }
+#endif
   Node*         macro_node(int idx)       const { return _macro_nodes->at(idx); }
   Node*         predicate_opaque1_node(int idx) const { return _predicate_opaqs->at(idx);}
   Node*         expensive_node(int idx)   const { return _expensive_nodes->at(idx); }
+#if INCLUDE_ZGC
+  LoadBarrierNode* load_barrier_node(int idx) const { return _load_barrier_nodes->at(idx); }
+#endif
   ConnectionGraph* congraph()                   { return _congraph;}
   void set_congraph(ConnectionGraph* congraph)  { _congraph = congraph;}
   void add_macro_node(Node * n) {
@@ -798,6 +808,19 @@ class Compile : public Phase {
     assert(_macro_nodes->contains(n), "should have already been in macro list");
     _predicate_opaqs->append(n);
   }
+
+#if INCLUDE_ZGC
+  void add_load_barrier_node(LoadBarrierNode * n) {
+    assert(!_load_barrier_nodes->contains(n), " duplicate entry in expand list");
+    _load_barrier_nodes->append(n);
+  }
+  void remove_load_barrier_node(LoadBarrierNode * n) {
+    // this function may be called twice for a node so check
+    // that the node is in the array before attempting to remove it
+    if (_load_barrier_nodes->contains(n))
+      _load_barrier_nodes->remove(n);
+  }
+#endif // INCLUDE_ZGC
 
   // Range check dependent CastII nodes that can be removed after loop optimizations
   void add_range_check_cast(Node* n);
@@ -1350,6 +1373,9 @@ class Compile : public Phase {
   CloneMap&     clone_map();
   void          set_clone_map(Dict* d);
 
+#if INCLUDE_ZGC && defined(ASSERT)
+  void verify_load_barriers(bool post_parse);
+#endif
 };
 
 #endif // SHARE_VM_OPTO_COMPILE_HPP

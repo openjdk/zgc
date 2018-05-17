@@ -939,6 +939,17 @@ PhaseIterGVN::PhaseIterGVN( PhaseGVN *gvn ) : PhaseGVN(gvn),
         n->is_Mem() )
       add_users_to_worklist(n);
   }
+
+#if INCLUDE_ZGC
+  // Permanent temporary workaround
+  // Loadbarriers may have non-obvious dead uses keeping them alive during parsing. The use is
+  // removed by RemoveUseless (after parsing, before optimize) but the barriers won't be added to
+  // the worklist. Unless we add them explicitly they are not guaranteed to end up there.
+  for (int i = 0; i < C->load_barrier_count(); i++) {
+    LoadBarrierNode* n = C->load_barrier_node(i);
+    _worklist.push(n);
+  }
+#endif
 }
 
 /**
@@ -1370,6 +1381,11 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
                 assert(!(i < imax), "sanity");
               }
             }
+#if INCLUDE_ZGC
+            else if (in->is_LoadBarrier() && !in->as_LoadBarrier()->has_true_uses()) {
+              _worklist.push(in);
+            }
+#endif
             if (ReduceFieldZeroing && dead->is_Load() && i == MemNode::Memory &&
                 in->is_Proj() && in->in(0) != NULL && in->in(0)->is_Initialize()) {
               // A Load that directly follows an InitializeNode is
@@ -1424,6 +1440,11 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (dead->Opcode() == Op_Opaque4) {
         C->remove_opaque4_node(dead);
       }
+#if INCLUDE_ZGC
+      if (dead->is_LoadBarrier()) {
+        C->remove_load_barrier_node(dead->as_LoadBarrier());
+      }
+#endif
     }
   } // while (_stack.is_nonempty())
 }
