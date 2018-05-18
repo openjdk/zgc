@@ -22,6 +22,7 @@
  */
 
 /*
+ * ZGC: Fails because lack of class unloading
  * @test
  *
  * @summary converted from VM Testbase nsk/jdi/ObjectReference/referringObjects/referringObjects002.
@@ -62,7 +63,7 @@
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=-Xmx128M ${test.vm.opts} ${test.java.opts}"
+ *      "-debugee.vmkeys=-Xmx256M ${test.vm.opts} ${test.java.opts}"
  *      -testClassPath ${test.class.path}
  */
 

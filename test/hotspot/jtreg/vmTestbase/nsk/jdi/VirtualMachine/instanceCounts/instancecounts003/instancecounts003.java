@@ -22,6 +22,7 @@
  */
 
 /*
+ * ZGC: Fails because lack of class unloading
  * @test
  *
  * @summary converted from VM Testbase nsk/jdi/VirtualMachine/instanceCounts/instancecounts003.
@@ -54,7 +55,7 @@
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=${test.vm.opts} ${test.java.opts}"
+ *      "-debugee.vmkeys=-Xmx256M ${test.vm.opts} ${test.java.opts}"
  *      -testClassPath ${test.class.path}
  */
 
