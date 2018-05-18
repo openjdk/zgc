@@ -35,6 +35,65 @@
 // Defines all globals flags used by the server compiler.
 //
 
+#if INCLUDE_ZGC
+#define C2_ZGC_FLAGS(develop,                                               \
+                     develop_pd,                                            \
+                     product,                                               \
+                     product_pd,                                            \
+                     diagnostic,                                            \
+                     diagnostic_pd,                                         \
+                     experimental,                                          \
+                     notproduct,                                            \
+                     range,                                                 \
+                     constraint,                                            \
+                     writeable)                                             \
+  product(bool, OptimizeLoadBarriers, true,                                 \
+          "Apply load barrier optimizations")                               \
+                                                                            \
+  product_pd(bool, UseBasicLoadBarrier,                                     \
+          "Force the original simple barrier variant")                      \
+                                                                            \
+  product(bool, UseCASLoadBarrier, true,                                    \
+          "Turn of CAS barrier only, debug tool")                           \
+                                                                            \
+  product(bool, UseWeakCASLoadBarrier, true,                                \
+          "Turn of CAS barrier only, debug tool")                           \
+                                                                            \
+  product(bool, UseCMPXLoadBarrier, true,                                   \
+          "Turn of CAS barrier only, debug tool")                           \
+                                                                            \
+  develop(bool, UseSwapLoadBarrier, true,                                   \
+          "Turn of Swap barrier only, debug tool")                          \
+                                                                            \
+  develop(bool, ParseTimeLoadBarrierOpt, true,                              \
+          "Optimize load barrier during parsing")                           \
+                                                                            \
+  develop(bool, VerifyLoadBarriers, false,                                  \
+          "Verify that every reference load is followed by a barrier")      \
+                                                                            \
+  product(bool, PreventLoadBarrierDomBug, false,                            \
+          "There's a bug in the has_dominating_barrier code")               \
+                                                                            \
+  product(bool, PreventLoadBarrierArrayCopyBug, false,                      \
+          "There's a bug in the has_dominating_barrier code")               \
+                                                                            \
+  product_pd(bool, PreventLoadBarrierMatcherAssert,                         \
+          "There's a bug in the Matcher::ReduceInst code")
+#else
+#define C2_ZGC_FLAGS(develop,                                               \
+                     develop_pd,                                            \
+                     product,                                               \
+                     product_pd,                                            \
+                     diagnostic,                                            \
+                     diagnostic_pd,                                         \
+                     experimental,                                          \
+                     notproduct,                                            \
+                     range,                                                 \
+                     constraint,                                            \
+                     writeable)
+#endif
+
+
 #define C2_FLAGS(develop, \
                  develop_pd, \
                  product, \
@@ -751,6 +810,18 @@
   product(uintx, LoopStripMiningIterShortLoop, 0,                           \
           "Loop with fewer iterations are not strip mined")                 \
           range(0, max_juint)                                               \
+                                                                            \
+  C2_ZGC_FLAGS(develop,                                                     \
+               develop_pd,                                                  \
+               product,                                                     \
+               product_pd,                                                  \
+               diagnostic,                                                  \
+               diagnostic_pd,                                               \
+               experimental,                                                \
+               notproduct,                                                  \
+               range,                                                       \
+               constraint,                                                  \
+               writeable)
 
 C2_FLAGS(DECLARE_DEVELOPER_FLAG, \
          DECLARE_PD_DEVELOPER_FLAG, \

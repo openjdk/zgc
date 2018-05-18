@@ -414,6 +414,15 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_opaque4_node(opaq);
     }
   }
+#if INCLUDE_ZGC
+  // Remove useless LoadBarrier nodes
+  for (int i = C->load_barrier_count()-1; i >= 0; i--) {
+    LoadBarrierNode* n = C->load_barrier_node(i);
+    if (!useful.member(n)) {
+      remove_load_barrier_node(n);
+    }
+  }
+#endif
   // clean up the late inline lists
   remove_useless_late_inlines(&_string_late_inlines, useful);
   remove_useless_late_inlines(&_boxing_late_inlines, useful);
@@ -772,7 +781,7 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
       StartNode* s = new StartNode(root(), tf()->domain());
       initial_gvn()->set_type_bottom(s);
       init_start(s);
-      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && UseG1GC) {
+      if (method()->intrinsic_id() == vmIntrinsics::_Reference_get && (UseG1GC ZGC_ONLY(|| UseZGC))) {
         // With java.lang.ref.reference.get() we must go through the
         // intrinsic when G1 is enabled - even when get() is the root
         // method of the compile - so that, if necessary, the value in
@@ -1190,6 +1199,9 @@ void Compile::Init(int aliaslevel) {
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+#if INCLUDE_ZGC
+  _load_barrier_nodes = new(comp_arena()) GrowableArray<LoadBarrierNode*>(comp_arena(), 8,  0, NULL);
+#endif
   register_library_intrinsics();
 }
 
@@ -2100,7 +2112,7 @@ void Compile::inline_incrementally(PhaseIterGVN& igvn) {
         // PhaseIdealLoop is expensive so we only try it once we are
         // out of live nodes and we only try it again if the previous
         // helped got the number of nodes down significantly
-        PhaseIdealLoop ideal_loop( igvn, false, true );
+        PhaseIdealLoop ideal_loop(igvn, false, true, false);
         if (failing())  return;
         low_live_nodes = live_nodes();
         _major_progress = true;
@@ -2161,6 +2173,10 @@ void Compile::Optimize() {
     BREAKPOINT;
   }
 
+#endif
+
+#if INCLUDE_ZGC && defined(ASSERT)
+  verify_load_barriers(true);
 #endif
 
   ResourceMark rm;
@@ -2236,7 +2252,7 @@ void Compile::Optimize() {
     if (has_loops()) {
       // Cleanup graph (remove dead nodes).
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, false, true );
+      PhaseIdealLoop ideal_loop(igvn, false, true, false);
       if (major_progress()) print_method(PHASE_PHASEIDEAL_BEFORE_EA, 2);
       if (failing())  return;
     }
@@ -2271,7 +2287,7 @@ void Compile::Optimize() {
   if((loop_opts_cnt > 0) && (has_loops() || has_split_ifs())) {
     {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, true );
+      PhaseIdealLoop ideal_loop(igvn, true, false, false);
       loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP1, 2);
       if (failing())  return;
@@ -2279,7 +2295,7 @@ void Compile::Optimize() {
     // Loop opts pass if partial peeling occurred in previous pass
     if(PartialPeelLoop && major_progress() && (loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, false );
+      PhaseIdealLoop ideal_loop(igvn, false, false, false);
       loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP2, 2);
       if (failing())  return;
@@ -2287,7 +2303,7 @@ void Compile::Optimize() {
     // Loop opts pass for loop-unrolling before CCP
     if(major_progress() && (loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
-      PhaseIdealLoop ideal_loop( igvn, false );
+      PhaseIdealLoop ideal_loop(igvn, false, false, false);
       loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP3, 2);
     }
@@ -2328,12 +2344,25 @@ void Compile::Optimize() {
     while(major_progress() && (loop_opts_cnt > 0)) {
       TracePhase tp("idealLoop", &timers[_t_idealLoop]);
       assert( cnt++ < 40, "infinite cycle in loop optimization" );
-      PhaseIdealLoop ideal_loop( igvn, true);
+      PhaseIdealLoop ideal_loop(igvn, true, false, false);
       loop_opts_cnt--;
       if (major_progress()) print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
       if (failing())  return;
     }
   }
+
+#if INCLUDE_ZGC
+  // Look for dominating barriers on the same address only once all
+  // other loop opts are over: loop opts may cause a safepoint to be
+  // inserted between a barrier and its dominating barrier.
+  if (C->load_barrier_count() >= 2) {
+    TracePhase tp("idealLoop", &timers[_t_idealLoop]);
+    PhaseIdealLoop ideal_loop(igvn, true, false, true);
+    if (major_progress()) print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
+    if (failing())  return;
+  }
+#endif
+
   // Ensure that major progress is now clear
   C->clear_major_progress();
 
@@ -2349,6 +2378,12 @@ void Compile::Optimize() {
     C->remove_range_check_casts(igvn);
     igvn.optimize();
   }
+
+#if INCLUDE_ZGC && defined(ASSERT)
+  verify_load_barriers(false);
+#endif
+
+  print_method(PHASE_BEFORE_MACRO_EXPANSION, 2);
 
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
@@ -2843,6 +2878,8 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   case Op_CompareAndSwapS:
   case Op_CompareAndSwapI:
   case Op_CompareAndSwapL:
+  case Op_CompareAndSwap2I:
+  case Op_CompareAndSwap2L:
   case Op_CompareAndSwapP:
   case Op_CompareAndSwapN:
   case Op_WeakCompareAndSwapB:
@@ -2880,6 +2917,10 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   case Op_LoadL_unaligned:
   case Op_LoadPLocked:
   case Op_LoadP:
+#if INCLUDE_ZGC
+  case Op_LoadBarrierSlowReg:
+  case Op_LoadBarrierWeakSlowReg:
+#endif
   case Op_LoadN:
   case Op_LoadRange:
   case Op_LoadS: {
@@ -2891,6 +2932,24 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
       // Check to see if address types have grounded out somehow.
       const TypeInstPtr *tp = mem->in(MemNode::Address)->bottom_type()->isa_instptr();
       assert( !tp || oop_offset_is_sane(tp), "" );
+    }
+    // verify the compare and swap of the load barrier doesn't get disconnected
+    if (nop == Op_CompareAndSwap2L || nop == Op_CompareAndSwap2I) {
+      for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+        Node* u = n->fast_out(i);
+        if (u->is_Root()) {
+          int nb = 0;
+          for (uint j = 0; j < u->req(); j++) {
+            if (u->in(j) == n) {
+              nb++;
+              u->del_req(j);
+            }
+          }
+          --i;
+          imax -= nb;
+        }
+      }
+      assert(n->outcnt() > 0, "");
     }
 #endif
     break;
@@ -4648,3 +4707,108 @@ void CloneMap::dump(node_idx_t key) const {
     ni.dump();
   }
 }
+
+#if INCLUDE_ZGC && defined(ASSERT)
+
+static bool look_for_barrier(Node* n, bool post_parse, VectorSet& visited) {
+  if (visited.test_set(n->_idx)) {
+    return true;
+  }
+
+  for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+    Node* u = n->fast_out(i);
+    if (u->is_LoadBarrier()) {
+    } else if ((u->is_Phi() || u->is_CMove()) && !post_parse) {
+      if (!look_for_barrier(u, post_parse, visited)) {
+        return false;
+      }
+    } else if (u->Opcode() == Op_EncodeP || u->Opcode() == Op_DecodeN) {
+      if (!look_for_barrier(u, post_parse, visited)) {
+        return false;
+      }
+    } else if (u->Opcode() != Op_SCMemProj) {
+      tty->print("bad use"); u->dump();
+      return false;
+    }
+  }
+  return true;
+}
+
+void Compile::verify_load_barriers(bool post_parse) {
+  ResourceMark rm;
+  VectorSet visited(Thread::current()->resource_area());
+  for (int i = 0; i < load_barrier_count(); i++) {
+    LoadBarrierNode* n = load_barrier_node(i);
+
+    // The dominating barrier on the same address if it exists and
+    // this barrier must not be applied on the value from the same
+    // load otherwise the value is not reloaded before it's used the
+    // second time.
+    assert(n->in(LoadBarrierNode::Similar)->is_top() ||
+           (n->in(LoadBarrierNode::Similar)->in(0)->is_LoadBarrier() &&
+            n->in(LoadBarrierNode::Similar)->in(0)->in(LoadBarrierNode::Address) == n->in(LoadBarrierNode::Address) &&
+            n->in(LoadBarrierNode::Similar)->in(0)->in(LoadBarrierNode::Oop) != n->in(LoadBarrierNode::Oop)),
+           "broken similar edge");
+
+    assert(post_parse || n->as_LoadBarrier()->has_true_uses(), "");
+    // Several load barrier nodes chained through their Similar edge
+    // break the code that remove the barriers in final graph reshape.
+    assert(n->in(LoadBarrierNode::Similar)->is_top() ||
+           (n->in(LoadBarrierNode::Similar)->in(0)->is_LoadBarrier() &&
+            n->in(LoadBarrierNode::Similar)->in(0)->in(LoadBarrierNode::Similar)->is_top()),
+           "chain of Similar load barriers");
+
+
+    if (!n->in(LoadBarrierNode::Similar)->is_top()) {
+      ResourceMark rm;
+      Unique_Node_List wq;
+      Node* other = n->in(LoadBarrierNode::Similar)->in(0);
+      wq.push(n);
+      bool ok = true;
+      bool dom_found = false;
+      for (uint next = 0; next < wq.size(); ++next) {
+        Node *n = wq.at(next);
+        assert(n->is_CFG(), "");
+        assert(!n->is_SafePoint(), "");
+
+        if (n == other) {
+          continue;
+        }
+        if (n->is_Region()) {
+          for (uint i = 1; i < n->req(); i++) {
+            Node* m = n->in(i);
+            if (m != NULL) {
+              wq.push(m);
+            }
+          }
+        } else {
+          Node* m = n->in(0);
+          if (m != NULL) {
+            wq.push(m);
+          }
+        }
+      }
+    }
+
+    if (VerifyLoadBarriers) {
+      bool check = false;
+      if ((n->is_Load() || n->is_LoadStore()) && n->bottom_type()->make_oopptr() != NULL) {
+        check = true;
+      }
+      if (check) {
+        visited.Clear();
+        bool found = look_for_barrier(n, post_parse, visited);
+        if (!found) {
+          n->dump(1);
+          n->dump(-3);
+          stringStream ss;
+          method()->print_short_name(&ss);
+          tty->print_cr("-%s-", ss.as_string());
+          assert(found, "");
+        }
+      }
+    }
+  }
+}
+
+#endif // INCLUDE_ZGC && defined(ASSERT)

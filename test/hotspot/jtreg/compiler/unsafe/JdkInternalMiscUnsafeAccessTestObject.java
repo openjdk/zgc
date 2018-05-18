@@ -27,10 +27,11 @@
  * @summary Test unsafe access for Object
  *
  * @modules java.base/jdk.internal.misc:+open
- * @run testng/othervm -Diters=100   -Xint                   compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
- * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
- * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
- * @run testng/othervm -Diters=20000                         compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
+ * @requires vm.gc.Z
+ * @run testng/othervm -Diters=100   -XX:+UseZGC -Xint                   compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
+ * @run testng/othervm -Diters=20000 -XX:+UseZGC -XX:TieredStopAtLevel=1 compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
+ * @run testng/othervm -Diters=20000 -XX:+UseZGC -XX:-TieredCompilation  compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
+ * @run testng/othervm -Diters=20000 -XX:+UseZGC                         compiler.unsafe.JdkInternalMiscUnsafeAccessTestObject
  */
 
 package compiler.unsafe;

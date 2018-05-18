@@ -207,6 +207,12 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
   bool needs_atomic_access = is_vol || AlwaysAtomicAccesses;
   Node* ld = make_load(NULL, adr, type, bt, adr_type, mo, LoadNode::DependsOnlyOnTest, needs_atomic_access);
 
+#if INCLUDE_ZGC
+  if (UseZGC && bt == T_OBJECT) {
+    ld = load_barrier(ld, adr);
+  }
+#endif
+
   // Adjust Java stack
   if (type2size[bt] == 1)
     push(ld);

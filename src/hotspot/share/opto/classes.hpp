@@ -22,6 +22,8 @@
  *
  */
 
+#include "utilities/macros.hpp"
+
 // The giant table of Node classes.
 // One entry per class, sorted by class name.
 
@@ -33,6 +35,7 @@ macro(AddF)
 macro(AddI)
 macro(AddL)
 macro(AddP)
+macro(AddrBadBit)
 macro(Allocate)
 macro(AllocateArray)
 macro(AndI)
@@ -87,6 +90,8 @@ macro(CompareAndSwapB)
 macro(CompareAndSwapS)
 macro(CompareAndSwapI)
 macro(CompareAndSwapL)
+macro(CompareAndSwap2I)
+macro(CompareAndSwap2L)
 macro(CompareAndSwapP)
 macro(CompareAndSwapN)
 macro(WeakCompareAndSwapB)
@@ -186,6 +191,14 @@ macro(LoadP)
 macro(LoadN)
 macro(LoadRange)
 macro(LoadS)
+#if INCLUDE_ZGC
+#define zgcmacro(x) macro(x)
+#else
+#define zgcmacro(x) optionalmacro(x)
+#endif
+zgcmacro(LoadBarrier)
+zgcmacro(LoadBarrierSlowReg)
+zgcmacro(LoadBarrierWeakSlowReg)
 macro(Lock)
 macro(Loop)
 macro(LoopLimit)

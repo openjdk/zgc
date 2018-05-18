@@ -55,7 +55,16 @@ class x86 {
   static address _double_sign_mask;
   static address _double_sign_flip;
 
+#if INCLUDE_ZGC
+  static address _load_barrier_slow_stub[];
+  static address _load_barrier_weak_slow_stub[];
+#endif // INCLUDE_ZGC
+
  public:
+#if INCLUDE_ZGC
+  static address load_barrier_slow_stub(Register reg) { return _load_barrier_slow_stub[reg->encoding()]; }
+  static address load_barrier_weak_slow_stub(Register reg) { return _load_barrier_weak_slow_stub[reg->encoding()]; }
+#endif // INCLUDE_ZGC
 
   static address get_previous_fp_entry() {
     return _get_previous_fp_entry;
