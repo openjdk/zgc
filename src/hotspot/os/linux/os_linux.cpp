@@ -2908,6 +2908,10 @@ bool os::Linux::libnuma_init() {
                                        libnuma_dlsym(handle, "numa_max_node")));
       set_numa_num_configured_nodes(CAST_TO_FN_PTR(numa_num_configured_nodes_func_t,
                                                    libnuma_dlsym(handle, "numa_num_configured_nodes")));
+      set_numa_num_configured_cpus(CAST_TO_FN_PTR(numa_num_configured_cpus_func_t,
+                                                  libnuma_dlsym(handle, "numa_num_configured_cpus")));
+      set_numa_num_task_cpus(CAST_TO_FN_PTR(numa_num_task_cpus_func_t,
+                                            libnuma_dlsym(handle, "numa_num_task_cpus")));
       set_numa_available(CAST_TO_FN_PTR(numa_available_func_t,
                                         libnuma_dlsym(handle, "numa_available")));
       set_numa_tonode_memory(CAST_TO_FN_PTR(numa_tonode_memory_func_t,
@@ -3039,6 +3043,8 @@ os::Linux::sched_getcpu_func_t os::Linux::_sched_getcpu;
 os::Linux::numa_node_to_cpus_func_t os::Linux::_numa_node_to_cpus;
 os::Linux::numa_max_node_func_t os::Linux::_numa_max_node;
 os::Linux::numa_num_configured_nodes_func_t os::Linux::_numa_num_configured_nodes;
+os::Linux::numa_num_configured_cpus_func_t os::Linux::_numa_num_configured_cpus;
+os::Linux::numa_num_task_cpus_func_t os::Linux::_numa_num_task_cpus;
 os::Linux::numa_available_func_t os::Linux::_numa_available;
 os::Linux::numa_tonode_memory_func_t os::Linux::_numa_tonode_memory;
 os::Linux::numa_interleave_memory_func_t os::Linux::_numa_interleave_memory;
@@ -5018,6 +5024,13 @@ jint os::init_2(void) {
     } else {
       if ((Linux::numa_max_node() < 1)) {
         // There's only one node(they start from 0), disable NUMA.
+        UseNUMA = false;
+      } else if (FLAG_IS_DEFAULT(UseNUMA) &&
+                 Linux::numa_num_configured_cpus() != Linux::numa_num_task_cpus()) {
+        // Unless explicitly enabled by the user, disable NUMA if this process is
+        // restricted to execute on a subset of the CPUs on the machine. Memory
+        // interleaving might otherwise not work well, since we might get memory
+        // from nodes we never execute on.
         UseNUMA = false;
       }
     }
