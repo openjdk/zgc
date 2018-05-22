@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/block.hpp"
@@ -36,6 +38,7 @@
 #include "opto/phaseX.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/rootnode.hpp"
+#include "utilities/macros.hpp"
 
 //=============================================================================
 #define NODE_HASH_MINIMUM_SIZE    255
@@ -940,16 +943,8 @@ PhaseIterGVN::PhaseIterGVN( PhaseGVN *gvn ) : PhaseGVN(gvn),
       add_users_to_worklist(n);
   }
 
-#if INCLUDE_ZGC
-  // Permanent temporary workaround
-  // Loadbarriers may have non-obvious dead uses keeping them alive during parsing. The use is
-  // removed by RemoveUseless (after parsing, before optimize) but the barriers won't be added to
-  // the worklist. Unless we add them explicitly they are not guaranteed to end up there.
-  for (int i = 0; i < C->load_barrier_count(); i++) {
-    LoadBarrierNode* n = C->load_barrier_node(i);
-    _worklist.push(n);
-  }
-#endif
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->add_users_to_worklist(&_worklist);
 }
 
 /**
@@ -1380,6 +1375,8 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
                 }
                 assert(!(i < imax), "sanity");
               }
+            } else {
+              BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(_worklist, in);
             }
 #if INCLUDE_ZGC
             else if (in->is_LoadBarrier() && !in->as_LoadBarrier()->has_true_uses()) {
@@ -1440,11 +1437,8 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (dead->Opcode() == Op_Opaque4) {
         C->remove_opaque4_node(dead);
       }
-#if INCLUDE_ZGC
-      if (dead->is_LoadBarrier()) {
-        C->remove_load_barrier_node(dead->as_LoadBarrier());
-      }
-#endif
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      bs->unregister_potential_barrier_node(dead);
     }
   } // while (_stack.is_nonempty())
 }
