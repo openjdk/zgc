@@ -2130,10 +2130,7 @@ void Matcher::find_shared( Node *n ) {
       case Op_FmaF:
       case Op_FmaVD:
       case Op_FmaVF:
-      case Op_CompareAndSwap2I:
-      case Op_CompareAndSwap2L:
         set_shared(n); // Force result into register (it will be anyways)
-        mem_op =(nop == Op_CompareAndSwap2I || nop == Op_CompareAndSwap2L);
         break;
       case Op_ConP: {  // Convert pointers above the centerline to NUL
         TypeNode *tn = n->as_Type(); // Constants derive from type nodes
@@ -2269,8 +2266,6 @@ void Matcher::find_shared( Node *n ) {
       case Op_CompareAndSwapS:
       case Op_CompareAndSwapI:
       case Op_CompareAndSwapL:
-      case Op_CompareAndSwap2I:
-      case Op_CompareAndSwap2L:
       case Op_CompareAndSwapP:
       case Op_CompareAndSwapN: {   // Convert trinary to binary-tree
         Node *newval = n->in(MemNode::ValueIn );
@@ -2513,11 +2508,9 @@ bool Matcher::post_store_load_barrier(const Node* vmb) {
         xop == Op_CompareAndSwapB ||
         xop == Op_CompareAndSwapS ||
         xop == Op_CompareAndSwapL ||
-        xop == Op_CompareAndSwap2L ||
         xop == Op_CompareAndSwapP ||
         xop == Op_CompareAndSwapN ||
-        xop == Op_CompareAndSwapI ||
-        xop == Op_CompareAndSwap2I) {
+        xop == Op_CompareAndSwapI) {
       return true;
     }
 

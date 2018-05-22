@@ -7002,36 +7002,6 @@ instruct g6_testL_reg_reg(flagsRegL ccr, iRegP src, g6RegL other, immL0 zero)
   ins_pipe(ialu_cconly_reg_reg_zero);
 %}
 
-instruct compareAndSwap2L(iRegL res, memory mem_ptr, iRegL oldval, iRegL newval, o7RegP tmp1)
-%{
-  match(Set res (CompareAndSwap2L mem_ptr (Binary oldval newval)));
-  effect(KILL tmp1, USE oldval, USE newval, DEF res);
-
-  format %{ "CASXA $tmp1,$newval,$res" %}
-
-  ins_encode (
-    enc_leal(mem_ptr, tmp1),
-    enc_casl_val(oldval, newval, tmp1, res)
-  );
-
-  ins_pipe( long_memory_op );
-%}
-
-instruct compareAndSwap2I(iRegI res, memory mem_ptr, iRegI oldval, iRegI newval, o7RegP tmp1)
-%{
-  match(Set res (CompareAndSwap2I mem_ptr (Binary oldval newval)));
-  effect(KILL tmp1, USE oldval, USE newval, DEF res);
-
-  format %{ "CASA $tmp1,$newval,$res" %}
-
-  ins_encode (
-    enc_leal(mem_ptr, tmp1),
-    enc_casi_val(oldval, newval, tmp1, res)
-  );
-
-  ins_pipe( long_memory_op );
-%}
-
 instruct compareAndSwapL_bool(iRegP mem_ptr, iRegL oldval, iRegL newval, iRegI res, o7RegI tmp1, flagsReg ccr ) %{
   predicate(VM_Version::supports_cx8());
   match(Set res (CompareAndSwapL mem_ptr (Binary oldval newval)));

@@ -1052,7 +1052,6 @@ Node* LibraryCallKit::generate_current_thread(Node* &tls_output) {
   Node* thread = _gvn.transform(new ThreadLocalNode());
   Node* p = basic_plus_adr(top()/*!oop*/, thread, in_bytes(JavaThread::threadObj_offset()));
   Node* threadObj = make_load(NULL, p, thread_type, T_OBJECT, MemNode::unordered);
-
   tls_output = thread;
   return threadObj;
 }

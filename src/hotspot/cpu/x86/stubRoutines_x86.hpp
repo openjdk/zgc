@@ -56,6 +56,7 @@ class x86 {
   static address _double_sign_flip;
 
  public:
+
   static address get_previous_fp_entry() {
     return _get_previous_fp_entry;
   }

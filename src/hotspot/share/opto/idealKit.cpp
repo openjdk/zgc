@@ -489,12 +489,12 @@ void IdealKit::do_memory_merge(Node* merging, Node* join) {
 //----------------------------- make_call  ----------------------------
 // Trivial runtime call
 Node* IdealKit::make_leaf_call(const TypeFunc *slow_call_type,
-                              address slow_call,
-                              const char *leaf_name,
-                              Node* parm0,
-                              Node* parm1,
-                              Node* parm2,
-                              Node* parm3) {
+                               address slow_call,
+                               const char *leaf_name,
+                               Node* parm0,
+                               Node* parm1,
+                               Node* parm2,
+                               Node* parm3) {
 
   // We only handle taking in RawMem and modifying RawMem
   const TypePtr* adr_type = TypeRawPtr::BOTTOM;

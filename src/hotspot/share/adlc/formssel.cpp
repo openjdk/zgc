@@ -3514,7 +3514,6 @@ int MatchNode::needs_ideal_memory_edge(FormDict &globals) const {
     "LoadPLocked",
     "StorePConditional", "StoreIConditional", "StoreLConditional",
     "CompareAndSwapB", "CompareAndSwapS", "CompareAndSwapI", "CompareAndSwapL", "CompareAndSwapP", "CompareAndSwapN",
-    "CompareAndSwap2I", "CompareAndSwap2L",
     "WeakCompareAndSwapB", "WeakCompareAndSwapS", "WeakCompareAndSwapI", "WeakCompareAndSwapL", "WeakCompareAndSwapP", "WeakCompareAndSwapN",
     "CompareAndExchangeB", "CompareAndExchangeS", "CompareAndExchangeI", "CompareAndExchangeL", "CompareAndExchangeP", "CompareAndExchangeN",
     "StoreCM",

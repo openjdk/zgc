@@ -7779,48 +7779,6 @@ instruct xaddI( memory mem, rRegI newval, rFlagsReg cr) %{
   ins_pipe( pipe_cmpxchg );
 %}
 
-instruct compareAndSwap2L(rax_RegL res,
-                          memory mem_ptr,
-                          rax_RegL oldval, rRegL newval,
-                          rFlagsReg cr)
-%{
-  predicate(VM_Version::supports_cx8());
-  match(Set res (CompareAndSwap2L mem_ptr (Binary oldval newval)));
-  effect(KILL cr);
-
-  format %{ "cmpxchgq $mem_ptr,$newval" %}
-
-  ins_encode %{
-    if (os::is_MP()) {
-      __ lock();
-    }
-    __ cmpxchgq($newval$$Register, $mem_ptr$$Address);
-  %}
-
-
-  ins_pipe( pipe_cmpxchg );
-%}
-
-instruct compareAndSwap2I(rax_RegI res,
-                          memory mem_ptr,
-                          rax_RegI oldval, rRegI newval,
-                          rFlagsReg cr)
-%{
-  match(Set res (CompareAndSwap2I mem_ptr (Binary oldval newval)));
-  effect(KILL cr);
-
-  format %{ "cmpxchgl $mem_ptr,$newval" %}
-
-  ins_encode %{
-    if (os::is_MP()) {
-      __ lock();
-    }
-    __ cmpxchgl($newval$$Register, $mem_ptr$$Address);
-  %}
-
-  ins_pipe( pipe_cmpxchg );
-%}
-
 instruct xaddL_no_res( memory mem, Universe dummy, immL32 add, rFlagsReg cr) %{
   predicate(n->as_LoadStore()->result_not_used());
   match(Set dummy (GetAndAddL mem add));

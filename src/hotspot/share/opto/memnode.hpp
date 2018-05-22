@@ -827,18 +827,6 @@ public:
   LoadStoreConditionalNode(Node *c, Node *mem, Node *adr, Node *val, Node *ex, const Type* rt = TypeInt::BOOL);
 };
 
-class CompareAndSwap2LNode : public LoadStoreConditionalNode {
-public:
-  CompareAndSwap2LNode( Node *c, Node *mem, Node *adr, Node *val, Node *ex) : LoadStoreConditionalNode(c, mem, adr, val, ex, TypeLong::LONG) { }
-  virtual int Opcode() const;
-};
-
-class CompareAndSwap2INode : public LoadStoreConditionalNode {
-public:
-  CompareAndSwap2INode( Node *c, Node *mem, Node *adr, Node *val, Node *ex) : LoadStoreConditionalNode(c, mem, adr, val, ex, TypeInt::INT) { }
-  virtual int Opcode() const;
-};
-
 //------------------------------StorePConditionalNode---------------------------
 // Conditionally store pointer to memory, if no change since prior
 // load-locked.  Sets flags for success or failure of the store.

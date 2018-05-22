@@ -2865,8 +2865,6 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   case Op_CompareAndSwapS:
   case Op_CompareAndSwapI:
   case Op_CompareAndSwapL:
-  case Op_CompareAndSwap2I:
-  case Op_CompareAndSwap2L:
   case Op_CompareAndSwapP:
   case Op_CompareAndSwapN:
   case Op_WeakCompareAndSwapB:
@@ -2919,24 +2917,6 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
       // Check to see if address types have grounded out somehow.
       const TypeInstPtr *tp = mem->in(MemNode::Address)->bottom_type()->isa_instptr();
       assert( !tp || oop_offset_is_sane(tp), "" );
-    }
-    // verify the compare and swap of the load barrier doesn't get disconnected
-    if (nop == Op_CompareAndSwap2L || nop == Op_CompareAndSwap2I) {
-      for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-        Node* u = n->fast_out(i);
-        if (u->is_Root()) {
-          int nb = 0;
-          for (uint j = 0; j < u->req(); j++) {
-            if (u->in(j) == n) {
-              nb++;
-              u->del_req(j);
-            }
-          }
-          --i;
-          imax -= nb;
-        }
-      }
-      assert(n->outcnt() > 0, "");
     }
 #endif
     break;

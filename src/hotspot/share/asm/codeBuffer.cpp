@@ -1075,7 +1075,7 @@ class CodeString: public CHeapObj<mtCode> {
   }
 
   const char * string() const { return _string; }
-  intptr_t     offset() const { /*assert(_offset >= 0, "offset for non comment?");*/ return _offset;  }
+  intptr_t     offset() const { assert(_offset >= 0, "offset for non comment?"); return _offset;  }
   CodeString* next()    const { return _next; }
 
   void set_next(CodeString* next) { _next = next; }

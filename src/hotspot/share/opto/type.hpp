@@ -1771,7 +1771,6 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 // UseOptoBiasInlining
 #define XorXNode     XorLNode
 #define StoreXConditionalNode StoreLConditionalNode
-#define CompareAndSwapXNode   CompareAndSwap2LNode
 // Opcodes
 #define Op_LShiftX   Op_LShiftL
 #define Op_AndX      Op_AndL
@@ -1817,7 +1816,6 @@ inline bool Type::is_ptr_to_boxing_obj() const {
 // UseOptoBiasInlining
 #define XorXNode     XorINode
 #define StoreXConditionalNode StoreIConditionalNode
-#define CompareAndSwapXNode   CompareAndSwap2INode
 // Opcodes
 #define Op_LShiftX   Op_LShiftI
 #define Op_AndX      Op_AndI

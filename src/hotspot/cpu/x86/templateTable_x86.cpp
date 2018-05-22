@@ -160,7 +160,7 @@ static void do_oop_load(InterpreterMacroAssembler* _masm,
                         Address src,
                         Register dst,
                         DecoratorSet decorators = 0) {
-  __ load_heap_oop(dst, src, LP64_ONLY(r8) NOT_LP64(noreg), rbx, decorators);
+  __ load_heap_oop(dst, src, rdx, rbx, decorators);
 }
 
 Address TemplateTable::at_bcp(int offset) {
