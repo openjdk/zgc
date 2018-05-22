@@ -758,10 +758,6 @@ class GraphKit : public Phase {
 
   public:
 
-#if INCLUDE_ZGC
-  Node* load_barrier(Node* val, Node* adr, bool weak = false, bool writeback = true, bool oop_reload_allowed = true);
-#endif
-
   // Helper function to round double arguments before a call
   void round_double_arguments(ciMethod* dest_method);
   void round_double_result(ciMethod* dest_method);

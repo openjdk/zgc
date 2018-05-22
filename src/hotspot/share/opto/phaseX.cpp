@@ -1378,11 +1378,6 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
             } else {
               BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(_worklist, in);
             }
-#if INCLUDE_ZGC
-            else if (in->is_LoadBarrier() && !in->as_LoadBarrier()->has_true_uses()) {
-              _worklist.push(in);
-            }
-#endif
             if (ReduceFieldZeroing && dead->is_Load() && i == MemNode::Memory &&
                 in->is_Proj() && in->in(0) != NULL && in->in(0)->is_Initialize()) {
               // A Load that directly follows an InitializeNode is

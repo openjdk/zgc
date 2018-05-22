@@ -287,60 +287,6 @@ protected:
   }
 };
 
-#if INCLUDE_ZGC
-
-class LoadBarrierNode: public MultiNode {
-private:
-  bool _weak;
-  bool _writeback;          // Controls if the barrier writes the healed oop back to memory
-                            // A swap on a memory location must never write back the healed oop
-  bool _oop_reload_allowed; // Controls if the barrier are allowed to reload the oop from memory
-                            // before healing, otherwise both the oop and the address must be passed to the
-                            // barrier from the oop
-
-  static bool is_dominator(PhaseIdealLoop* phase, bool linear_only, Node *d, Node *n);
-  void push_dominated_barriers(PhaseIterGVN* igvn) const;
-
-public:
-  enum {
-    Control,
-    Memory,
-    Oop,
-    Address,
-    Number_of_Outputs = Address,
-    Similar,
-    Number_of_Inputs
-  };
-
-  LoadBarrierNode(Compile* C, Node* c, Node* mem, Node* val, Node* adr, bool weak, bool writeback, bool oop_reload_allowed)
-    : MultiNode(Number_of_Inputs), _weak(weak), _writeback(writeback), _oop_reload_allowed(oop_reload_allowed)  {
-    init_req(Control, c);
-    init_req(Memory, mem);
-    init_req(Oop, val);
-    init_req(Address, adr);
-    init_req(Similar, C->top());
-
-    init_class_id(Class_LoadBarrier);
-    C->add_load_barrier_node(this);
-  }
-  virtual int Opcode() const;
-  virtual const Type *bottom_type() const;
-  virtual const Type *Value(PhaseGVN *phase) const;
-  virtual Node *Identity(PhaseGVN *phase);
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
-
-  LoadBarrierNode* has_dominating_barrier(PhaseIdealLoop* phase, bool linear_only, bool look_for_similar);
-  bool can_be_eliminated() const { return !in(Similar)->is_top(); }
-
-  void fix_similar_in_uses(PhaseIterGVN* igvn);
-  bool has_true_uses() const;
-  bool is_weak() const { return _weak; }
-  bool is_writeback() const { return _writeback; }
-  bool oop_reload_allowed() const { return _oop_reload_allowed; }
-};
-
-#endif // INCLUDE_ZGC
-
 //------------------------------LoadBNode--------------------------------------
 // Load a byte (8bits signed) from memory
 class LoadBNode : public LoadNode {
@@ -524,26 +470,6 @@ public:
   virtual int store_Opcode() const { return Op_StoreP; }
   virtual BasicType memory_type() const { return T_ADDRESS; }
   virtual bool is_LoadPNode() { return true; }
-};
-
-class LoadBarrierSlowRegNode : public LoadPNode {
-public:
-  virtual const char * name() { return "LoadBarrierSlowRegNode"; }
-  LoadBarrierSlowRegNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypePtr* t, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest)
-    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) { }
-  virtual int Opcode() const;
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) { return NULL; }
-  // virtual const Type *bottom_type() const;
-  // virtual const Type *Value(PhaseGVN *phase) const
-};
-
-class LoadBarrierWeakSlowRegNode : public LoadPNode {
-public:
-  virtual const char * name() { return "LoadBarrierWeakSlowRegNode"; }
-  LoadBarrierWeakSlowRegNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypePtr* t, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest)
-    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) { }
-  virtual int Opcode() const;
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) { return NULL; }
 };
 
 //------------------------------LoadNNode--------------------------------------

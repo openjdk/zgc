@@ -283,10 +283,6 @@ class LibraryCallKit : public GraphKit {
 
   typedef enum { LS_get_add, LS_get_set, LS_cmp_swap, LS_cmp_swap_weak, LS_cmp_exchange } LoadStoreKind;
   bool inline_unsafe_load_store(BasicType type,  LoadStoreKind kind, AccessKind access_kind);
-#if INCLUDE_ZGC
-  Node* make_cas_loadbarrier(CompareAndSwapNode* cas);
-  Node* make_cmpx_loadbarrier(CompareAndExchangePNode* cmpx);
-#endif
   bool inline_unsafe_fence(vmIntrinsics::ID id);
   bool inline_onspinwait();
   bool inline_fp_conversions(vmIntrinsics::ID id);
@@ -1056,11 +1052,6 @@ Node* LibraryCallKit::generate_current_thread(Node* &tls_output) {
   Node* thread = _gvn.transform(new ThreadLocalNode());
   Node* p = basic_plus_adr(top()/*!oop*/, thread, in_bytes(JavaThread::threadObj_offset()));
   Node* threadObj = make_load(NULL, p, thread_type, T_OBJECT, MemNode::unordered);
-#if INCLUDE_ZGC
-  if (UseZGC) {
-    threadObj = load_barrier(threadObj, p);
-  }
-#endif
 
   tls_output = thread;
   return threadObj;
@@ -2477,10 +2468,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   return true;
-}
-
-bool LibraryCallKit::loadstore_requires_writeback_barrier(const LoadStoreKind kind) {
-  return (kind != LS_get_set);
 }
 
 //----------------------------inline_unsafe_load_store----------------------------

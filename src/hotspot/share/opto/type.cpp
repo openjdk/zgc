@@ -39,6 +39,7 @@
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
 #include "opto/type.hpp"
+#include "utilities/macros.hpp"
 
 // Portions of code courtesy of Clifford Click
 

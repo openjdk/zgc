@@ -206,12 +206,6 @@ void Parse::do_get_xxx(Node* obj, ciField* field, bool is_field) {
 
   Node* ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
 
-#if INCLUDE_ZGC
-  if (UseZGC && bt == T_OBJECT) {
-    ld = load_barrier(ld, adr);
-  }
-#endif
-
   // Adjust Java stack
   if (type2size[bt] == 1)
     push(ld);

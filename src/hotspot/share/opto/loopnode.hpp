@@ -1230,18 +1230,6 @@ public:
   void  split_if_with_blocks     (VectorSet &visited, Node_Stack &nstack, bool last_round);
   Node *split_if_with_blocks_pre (Node *n);
   void  split_if_with_blocks_post(Node *n, bool last_round);
-  Node* find_dominating_memory(Node* mem, Node* dom, int i = -1);
-
-#if INCLUDE_ZGC
-  void  optimize_load_barrier(LoadBarrierNode* lb, bool last_round);
-  LoadBarrierNode* clone_load_barrier(LoadBarrierNode* lb, Node* ctl, Node* mem, Node* oop_in);
-  void replace_barrier(LoadBarrierNode* lb, Node* new_val);
-  bool replace_with_dominating_barrier(LoadBarrierNode* lb, bool last_round);
-  bool split_barrier_thru_phi(LoadBarrierNode* lb);
-  bool move_out_of_loop(LoadBarrierNode* lb);
-  bool common_barriers(LoadBarrierNode* lb);
-#endif
-
   Node *has_local_phi_input( Node *n );
   // Mark an IfNode as being dominated by a prior test,
   // without actually altering the CFG (and hence IDOM info).

@@ -75,9 +75,13 @@
 #include "runtime/timer.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
+#include "utilities/macros.hpp"
 #if INCLUDE_G1GC
 #include "gc/g1/g1ThreadLocalData.hpp"
 #endif // INCLUDE_G1GC
+#if INCLUDE_ZGC
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
 
 
 // -------------------- Compile::mach_constant_base_node -----------------------
@@ -1190,9 +1194,6 @@ void Compile::Init(int aliaslevel) {
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
-#if INCLUDE_ZGC
-  _load_barrier_nodes = new(comp_arena()) GrowableArray<LoadBarrierNode*>(comp_arena(), 8,  0, NULL);
-#endif
   register_library_intrinsics();
 }
 
@@ -2166,8 +2167,9 @@ void Compile::Optimize() {
 
 #endif
 
-#if INCLUDE_ZGC && defined(ASSERT)
-  verify_load_barriers(true);
+#ifdef ASSERT
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->verify_gc_barriers(true);
 #endif
 
   ResourceMark rm;
@@ -2342,7 +2344,9 @@ void Compile::Optimize() {
     }
   }
 
-  // TODO: Insert ZGC hook here
+#if INCLUDE_ZGC
+  ZBarrierSetC2::find_dominating_barriers(igvn);
+#endif
   if (failing())  return;
 
   // Ensure that major progress is now clear
@@ -2366,7 +2370,7 @@ void Compile::Optimize() {
   bs->verify_gc_barriers(false);
 #endif
 
-  // ZGC TODO: Add print statement here
+  print_method(PHASE_BEFORE_MACRO_EXPANSION, 2);
 
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
@@ -4690,108 +4694,3 @@ void CloneMap::dump(node_idx_t key) const {
     ni.dump();
   }
 }
-
-#if INCLUDE_ZGC && defined(ASSERT)
-
-static bool look_for_barrier(Node* n, bool post_parse, VectorSet& visited) {
-  if (visited.test_set(n->_idx)) {
-    return true;
-  }
-
-  for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-    Node* u = n->fast_out(i);
-    if (u->is_LoadBarrier()) {
-    } else if ((u->is_Phi() || u->is_CMove()) && !post_parse) {
-      if (!look_for_barrier(u, post_parse, visited)) {
-        return false;
-      }
-    } else if (u->Opcode() == Op_EncodeP || u->Opcode() == Op_DecodeN) {
-      if (!look_for_barrier(u, post_parse, visited)) {
-        return false;
-      }
-    } else if (u->Opcode() != Op_SCMemProj) {
-      tty->print("bad use"); u->dump();
-      return false;
-    }
-  }
-  return true;
-}
-
-void Compile::verify_load_barriers(bool post_parse) {
-  ResourceMark rm;
-  VectorSet visited(Thread::current()->resource_area());
-  for (int i = 0; i < load_barrier_count(); i++) {
-    LoadBarrierNode* n = load_barrier_node(i);
-
-    // The dominating barrier on the same address if it exists and
-    // this barrier must not be applied on the value from the same
-    // load otherwise the value is not reloaded before it's used the
-    // second time.
-    assert(n->in(LoadBarrierNode::Similar)->is_top() ||
-           (n->in(LoadBarrierNode::Similar)->in(0)->is_LoadBarrier() &&
-            n->in(LoadBarrierNode::Similar)->in(0)->in(LoadBarrierNode::Address) == n->in(LoadBarrierNode::Address) &&
-            n->in(LoadBarrierNode::Similar)->in(0)->in(LoadBarrierNode::Oop) != n->in(LoadBarrierNode::Oop)),
-           "broken similar edge");
-
-    assert(post_parse || n->as_LoadBarrier()->has_true_uses(), "");
-    // Several load barrier nodes chained through their Similar edge
-    // break the code that remove the barriers in final graph reshape.
-    assert(n->in(LoadBarrierNode::Similar)->is_top() ||
-           (n->in(LoadBarrierNode::Similar)->in(0)->is_LoadBarrier() &&
-            n->in(LoadBarrierNode::Similar)->in(0)->in(LoadBarrierNode::Similar)->is_top()),
-           "chain of Similar load barriers");
-
-
-    if (!n->in(LoadBarrierNode::Similar)->is_top()) {
-      ResourceMark rm;
-      Unique_Node_List wq;
-      Node* other = n->in(LoadBarrierNode::Similar)->in(0);
-      wq.push(n);
-      bool ok = true;
-      bool dom_found = false;
-      for (uint next = 0; next < wq.size(); ++next) {
-        Node *n = wq.at(next);
-        assert(n->is_CFG(), "");
-        assert(!n->is_SafePoint(), "");
-
-        if (n == other) {
-          continue;
-        }
-        if (n->is_Region()) {
-          for (uint i = 1; i < n->req(); i++) {
-            Node* m = n->in(i);
-            if (m != NULL) {
-              wq.push(m);
-            }
-          }
-        } else {
-          Node* m = n->in(0);
-          if (m != NULL) {
-            wq.push(m);
-          }
-        }
-      }
-    }
-
-    if (VerifyLoadBarriers) {
-      bool check = false;
-      if ((n->is_Load() || n->is_LoadStore()) && n->bottom_type()->make_oopptr() != NULL) {
-        check = true;
-      }
-      if (check) {
-        visited.Clear();
-        bool found = look_for_barrier(n, post_parse, visited);
-        if (!found) {
-          n->dump(1);
-          n->dump(-3);
-          stringStream ss;
-          method()->print_short_name(&ss);
-          tty->print_cr("-%s-", ss.as_string());
-          assert(found, "");
-        }
-      }
-    }
-  }
-}
-
-#endif // INCLUDE_ZGC && defined(ASSERT)

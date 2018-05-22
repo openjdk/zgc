@@ -95,9 +95,7 @@ Node* ModRefBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access
   // Emit the post barrier only when the actual store happened. This makes sense
   // to check only for LS_cmp_* that can fail to set the value.
   // LS_cmp_exchange does not produce any branches by default, so there is no
-  // boolean result to piggyback on. TODO: When we merge CompareAndSwap with
-  // CompareAndExchange and move branches here, it would make sense to conditionalize
-  // post_barriers for LS_cmp_exchange as well.
+  // boolean result to piggyback on.
   //
   // CAS success path is marked more likely since we anticipate this is a performance
   // critical path, while CAS failure path can use the penalty for going through unlikely

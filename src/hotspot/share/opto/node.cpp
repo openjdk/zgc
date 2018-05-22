@@ -40,6 +40,9 @@
 #include "opto/type.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/c2/zBarrierSetC2.hpp"
+#endif
 
 class RegMask;
 // #include "phase.hpp"
@@ -1391,11 +1394,6 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
           } else {
             BarrierSet::barrier_set()->barrier_set_c2()->enqueue_useful_gc_barrier(igvn->_worklist, n);
           }
-#if INCLUDE_ZGC
-          else if (n->is_LoadBarrier() && !n->as_LoadBarrier()->has_true_uses()) {
-            igvn->_worklist.push(n);
-          }
-#endif
         }
       }
     } // (dead->outcnt() == 0)

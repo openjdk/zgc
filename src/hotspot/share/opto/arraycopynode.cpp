@@ -278,12 +278,6 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
-#if INCLUDE_ZGC
-    if (dest_elem == T_OBJECT && UseZGC) {
-      return false;
-    }
-#endif
-
     value_type = ary_src->elem();
 
     base_src = src;
