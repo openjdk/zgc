@@ -732,7 +732,7 @@ Node* ZBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access, Nod
 }
 
 Node* ZBarrierSetC2::atomic_xchg_at_resolved(C2AtomicAccess& access, Node* new_val, const Type* val_type) const {
-  Node* result = ZBarrierSetC2::atomic_xchg_at_resolved(access, new_val, val_type);
+  Node* result = BarrierSetC2::atomic_xchg_at_resolved(access, new_val, val_type);
   if (!barrier_needed(access)) {
     return result;
   }
@@ -997,7 +997,9 @@ bool ZBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
   PhaseIterGVN &igvn = macro->igvn();
   ZBarrierSetC2State* s = state();
   if (s->load_barrier_count() > 0) {
+#ifdef ASSERT
     verify_gc_barriers(false);
+#endif
     igvn.set_delay_transform(true);
     int skipped = 0;
     while (s->load_barrier_count() > skipped) {

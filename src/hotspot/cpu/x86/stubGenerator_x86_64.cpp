@@ -45,7 +45,6 @@
 #include "opto/runtime.hpp"
 #endif
 #if INCLUDE_ZGC
-#include "gc/z/zBarrierSetRuntime.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #endif
 
@@ -801,112 +800,6 @@ class StubGenerator: public StubCodeGenerator {
 
     return start;
   }
-
-#if INCLUDE_ZGC
-
-  // Generates a register specific stub for calling
-  // ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded() or
-  // ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded().
-  //
-  // The raddr register serves as both input and output for this stub. When the stub is
-  // called the raddr register contains the object field address (oop*) where the bad oop
-  // was loaded from, which caused the slow path to be taken. On return from the stub the
-  // raddr register contains the good/healed oop returned from
-  // ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded() or
-  // ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded().
-  address generate_load_barrier_stub(Register raddr, DecoratorSet decorators) {
-    // Don't generate stub for invalid registers
-    if (raddr == rsp || raddr == r12 || raddr == r15) {
-      return NULL;
-    }
-
-    // Create stub name
-    char name[64];
-    const bool weak = (decorators & ON_WEAK_OOP_REF) != 0;
-    os::snprintf(name, sizeof(name), "load_barrier%s_stub_%s", weak ? "_weak" : "", raddr->name());
-
-    __ align(CodeEntryAlignment);
-    StubCodeMark mark(this, "StubRoutines", os::strdup(name, mtCode));
-    address start = __ pc();
-
-    // Save live registers
-    if (raddr != rax) {
-      __ push(rax);
-    }
-    if (raddr != rcx) {
-      __ push(rcx);
-    }
-    if (raddr != rdx) {
-      __ push(rdx);
-    }
-    if (raddr != rsi) {
-      __ push(rsi);
-    }
-    if (raddr != rdi) {
-      __ push(rdi);
-    }
-    if (raddr != r8) {
-      __ push(r8);
-    }
-    if (raddr != r9) {
-      __ push(r9);
-    }
-    if (raddr != r10) {
-      __ push(r10);
-    }
-    if (raddr != r11) {
-      __ push(r11);
-    }
-
-    // Setup arguments
-    if (c_rarg1 != raddr) {
-      __ movq(c_rarg1, raddr);
-    }
-    __ movq(c_rarg0, Address(raddr, 0));
-
-    // Call barrier function
-    __ call_VM_leaf(ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(decorators), c_rarg0, c_rarg1);
-
-    // Move result returned in rax to raddr, if needed
-    if (raddr != rax) {
-      __ movq(raddr, rax);
-    }
-
-    // Restore saved registers
-    if (raddr != r11) {
-      __ pop(r11);
-    }
-    if (raddr != r10) {
-      __ pop(r10);
-    }
-    if (raddr != r9) {
-      __ pop(r9);
-    }
-    if (raddr != r8) {
-      __ pop(r8);
-    }
-    if (raddr != rdi) {
-      __ pop(rdi);
-    }
-    if (raddr != rsi) {
-      __ pop(rsi);
-    }
-    if (raddr != rdx) {
-      __ pop(rdx);
-    }
-    if (raddr != rcx) {
-      __ pop(rcx);
-    }
-    if (raddr != rax) {
-      __ pop(rax);
-    }
-
-    __ ret(0);
-
-    return start;
-  }
-
-#endif // INCLUDE_ZGC
 
   address generate_f2i_fixup() {
     StubCodeMark mark(this, "StubRoutines", "f2i_fixup");
@@ -5177,18 +5070,6 @@ class StubGenerator: public StubCodeGenerator {
 
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
-
-#if INCLUDE_ZGC
-    // Load barrier stubs
-    if (UseZGC) {
-      Register rr = as_Register(0);
-      for (int i = 0; i < RegisterImpl::number_of_registers; i++) {
-        StubRoutines::x86::_load_barrier_slow_stub[i] = generate_load_barrier_stub(rr, ON_STRONG_OOP_REF);
-        StubRoutines::x86::_load_barrier_weak_slow_stub[i] = generate_load_barrier_stub(rr, ON_WEAK_OOP_REF);
-        rr = rr->successor();
-      }
-    }
-#endif // INCLUDE_ZGC
 
     // don't bother generating these AES intrinsic stubs unless global flag is set
     if (UseAESIntrinsics) {

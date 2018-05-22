@@ -31,7 +31,17 @@ class ZLoadBarrierStubC1;
 #endif // COMPILER1
 
 class ZBarrierSetAssembler : public ZBarrierSetAssemblerBase {
+  address _load_barrier_slow_stub[RegisterImpl::number_of_registers];
+  address _load_barrier_weak_slow_stub[RegisterImpl::number_of_registers];
+
 public:
+  ZBarrierSetAssembler() :
+    _load_barrier_slow_stub(),
+    _load_barrier_weak_slow_stub() {}
+
+  address load_barrier_slow_stub(Register reg) { return _load_barrier_slow_stub[reg->encoding()]; }
+  address load_barrier_weak_slow_stub(Register reg) { return _load_barrier_weak_slow_stub[reg->encoding()]; }
+
   virtual void load_at(MacroAssembler* masm,
                        DecoratorSet decorators,
                        BasicType type,
@@ -73,6 +83,8 @@ public:
   void generate_c1_load_barrier_runtime_stub(StubAssembler* sasm,
                                              DecoratorSet decorators) const;
 #endif // COMPILER1
+
+  virtual void barrier_stubs_init();
 };
 
 #endif // CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP

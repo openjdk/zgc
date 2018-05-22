@@ -12487,13 +12487,14 @@ instruct loadBarrierSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
   ins_encode %{
 #if INCLUDE_ZGC
     Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
 
     assert(d != r12, "Can't be R12!");
     assert(d != r15, "Can't be R15!");
     assert(d != rsp, "Can't be RSP!");
 
     __ lea(d, $mem$$Address);
-    __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d)));
+    __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
 #else
     fatal("ZGC specific code");
 #endif
@@ -12521,13 +12522,14 @@ instruct loadBarrierSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
   ins_encode %{
 #if INCLUDE_ZGC
     Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
 
     assert(d != r12, "Can't be R12!");
     assert(d != r15, "Can't be R15!");
     assert(d != rsp, "Can't be RSP!");
 
     __ lea(d, $mem$$Address);
-    __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d)));
+    __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
 #else
     fatal("ZGC specific code");
 #endif
@@ -12563,13 +12565,14 @@ instruct loadBarrierSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
   ins_encode %{
 #if INCLUDE_ZGC
     Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
 
     assert(d != r12, "Can't be R12!");
     assert(d != r15, "Can't be R15!");
     assert(d != rsp, "Can't be RSP!");
 
     __ lea(d, $mem$$Address);
-    __ call(RuntimeAddress(StubRoutines::x86::load_barrier_slow_stub(d)));
+    __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
 #else
     fatal("ZGC specific code");
 #endif
@@ -12593,13 +12596,14 @@ instruct loadBarrierWeakSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
   ins_encode %{
 #if INCLUDE_ZGC
     Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
 
     assert(d != r12, "Can't be R12!");
     assert(d != r15, "Can't be R15!");
     assert(d != rsp, "Can't be RSP!");
 
     __ lea(d, $mem$$Address);
-    __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d)));
+    __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
 #else
     fatal("ZGC specific code");
 #endif
@@ -12627,13 +12631,14 @@ instruct loadBarrierWeakSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
   ins_encode %{
 #if INCLUDE_ZGC
     Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
 
     assert(d != r12, "Can't be R12!");
     assert(d != r15, "Can't be R15!");
     assert(d != rsp, "Can't be RSP!");
 
     __ lea(d,$mem$$Address);
-    __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d)));
+    __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
 #else
     fatal("ZGC specific code");
 #endif
@@ -12669,13 +12674,14 @@ instruct loadBarrierWeakSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
   ins_encode %{
 #if INCLUDE_ZGC
     Register d = $dst$$Register;
+    ZBarrierSetAssembler* bs = (ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
 
     assert(d != r12, "Can't be R12!");
     assert(d != r15, "Can't be R15!");
     assert(d != rsp, "Can't be RSP!");
 
     __ lea(d,$mem$$Address);
-    __ call(RuntimeAddress(StubRoutines::x86::load_barrier_weak_slow_stub(d)));
+    __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
 #else
     fatal("ZGC specific code");
 #endif
