@@ -53,9 +53,17 @@ void ZArguments::initialize() {
     FLAG_SET_DEFAULT(ParallelGCThreads, ZWorkers::calculate_nparallel());
   }
 
+  if (ParallelGCThreads == 0) {
+    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:ParallelGCThreads=0");
+  }
+
   // Select number of concurrent threads
   if (FLAG_IS_DEFAULT(ConcGCThreads)) {
     FLAG_SET_DEFAULT(ConcGCThreads, ZWorkers::calculate_nconcurrent());
+  }
+
+  if (ConcGCThreads == 0) {
+    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:ConcGCThreads=0");
   }
 
 #ifdef COMPILER2
