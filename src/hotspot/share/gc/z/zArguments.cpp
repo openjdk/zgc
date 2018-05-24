@@ -83,6 +83,10 @@ void ZArguments::initialize() {
   FLAG_SET_DEFAULT(UseCompressedOops, false);
   FLAG_SET_DEFAULT(UseCompressedClassPointers, false);
 
+  // ClassUnloading not (yet) supported
+  FLAG_SET_DEFAULT(ClassUnloading, false);
+  FLAG_SET_DEFAULT(ClassUnloadingWithConcurrentMark, false);
+
   // Verification before exit not (yet) supported
   FLAG_SET_DEFAULT(VerifyBeforeExit, false);
 }
