@@ -184,11 +184,6 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
 
   for (int i = 0; i < count; i++) {
     ciField* field = ik->nonstatic_field_at(i);
-    int fieldidx = phase->C->alias_type(field)->index();
-    const TypePtr* adr_type = phase->C->alias_type(field)->adr_type();
-    Node* off = phase->MakeConX(field->offset());
-    Node* next_src = phase->transform(new AddPNode(base_src,base_src,off));
-    Node* next_dest = phase->transform(new AddPNode(base_dest,base_dest,off));
     BasicType bt = field->layout_type();
 
     const Type *type;
@@ -199,9 +194,24 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
         ciType* field_klass = field->type();
         type = TypeOopPtr::make_from_klass(field_klass->as_klass());
       }
+#if INCLUDE_ZGC
+      if (UseZGC) {
+        if (can_reshape) {
+          PhaseIterGVN* igvn = phase->is_IterGVN();
+          igvn->_worklist.push(mem);
+        }
+        return NodeSentinel;
+      }
+#endif
     } else {
       type = Type::get_const_basic_type(bt);
     }
+
+    int fieldidx = phase->C->alias_type(field)->index();
+    const TypePtr* adr_type = phase->C->alias_type(field)->adr_type();
+    Node* off = phase->MakeConX(field->offset());
+    Node* next_src = phase->transform(new AddPNode(base_src,base_src,off));
+    Node* next_dest = phase->transform(new AddPNode(base_dest,base_dest,off));
 
     Node* v = LoadNode::make(*phase, ctl, mem->memory_at(fieldidx), next_src, adr_type, type, bt, MemNode::unordered);
     v = phase->transform(v);
@@ -211,6 +221,10 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   }
 
   if (!finish_transform(phase, can_reshape, ctl, mem)) {
+    if (can_reshape) {
+      PhaseIterGVN* igvn = phase->is_IterGVN();
+      igvn->_worklist.push(mem);
+    }
     // Return NodeSentinel to indicate that the transform failed
     return NodeSentinel;
   }
@@ -307,6 +321,12 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     if (elem == T_ARRAY)  elem = T_OBJECT;
 
+#if INCLUDE_ZGC
+    if (elem == T_OBJECT && UseZGC) {
+      return false;
+    }
+#endif
+
     int diff = arrayOopDesc::base_offset_in_bytes(elem) - phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con();
     assert(diff >= 0, "clone should not start after 1st array element");
     if (diff > 0) {
@@ -362,6 +382,7 @@ Node* ArrayCopyNode::array_copy_forward(PhaseGVN *phase,
                                         BasicType copy_type,
                                         const Type* value_type,
                                         int count) {
+  ZGC_ONLY(guarantee(!UseZGC || copy_type != T_OBJECT, "Must be");)
   Node* mem = phase->C->top();
   if (!forward_ctl->is_top()) {
     // copy forward
@@ -404,6 +425,7 @@ Node* ArrayCopyNode::array_copy_backward(PhaseGVN *phase,
                                          BasicType copy_type,
                                          const Type* value_type,
                                          int count) {
+  ZGC_ONLY(guarantee(!UseZGC || copy_type != T_OBJECT, "Must be");)
   Node* mem = phase->C->top();
   if (!backward_ctl->is_top()) {
     // copy backward

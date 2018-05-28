@@ -908,11 +908,11 @@ public:
     _dom_lca_tags(arena()), // Thread::resource_area
     _verify_me(NULL),
     _verify_only(true) {
-    build_and_optimize(false, false);
+    build_and_optimize(false, false, false);
   }
 
   // build the loop tree and perform any requested optimizations
-  void build_and_optimize(bool do_split_if, bool skip_loop_opts);
+  void build_and_optimize(bool do_split_if, bool skip_loop_opts, bool last_round);
 
   // Dominators for the sea of nodes
   void Dominators();
@@ -922,13 +922,13 @@ public:
   Node *dom_lca_internal( Node *n1, Node *n2 ) const;
 
   // Compute the Ideal Node to Loop mapping
-  PhaseIdealLoop( PhaseIterGVN &igvn, bool do_split_ifs, bool skip_loop_opts = false) :
+  PhaseIdealLoop( PhaseIterGVN &igvn, bool do_split_ifs, bool skip_loop_opts, bool last_round) :
     PhaseTransform(Ideal_Loop),
     _igvn(igvn),
     _dom_lca_tags(arena()), // Thread::resource_area
     _verify_me(NULL),
     _verify_only(false) {
-    build_and_optimize(do_split_ifs, skip_loop_opts);
+    build_and_optimize(do_split_ifs, skip_loop_opts, last_round);
   }
 
   // Verify that verify_me made the same decisions as a fresh run.
@@ -938,7 +938,7 @@ public:
     _dom_lca_tags(arena()), // Thread::resource_area
     _verify_me(verify_me),
     _verify_only(false) {
-    build_and_optimize(false, false);
+    build_and_optimize(false, false, false);
   }
 
   // Build and verify the loop tree without modifying the graph.  This
@@ -1227,9 +1227,9 @@ public:
 
   // Check for aggressive application of 'split-if' optimization,
   // using basic block level info.
-  void  split_if_with_blocks     ( VectorSet &visited, Node_Stack &nstack );
-  Node *split_if_with_blocks_pre ( Node *n );
-  void  split_if_with_blocks_post( Node *n );
+  void  split_if_with_blocks     (VectorSet &visited, Node_Stack &nstack, bool last_round);
+  Node *split_if_with_blocks_pre (Node *n);
+  void  split_if_with_blocks_post(Node *n, bool last_round);
   Node *has_local_phi_input( Node *n );
   // Mark an IfNode as being dominated by a prior test,
   // without actually altering the CFG (and hence IDOM info).

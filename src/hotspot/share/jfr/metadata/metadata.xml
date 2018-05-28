@@ -885,6 +885,39 @@
     <Field type="uint" name="newRatio" label="New Ratio" description="The size of the young generation relative to the tenured generation" />
   </Event>
 
+  <Event name="ZPageAllocation" category="Java Application" label="ZPage Allocation" description="Allocation of a ZPage" thread="true" stackTrace="false">
+     <Field type="ulong" contentType="bytes" name="pageSize" label="Page Size" />
+     <Field type="ulong" contentType="bytes" name="usedAfterPageAlloc" label="Used After Page Alloc" />
+     <Field type="ulong" contentType="bytes" name="freeAfterPageAlloc" label="Free After Page Alloc" />
+     <Field type="ulong" contentType="bytes" name="inCacheAfterPageAlloc" label="In Cache After Page Alloc" />
+     <Field type="boolean" name="nonblocking" label="Non-blocking" />
+     <Field type="boolean" name="noreserve" label="No Reserve" />
+  </Event>
+
+  <Event name="ZThreadPhase" category="Java Virtual Machine, GC, Detailed" label="ZGC Thread Phase" thread="true">
+    <Field type="uint" name="gcId" label="GC Identifier" relation="GcId"/>
+    <Field type="string" name="name" label="Name" />
+  </Event>
+
+  <Event name="ZStatCounter" category="Java Virtual Machine, GC, Detailed" label="Z Stat Counter" thread="true">
+    <Field type="ZStatCounter" name="id" label="Id" />
+    <Field type="ulong" name="increment" label="Increment" />
+    <Field type="ulong" name="value" label="Value" />
+  </Event>
+
+  <Event name="ZStatSampler" category="Java Virtual Machine, GC, Detailed" label="Z Stat Sampler" thread="true">
+    <Field type="ZStatSampler" name="id" label="Id" />
+    <Field type="ulong" name="value" label="Value" />
+  </Event>
+
+  <Type name="ZStatCounterType" label="Z Stat Counter">
+    <Field type="string" name="counter" label="Counter" />
+  </Type>
+
+  <Type name="ZStatSamplerType" label="Z Stat Sampler">
+    <Field type="string" name="sampler" label="Sampler" />
+  </Type>
+
   <Type name="Thread" label="Thread">
     <Field type="string" name="osName" label="OS Thread Name" />
     <Field type="long" name="osThreadId" label="OS Thread Id" />
