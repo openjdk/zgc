@@ -339,8 +339,9 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     fi
   fi
 
-  # Only enable zgc on Linux x86_64
-  if (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xx86_64"); then
+  # Only enable zgc on Linux x86_64 and Solaris Sparc
+  if (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xx86_64") || \
+     (test "x$OPENJDK_TARGET_OS" = "xsolaris" && test "x$OPENJDK_TARGET_CPU" = "xsparcv9"); then
     JVM_FEATURES_zgc="zgc"
   else
     JVM_FEATURES_zgc=""

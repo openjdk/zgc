@@ -40,7 +40,9 @@
                          writeable) \
                                                                                \
   product(bool, UseExtendedFileIO, true,                                       \
-          "Enable workaround for limitations of stdio FILE structure")
+          "Enable workaround for limitations of stdio FILE structure")         \
+  product(bool, UseOSMHeap, false,                                             \
+          "Use Optimized Shared Memory for the Java heap")
 
 //
 // Defines Solaris-specific default values. The flags are available on all
