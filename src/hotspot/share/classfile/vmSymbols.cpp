@@ -763,7 +763,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_copyOfRange:
     // These intrinsics use both the objectcopy and the arraycopy
     // intrinsic mechanism.
-    if (ZGC_ONLY(PreventLoadBarrierArrayCopyBug ||) !InlineObjectCopy || !InlineArrayCopy) return true;
+    if (!InlineObjectCopy || !InlineArrayCopy) return true;
     break;
   case vmIntrinsics::_compareToL:
   case vmIntrinsics::_compareToU:

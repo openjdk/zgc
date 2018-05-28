@@ -219,11 +219,7 @@ LoadBarrierNode* LoadBarrierNode::has_dominating_barrier(PhaseIdealLoop* phase, 
     }
   }
 
-  if (VerifyLoadBarriers || can_be_eliminated()) {
-    return NULL;
-  }
-
-  if (PreventLoadBarrierDomBug) {
+  if (ZVerifyLoadBarriers || can_be_eliminated()) {
     return NULL;
   }
 
@@ -312,13 +308,13 @@ void LoadBarrierNode::push_dominated_barriers(PhaseIterGVN* igvn) const {
 }
 
 Node *LoadBarrierNode::Identity(PhaseGVN *phase) {
-  if (!phase->C->directive()->OptimizeLoadBarriersOption) {
+  if (!phase->C->directive()->ZOptimizeLoadBarriersOption) {
     return this;
   }
 
   bool redundant_addr = false;
   LoadBarrierNode* dominating_barrier = has_dominating_barrier(NULL, true, false);
-  if (dominating_barrier != NULL && ParseTimeLoadBarrierOpt) {
+  if (dominating_barrier != NULL) {
     assert(dominating_barrier->in(Oop) == in(Oop), "");
     return dominating_barrier;
   }
@@ -343,7 +339,7 @@ Node *LoadBarrierNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return this;
   }
 
-  bool optimizeLoadBarriers = phase->C->directive()->OptimizeLoadBarriersOption;
+  bool optimizeLoadBarriers = phase->C->directive()->ZOptimizeLoadBarriersOption;
   LoadBarrierNode* dominating_barrier = optimizeLoadBarriers ? has_dominating_barrier(NULL, !can_reshape, !phase->C->major_progress()) : NULL;
   if (dominating_barrier != NULL && dominating_barrier->in(Oop) != in(Oop)) {
     assert(in(Address) == dominating_barrier->in(Address), "");
@@ -372,10 +368,8 @@ Node *LoadBarrierNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           igvn->replace_node(out_res, val);
         }
       }
-    } else if (!ParseTimeLoadBarrierOpt) {
-      phase->record_for_igvn(this);
-      return NULL;
     }
+
     return new ConINode(TypeInt::ZERO);
   }
 
@@ -650,7 +644,7 @@ Node* ZBarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) co
   Node* heap_base_oop = access.base();
   bool unsafe = (access.decorators() & C2_UNSAFE_ACCESS) != 0;
   if (unsafe) {
-    if (!VerifyLoadBarriers) {
+    if (!ZVerifyLoadBarriers) {
       p = load_barrier(kit, p, adr);
     } else {
       if (!TypePtr::NULL_PTR->higher_equal(gvn.type(heap_base_oop))) {
@@ -685,15 +679,8 @@ Node* ZBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access, Node
     return result;
   }
 
-  Node* load_store = access.raw_access();
-  Compile* C = Compile::current();
-
-  if (C->directive()->UseCMPXLoadBarrierOption) {
-    access.set_needs_pinning(false);
-    load_store = make_cmpx_loadbarrier(access);
-  }
-
-  return load_store;
+  access.set_needs_pinning(false);
+  return make_cmpx_loadbarrier(access);
 }
 
 Node* ZBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access, Node* expected_val,
@@ -706,19 +693,14 @@ Node* ZBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access, Nod
   Node* load_store = access.raw_access();
   bool weak_cas = (access.decorators() & C2_WEAK_CMPXCHG) != 0;
   bool expected_is_null = (expected_val->get_ptr_type() == TypePtr::NULL_PTR);
-  Compile* C = Compile::current();
 
   if (!expected_is_null) {
     if (weak_cas) {
-      if (C->directive()->UseWeakCASLoadBarrierOption) {
-        access.set_needs_pinning(false);
-        load_store = make_cas_loadbarrier(access);
-      }
+      access.set_needs_pinning(false);
+      load_store = make_cas_loadbarrier(access);
     } else {
-      if (C->directive()->UseCASLoadBarrierOption) {
-        access.set_needs_pinning(false);
-        load_store = make_cas_loadbarrier(access);
-      }
+      access.set_needs_pinning(false);
+      load_store = make_cas_loadbarrier(access);
     }
   }
 
@@ -732,14 +714,9 @@ Node* ZBarrierSetC2::atomic_xchg_at_resolved(C2AtomicAccess& access, Node* new_v
   }
 
   Node* load_store = access.raw_access();
-  Compile* C = Compile::current();
   Node* adr = access.addr().node();
 
-  if (C->directive()->UseSwapLoadBarrierOption) {
-    load_store = load_barrier(access.kit(), load_store, adr, false, false, false);
-  }
-
-  return load_store;
+  return load_barrier(access.kit(), load_store, adr, false, false, false);
 }
 
 // == Macro Expansion ==
@@ -753,10 +730,9 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
   Node* out_ctrl = barrier->proj_out(LoadBarrierNode::Control);
   Node* out_res  = barrier->proj_out(LoadBarrierNode::Oop);
 
-  Compile* C = Compile::current();
   PhaseIterGVN &igvn = phase->igvn();
 
-  if (VerifyLoadBarriers) {
+  if (ZVerifyLoadBarriers) {
     igvn.replace_node(out_res, in_val);
     igvn.replace_node(out_ctrl, in_ctrl);
     return;
@@ -813,7 +789,7 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
     assert(!barrier->oop_reload_allowed(), "writeback barriers should be marked as requires oop");
   }
 
-  if (!barrier->oop_reload_allowed() || C->directive()->UseBasicLoadBarrierOption) {
+  if (!barrier->oop_reload_allowed()) {
     expand_loadbarrier_basic(phase, barrier);
   } else {
     expand_loadbarrier_optimized(phase, barrier);
@@ -1349,7 +1325,7 @@ static bool common_barriers(PhaseIdealLoop* phase, LoadBarrierNode* lb) {
 static void optimize_load_barrier(PhaseIdealLoop* phase, LoadBarrierNode* lb, bool last_round) {
   Compile* C = Compile::current();
 
-  if (!C->directive()->OptimizeLoadBarriersOption) {
+  if (!C->directive()->ZOptimizeLoadBarriersOption) {
     return;
   }
 
@@ -1464,7 +1440,7 @@ void ZBarrierSetC2::verify_gc_barriers(bool post_parse) const {
       }
     }
 
-    if (VerifyLoadBarriers) {
+    if (ZVerifyLoadBarriers) {
       bool check = false;
       if ((n->is_Load() || n->is_LoadStore()) && n->bottom_type()->make_oopptr() != NULL) {
         check = true;

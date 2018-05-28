@@ -81,5 +81,11 @@
                                                                             \
   diagnostic(bool, ZConcurrentJNIWeakGlobalHandles, true,                   \
           "Clean JNI WeakGlobalRefs concurrently")                          \
+                                                                            \
+  diagnostic(bool, ZOptimizeLoadBarriers, true,                             \
+          "Apply load barrier optimizations")                               \
+                                                                            \
+  develop(bool, ZVerifyLoadBarriers, false,                                 \
+          "Verify that reference loads are followed by barriers")
 
 #endif // SHARE_GC_Z_ZFLAGS_HPP
