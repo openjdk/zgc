@@ -357,6 +357,8 @@ void ZStatCounterTypeConstant::serialize(JfrCheckpointWriter& writer) {
     writer.write_key(counter->id());
     writer.write(counter->name());
   }
+#else
+  writer.write_count(0);
 #endif
 }
 
@@ -367,5 +369,7 @@ void ZStatSamplerTypeConstant::serialize(JfrCheckpointWriter& writer) {
     writer.write_key(sampler->id());
     writer.write(sampler->name());
   }
+#else
+  writer.write_count(0);
 #endif
 }
