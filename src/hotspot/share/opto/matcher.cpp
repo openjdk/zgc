@@ -2156,12 +2156,14 @@ void Matcher::find_shared( Node *n ) {
         break;
 #if INCLUDE_ZGC
       case Op_CallLeaf:
-        if (n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr() ||
-            n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr()) {
-          mem_op = true;
-          mem_addr_idx = TypeFunc::Parms+1;
+        if (UseZGC) {
+          if (n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr() ||
+              n->as_Call()->entry_point() == ZBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded_addr()) {
+            mem_op = true;
+            mem_addr_idx = TypeFunc::Parms+1;
+          }
+          break;
         }
-        break;
 #endif
       default:
         if( n->is_Store() ) {

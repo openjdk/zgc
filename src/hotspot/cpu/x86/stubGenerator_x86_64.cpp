@@ -1202,6 +1202,7 @@ class StubGenerator: public StubCodeGenerator {
 #endif
   }
 
+
   // Copy big chunks forward
   //
   // Inputs:

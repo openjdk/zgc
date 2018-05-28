@@ -1383,7 +1383,9 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n, bool last_round) {
   }
 
 #if INCLUDE_ZGC
-  ZBarrierSetC2::loop_optimize_gc_barrier(this, n, last_round);
+  if (UseZGC) {
+    ZBarrierSetC2::loop_optimize_gc_barrier(this, n, last_round);
+  }
 #endif
 }
 
@@ -1415,7 +1417,7 @@ void PhaseIdealLoop::split_if_with_blocks(VectorSet &visited, Node_Stack &nstack
       // All of n's children have been processed, complete post-processing.
       if (cnt != 0 && !n->is_Con()) {
         assert(has_node(n), "no dead nodes");
-        split_if_with_blocks_post(n, last_round);
+        split_if_with_blocks_post( n, last_round );
       }
       if (nstack.is_empty()) {
         // Finished all nodes on stack.

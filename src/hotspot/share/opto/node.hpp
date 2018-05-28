@@ -1726,7 +1726,6 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual const Type *bottom_type() const;
   virtual       uint  ideal_reg() const;
-  virtual bool carry_dependency() const { fatal("should be called only for cast nodes"); return false; }
 
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;

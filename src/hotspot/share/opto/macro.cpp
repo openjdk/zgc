@@ -2571,12 +2571,12 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       case Node::Class_OuterStripMinedLoop:
         break;
       default:
-        assert(n->Opcode() == Op_LoopLimit   ||
-               n->Opcode() == Op_Opaque1     ||
-               n->Opcode() == Op_Opaque2     ||
-               n->Opcode() == Op_Opaque3     ||
-               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(n)
-               , "unknown node type in macro list");
+        assert(n->Opcode() == Op_LoopLimit ||
+               n->Opcode() == Op_Opaque1   ||
+               n->Opcode() == Op_Opaque2   ||
+               n->Opcode() == Op_Opaque3   ||
+               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(n),
+               "unknown node type in macro list");
       }
       assert(success == (C->macro_count() < old_macro_count), "elimination reduces macro count");
       progress = progress || success;

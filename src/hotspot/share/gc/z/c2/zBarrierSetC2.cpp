@@ -102,9 +102,6 @@ void ZBarrierSetC2::enqueue_useful_gc_barrier(Unique_Node_List &worklist, Node* 
 }
 
 void ZBarrierSetC2::find_dominating_barriers(PhaseIterGVN& igvn) {
-  if (!UseZGC) {
-    return;
-  }
   // Look for dominating barriers on the same address only once all
   // other loop opts are over: loop opts may cause a safepoint to be
   // inserted between a barrier and its dominating barrier.
@@ -543,9 +540,6 @@ Node* ZBarrierSetC2::make_cmpx_loadbarrier(C2AtomicAccess& access) const {
   GraphKit* kit = access.kit();
   PhaseGVN& gvn = kit->gvn();
   Compile* C = Compile::current();
-
-  assert(UseZGC, "Must be turned on");
-  assert(!UseCompressedOops, "Not allowed");
 
   Node* in_ctrl     = cmpx->in(MemNode::Control);
   Node* in_mem      = cmpx->in(MemNode::Memory);

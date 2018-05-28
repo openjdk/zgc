@@ -216,8 +216,7 @@ Node *PhaseIdealLoop::get_early_ctrl_for_expensive(Node *n, Node* earliest) {
           break;
         }
         assert(parent_ctl->is_Start() || parent_ctl->is_MemBar() || parent_ctl->is_Call() ||
-               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(parent_ctl)
-               , "unexpected node");
+               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(parent_ctl), "unexpected node");
         assert(idom(ctl) == parent_ctl, "strange");
         next = idom(parent_ctl);
       }
@@ -2884,9 +2883,9 @@ void PhaseIdealLoop::build_and_optimize(bool do_split_ifs, bool skip_loop_opts, 
 
   // Check for aggressive application of split-if and other transforms
   // that require basic-block info (like cloning through Phi's)
-  if (SplitIfBlocks && do_split_ifs) {
+  if( SplitIfBlocks && do_split_ifs ) {
     visited.Clear();
-    split_if_with_blocks(visited, nstack, last_round);
+    split_if_with_blocks( visited, nstack, last_round );
     NOT_PRODUCT( if( VerifyLoopOptimizations ) verify(); );
     if (last_round) {
       C->set_major_progress();

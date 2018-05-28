@@ -1853,7 +1853,6 @@ const TypeTuple *TypeTuple::INT_PAIR;
 const TypeTuple *TypeTuple::LONG_PAIR;
 const TypeTuple *TypeTuple::INT_CC_PAIR;
 const TypeTuple *TypeTuple::LONG_CC_PAIR;
-const TypeTuple *TypeTuple::LOADBARRIER;
 
 
 //------------------------------make-------------------------------------------
@@ -3527,7 +3526,7 @@ const Type *TypeInstPtr::cast_to_ptr_type(PTR ptr) const {
   if( ptr == _ptr ) return this;
   // Reconstruct _sig info here since not a problem with later lazy
   // construction, _sig will show up on demand.
-  return make(ptr, klass(), klass_is_exact(), ptr == Constant ? const_oop() : NULL, _offset, _instance_id, _speculative, _inline_depth);
+  return make(ptr, klass(), klass_is_exact(), const_oop(), _offset, _instance_id, _speculative, _inline_depth);
 }
 
 
@@ -4057,7 +4056,7 @@ const TypeAryPtr *TypeAryPtr::make(PTR ptr, ciObject* o, const TypeAry *ary, ciK
 //------------------------------cast_to_ptr_type-------------------------------
 const Type *TypeAryPtr::cast_to_ptr_type(PTR ptr) const {
   if( ptr == _ptr ) return this;
-  return make(ptr, ptr == Constant ? const_oop() : NULL, _ary, klass(), klass_is_exact(), _offset, _instance_id, _speculative, _inline_depth);
+  return make(ptr, const_oop(), _ary, klass(), klass_is_exact(), _offset, _instance_id, _speculative, _inline_depth);
 }
 
 

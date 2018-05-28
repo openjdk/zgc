@@ -12454,7 +12454,7 @@ instruct loadBarrierSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
 #else
-    fatal("ZGC specific code");
+    ShouldNotReachHere();
 #endif
   %}
   ins_pipe(pipe_slow);
@@ -12489,7 +12489,7 @@ instruct loadBarrierSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
 #else
-    fatal("ZGC specific code");
+    ShouldNotReachHere();
 #endif
   %}
   ins_pipe(pipe_slow);
@@ -12532,7 +12532,7 @@ instruct loadBarrierSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(bs->load_barrier_slow_stub(d)));
 #else
-    fatal("ZGC specific code");
+    ShouldNotReachHere();
 #endif
   %}
   ins_pipe(pipe_slow);
@@ -12563,7 +12563,7 @@ instruct loadBarrierWeakSlowRegNoVec(rRegP dst, memory mem, rFlagsReg cr) %{
     __ lea(d, $mem$$Address);
     __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
 #else
-    fatal("ZGC specific code");
+    ShouldNotReachHere();
 #endif
   %}
   ins_pipe(pipe_slow);
@@ -12598,7 +12598,7 @@ instruct loadBarrierWeakSlowRegXmmAndYmm(rRegP dst, memory mem, rFlagsReg cr,
     __ lea(d,$mem$$Address);
     __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
 #else
-    fatal("ZGC specific code");
+    ShouldNotReachHere();
 #endif
   %}
   ins_pipe(pipe_slow);
@@ -12641,7 +12641,7 @@ instruct loadBarrierWeakSlowRegZmm(rRegP dst, memory mem, rFlagsReg cr,
     __ lea(d,$mem$$Address);
     __ call(RuntimeAddress(bs->load_barrier_weak_slow_stub(d)));
 #else
-    fatal("ZGC specific code");
+    ShouldNotReachHere();
 #endif
   %}
   ins_pipe(pipe_slow);

@@ -492,9 +492,10 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
                                n->in(0), delayed_worklist);
       }
 #if INCLUDE_ZGC
-      else if (n->as_Proj()->_con == LoadBarrierNode::Oop && n->in(0)->is_LoadBarrier()) {
-        add_local_var_and_edge(n, PointsToNode::NoEscape,
-                               n->in(0)->in(LoadBarrierNode::Oop), delayed_worklist);
+      else if (UseZGC) {
+        if (n->as_Proj()->_con == LoadBarrierNode::Oop && n->in(0)->is_LoadBarrier()) {
+          add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0)->in(LoadBarrierNode::Oop), delayed_worklist);
+        }
       }
 #endif
       break;
@@ -709,10 +710,11 @@ void ConnectionGraph::add_final_edges(Node *n) {
         break;
       }
 #if INCLUDE_ZGC
-      else if (n->as_Proj()->_con == LoadBarrierNode::Oop && n->in(0)->is_LoadBarrier()) {
-        add_local_var_and_edge(n, PointsToNode::NoEscape,
-                               n->in(0)->in(LoadBarrierNode::Oop), NULL);
-        break;
+      else if (UseZGC) {
+        if (n->as_Proj()->_con == LoadBarrierNode::Oop && n->in(0)->is_LoadBarrier()) {
+          add_local_var_and_edge(n, PointsToNode::NoEscape, n->in(0)->in(LoadBarrierNode::Oop), NULL);
+          break;
+        }
       }
 #endif
       ELSE_FAIL("Op_Proj");

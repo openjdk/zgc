@@ -757,8 +757,7 @@ bool vmIntrinsics::is_disabled_by_flags(vmIntrinsics::ID id) {
 #ifdef COMPILER2
   case vmIntrinsics::_clone:
 #if INCLUDE_ZGC
-    if (UseZGC || !InlineObjectCopy || !InlineArrayCopy) return true;
-    break;
+    if (UseZGC) return true;
 #endif
   case vmIntrinsics::_copyOf:
   case vmIntrinsics::_copyOfRange:

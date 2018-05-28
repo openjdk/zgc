@@ -896,8 +896,10 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
 // optimize out the ArrayCopy node later.
 Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
 #if INCLUDE_ZGC
-  if (UseZGC && bottom_type()->make_oopptr() != NULL) {
-    return NULL;
+  if (UseZGC) {
+    if (bottom_type()->make_oopptr() != NULL) {
+      return NULL;
+    }
   }
 #endif
 
@@ -2752,7 +2754,7 @@ uint LoadStoreNode::size_of() const { return sizeof(*this); }
 
 //=============================================================================
 //----------------------------------LoadStoreConditionalNode--------------------
-LoadStoreConditionalNode::LoadStoreConditionalNode(Node *c, Node *mem, Node *adr, Node *val, Node *ex, const Type* rt) : LoadStoreNode(c, mem, adr, val, NULL, rt, 5) {
+LoadStoreConditionalNode::LoadStoreConditionalNode( Node *c, Node *mem, Node *adr, Node *val, Node *ex ) : LoadStoreNode(c, mem, adr, val, NULL, TypeInt::BOOL, 5) {
   init_req(ExpectedIn, ex );
 }
 
@@ -2979,10 +2981,12 @@ Node *MemBarNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
 #if INCLUDE_ZGC
-  if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
-    Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
-    set_req(MemBarNode::Precedent, load_node);
-    return this;
+  if (UseZGC) {
+    if (req() == (Precedent+1) && in(MemBarNode::Precedent)->in(0) != NULL && in(MemBarNode::Precedent)->in(0)->is_LoadBarrier()) {
+      Node* load_node = in(MemBarNode::Precedent)->in(0)->in(LoadBarrierNode::Oop);
+      set_req(MemBarNode::Precedent, load_node);
+      return this;
+    }
   }
 #endif
 

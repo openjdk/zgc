@@ -470,6 +470,7 @@ public:
   virtual BasicType memory_type() const { return T_ADDRESS; }
 };
 
+
 //------------------------------LoadNNode--------------------------------------
 // Load a narrow oop from memory (either object or array)
 class LoadNNode : public LoadNode {
@@ -822,7 +823,7 @@ public:
   enum {
     ExpectedIn = MemNode::ValueIn+1 // One more input than MemNode
   };
-  LoadStoreConditionalNode(Node *c, Node *mem, Node *adr, Node *val, Node *ex, const Type* rt = TypeInt::BOOL);
+  LoadStoreConditionalNode(Node *c, Node *mem, Node *adr, Node *val, Node *ex);
 };
 
 //------------------------------StorePConditionalNode---------------------------
@@ -918,13 +919,6 @@ class CompareAndSwapPNode : public CompareAndSwapNode {
 public:
   CompareAndSwapPNode( Node *c, Node *mem, Node *adr, Node *val, Node *ex, MemNode::MemOrd mem_ord) : CompareAndSwapNode(c, mem, adr, val, ex, mem_ord) { }
   virtual int Opcode() const;
-  enum {
-    Control = 0,
-    Memory,
-    Address,
-    Expected,
-    Value
-  };
 };
 
 //------------------------------CompareAndSwapNNode---------------------------
