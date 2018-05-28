@@ -89,6 +89,11 @@ void ZArguments::initialize() {
 
   // Verification before exit not (yet) supported
   FLAG_SET_DEFAULT(VerifyBeforeExit, false);
+
+  // JVMCI not (yet) supported
+  if (EnableJVMCI) {
+    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:+EnableJVMCI");
+  }
 }
 
 CollectedHeap* ZArguments::create_heap() {
