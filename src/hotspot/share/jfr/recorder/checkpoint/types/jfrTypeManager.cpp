@@ -195,7 +195,7 @@ bool JfrTypeManager::register_serializer(JfrTypeId id, bool require_safepoint, b
 
 bool JfrTypeManager::initialize() {
   // register non-safepointing type serialization
-  for (size_t i = 0; i < 16; ++i) {
+  for (size_t i = 0; i < 18; ++i) {
     switch (i) {
     case 0: register_serializer(TYPE_FLAGVALUEORIGIN, false, true, new FlagValueOriginConstant()); break;
     case 1: register_serializer(TYPE_INFLATECAUSE, false, true, new MonitorInflateCauseConstant()); break;
@@ -213,6 +213,8 @@ bool JfrTypeManager::initialize() {
     case 13: register_serializer(TYPE_CODEBLOBTYPE, false, true, new CodeBlobTypeConstant()); break;
     case 14: register_serializer(TYPE_VMOPERATIONTYPE, false, true, new VMOperationTypeConstant()); break;
     case 15: register_serializer(TYPE_THREADSTATE, false, true, new ThreadStateConstant()); break;
+    case 16: register_serializer(TYPE_ZSTATCOUNTERTYPE, false, true, new ZStatCounterTypeConstant()); break;
+    case 17: register_serializer(TYPE_ZSTATSAMPLERTYPE, false, true, new ZStatSamplerTypeConstant()); break;
     default:
       guarantee(false, "invariant");
     }
