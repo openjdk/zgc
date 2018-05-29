@@ -30,6 +30,8 @@
 #include "runtime/stubCodeGenerator.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
+#include "c1/c1_LIRAssembler.hpp"
+#include "c1/c1_MacroAssembler.hpp"
 #include "gc/z/c1/zBarrierSetC1.hpp"
 #endif // COMPILER1
 

@@ -25,8 +25,10 @@
 #define CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
 
 #ifdef COMPILER1
-#include "c1/c1_LIRAssembler.hpp"
-#include "c1/c1_MacroAssembler.hpp"
+class LIR_Assembler;
+class LIR_OprDesc;
+typedef LIR_OprDesc* LIR_Opr;
+class StubAssembler;
 class ZLoadBarrierStubC1;
 #endif // COMPILER1
 
