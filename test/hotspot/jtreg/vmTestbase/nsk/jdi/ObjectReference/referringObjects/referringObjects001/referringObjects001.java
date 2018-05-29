@@ -63,7 +63,7 @@
  *      -waittime=5
  *      -debugee.vmkind=java
  *      -transport.address=dynamic
- *      "-debugee.vmkeys=-Xmx128M ${test.vm.opts} ${test.java.opts}"
+ *      "-debugee.vmkeys=-Xmx256M ${test.vm.opts} ${test.java.opts}"
  */
 
 package nsk.jdi.ObjectReference.referringObjects.referringObjects001;
@@ -150,6 +150,11 @@ public class referringObjects001 extends HeapwalkingDebugger {
             expectedInstanceCount = createInstanceCount;
         else
             expectedInstanceCount = 0;
+
+        // Note!
+        // Test broken - assumes that no GC is run before heap walk.
+        // G1 fails, just like ZGC, if en explicitly GC is done here.
+        // forceGC();
 
         checkDebugeeAnswer_instanceCounts(className, expectedInstanceCount, objectsToFilter);
         checkDebugeeAnswer_instances_referringObjects(objectsToFilter, className, expectedInstanceCount, includedInReferrersCount, referrerCount);
