@@ -1152,6 +1152,12 @@ static bool split_barrier_thru_phi(PhaseIdealLoop* phase, LoadBarrierNode* lb) {
         }
       }
 
+      // If the node on the backedge above the phi is the node itself - we have a self loop.
+      // Don't clone - this will be folded later.
+      if (oop_phi->in(LoopNode::LoopBackControl) == lb->proj_out(LoadBarrierNode::Oop)) {
+        return false;
+      }
+
       bool is_strip_mined = region->is_CountedLoop() && region->as_CountedLoop()->is_strip_mined();
       Node *phi = oop_phi->clone();
 
