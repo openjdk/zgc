@@ -789,7 +789,13 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
     assert(!barrier->oop_reload_allowed(), "writeback barriers should be marked as requires oop");
   }
 
-  if (!barrier->oop_reload_allowed()) {
+#ifdef SPARC
+  bool basic_load_barrier = true;
+#else
+  bool basic_load_barrier = !barrier->oop_reload_allowed();
+#endif
+
+  if (basic_load_barrier) {
     expand_loadbarrier_basic(phase, barrier);
   } else {
     expand_loadbarrier_optimized(phase, barrier);
@@ -813,9 +819,13 @@ void ZBarrierSetC2::expand_loadbarrier_basic(PhaseMacroExpand* phase, LoadBarrie
   float unlikely  = PROB_UNLIKELY(0.999);
   const Type* in_val_maybe_null_t = igvn.type(in_val);
 
+#ifdef SPARC
+  Node* bad_mask = igvn.transform(new AddrBadBitNode());
+#else
   Node* jthread = igvn.transform(new ThreadLocalNode());
   Node* adr = phase->basic_plus_adr(jthread, in_bytes(ZThreadLocalData::address_bad_mask_offset()));
   Node* bad_mask = igvn.transform(LoadNode::make(igvn, in_ctrl, in_mem, adr, TypeRawPtr::BOTTOM, TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
+#endif
   Node* cast = igvn.transform(new CastP2XNode(in_ctrl, in_val));
   Node* obj_masked = igvn.transform(new AndXNode(cast, bad_mask));
   Node* cmp = igvn.transform(new CmpXNode(obj_masked, igvn.zerocon(TypeX_X->basic_type())));
