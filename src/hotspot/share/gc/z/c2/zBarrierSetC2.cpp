@@ -171,10 +171,10 @@ LoadBarrierNode::LoadBarrierNode(Compile* C,
 
 const Type *LoadBarrierNode::bottom_type() const {
   const Type** floadbarrier = (const Type **)(Compile::current()->type_arena()->Amalloc_4((Number_of_Outputs)*sizeof(Type*)));
-  const Type* val_t = in(Oop)->bottom_type();
+  Node* in_oop = in(Oop);
   floadbarrier[Control] = Type::CONTROL;
   floadbarrier[Memory] = Type::MEMORY;
-  floadbarrier[Oop] = val_t;
+  floadbarrier[Oop] = in_oop == NULL ? Type::TOP : in_oop->bottom_type();
   return TypeTuple::make(Number_of_Outputs, floadbarrier);
 }
 
