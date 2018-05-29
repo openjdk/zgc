@@ -29,7 +29,7 @@
 #include "opto/node.hpp"
 #include "utilities/growableArray.hpp"
 
-class LoadBarrierNode: public MultiNode {
+class LoadBarrierNode : public MultiNode {
 private:
   bool _weak;
   bool _writeback;          // Controls if the barrier writes the healed oop back to memory
@@ -52,46 +52,93 @@ public:
     Number_of_Inputs
   };
 
-  LoadBarrierNode(Compile* C, Node* c, Node* mem, Node* val, Node* adr, bool weak, bool writeback, bool oop_reload_allowed);
+  LoadBarrierNode(Compile* C,
+                  Node* c,
+                  Node* mem,
+                  Node* val,
+                  Node* adr,
+                  bool weak,
+                  bool writeback,
+                  bool oop_reload_allowed);
+
   virtual int Opcode() const;
   virtual const Type *bottom_type() const;
   virtual const Type *Value(PhaseGVN *phase) const;
   virtual Node *Identity(PhaseGVN *phase);
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
 
-  LoadBarrierNode* has_dominating_barrier(PhaseIdealLoop* phase, bool linear_only, bool look_for_similar);
-  bool can_be_eliminated() const { return !in(Similar)->is_top(); }
+  LoadBarrierNode* has_dominating_barrier(PhaseIdealLoop* phase,
+                                          bool linear_only,
+                                          bool look_for_similar);
 
   void fix_similar_in_uses(PhaseIterGVN* igvn);
+
   bool has_true_uses() const;
-  bool is_weak() const { return _weak; }
-  bool is_writeback() const { return _writeback; }
-  bool oop_reload_allowed() const { return _oop_reload_allowed; }
+
+  bool can_be_eliminated() const {
+    return !in(Similar)->is_top();
+  }
+
+  bool is_weak() const {
+    return _weak;
+  }
+
+  bool is_writeback() const {
+    return _writeback;
+  }
+
+  bool oop_reload_allowed() const {
+    return _oop_reload_allowed;
+  }
 };
 
 class LoadBarrierSlowRegNode : public LoadPNode {
 public:
-  virtual const char * name() { return "LoadBarrierSlowRegNode"; }
-  LoadBarrierSlowRegNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypePtr* t, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest)
-    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) { }
+  LoadBarrierSlowRegNode(Node *c,
+                         Node *mem,
+                         Node *adr,
+                         const TypePtr *at,
+                         const TypePtr* t,
+                         MemOrd mo,
+                         ControlDependency control_dependency = DependsOnlyOnTest)
+    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) {}
+
+  virtual const char * name() {
+    return "LoadBarrierSlowRegNode";
+  }
+
+  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) {
+    return NULL;
+  }
+
   virtual int Opcode() const;
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) { return NULL; }
-  // virtual const Type *bottom_type() const;
-  // virtual const Type *Value(PhaseGVN *phase) const
 };
 
 class LoadBarrierWeakSlowRegNode : public LoadPNode {
 public:
-  virtual const char * name() { return "LoadBarrierWeakSlowRegNode"; }
-  LoadBarrierWeakSlowRegNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypePtr* t, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest)
-    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) { }
+  LoadBarrierWeakSlowRegNode(Node *c,
+                             Node *mem,
+                             Node *adr,
+                             const TypePtr *at,
+                             const TypePtr* t,
+                             MemOrd mo,
+                             ControlDependency control_dependency = DependsOnlyOnTest)
+    : LoadPNode(c, mem, adr, at, t, mo, control_dependency) {}
+
+  virtual const char * name() {
+    return "LoadBarrierWeakSlowRegNode";
+  }
+
+  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) {
+    return NULL;
+  }
+
   virtual int Opcode() const;
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape) { return NULL; }
 };
 
-
-class ZBarrierSetC2State: public ResourceObj {
-  // List of load barrier nodes which need to be expanded before matching.
+class ZBarrierSetC2State : public ResourceObj {
+private:
+  // List of load barrier nodes which need to be expanded before matching
   GrowableArray<LoadBarrierNode*>* _load_barrier_nodes;
 
 public:
@@ -102,32 +149,39 @@ public:
   LoadBarrierNode* load_barrier_node(int idx) const;
 };
 
-class ZBarrierSetC2: public BarrierSetC2 {
+class ZBarrierSetC2 : public BarrierSetC2 {
+private:
   ZBarrierSetC2State* state() const;
   Node* make_cas_loadbarrier(C2AtomicAccess& access) const;
   Node* make_cmpx_loadbarrier(C2AtomicAccess& access) const;
   void expand_loadbarrier_basic(PhaseMacroExpand* phase, LoadBarrierNode *barrier) const;
   void expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrierNode* barrier) const;
   void expand_loadbarrier_optimized(PhaseMacroExpand* phase, LoadBarrierNode *barrier) const;
-
   const TypeFunc* load_barrier_Type() const;
-
-public:
-  Node* load_barrier(GraphKit* kit, Node* val, Node* adr, bool weak = false, bool writeback = true, bool oop_reload_allowed = true) const;
 
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
-
-  virtual Node* atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access, Node* expected_val,
-                                               Node* new_val, const Type* val_type) const;
-  virtual Node* atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access, Node* expected_val,
-                                                Node* new_val, const Type* value_type) const;
-  virtual Node* atomic_xchg_at_resolved(C2AtomicAccess& access, Node* new_val, const Type* val_type) const;
+  virtual Node* atomic_cmpxchg_val_at_resolved(C2AtomicAccess& access,
+                                               Node* expected_val,
+                                               Node* new_val,
+                                               const Type* val_type) const;
+  virtual Node* atomic_cmpxchg_bool_at_resolved(C2AtomicAccess& access,
+                                                Node* expected_val,
+                                                Node* new_val,
+                                                const Type* value_type) const;
+  virtual Node* atomic_xchg_at_resolved(C2AtomicAccess& access,
+                                        Node* new_val,
+                                        const Type* val_type) const;
 
 public:
-  //virtual void clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const;
+  Node* load_barrier(GraphKit* kit,
+                     Node* val,
+                     Node* adr,
+                     bool weak = false,
+                     bool writeback = true,
+                     bool oop_reload_allowed = true) const;
 
-  // These are general helper methods used by C2
+  virtual void* create_barrier_state(Arena* comp_arena) const;
   virtual bool is_gc_barrier_node(Node* node) const;
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const { }
   virtual void eliminate_useless_gc_barriers(Unique_Node_List &useful) const;
@@ -137,14 +191,12 @@ public:
   virtual void unregister_potential_barrier_node(Node* node) const;
   virtual bool array_copy_requires_gc_barriers(BasicType type) const { return true; }
   virtual Node* step_over_gc_barrier(Node* c) const { return c; }
-
-  static void find_dominating_barriers(PhaseIterGVN& igvn);
-  static void loop_optimize_gc_barrier(PhaseIdealLoop* phase, Node* node, bool last_round);
-
-  virtual void* create_barrier_state(Arena* comp_arena) const;
   // If the BarrierSetC2 state has kept macro nodes in its compilation unit state to be
   // expanded later, then now is the time to do so.
   virtual bool expand_macro_nodes(PhaseMacroExpand* macro) const;
+
+  static void find_dominating_barriers(PhaseIterGVN& igvn);
+  static void loop_optimize_gc_barrier(PhaseIdealLoop* phase, Node* node, bool last_round);
 
 #ifdef ASSERT
   virtual void verify_gc_barriers(bool post_parse) const;
