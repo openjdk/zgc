@@ -3212,11 +3212,7 @@ void InstanceKlass::collect_statistics(KlassSizeStats *sz) const {
 class VerifyFieldClosure: public OopClosure {
  protected:
   template <class T> void do_oop_work(T* p) {
-    // This verification wants to see that all the oops are correct without
-    // first passing through a barrier. However, we need a barrier here since
-    // this can happen at shutdown before we've completed the remapping.
-    // Revisit this later.
-    oop obj = HeapAccess<>::oop_load(p);
+    oop obj = RawAccess<>::oop_load(p);
     if (!oopDesc::is_oop_or_null(obj)) {
       tty->print_cr("Failed: " PTR_FORMAT " -> " PTR_FORMAT, p2i(p), p2i(obj));
       Universe::print_on(tty);
