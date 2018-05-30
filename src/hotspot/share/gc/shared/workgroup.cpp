@@ -32,6 +32,7 @@
 #include "runtime/os.hpp"
 #include "runtime/semaphore.hpp"
 #include "runtime/thread.inline.hpp"
+#include "utilities/behaviours.hpp"
 
 // Definitions of WorkGang methods.
 
@@ -137,6 +138,7 @@ public:
 
   void coordinator_execute_on_workers(AbstractGangTask* task, uint num_workers) {
     // No workers are allowed to read the state variables until they have been signaled.
+    task->set_provider(Behaviours::get_provider());
     _task         = task;
     _not_finished = num_workers;
 
@@ -202,6 +204,7 @@ class MutexGangTaskDispatcher : public GangTaskDispatcher {
   void coordinator_execute_on_workers(AbstractGangTask* task, uint num_workers) {
     MutexLockerEx ml(_monitor, Mutex::_no_safepoint_check_flag);
 
+    task->set_provider(Behaviours::get_provider());
     _task        = task;
     _num_workers = num_workers;
 
@@ -331,6 +334,7 @@ void GangWorker::signal_task_done() {
 }
 
 void GangWorker::run_task(WorkData data) {
+  ForwardingProviderMark behaviour_provider_mark(data._task->provider());
   GCIdMark gc_id_mark(data._task->gc_id());
   log_develop_trace(gc, workgang)("Running work gang: %s task: %s worker: %u", name(), data._task->name(), data._worker_id);
 

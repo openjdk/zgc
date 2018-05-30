@@ -271,6 +271,8 @@ Thread::Thread() {
                          Monitor::_safepoint_check_sometimes);
   _suspend_flags = 0;
 
+  _behaviour_provider = NULL;
+
   // thread-specific hashCode stream generator state - Marsaglia shift-xor form
   _hashStateX = os::random();
   _hashStateY = 842502087;

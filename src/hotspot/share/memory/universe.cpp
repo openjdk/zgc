@@ -73,6 +73,7 @@
 #include "runtime/vm_operations.hpp"
 #include "services/memoryService.hpp"
 #include "utilities/align.hpp"
+#include "utilities/behaviours.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/events.hpp"
@@ -629,6 +630,17 @@ void* Universe::non_oop_word() {
   return (void*)_non_oop_bits;
 }
 
+BehaviourProviderCollection* Universe::_vm_behaviours = NULL;
+BehaviourProviderCollection* Universe::_gc_behaviours = NULL;
+
+void Universe::initialize_global_behaviours() {
+  // During VM bootstrap
+  _vm_behaviours = new BehaviourProviderCollection();
+  _gc_behaviours = new BehaviourProviderCollection();
+  Behaviours::register_global_provider(*_vm_behaviours);
+  Behaviours::register_global_provider(*_gc_behaviours);
+}
+
 jint universe_init() {
   assert(!Universe::_fully_initialized, "called after initialize_vtables");
   guarantee(1 << LogHeapWordSize == sizeof(HeapWord),
@@ -640,6 +652,8 @@ jint universe_init() {
   TraceTime timer("Genesis", TRACETIME_LOG(Info, startuptime));
 
   JavaClasses::compute_hard_coded_offsets();
+
+  Universe::initialize_global_behaviours();
 
   jint status = Universe::initialize_heap();
   if (status != JNI_OK) {

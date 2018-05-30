@@ -55,11 +55,13 @@ class WorkGang;
 // An abstract task to be worked on by a gang.
 // You subclass this to supply your own work() method
 class AbstractGangTask {
+  BehaviourProvider* _provider;
   const char* _name;
   const uint _gc_id;
 
  public:
   explicit AbstractGangTask(const char* name) :
+    _provider(NULL),
     _name(name),
     _gc_id(GCId::current_or_undefined())
   {}
@@ -71,12 +73,18 @@ class AbstractGangTask {
   // Debugging accessor for the name.
   const char* name() const { return _name; }
   const uint gc_id() const { return _gc_id; }
+  BehaviourProvider& provider() const {
+    assert(_provider != NULL, "no provider set");
+    return *_provider;
+  }
+  void set_provider(BehaviourProvider& provider) { _provider = &provider; }
 };
 
 struct WorkData {
-  AbstractGangTask* _task;
-  uint              _worker_id;
-  WorkData(AbstractGangTask* task, uint worker_id) : _task(task), _worker_id(worker_id) {}
+  AbstractGangTask*  _task;
+  uint               _worker_id;
+  WorkData(AbstractGangTask* task, uint worker_id)
+    : _task(task), _worker_id(worker_id) {}
 };
 
 // Interface to handle the synchronization between the coordinator thread and the worker threads,

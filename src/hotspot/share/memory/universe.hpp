@@ -37,6 +37,7 @@
 // support is provided. Allocation by the interpreter and compiled code is done inline
 // and bails out to Scavenge::invoke_and_allocate.
 
+class BehaviourProviderCollection;
 class CollectedHeap;
 class DeferredObjAllocEvent;
 
@@ -201,6 +202,10 @@ class Universe: AllStatic {
   static bool _module_initialized;                    // true after call_initPhase2 called
   static bool _fully_initialized;                     // true after universe_init and initialize_vtables called
 
+  // Global behaviours
+  static BehaviourProviderCollection* _vm_behaviours;
+  static BehaviourProviderCollection* _gc_behaviours;
+
   // the array of preallocated errors with backtraces
   static objArrayOop  preallocated_out_of_memory_errors()     { return _preallocated_out_of_memory_error_array; }
 
@@ -211,6 +216,8 @@ class Universe: AllStatic {
   // Historic gc information
   static size_t _heap_capacity_at_last_gc;
   static size_t _heap_used_at_last_gc;
+
+  static void initialize_global_behaviours();
 
   static CollectedHeap* create_heap();
   static jint initialize_heap();
@@ -367,6 +374,9 @@ class Universe: AllStatic {
 
   // The particular choice of collected heap.
   static CollectedHeap* heap() { return _collectedHeap; }
+
+  static BehaviourProviderCollection* vm_behaviours() { return _vm_behaviours; }
+  static BehaviourProviderCollection* gc_behaviours() { return _gc_behaviours; }
 
   // For UseCompressedOops
   // Narrow Oop encoding mode:

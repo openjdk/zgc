@@ -56,6 +56,7 @@
 #include "jfr/support/jfrThreadExtension.hpp"
 #endif
 
+class BehaviourProvider;
 
 class SafeThreadsListPtr;
 class ThreadSafepointState;
@@ -178,7 +179,12 @@ class Thread: public ThreadShadow {
     return _nested_threads_hazard_ptr_cnt;
   }
 
+  BehaviourProvider* _behaviour_provider;
+
  public:
+  BehaviourProvider* behaviour_provider() const { return _behaviour_provider; }
+  void set_behaviour_provider(BehaviourProvider* behaviour_provider) { _behaviour_provider = behaviour_provider; }
+
   void* operator new(size_t size) throw() { return allocate(size, true); }
   void* operator new(size_t size, const std::nothrow_t& nothrow_constant) throw() {
     return allocate(size, false); }
