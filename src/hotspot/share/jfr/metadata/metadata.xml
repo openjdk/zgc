@@ -887,11 +887,11 @@
 
   <Event name="ZPageAllocation" category="Java Application" label="ZPage Allocation" description="Allocation of a ZPage" thread="true" stackTrace="false">
      <Field type="ulong" contentType="bytes" name="pageSize" label="Page Size" />
-     <Field type="ulong" contentType="bytes" name="usedAfterPageAlloc" label="Used After Page Alloc" />
-     <Field type="ulong" contentType="bytes" name="freeAfterPageAlloc" label="Free After Page Alloc" />
-     <Field type="ulong" contentType="bytes" name="inCacheAfterPageAlloc" label="In Cache After Page Alloc" />
-     <Field type="boolean" name="nonblocking" label="Non-blocking" />
-     <Field type="boolean" name="noreserve" label="No Reserve" />
+     <Field type="ulong" contentType="bytes" name="usedAfter" label="Used After" />
+     <Field type="ulong" contentType="bytes" name="freeAfter" label="Free After" />
+     <Field type="ulong" contentType="bytes" name="inCacheAfter" label="In Cache After" />
+     <Field type="boolean" name="nonBlocking" label="Non-blocking" />
+     <Field type="boolean" name="noReserve" label="No Reserve" />
   </Event>
 
   <Event name="ZThreadPhase" category="Java Virtual Machine, GC, Detailed" label="ZGC Thread Phase" thread="true">
@@ -899,14 +899,14 @@
     <Field type="string" name="name" label="Name" />
   </Event>
 
-  <Event name="ZStatCounter" category="Java Virtual Machine, GC, Detailed" label="Z Stat Counter" thread="true">
-    <Field type="ZStatCounter" name="id" label="Id" />
+  <Event name="ZStatisticsCounter" category="Java Virtual Machine, GC, Detailed" label="Z Statistics Counter" thread="true">
+    <Field type="ZStatisticsCounter" name="id" label="Id" />
     <Field type="ulong" name="increment" label="Increment" />
     <Field type="ulong" name="value" label="Value" />
   </Event>
 
-  <Event name="ZStatSampler" category="Java Virtual Machine, GC, Detailed" label="Z Stat Sampler" thread="true">
-    <Field type="ZStatSampler" name="id" label="Id" />
+  <Event name="ZStatisticsSampler" category="Java Virtual Machine, GC, Detailed" label="Z Statistics Sampler" thread="true">
+    <Field type="ZStatisticsSampler" name="id" label="Id" />
     <Field type="ulong" name="value" label="Value" />
   </Event>
 

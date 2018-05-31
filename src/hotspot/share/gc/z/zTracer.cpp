@@ -41,7 +41,7 @@ void ZTracer::initialize() {
 void ZTracer::send_stat_counter(uint32_t counter_id, uint64_t increment, uint64_t value) {
   NoSafepointVerifier nsv(true, !SafepointSynchronize::is_at_safepoint());
 
-  EventZStatCounter e;
+  EventZStatisticsCounter e;
   if (e.should_commit()) {
     e.set_id(counter_id);
     e.set_increment(increment);
@@ -53,7 +53,7 @@ void ZTracer::send_stat_counter(uint32_t counter_id, uint64_t increment, uint64_
 void ZTracer::send_stat_sampler(uint32_t sampler_id, uint64_t value) {
   NoSafepointVerifier nsv(true, !SafepointSynchronize::is_at_safepoint());
 
-  EventZStatSampler e;
+  EventZStatisticsSampler e;
   if (e.should_commit()) {
     e.set_id(sampler_id);
     e.set_value(value);
@@ -80,11 +80,11 @@ void ZTracer::send_page_alloc(size_t size, size_t used, size_t free, size_t cach
   EventZPageAllocation e;
   if (e.should_commit()) {
     e.set_pageSize(size);
-    e.set_usedAfterPageAlloc(used);
-    e.set_freeAfterPageAlloc(free);
-    e.set_inCacheAfterPageAlloc(cache);
-    e.set_nonblocking(nonblocking);
-    e.set_noreserve(noreserve);
+    e.set_usedAfter(used);
+    e.set_freeAfter(free);
+    e.set_inCacheAfter(cache);
+    e.set_nonBlocking(nonblocking);
+    e.set_noReserve(noreserve);
     e.commit();
   }
 }
