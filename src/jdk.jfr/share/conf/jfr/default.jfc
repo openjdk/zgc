@@ -616,7 +616,7 @@
 
     <event name="jdk.ZPageAllocation">
       <setting name="enabled">true</setting>
-      <setting name="period">everyChunk</setting>
+      <setting name="threshold">10 ms</setting>
     </event>
 
     <event name="jdk.ZThreadPhase">
@@ -626,10 +626,12 @@
 
     <event name="jdk.ZStatCounter">
       <setting name="enabled">true</setting>
+      <setting name="threshold">10 ms</setting>
     </event>
 
     <event name="jdk.ZStatSampler">
       <setting name="enabled">true</setting>
+      <setting name="threshold">10 ms</setting>
     </event>
 
 
