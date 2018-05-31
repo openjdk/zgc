@@ -69,16 +69,15 @@ private:
   void work();
   void collect_statistics();
 
-  void process_references();
-  void enqueue_references();
-
 public:
   ZReferenceProcessor(ZWorkers* workers);
 
   void set_soft_reference_policy(bool clear);
   void reset_statistics();
+
   virtual bool discover_reference(oop reference, ReferenceType type);
-  void process_and_enqueue_references();
+  void process_references();
+  void enqueue_references();
 };
 
 #endif // SHARE_GC_Z_ZREFERENCEPROCESSOR_HPP

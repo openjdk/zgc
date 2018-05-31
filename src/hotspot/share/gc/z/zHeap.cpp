@@ -364,14 +364,22 @@ void ZHeap::set_soft_reference_policy(bool clear) {
 }
 
 void ZHeap::process_non_strong_references() {
-  // Process and enqueue Soft/Weak/Final/PhantomReferences
-  _reference_processor.process_and_enqueue_references();
+  // Process Soft/Weak/Final/PhantomReferences
+  _reference_processor.process_references();
 
   // Process concurrent weak roots
   _weak_roots_processor.process_concurrent_weak_roots();
 
   // Unblock resurrection of weak/phantom references
   ZResurrection::unblock();
+
+  // Enqueue Soft/Weak/Final/PhantomReferences. Note that this
+  // must be done after unblocking resurrection. Otherwise the
+  // Finalizer thread could call Reference.get() on the Finalizers
+  // that were just enqueued, which would incorrectly return null
+  // during the resurrection block window, since such referents
+  // are only Finalizable marked.
+  _reference_processor.enqueue_references();
 }
 
 void ZHeap::destroy_detached_pages() {

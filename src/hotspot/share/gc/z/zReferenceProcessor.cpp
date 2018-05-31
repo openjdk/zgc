@@ -427,8 +427,3 @@ void ZReferenceProcessor::enqueue_references() {
   _pending_list.set(NULL);
   _pending_list_tail = _pending_list.addr();
 }
-
-void ZReferenceProcessor::process_and_enqueue_references() {
-  process_references();
-  enqueue_references();
-}
