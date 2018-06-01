@@ -304,6 +304,14 @@ int InstructForm::is_tls_instruction() const {
   return 0;
 }
 
+int InstructForm::is_addr_bad_bits_instruction() const {
+  if (_ident != NULL &&
+      ( ! strcmp( _ident,"addr_bad_bits") ) ) {
+    return 1;
+  }
+  return 0;
+}
+
 
 // Return 'true' if this instruction matches an ideal 'If' node
 bool InstructForm::is_ideal_if() const {
@@ -550,7 +558,7 @@ bool InstructForm::rematerialize(FormDict &globals, RegisterForm *registers ) {
     rematerialize = true;
 
   // Pseudo-constants (values easily available to the runtime)
-  if (is_empty_encoding() && is_tls_instruction())
+  if (is_empty_encoding() && (is_tls_instruction() || is_addr_bad_bits_instruction()))
     rematerialize = true;
 
   // 1-input, 1-output, such as copies or increments.
