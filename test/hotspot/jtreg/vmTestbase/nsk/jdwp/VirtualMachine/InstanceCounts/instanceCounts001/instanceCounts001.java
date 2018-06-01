@@ -61,6 +61,7 @@
  *     Finally, debugger sends debuggee signal to quit, waits for it exits
  *     and exits too with the proper exit code.
  *
+ * @requires vm.gc != "Z"
  * @library /vmTestbase /test/hotspot/jtreg/vmTestbase
  *          /test/lib
  * @run driver jdk.test.lib.FileInstaller . .
@@ -163,6 +164,11 @@ public class instanceCounts001 extends TestDebuggerType1 {
 
         if (!isDebuggeeReady())
             return;
+
+        // Note!
+        // Test broken - assumes that no GC is run before heap walk.
+        // G1 fails, just like ZGC, if en explicitly GC is done here.
+        // forceGC();
 
         int expectedCount = instanceCounts001a.expectedCount;
 
