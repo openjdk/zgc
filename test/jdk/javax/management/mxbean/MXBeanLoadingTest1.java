@@ -25,6 +25,7 @@
  * @test
  * @bug 8058865
  * @summary Checks correct collection of MXBean's class after unregistration
+ * @requires vm.opt.final.ClassUnloading
  * @author Olivier Lagneau
  *
  * @library /lib/testlibrary

@@ -25,6 +25,7 @@
  * @test
  * @bug 4909536
  * @summary Ensure that the Introspector does not retain refs to classes
+ * @requires vm.opt.final.ClassUnloading
  * @author Eamonn McManus
  *
  * @run clean ClassLeakTest

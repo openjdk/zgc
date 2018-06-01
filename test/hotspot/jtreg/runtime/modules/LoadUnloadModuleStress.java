@@ -24,6 +24,7 @@
 /*
  * @test
  * @summary Ensure module information is cleaned when owning class loader unloads
+ * @requires vm.opt.final.ClassUnloading
  * @modules java.base/jdk.internal.misc
  * @library /test/lib ..
  * @build sun.hotspot.WhiteBox

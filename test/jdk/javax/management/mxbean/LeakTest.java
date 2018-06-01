@@ -24,6 +24,7 @@
 /* @test
  * @bug 6482247
  * @summary Test that creating MXBeans does not introduce memory leaks.
+ * @requires vm.opt.final.ClassUnloading
  * @author Eamonn McManus
  *
  * @run build LeakTest RandomMXBeanTest MerlinMXBean TigerMXBean

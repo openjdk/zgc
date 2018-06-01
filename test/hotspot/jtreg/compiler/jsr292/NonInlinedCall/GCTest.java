@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 8072008
+ * @requires vm.opt.final.ClassUnloading
  * @library /test/lib ../patches
  * @modules java.base/jdk.internal.misc
  *          java.base/jdk.internal.vm.annotation

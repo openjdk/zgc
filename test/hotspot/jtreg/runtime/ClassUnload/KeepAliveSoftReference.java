@@ -24,6 +24,7 @@
 /*
  * @test KeepAliveSoftReference
  * @summary This test case uses a java.lang.ref.SoftReference referencing a class instance to keep a class alive.
+ * @requires vm.opt.final.ClassUnloading
  * @modules java.base/jdk.internal.misc
  * @library /test/lib /runtime/testlibrary
  * @library classes

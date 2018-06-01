@@ -28,6 +28,7 @@
  *          unloaded.
  * @requires vm.cds
  * @requires vm.cds.custom.loaders
+ * @requires vm.opt.final.ClassUnloading
  * @library /test/lib /test/hotspot/jtreg/runtime/appcds /test/hotspot/jtreg/runtime/testlibrary
  * @modules java.base/jdk.internal.misc
  *          java.management

@@ -23,6 +23,7 @@
 
 /*
  * @test UnloadTest
+ * @requires vm.opt.final.ClassUnloading
  * @modules java.base/jdk.internal.misc
  * @library /runtime/testlibrary /test/lib
  * @library classes
@@ -64,4 +65,3 @@ public class UnloadTest {
         ClassUnloadCommon.failIf(wb.isClassAlive(className), "should have been unloaded");
     }
 }
-
