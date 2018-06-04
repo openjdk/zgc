@@ -1346,11 +1346,9 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ decode_heap_oop(dest->as_register());
     }
 #endif
-#if INCLUDE_ZGC
-    // Load barrier not yet applied, so a verification here would fail
-    if (!UseZGC)
-#endif
-    {
+
+    // Load barrier has not yet been applied, so ZGC can't verify the oop here
+    if (!UseZGC) {
       __ verify_oop(dest->as_register());
     }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
