@@ -761,11 +761,7 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
     // barrier: the load cannot be allowed to float above the
     // dominating barrier
     Node* load = in_val;
-    Node* decode = NULL;
-    if (load->is_DecodeN()) {
-      decode = load;
-      load = load->in(1);
-    }
+
     if (load->is_Load()) {
       Node* new_load = load->clone();
       Node* addp = new_load->in(MemNode::Address);
@@ -786,14 +782,7 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
       new_load->set_req(MemNode::Address, cast);
       igvn.transform(new_load);
 
-      Node* new_in_val = new_load;
-      if (decode != NULL) {
-        new_in_val = decode->clone();
-        new_in_val->set_req(1, new_load);
-        igvn.transform(new_in_val);
-      }
-
-      igvn.replace_node(out_res, new_in_val);
+      igvn.replace_node(out_res, new_load);
       igvn.replace_node(out_ctrl, in_ctrl);
       return;
     }
