@@ -769,7 +769,7 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
     if (load->is_Load()) {
       Node* new_load = load->clone();
       Node* addp = new_load->in(MemNode::Address);
-      assert(addp->is_AddP() || addp->is_Phi(), "bad address");
+      assert(addp->is_AddP() || addp->is_Phi() || addp->is_Load(), "bad address");
       Node* cast = new CastPPNode(addp, igvn.type(addp), true);
       Node* ctrl = NULL;
       Node* similar = barrier->in(LoadBarrierNode::Similar);
