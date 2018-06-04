@@ -36,7 +36,7 @@
 #include "gc/serial/serial_specialized_oop_closures.hpp"
 #endif
 #if INCLUDE_ZGC
-#include "gc/z/zOopClosures.specialized.hpp"
+#include "gc/z/z_specialized_oop_closures.hpp"
 #endif
 
 // The following OopClosure types get specialized versions of

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZSPECIALIZEDOOPCLOSURES_HPP
-#define SHARE_GC_Z_ZSPECIALIZEDOOPCLOSURES_HPP
+#ifndef SHARE_GC_Z_Z_SPECIALIZED_OOP_CLOSURES_HPP
+#define SHARE_GC_Z_Z_SPECIALIZED_OOP_CLOSURES_HPP
 
 class ZLoadBarrierOopClosure;
 template <bool> class ZMarkBarrierOopClosure;
@@ -32,4 +32,4 @@ template <bool> class ZMarkBarrierOopClosure;
       f(ZMarkBarrierOopClosure<true>,_nv) \
       f(ZMarkBarrierOopClosure<false>,_nv)
 
-#endif // SHARE_GC_Z_ZSPECIALIZEDOOPCLOSURES_HPP
+#endif // SHARE_GC_Z_Z_SPECIALIZED_OOP_CLOSURES_HPP
