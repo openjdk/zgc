@@ -350,7 +350,7 @@ void JfrThreadConstant::serialize(JfrCheckpointWriter& writer) {
   JfrThreadGroup::serialize(&writer, thread_group_id);
 }
 
-void ZStatCounterTypeConstant::serialize(JfrCheckpointWriter& writer) {
+void ZStatisticsCounterTypeConstant::serialize(JfrCheckpointWriter& writer) {
 #if INCLUDE_ZGC
   writer.write_count(ZStatCounter::count());
   for (ZStatCounter* counter = ZStatCounter::first(); counter != NULL; counter = counter->next()) {
@@ -362,7 +362,7 @@ void ZStatCounterTypeConstant::serialize(JfrCheckpointWriter& writer) {
 #endif
 }
 
-void ZStatSamplerTypeConstant::serialize(JfrCheckpointWriter& writer) {
+void ZStatisticsSamplerTypeConstant::serialize(JfrCheckpointWriter& writer) {
 #if INCLUDE_ZGC
   writer.write_count(ZStatSampler::count());
   for (ZStatSampler* sampler = ZStatSampler::first(); sampler != NULL; sampler = sampler->next()) {

@@ -135,12 +135,12 @@ class JfrThreadConstant : public JfrSerializer {
   void serialize(JfrCheckpointWriter& writer);
 };
 
-class ZStatCounterTypeConstant : public JfrSerializer {
+class ZStatisticsCounterTypeConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
 };
 
-class ZStatSamplerTypeConstant : public JfrSerializer {
+class ZStatisticsSamplerTypeConstant : public JfrSerializer {
  public:
   void serialize(JfrCheckpointWriter& writer);
 };

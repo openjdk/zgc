@@ -910,11 +910,11 @@
     <Field type="ulong" name="value" label="Value" />
   </Event>
 
-  <Type name="ZStatCounterType" label="Z Stat Counter">
+  <Type name="ZStatisticsCounterType" label="Z Statistics Counter">
     <Field type="string" name="counter" label="Counter" />
   </Type>
 
-  <Type name="ZStatSamplerType" label="Z Stat Sampler">
+  <Type name="ZStatisticsSamplerType" label="Z Statistics Sampler">
     <Field type="string" name="sampler" label="Sampler" />
   </Type>
 

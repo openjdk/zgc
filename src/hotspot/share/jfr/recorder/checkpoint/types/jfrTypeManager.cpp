@@ -213,8 +213,8 @@ bool JfrTypeManager::initialize() {
     case 13: register_serializer(TYPE_CODEBLOBTYPE, false, true, new CodeBlobTypeConstant()); break;
     case 14: register_serializer(TYPE_VMOPERATIONTYPE, false, true, new VMOperationTypeConstant()); break;
     case 15: register_serializer(TYPE_THREADSTATE, false, true, new ThreadStateConstant()); break;
-    case 16: register_serializer(TYPE_ZSTATCOUNTERTYPE, false, true, new ZStatCounterTypeConstant()); break;
-    case 17: register_serializer(TYPE_ZSTATSAMPLERTYPE, false, true, new ZStatSamplerTypeConstant()); break;
+    case 16: register_serializer(TYPE_ZSTATISTICSCOUNTERTYPE, false, true, new ZStatisticsCounterTypeConstant()); break;
+    case 17: register_serializer(TYPE_ZSTATISTICSSAMPLERTYPE, false, true, new ZStatisticsSamplerTypeConstant()); break;
     default:
       guarantee(false, "invariant");
     }
