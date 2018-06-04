@@ -23,7 +23,6 @@
 
 #include "precompiled.hpp"
 #include "gc/z/zErrno.hpp"
-#include "gc/z/zFlags.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zLock.inline.hpp"
 #include "gc/z/zMarkStack.inline.hpp"

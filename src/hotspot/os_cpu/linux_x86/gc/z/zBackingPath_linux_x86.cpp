@@ -25,7 +25,6 @@
 #include "gc/z/zArray.inline.hpp"
 #include "gc/z/zBackingPath_linux_x86.hpp"
 #include "gc/z/zErrno.hpp"
-#include "gc/z/zFlags.hpp"
 #include "logging/log.hpp"
 
 #include <stdio.h>

@@ -25,7 +25,6 @@
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zBackingFile_linux_x86.hpp"
 #include "gc/z/zErrno.hpp"
-#include "gc/z/zFlags.hpp"
 #include "gc/z/zLargePages.inline.hpp"
 #include "gc/z/zMemory.hpp"
 #include "gc/z/zNUMA.hpp"

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFLAGS_HPP
-#define SHARE_GC_Z_ZFLAGS_HPP
+#ifndef SHARE_GC_Z_Z_GLOBALS_HPP
+#define SHARE_GC_Z_Z_GLOBALS_HPP
 
 #define GC_Z_FLAGS(develop,                                                 \
                    develop_pd,                                              \
@@ -94,4 +94,4 @@
   develop(bool, ZVerifyLoadBarriers, false,                                 \
           "Verify that reference loads are followed by barriers")
 
-#endif // SHARE_GC_Z_ZFLAGS_HPP
+#endif // SHARE_GC_Z_Z_GLOBALS_HPP
