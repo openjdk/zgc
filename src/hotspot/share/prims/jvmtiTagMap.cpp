@@ -59,6 +59,9 @@
 #include "runtime/vmThread.hpp"
 #include "runtime/vm_operations.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_ZGC
+#include "gc/z/zGlobals.hpp"
+#endif
 
 // JvmtiTagHashmapEntry
 //
