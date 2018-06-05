@@ -126,9 +126,10 @@ public class instances003 extends HeapwalkingDebugger {
             ":" + referrerCount + ":" + referrerType +
             (referrerType.equals(ObjectInstancesManager.WEAK_REFERENCE) ? "|" + ObjectInstancesManager.STRONG_REFERENCE : ""));
 
-        // Note!
-        // Test broken - assumes that no GC is run before heap walk.
-        // G1 fails, just like ZGC, if an explicitly GC is done here.
+        // Note! This test is broken, in the sense that it incorrectly assumes
+        // that no GC can happen before it walks the heap. In practice, it seems
+        // to only affect this test when using ZGC. However, this test will also
+        // fail when using other GCs if an explicit GC is done here.
 
         // the instance counts should not be affected by creating multiple references
         checkDebugeeAnswer_instanceCounts(className, createInstanceCount, objectsToFilter);

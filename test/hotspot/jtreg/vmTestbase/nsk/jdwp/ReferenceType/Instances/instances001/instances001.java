@@ -157,9 +157,10 @@ public class instances001 extends TestDebuggerType1 {
 
         long typeID = debuggee.getReferenceTypeID(createTypeSignature(testClassName));
 
-        // Note!
-        // Test broken - assumes that no GC is run before heap walk.
-        // G1 fails, just like ZGC, if an explicitly GC is done here.
+        // Note! This test is broken, in the sense that it incorrectly assumes
+        // that no GC can happen before it walks the heap. In practice, it seems
+        // to only affect this test when using ZGC. However, this test will also
+        // fail when using other GCs if an explicit GC is done here.
 
         // create command with maxInstances=1, only 1 instance should be returned
         testClass(typeID, 1, 1, false, 0);
