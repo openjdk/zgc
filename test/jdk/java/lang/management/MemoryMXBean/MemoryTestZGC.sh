@@ -23,12 +23,7 @@
 
 #
 # @test
-# @bug     4530538
-# @summary
-# @author  Mandy Chung
-#
 # @requires vm.gc.Z
-#
 # @run compile MemoryTest.java
 # @run shell MemoryTestZGC.sh
 #
