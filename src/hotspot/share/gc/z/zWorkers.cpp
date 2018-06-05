@@ -89,6 +89,10 @@ ZWorkers::ZWorkers() :
 
   // Initialize worker threads
   _workers.initialize_workers();
+  _workers.update_active_workers(nworkers());
+  if (_workers.active_workers() != nworkers()) {
+    vm_exit_during_initialization("Failed to create ZWorkers");
+  }
 
   // Warm up worker threads by having them execute a dummy task.
   // This helps reduce latency in early GC pauses, which otherwise
