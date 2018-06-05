@@ -1726,7 +1726,6 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual const Type *bottom_type() const;
   virtual       uint  ideal_reg() const;
-
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
   virtual void dump_compact_spec(outputStream *st) const;
