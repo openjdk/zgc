@@ -154,8 +154,7 @@ public class referringObjects001 extends HeapwalkingDebugger {
 
         // Note!
         // Test broken - assumes that no GC is run before heap walk.
-        // G1 fails, just like ZGC, if en explicitly GC is done here.
-        // forceGC();
+        // G1 fails, just like ZGC, if an explicitly GC is done here.
 
         checkDebugeeAnswer_instanceCounts(className, expectedInstanceCount, objectsToFilter);
         checkDebugeeAnswer_instances_referringObjects(objectsToFilter, className, expectedInstanceCount, includedInReferrersCount, referrerCount);

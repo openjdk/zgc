@@ -159,8 +159,7 @@ public class instances001 extends TestDebuggerType1 {
 
         // Note!
         // Test broken - assumes that no GC is run before heap walk.
-        // G1 fails, just like ZGC, if en explicitly GC is done here.
-        // forceGC();
+        // G1 fails, just like ZGC, if an explicitly GC is done here.
 
         // create command with maxInstances=1, only 1 instance should be returned
         testClass(typeID, 1, 1, false, 0);

@@ -128,8 +128,7 @@ public class instances003 extends HeapwalkingDebugger {
 
         // Note!
         // Test broken - assumes that no GC is run before heap walk.
-        // G1 fails, just like ZGC, if en explicitly GC is done here.
-        // forceGC();
+        // G1 fails, just like ZGC, if an explicitly GC is done here.
 
         // the instance counts should not be affected by creating multiple references
         checkDebugeeAnswer_instanceCounts(className, createInstanceCount, objectsToFilter);

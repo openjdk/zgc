@@ -167,8 +167,7 @@ public class instanceCounts001 extends TestDebuggerType1 {
 
         // Note!
         // Test broken - assumes that no GC is run before heap walk.
-        // G1 fails, just like ZGC, if en explicitly GC is done here.
-        // forceGC();
+        // G1 fails, just like ZGC, if an explicitly GC is done here.
 
         int expectedCount = instanceCounts001a.expectedCount;
 
