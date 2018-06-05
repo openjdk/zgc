@@ -1255,8 +1255,8 @@ void ZStatHeap::set_at_relocate_end(size_t capacity,
   _at_relocate_end.capacity_high = capacity;
   _at_relocate_end.capacity_low = _at_mark_start.capacity;
   _at_relocate_end.reserve = reserve(used);
-  _at_relocate_end.reserve_high = reserve(used_high);
-  _at_relocate_end.reserve_low = reserve(used_low);
+  _at_relocate_end.reserve_high = reserve(used_low);
+  _at_relocate_end.reserve_low = reserve(used_high);
   _at_relocate_end.garbage = _at_mark_end.garbage - reclaimed;
   _at_relocate_end.allocated = allocated;
   _at_relocate_end.reclaimed = reclaimed;
