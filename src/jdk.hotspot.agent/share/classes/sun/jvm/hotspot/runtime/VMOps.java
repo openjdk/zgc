@@ -54,6 +54,7 @@ public enum VMOps {
   CMS_Initial_Mark,
   CMS_Final_Remark,
   G1CollectFull,
+  ZOperation,
   G1CollectForAllocation,
   G1IncCollectionPause,
   EnableBiasedLocking,

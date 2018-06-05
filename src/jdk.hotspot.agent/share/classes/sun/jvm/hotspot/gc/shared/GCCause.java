@@ -61,6 +61,12 @@ public enum GCCause {
 
   _dcmd_gc_run ("Diagnostic Command"),
 
+   _z_timer ("Timer"),
+   _z_warmup ("Warmup"),
+   _z_allocation_rate ("Allocation Rate"),
+   _z_allocation_stall ("Allocation Stall"),
+   _z_proactive ("Proactive"),
+
   _last_gc_cause ("ILLEGAL VALUE - last gc cause - ILLEGAL VALUE");
 
   private final String value;
