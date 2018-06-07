@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1111,7 +1111,7 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
                           }
                         } else if (collHeap instanceof ZCollectedHeap) {
                           ZCollectedHeap heap = (ZCollectedHeap) collHeap;
-                          anno ="ZHeap";
+                          anno = "ZHeap ";
                           bad = false;
                         } else {
                           // Optimistically assume the oop isn't bad
