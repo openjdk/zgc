@@ -141,15 +141,8 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual void resize_all_tlabs();
 
   // Allocate from the current thread's TLAB, with broken-out slow path.
-  inline static HeapWord* allocate_from_tlab(Klass* klass, size_t size, TRAPS);
-  static HeapWord* allocate_from_tlab_slow(Klass* klass, size_t size, TRAPS);
-
-  // Raw memory allocation facilities
-  // The obj and array allocate methods are covers for these methods.
-  // mem_allocate() should never be
-  // called to allocate TLABs, only individual objects.
-  virtual HeapWord* mem_allocate(size_t size,
-                                 bool* gc_overhead_limit_was_exceeded) = 0;
+  inline static HeapWord* allocate_from_tlab(Klass* klass, Thread* thread, size_t size);
+  static HeapWord* allocate_from_tlab_slow(Klass* klass, Thread* thread, size_t size);
 
   // Allocate an uninitialized block of the given size, or returns NULL if
   // this is impossible.
@@ -316,12 +309,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   inline static oop array_allocate_nozero(Klass* klass, int size, int length, TRAPS);
   inline static oop class_allocate(Klass* klass, int size, TRAPS);
 
-  // Raw memory allocation. This may or may not use TLAB allocations to satisfy the
-  // allocation. A GC implementation may override this function to satisfy the allocation
-  // in any way. But the default is to try a TLAB allocation, and otherwise perform
-  // mem_allocate.
-  virtual HeapWord* obj_allocate_raw(Klass* klass, size_t size,
-                                     bool* gc_overhead_limit_was_exceeded, TRAPS);
+  // Raw memory allocation facilities
+  // The obj and array allocate methods are covers for these methods.
+  // mem_allocate() should never be
+  // called to allocate TLABs, only individual objects.
+  virtual HeapWord* mem_allocate(size_t size,
+                                 bool* gc_overhead_limit_was_exceeded) = 0;
 
   // Utilities for turning raw memory into filler objects.
   //
