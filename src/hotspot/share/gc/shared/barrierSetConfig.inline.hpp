@@ -26,12 +26,13 @@
 #define SHARE_VM_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
 
 #include "gc/shared/barrierSetConfig.hpp"
-
 #include "gc/shared/modRefBarrierSet.inline.hpp"
 #include "gc/shared/cardTableBarrierSet.inline.hpp"
-
 #if INCLUDE_G1GC
-#include "gc/g1/g1BarrierSet.inline.hpp" // G1 support
+#include "gc/g1/g1BarrierSet.inline.hpp"
+#endif
+#if INCLUDE_ZGC
+#include "gc/z/zBarrierSet.inline.hpp"
 #endif
 
 #endif // SHARE_VM_GC_SHARED_BARRIERSETCONFIG_INLINE_HPP
