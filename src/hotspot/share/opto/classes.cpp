@@ -60,3 +60,4 @@ int Node::Opcode() const { return Op_Node; }
 #define optionalmacro(x)
 #include "classes.hpp"
 #undef macro
+#undef optionalmacro

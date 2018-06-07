@@ -2373,11 +2373,10 @@ void Compile::Optimize() {
   bs->verify_gc_barriers(false);
 #endif
 
-  print_method(PHASE_BEFORE_MACRO_EXPANSION, 2);
-
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
     PhaseMacroExpand  mex(igvn);
+    print_method(PHASE_BEFORE_MACRO_EXPANSION, 2);
     if (mex.expand_macro_nodes()) {
       assert(failing(), "must bail out w/ explicit message");
       return;
