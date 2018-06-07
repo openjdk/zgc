@@ -152,6 +152,7 @@ public:
   virtual int         is_expensive() const;     // node matches ideal 'CosD'
   virtual int         is_empty_encoding() const; // _size=0 and/or _insencode empty
   virtual int         is_tls_instruction() const; // tlsLoadP rule or ideal ThreadLocal
+  virtual int         is_addr_bad_bits_instruction() const; // ZGC address bad bits in register
   virtual int         is_ideal_copy() const;    // node matches ideal 'Copy*'
   virtual bool        is_ideal_negD() const;    // node matches ideal 'NegD'
   virtual bool        is_ideal_if()   const;    // node matches ideal 'If'
