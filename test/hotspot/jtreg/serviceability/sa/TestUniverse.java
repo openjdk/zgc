@@ -34,10 +34,21 @@ import jdk.test.lib.process.OutputAnalyzer;
 /*
  * @test
  * @summary Test the 'universe' command of jhsdb clhsdb.
+ * @requires vm.gc != "Z"
  * @bug 8190307
  * @library /test/lib
  * @build jdk.test.lib.apps.*
- * @run main/othervm TestUniverse
+ * @run main/othervm TestUniverse withoutZ
+ */
+
+/*
+ * @test
+ * @summary Test the 'universe' command of jhsdb clhsdb.
+ * @requires vm.gc == "Z"
+ * @bug 8190307
+ * @library /test/lib
+ * @build jdk.test.lib.apps.*
+ * @run main/othervm TestUniverse withZ
  */
 
 public class TestUniverse {
@@ -102,6 +113,9 @@ public class TestUniverse {
             output.shouldContain("PSYoungGen");
             output.shouldContain("eden");
         }
+        if (gc.contains("UseZGC")) {
+            output.shouldContain("ZHeap");
+        }
 
     }
 
@@ -109,6 +123,9 @@ public class TestUniverse {
         LingeredApp app = null;
         try {
             List<String> vmArgs = new ArrayList<String>();
+            if (gc.contains("UseZGC")) {
+              vmArgs.add("-XX:+UnlockExperimentalVMOptions");
+            }
             vmArgs.add(gc);
             app = LingeredApp.startApp(vmArgs);
             System.out.println ("Started LingeredApp with the GC option " + gc +
@@ -133,6 +150,10 @@ public class TestUniverse {
             test("-XX:+UseParallelGC");
             test("-XX:+UseSerialGC");
             test("-XX:+UseConcMarkSweepGC");
+            if (args[0].equals("withZ")) {
+              test("-XX:+UseZGC");
+            }
+
         } catch (Exception e) {
             throw new Error("Test failed with " + e);
         }
