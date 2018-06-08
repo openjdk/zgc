@@ -36,12 +36,25 @@ import jdk.test.lib.process.OutputAnalyzer;
 /*
  * @test
  * @summary Test the 'universe' command of jhsdb clhsdb.
+ * @requires vm.gc != "Z"
  * @bug 8190307
  * @library /test/lib
  * @build jdk.test.lib.apps.*
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. TestUniverse
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. TestUniverse withoutZ
+ */
+
+/*
+ * @test
+ * @summary Test the 'universe' command of jhsdb clhsdb.
+ * @requires vm.gc == "Z"
+ * @bug 8190307
+ * @library /test/lib
+ * @build jdk.test.lib.apps.*
+ * @build sun.hotspot.WhiteBox
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. TestUniverse withZ
  */
 
 public class TestUniverse {
@@ -106,6 +119,9 @@ public class TestUniverse {
             output.shouldContain("PSYoungGen");
             output.shouldContain("eden");
         }
+        if (gc.contains("UseZGC")) {
+            output.shouldContain("ZHeap");
+        }
 
     }
 
@@ -113,6 +129,9 @@ public class TestUniverse {
         LingeredApp app = null;
         try {
             List<String> vmArgs = new ArrayList<String>();
+            if (gc.contains("UseZGC")) {
+                vmArgs.add("-XX:+UnlockExperimentalVMOptions");
+            }
             vmArgs.add(gc);
             app = LingeredApp.startApp(vmArgs);
             System.out.println ("Started LingeredApp with the GC option " + gc +
@@ -136,8 +155,11 @@ public class TestUniverse {
             test("-XX:+UseG1GC");
             test("-XX:+UseParallelGC");
             test("-XX:+UseSerialGC");
-            if (!Compiler.isGraalEnabled()) { // Graal does not support CMS
-              test("-XX:+UseConcMarkSweepGC");
+            if (!Compiler.isGraalEnabled()) { // Graal does not support all GCs
+                test("-XX:+UseConcMarkSweepGC");
+                if (args[0].equals("withZ")) {
+                    test("-XX:+UseZGC");
+                }
             }
         } catch (Exception e) {
             throw new Error("Test failed with " + e);

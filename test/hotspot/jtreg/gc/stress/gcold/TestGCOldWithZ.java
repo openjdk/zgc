@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,26 +19,19 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
 /*
- * @test
- * @summary Test checks output displayed with jstat -gccause.
- *          Test scenario:
- *          test forces debuggee application eat ~70% of heap and runs jstat.
- *          jstat should show actual usage of old gen (OC/OU ~= old gen usage).
- * @requires vm.opt.ExplicitGCInvokesConcurrent != true
- * @requires vm.gc != "Z"
- * @modules java.base/jdk.internal.misc
- * @library /test/lib
- * @library ../share
- * @run main/othervm -XX:+UsePerfData -XX:MaxNewSize=4m -XX:MaxHeapSize=128M -XX:MaxMetaspaceSize=128M GcCauseTest02
+ * @test TestGCOldWithZ
+ * @key gc
+ * @requires vm.gc.Z
+ * @summary Stress the Z
+ * @run main/othervm -Xmx384M -XX:+UnlockExperimentalVMOptions -XX:+UseZGC TestGCOldWithZ 50 1 20 10 10000
+ * @run main/othervm -Xmx256m -XX:+UnlockExperimentalVMOptions -XX:+UseZGC TestGCOldWithZ 50 5 20 1 5000
  */
-import utils.*;
-
-public class GcCauseTest02 {
-
-    public static void main(String[] args) throws Exception {
-        new GarbageProducerTest(new JstatGcCauseTool(ProcessHandle.current().pid())).run();
+public class TestGCOldWithZ {
+    public static void main(String[] args) {
+        TestGCOld.main(args);
     }
 }
