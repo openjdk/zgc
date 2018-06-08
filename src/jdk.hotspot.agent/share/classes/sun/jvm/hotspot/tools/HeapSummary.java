@@ -29,6 +29,7 @@ import sun.jvm.hotspot.gc.g1.*;
 import sun.jvm.hotspot.gc.parallel.*;
 import sun.jvm.hotspot.gc.serial.*;
 import sun.jvm.hotspot.gc.shared.*;
+import sun.jvm.hotspot.gc.z.*;
 import sun.jvm.hotspot.debugger.JVMDebugger;
 import sun.jvm.hotspot.memory.*;
 import sun.jvm.hotspot.oops.*;
@@ -124,6 +125,9 @@ public class HeapSummary extends Tool {
          printValMB("used     = ", oldGen.used());
          printValMB("free     = ", oldFree);
          System.out.println(alignment + (double)oldGen.used() * 100.0 / oldGen.capacity() + "% used");
+      } else if (heap instanceof ZCollectedHeap) {
+         ZCollectedHeap zheap = (ZCollectedHeap) heap;
+         zheap.printOn(System.out);
       } else {
          throw new RuntimeException("unknown CollectedHeap type : " + heap.getClass());
       }
@@ -156,6 +160,14 @@ public class HeapSummary extends Tool {
        l = getFlagValue("UseG1GC", flagMap);
        if (l == 1L) {
            System.out.print("Garbage-First (G1) GC ");
+           l = getFlagValue("ParallelGCThreads", flagMap);
+           System.out.println("with " + l + " thread(s)");
+           return;
+       }
+
+       l = getFlagValue("UseZGC", flagMap);
+       if (l == 1L) {
+           System.out.print("ZGC ");
            l = getFlagValue("ParallelGCThreads", flagMap);
            System.out.println("with " + l + " thread(s)");
            return;

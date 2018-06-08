@@ -38,6 +38,9 @@
 #if INCLUDE_SERIALGC
 #include "gc/serial/serial_globals.hpp"
 #endif
+#if INCLUDE_ZGC
+#include "gc/z/z_globals.hpp"
+#endif
 
 #define GC_FLAGS(develop,                                                   \
                  develop_pd,                                                \
@@ -118,6 +121,22 @@
     constraint,                                                             \
     writeable))                                                             \
                                                                             \
+  ZGC_ONLY(GC_Z_FLAGS(                                                      \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    diagnostic,                                                             \
+    diagnostic_pd,                                                          \
+    experimental,                                                           \
+    notproduct,                                                             \
+    manageable,                                                             \
+    product_rw,                                                             \
+    lp64_product,                                                           \
+    range,                                                                  \
+    constraint,                                                             \
+    writeable))                                                             \
+                                                                            \
   /* gc */                                                                  \
                                                                             \
   product(bool, UseConcMarkSweepGC, false,                                  \
@@ -134,6 +153,9 @@
                                                                             \
   product(bool, UseParallelOldGC, false,                                    \
           "Use the Parallel Old garbage collector")                         \
+                                                                            \
+  experimental(bool, UseZGC, false,                                         \
+          "Use the Z garbage collector")                                    \
                                                                             \
   product(uint, ParallelGCThreads, 0,                                       \
           "Number of parallel threads parallel gc will use")                \
