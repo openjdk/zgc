@@ -133,7 +133,7 @@ uintptr_t ZObjectAllocator::alloc_medium_object(size_t size, ZAllocationFlags fl
 uintptr_t ZObjectAllocator::alloc_small_object_from_nonworker(size_t size, ZAllocationFlags flags) {
   assert(ZThread::is_java() || ZThread::is_vm(), "Should be a Java or VM thread");
 
-  if (flags.relocation() && flags.java_thread()) {
+  if (flags.relocation() && flags.java_thread() && UseTLAB) {
     // For relocations from Java threads, try TLAB allocation first
     const uintptr_t addr = (uintptr_t)Thread::current()->tlab().allocate(ZUtils::bytes_to_words(size));
     if (addr != 0) {
