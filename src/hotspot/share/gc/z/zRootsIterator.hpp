@@ -81,6 +81,7 @@ private:
   ZOopStorageIterator _vm_weak_handles_iter;
   ZOopStorageIterator _jni_handles_iter;
   ZOopStorageIterator _jni_weak_handles_iter;
+  ZOopStorageIterator _string_table_iter;
 
   void do_universe(OopClosure* cl);
   void do_vm_weak_handles(OopClosure* cl);
@@ -123,6 +124,7 @@ class ZWeakRootsIterator {
 private:
   ZOopStorageIterator _vm_weak_handles_iter;
   ZOopStorageIterator _jni_weak_handles_iter;
+  ZOopStorageIterator _string_table_iter;
 
   void do_vm_weak_handles(BoolObjectClosure* is_alive, OopClosure* cl);
   void do_jni_weak_handles(BoolObjectClosure* is_alive, OopClosure* cl);
@@ -150,12 +152,15 @@ class ZConcurrentWeakRootsIterator {
 private:
   ZConcurrentOopStorageIterator _vm_weak_handles_iter;
   ZConcurrentOopStorageIterator _jni_weak_handles_iter;
+  ZConcurrentOopStorageIterator _string_table_iter;
 
   void do_vm_weak_handles(OopClosure* cl);
   void do_jni_weak_handles(OopClosure* cl);
+  void do_string_table(OopClosure* cl);
 
   ZParallelOopsDo<ZConcurrentWeakRootsIterator, &ZConcurrentWeakRootsIterator::do_vm_weak_handles>  _vm_weak_handles;
   ZParallelOopsDo<ZConcurrentWeakRootsIterator, &ZConcurrentWeakRootsIterator::do_jni_weak_handles> _jni_weak_handles;
+  ZParallelOopsDo<ZConcurrentWeakRootsIterator, &ZConcurrentWeakRootsIterator::do_string_table>     _string_table;
 
 public:
   ZConcurrentWeakRootsIterator();
