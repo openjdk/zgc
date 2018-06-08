@@ -870,4 +870,14 @@ void StringTable::serialize(SerializeClosure* soc) {
 void StringTable::shared_oops_do(OopClosure* f) {
   _shared_table.oops_do(f);
 }
+
+void StringTable::reset_dead_counter() {
+  the_table()->_uncleaned_items = 0;
+}
+
+void StringTable::inc_dead_counter(size_t ndead) {
+  items_to_clean(ndead);
+  the_table()->check_concurrent_work();
+}
+
 #endif //INCLUDE_CDS_JAVA_HEAP

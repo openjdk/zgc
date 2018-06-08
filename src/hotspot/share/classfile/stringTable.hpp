@@ -157,6 +157,9 @@ private:
   static void write_to_archive() NOT_CDS_JAVA_HEAP_RETURN;
   static void serialize(SerializeClosure* soc) NOT_CDS_JAVA_HEAP_RETURN;
 
+  static void reset_dead_counter();
+  static void inc_dead_counter(size_t ndead);
+
   // Jcmd
   static void dump(outputStream* st, bool verbose=false);
   // Debugging
