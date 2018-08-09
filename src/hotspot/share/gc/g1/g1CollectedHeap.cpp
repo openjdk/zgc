@@ -61,6 +61,7 @@
 #include "gc/g1/heapRegionSet.inline.hpp"
 #include "gc/g1/vm_operations_g1.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
+#include "gc/shared/behaviours.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcLocker.hpp"
@@ -92,6 +93,7 @@
 #include "runtime/threadSMR.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
+#include "utilities/behaviours.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
 

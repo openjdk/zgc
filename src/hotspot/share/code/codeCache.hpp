@@ -27,11 +27,13 @@
 
 #include "code/codeBlob.hpp"
 #include "code/nmethod.hpp"
+#include "gc/shared/behaviours.hpp"
 #include "memory/allocation.hpp"
 #include "memory/heap.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "utilities/behaviours.hpp"
 
 // The CodeCache implements the code cache for various pieces of generated
 // code, e.g., compiled java methods, runtime stubs, transition frames, etc.
@@ -90,8 +92,8 @@ class CodeCache : AllStatic {
   static address _low_bound;                            // Lower bound of CodeHeap addresses
   static address _high_bound;                           // Upper bound of CodeHeap addresses
   static int _number_of_nmethods_with_dependencies;     // Total number of nmethods with dependencies
-  static bool _needs_cache_clean;                       // True if inline caches of the nmethods needs to be flushed
   static nmethod* _scavenge_root_nmethods;              // linked via nm->scavenge_root_link()
+  static int _unloading_cycle;                          // Global state for recognizing old nmethods that need to be unloaded
 
   static void mark_scavenge_root_nmethods() PRODUCT_RETURN;
   static void verify_perm_nmethods(CodeBlobClosure* f_or_null) PRODUCT_RETURN;
@@ -172,7 +174,21 @@ class CodeCache : AllStatic {
   // to) any unmarked codeBlobs in the cache.  Sets "marked_for_unloading"
   // to "true" iff some code got unloaded.
   // "unloading_occurred" controls whether metadata should be cleaned because of class unloading.
+  class UnloadingScope {
+    typedef BehaviourMark<PhantomIsAliveBehaviour> IsAliveBehaviourMark;
+    PhantomIsAliveBehaviour _is_alive_behaviour;
+    IsAliveBehaviourMark _is_alive_mark;
+
+  public:
+    UnloadingScope(BoolObjectClosure* is_alive)
+      : _is_alive_behaviour(is_alive),
+        _is_alive_mark(_is_alive_behaviour) {
+      increment_unloading_cycle();
+    }
+  };
   static void do_unloading(BoolObjectClosure* is_alive, bool unloading_occurred);
+  static int unloading_cycle() { return _unloading_cycle; }
+  static void increment_unloading_cycle();
   static void asserted_non_scavengable_nmethods_do(CodeBlobClosure* f = NULL) PRODUCT_RETURN;
 
   // Apply f to every live code blob in scavengable nmethods. Prune nmethods
@@ -221,9 +237,6 @@ class CodeCache : AllStatic {
   static size_t max_capacity();
 
   static double reverse_free_ratio(int code_blob_type);
-
-  static bool needs_cache_clean()                     { return _needs_cache_clean; }
-  static void set_needs_cache_clean(bool v)           { _needs_cache_clean = v;    }
 
   static void clear_inline_caches();                  // clear all inline caches
   static void cleanup_inline_caches();                // clean unloaded/zombie nmethods from inline caches

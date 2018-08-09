@@ -75,7 +75,7 @@ address* AOTCompiledMethod::orig_pc_addr(const frame* fr) {
   return (address*) ((address)fr->unextended_sp() + _meta->orig_pc_offset());
 }
 
-bool AOTCompiledMethod::do_unloading_oops(address low_boundary, BoolObjectClosure* is_alive) {
+bool AOTCompiledMethod::do_unloading_oops(address low_boundary) {
   return false;
 }
 
@@ -362,7 +362,7 @@ void AOTCompiledMethod::log_identity(xmlStream* log) const {
   log->print(" aot='%2d'", _heap->dso_id());
 }
 
-void AOTCompiledMethod::log_state_change(oop cause) const {
+void AOTCompiledMethod::log_state_change() const {
   if (LogCompilation) {
     ResourceMark m;
     if (xtty != NULL) {
