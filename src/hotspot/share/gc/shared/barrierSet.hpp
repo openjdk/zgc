@@ -37,6 +37,7 @@ class BarrierSetAssembler;
 class BarrierSetC1;
 class BarrierSetC2;
 class JavaThread;
+class NMethodEntryBarrier;
 
 // This class provides the interface between a barrier implementation and
 // the rest of the system.
@@ -72,6 +73,7 @@ private:
   BarrierSetAssembler* _barrier_set_assembler;
   BarrierSetC1* _barrier_set_c1;
   BarrierSetC2* _barrier_set_c2;
+  NMethodEntryBarrier* _nmethod_entry_barrier;
 
 public:
   // Metafunction mapping a class derived from BarrierSet to the
@@ -95,11 +97,13 @@ protected:
   BarrierSet(BarrierSetAssembler* barrier_set_assembler,
              BarrierSetC1* barrier_set_c1,
              BarrierSetC2* barrier_set_c2,
-             const FakeRtti& fake_rtti) :
-    _fake_rtti(fake_rtti),
-    _barrier_set_assembler(barrier_set_assembler),
-    _barrier_set_c1(barrier_set_c1),
-    _barrier_set_c2(barrier_set_c2) {}
+             const FakeRtti& fake_rtti,
+             NMethodEntryBarrier* nmethod_entry_barrier = NULL)
+    : _fake_rtti(fake_rtti),
+      _barrier_set_assembler(barrier_set_assembler),
+      _barrier_set_c1(barrier_set_c1),
+      _barrier_set_c2(barrier_set_c2),
+      _nmethod_entry_barrier(nmethod_entry_barrier) {}
   ~BarrierSet() { }
 
   template <class BarrierSetAssemblerT>
@@ -150,6 +154,10 @@ public:
   BarrierSetC2* barrier_set_c2() {
     assert(_barrier_set_c2 != NULL, "should be set");
     return _barrier_set_c2;
+  }
+
+  NMethodEntryBarrier* nmethod_entry_barrier() {
+    return _nmethod_entry_barrier;
   }
 
   // The AccessBarrier of a BarrierSet subclass is called by the Access API

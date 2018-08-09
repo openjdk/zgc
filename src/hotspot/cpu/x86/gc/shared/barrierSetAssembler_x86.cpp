@@ -23,6 +23,8 @@
  */
 
 #include "precompiled.hpp"
+#include "code/nmethodEntryBarrier.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interp_masm.hpp"
@@ -320,5 +322,24 @@ void BarrierSetAssembler::incr_allocated_bytes(MacroAssembler* masm, Register th
     __ addl(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())), con_size_in_bytes);
   }
   __ adcl(Address(thread, in_bytes(JavaThread::allocated_bytes_offset())+4), 0);
+#endif
+}
+
+void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm) {
+  NMethodEntryBarrier* eb = BarrierSet::barrier_set()->nmethod_entry_barrier();
+  if (eb == NULL) {
+    return;
+  }
+#ifndef _LP64
+  ShouldNotReachHere();
+#else
+  Label continuation;
+  Register thread = LP64_ONLY(r15_thread);
+  Address mask(thread, in_bytes(eb->thread_disarmed_offset()));
+  __ align(8);
+  __ cmpl(mask, 0);
+  __ jcc(Assembler::equal, continuation);
+  __ call(RuntimeAddress(StubRoutines::x86::method_entry_barrier()));
+  __ bind(continuation);
 #endif
 }

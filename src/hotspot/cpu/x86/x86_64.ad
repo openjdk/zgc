@@ -901,7 +901,7 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   int framesize = C->frame_size_in_bytes();
   int bangsize = C->bang_size_in_bytes();
 
-  __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, false);
+  __ verified_entry(framesize, C->need_stack_bang(bangsize)?bangsize:0, false, C->stub_function());
 
   C->set_frame_complete(cbuf.insts_size());
 
@@ -10807,7 +10807,7 @@ instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegI zero,
   ins_pipe(pipe_slow);
 %}
 
-instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegI zero, 
+instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegI zero,
                         Universe dummy, rFlagsReg cr)
 %{
   predicate(((ClearArrayNode*)n)->is_large());
@@ -10851,7 +10851,7 @@ instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegI zero,
     }
   %}
   ins_encode %{
-    __ clear_mem($base$$Register, $cnt$$Register, $zero$$Register, 
+    __ clear_mem($base$$Register, $cnt$$Register, $zero$$Register,
                  $tmp$$XMMRegister, true);
   %}
   ins_pipe(pipe_slow);

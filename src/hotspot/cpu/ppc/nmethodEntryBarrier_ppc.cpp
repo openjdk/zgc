@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,23 +23,18 @@
  */
 
 #include "precompiled.hpp"
-#include "runtime/deoptimization.hpp"
-#include "runtime/frame.inline.hpp"
-#include "runtime/stubRoutines.hpp"
-#include "runtime/thread.inline.hpp"
+#include "code/nmethodEntryBarrier.hpp"
+#include "utilities/debug.hpp"
 
-// Implementation of the platform-specific part of StubRoutines - for
-// a description of how to extend it, see the stubRoutines.hpp file.
+void NMethodEntryBarrier::StubEntry::deoptimize() {
+  ShouldNotReachHere();
+}
 
-address StubRoutines::x86::_get_previous_fp_entry = NULL;
-address StubRoutines::x86::_get_previous_sp_entry = NULL;
+void NMethodEntryBarrier::disarm_barrier(nmethod* nm) {
+  ShouldNotReachHere();
+}
 
-address StubRoutines::x86::_f2i_fixup = NULL;
-address StubRoutines::x86::_f2l_fixup = NULL;
-address StubRoutines::x86::_d2i_fixup = NULL;
-address StubRoutines::x86::_d2l_fixup = NULL;
-address StubRoutines::x86::_float_sign_mask = NULL;
-address StubRoutines::x86::_float_sign_flip = NULL;
-address StubRoutines::x86::_double_sign_mask = NULL;
-address StubRoutines::x86::_double_sign_flip = NULL;
-address StubRoutines::x86::_method_entry_barrier = NULL;
+bool NMethodEntryBarrier::is_armed(nmethod* nm) {
+  ShouldNotReachHere();
+  return false;
+}

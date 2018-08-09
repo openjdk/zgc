@@ -106,6 +106,7 @@
   LOG_TAG(monitormismatch) \
   LOG_TAG(nestmates) \
   LOG_TAG(nmethod) \
+  LOG_TAG(nmethod_barrier) \
   LOG_TAG(normalize) \
   LOG_TAG(objecttagging) \
   LOG_TAG(obsolete) \

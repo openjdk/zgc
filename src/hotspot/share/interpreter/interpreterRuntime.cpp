@@ -27,6 +27,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
+#include "code/nmethodEntryBarrier.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
@@ -1045,6 +1046,13 @@ nmethod* InterpreterRuntime::frequency_counter_overflow(JavaThread* thread, addr
     Method* method =  last_frame.method();
     int bci = method->bci_from(last_frame.bcp());
     nm = method->lookup_osr_nmethod_for(bci, CompLevel_none, false);
+    NMethodEntryBarrier* eb = BarrierSet::barrier_set()->nmethod_entry_barrier();
+    if (nm != NULL && eb != NULL) {
+      // in case the transition passed a safepoint we need to barrier this again
+      if (!eb->nmethod_osr_entry_barrier(nm)) {
+        nm = NULL;
+      }
+    }
   }
   if (nm != NULL && thread->is_interp_only_mode()) {
     // Normally we never get an nm if is_interp_only_mode() is true, because
@@ -1080,6 +1088,13 @@ IRT_ENTRY(nmethod*,
   assert(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
   nmethod* osr_nm = CompilationPolicy::policy()->event(method, method, branch_bci, bci, CompLevel_none, NULL, thread);
   assert(!HAS_PENDING_EXCEPTION, "Event handler should not throw any exceptions");
+
+  NMethodEntryBarrier* eb = BarrierSet::barrier_set()->nmethod_entry_barrier();
+  if (osr_nm != NULL && eb != NULL) {
+    if (!eb->nmethod_osr_entry_barrier(osr_nm)) {
+      osr_nm = NULL;
+    }
+  }
 
   if (osr_nm != NULL) {
     // We may need to do on-stack replacement which requires that no
