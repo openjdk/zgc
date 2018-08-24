@@ -282,11 +282,6 @@ protected:
   CompiledStaticCall* compiledStaticCall_before(address addr) const;
 private:
   bool is_aot_runtime_stub() const { return _method == NULL; }
-
-protected:
-  virtual bool do_unloading_oops(address low_boundary);
-  virtual bool do_unloading_jvmci() { return false; }
-
 };
 
 class PltNativeCallWrapper: public NativeCallWrapper {

@@ -55,8 +55,6 @@ public:
 };
 
 class CodeCacheUnloadingTask {
-  typedef BehaviourMark<PhantomIsAliveBehaviour> IsAliveBehaviourMark;
-private:
   static Monitor* _lock;
 
   CodeCache::UnloadingScope _unloading_scope;

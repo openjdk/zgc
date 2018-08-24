@@ -320,7 +320,6 @@ bool CompiledIC::is_call_to_compiled() const {
          !is_monomorphic ||
          is_optimized() ||
          !caller->is_alive() ||
-         (caller->is_nmethod() && ((nmethod*)caller)->is_unloading()) ||
          (cached_metadata() != NULL && cached_metadata()->is_klass()), "sanity check");
 #endif // ASSERT
   return is_monomorphic;

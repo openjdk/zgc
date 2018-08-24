@@ -22,27 +22,45 @@
  *
  */
 
-#ifndef SHARE_GC_SHARED_BEHAVIOURS_HPP
-#define SHARE_GC_SHARED_BEHAVIOURS_HPP
+#include "precompiled.hpp"
+#include "code/compiledMethod.hpp"
+#include "code/nmethod.hpp"
+#include "gc/shared/gcBehaviours.hpp"
 
-#include "memory/iterator.hpp"
-#include "oops/oopsHierarchy.hpp"
-
-// This is the behaviour for checking if an oop is phantomly alive
-class PhantomIsAliveBehaviour {
-  BoolObjectClosure *_is_alive;
+class IsCompiledMethodUnloadingOopClosure: public OopClosure {
+  BoolObjectClosure *_cl;
+  bool _is_unloading;
 
 public:
-  PhantomIsAliveBehaviour(BoolObjectClosure *is_alive)
-    : _is_alive(is_alive) { }
+  IsCompiledMethodUnloadingOopClosure(BoolObjectClosure* cl)
+    : _cl(cl),
+      _is_unloading(false)
+  { }
 
-  bool is_alive(oop obj)  {
-    return _is_alive->do_object_b(obj);
+  virtual void do_oop(oop* p) {
+    if (_is_unloading) {
+      return;
+    }
+    if (!_cl->do_object_b(*p)) {
+      _is_unloading = true;
+    }
   }
 
-  bool is_alive_or_null(oop obj)  {
-    return obj == NULL || _is_alive->do_object_b(obj);
+  virtual void do_oop(narrowOop* p) {
+    ShouldNotReachHere();
+  }
+
+  bool is_unloading() const {
+    return _is_unloading;
   }
 };
 
-#endif // SHARE_GC_SHARED_BEHAVIOURS_HPP
+bool ClosureIsUnloadingBehaviour::is_unloading(CompiledMethod* cm) const {
+  if (cm->is_nmethod()) {
+    IsCompiledMethodUnloadingOopClosure cl(_cl);
+    static_cast<nmethod*>(cm)->oops_do(&cl);
+    return cl.is_unloading();
+  } else {
+    return false;
+  }
+}

@@ -27,7 +27,7 @@
 
 #include "code/codeBlob.hpp"
 #include "code/nmethod.hpp"
-#include "gc/shared/behaviours.hpp"
+#include "gc/shared/gcBehaviours.hpp"
 #include "memory/allocation.hpp"
 #include "memory/heap.hpp"
 #include "oops/instanceKlass.hpp"
@@ -175,14 +175,14 @@ class CodeCache : AllStatic {
   // to "true" iff some code got unloaded.
   // "unloading_occurred" controls whether metadata should be cleaned because of class unloading.
   class UnloadingScope {
-    typedef BehaviourMark<PhantomIsAliveBehaviour> IsAliveBehaviourMark;
-    PhantomIsAliveBehaviour _is_alive_behaviour;
-    IsAliveBehaviourMark _is_alive_mark;
+    typedef BehaviourMark<IsUnloadingBehaviour> IsUnloadingBehaviourMark;
+    ClosureIsUnloadingBehaviour _is_unloading_behaviour;
+    IsUnloadingBehaviourMark _is_unloading_mark;
 
   public:
     UnloadingScope(BoolObjectClosure* is_alive)
-      : _is_alive_behaviour(is_alive),
-        _is_alive_mark(_is_alive_behaviour) {
+      : _is_unloading_behaviour(is_alive),
+        _is_unloading_mark(_is_unloading_behaviour) {
       increment_unloading_cycle();
     }
   };

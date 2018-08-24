@@ -37,7 +37,6 @@
 #include "compiler/compilerDirectives.hpp"
 #include "compiler/directivesParser.hpp"
 #include "compiler/disassembler.hpp"
-#include "gc/shared/behaviours.hpp"
 #include "interpreter/bytecode.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
@@ -59,7 +58,6 @@
 #include "runtime/sweeper.hpp"
 #include "runtime/vmThread.hpp"
 #include "utilities/align.hpp"
-#include "utilities/behaviours.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
 #include "utilities/resourceHash.hpp"
@@ -601,7 +599,6 @@ nmethod::nmethod(
     code_buffer->copy_code_and_locs_to(this);
     code_buffer->copy_values_to(this);
 
-    clear_unloading_state();
     if (ScavengeRootsInCode) {
       Universe::heap()->register_nmethod(this);
     }
@@ -760,7 +757,6 @@ nmethod::nmethod(
     code_buffer->copy_values_to(this);
     debug_info->copy_to(this);
     dependencies->copy_to(this);
-    clear_unloading_state();
     if (ScavengeRootsInCode) {
       Universe::heap()->register_nmethod(this);
     }
@@ -1520,58 +1516,6 @@ void nmethod::do_unloading(bool unloading_occurred) {
   }
 }
 
-bool nmethod::is_unloading() {
-  NMethodIsUnloadingUnion state;
-  state._value = _is_unloading_state;
-  if (state._inflated._is_unloading == 1) {
-    return true;
-  }
-  if (state._inflated._unloading_cycle == CodeCache::unloading_cycle()) {
-    return state._inflated._is_unloading == 1;
-  }
-
-  state._inflated._unloading_cycle = CodeCache::unloading_cycle();
-  bool is_unloading = false;
-
-  PhantomIsAliveBehaviour& is_alive = Behaviours::get_behaviour<PhantomIsAliveBehaviour>();
-
-  // Compiled code
-
-  // Prevent extra code cache walk for platforms that don't have immediate oops.
-  if (relocInfo::mustIterateImmediateOopsInCode()) {
-    RelocIterator iter(this, oops_reloc_begin());
-    while (!is_unloading && iter.next()) {
-      if (iter.type() == relocInfo::oop_type) {
-        oop_Relocation* r = iter.oop_reloc();
-        // Traverse those oops directly embedded in the code.
-        // Other oops (oop_index>0) are seen as part of scopes_oops.
-        assert(1 == (r->oop_is_immediate()) +
-               (r->oop_addr() >= oops_begin() && r->oop_addr() < oops_end()),
-               "oop must be found in exactly one place");
-        if (r->oop_is_immediate()) {
-          // Unload this nmethod if the oop is dead.
-          if (!is_alive.is_alive_or_null(r->oop_value())) {
-            is_unloading = true;
-          }
-        }
-      }
-    }
-  }
-
-  // Scopes
-  for (oop* p = oops_begin(); !is_unloading && p < oops_end(); p++) {
-    if (*p == Universe::non_oop_word())  continue;  // skip non-oops
-    if (!is_alive.is_alive_or_null(*p)) {
-      is_unloading = true;
-    }
-  }
-
-  state._inflated._is_unloading = is_unloading ? 1 : 0;
-  RawAccess<MO_RELAXED>::store(&_is_unloading_state, state._value);
-
-  return is_unloading;
-}
-
 void nmethod::oops_do(OopClosure* f, bool allow_zombie) {
   // make sure the oops ready to receive visitors
   assert(allow_zombie || !is_zombie(), "should not call follow on zombie nmethod");
@@ -1885,7 +1829,7 @@ void nmethod::check_all_dependencies(DepChange& changes) {
   while(iter.next()) {
     nmethod* nm = iter.method();
     // Only notify for live nmethods
-    if (nm->is_alive() && !(nm->is_marked_for_deoptimization() || nm->is_unloading())) {
+    if (nm->is_alive() && !nm->is_marked_for_deoptimization()) {
       for (Dependencies::DepStream deps(nm); deps.next(); ) {
         // Construct abstraction of a dependency.
         DependencySignature* current_sig = new DependencySignature(deps);

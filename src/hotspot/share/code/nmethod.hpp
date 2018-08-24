@@ -324,7 +324,6 @@ class nmethod : public CompiledMethod {
   bool  is_unloaded() const                       { return _state == unloaded; }
 
   virtual void do_unloading(bool unloading_occurred);
-  virtual bool is_unloading();
 
 #if INCLUDE_RTM_OPT
   // rtm state accessing and manipulating

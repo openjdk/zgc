@@ -581,7 +581,7 @@ class CompiledMethodMarker: public StackObj {
     JavaThread* current = JavaThread::current();
     assert (current->is_Code_cache_sweeper_thread(), "Must be");
     _thread = (CodeCacheSweeperThread*)current;
-    if (!cm->is_zombie() && !cm->is_unloading()) {
+    if (!cm->is_zombie()) {
       // Only expose live nmethods for scanning
       _thread->set_scanned_compiled_method(cm);
     }
@@ -625,7 +625,7 @@ NMethodSweeper::MethodStateChange NMethodSweeper::process_compiled_method(Compil
   // Skip methods that are currently referenced by the VM
   if (cm->is_locked_by_vm()) {
     // But still remember to clean-up inline caches for alive nmethods
-    if (cm->is_alive() && !cm->is_unloading()) {
+    if (cm->is_alive()) {
       // Clean inline caches that point to zombie/non-entrant/unloaded nmethods
       CompiledICLocker ml(cm);
       cm->cleanup_inline_caches(false);

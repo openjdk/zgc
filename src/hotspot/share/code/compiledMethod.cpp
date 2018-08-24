@@ -27,6 +27,7 @@
 #include "code/compiledMethod.inline.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/codeCache.hpp"
+#include "gc/shared/gcBehaviours.hpp"
 #include "interpreter/bytecode.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
@@ -36,6 +37,7 @@
 #include "prims/methodHandles.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "utilities/behaviours.hpp"
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, const CodeBlobLayout& layout,
                                int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps,
@@ -46,6 +48,7 @@ CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType ty
     _method(method)
 {
   init_defaults();
+  clear_unloading_state();
 }
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, int size,
@@ -58,6 +61,7 @@ CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType ty
     _method(method)
 {
   init_defaults();
+  clear_unloading_state();
 }
 
 void CompiledMethod::init_defaults() {
@@ -478,8 +482,29 @@ void CompiledMethod::unload_nmethod_caches(bool unloading_occurred) {
   DEBUG_ONLY(metadata_do(check_class));
 }
 
+bool CompiledMethod::is_unloading() {
+  IsUnloadingUnion state;
+  state._value = RawAccess<MO_RELAXED>::load(&_is_unloading_state);
+  if (state._inflated._is_unloading == 1) {
+    return true;
+  }
+  if (state._inflated._unloading_cycle == CodeCache::unloading_cycle()) {
+    return state._inflated._is_unloading == 1;
+  }
+
+  IsUnloadingBehaviour& is_unloading = Behaviours::get_behaviour<IsUnloadingBehaviour>();
+  bool result = is_unloading.is_unloading(this);
+
+  state._inflated._unloading_cycle = CodeCache::unloading_cycle();
+  state._inflated._is_unloading = result ? 1 : 0;
+
+  RawAccess<MO_RELAXED>::store(&_is_unloading_state, state._value);
+
+  return result;
+}
+
 void CompiledMethod::clear_unloading_state() {
-  NMethodIsUnloadingUnion state;
+  IsUnloadingUnion state;
   state._inflated._unloading_cycle = CodeCache::unloading_cycle();
   state._inflated._is_unloading = 0;
   RawAccess<MO_RELAXED>::store(&_is_unloading_state, state._value);
@@ -517,7 +542,6 @@ void CompiledMethod::cleanup_inline_caches_impl(bool unloading_occurred, bool cl
       break;
 
     case relocInfo::oop_type:
-      // handled by do_unloading_oops already
       break;
 
     case relocInfo::metadata_type:

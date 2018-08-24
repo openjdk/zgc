@@ -382,19 +382,21 @@ public:
  public:
   // GC unloading support
   // Cleans unloaded klasses and unloaded nmethods in inline caches
-  struct NMethodIsUnloadingStruct {
+
+  struct IsUnloadingStruct {
     short _is_unloading;
     short _unloading_cycle;
   };
 
-  union NMethodIsUnloadingUnion {
-    NMethodIsUnloadingStruct _inflated;
+  union IsUnloadingUnion {
+    IsUnloadingStruct _inflated;
     int _value;
   };
 
+  bool is_unloading();
+
   void unload_nmethod_caches(bool class_unloading_occurred);
   void clear_unloading_state();
-  virtual bool is_unloading() { return !is_in_use(); }
   virtual void do_unloading(bool unloading_occurred) { }
 
 private:
