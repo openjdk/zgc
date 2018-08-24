@@ -334,7 +334,7 @@ void CompiledMethod::clear_inline_caches() {
 
 // Clear ICStubs of all compiled ICs
 void CompiledMethod::clear_ic_stubs() {
-  assert_locked_or_safepoint(CompiledIC_lock);
+  assert(CompiledICLocker::is_safe(this), "mt unsafe call");
   ResourceMark rm;
   RelocIterator iter(this);
   while(iter.next()) {
@@ -488,7 +488,7 @@ void CompiledMethod::clear_unloading_state() {
 // Called to clean up after class unloading for live nmethods and from the sweeper
 // for all methods.
 void CompiledMethod::cleanup_inline_caches_impl(bool unloading_occurred, bool clean_all) {
-  assert(CompiledIC_lock->is_locked() || SafepointSynchronize::is_at_safepoint(), "mt unsafe call");
+  assert(CompiledICLocker::is_safe(this), "mt unsafe call");
   ResourceMark rm;
 
   // Find all calls in an nmethod and clear the ones that point to non-entrant,

@@ -59,9 +59,10 @@
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/flags/flagSetting.hpp"
 #include "runtime/flags/jvmFlagConstraintList.hpp"
-#include "runtime/deoptimization.hpp"
+#include "runtime/vmBehaviours.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/java.hpp"
@@ -639,6 +640,9 @@ void Universe::initialize_global_behaviours() {
   _gc_behaviours = new BehaviourProviderCollection();
   Behaviours::register_global_provider(*_vm_behaviours);
   Behaviours::register_global_provider(*_gc_behaviours);
+
+  DefaultICProtectionBehaviour* pb = new DefaultICProtectionBehaviour();
+  Universe::vm_behaviours()->register_behaviour<CompiledICProtectionBehaviour>(*pb);
 }
 
 jint universe_init() {
