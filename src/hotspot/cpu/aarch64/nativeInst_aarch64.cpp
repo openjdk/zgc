@@ -178,7 +178,8 @@ address NativeCall::destination() const {
 // during code generation, where no patching lock is needed.
 void NativeCall::set_destination_mt_safe(address dest, bool assert_lock) {
   assert(!assert_lock ||
-         (Patching_lock->is_locked() || SafepointSynchronize::is_at_safepoint()),
+         (Patching_lock->is_locked() || SafepointSynchronize::is_at_safepoint()) ||
+         CompiledICLocker::is_safe(addr_at(0)),
          "concurrent code patching");
 
   ResourceMark rm;

@@ -59,7 +59,21 @@
 // transition is made to a stub.
 //
 class CompiledIC;
+class CompiledICProtectionBehaviour;
+class CompiledMethod;
 class ICStub;
+
+class CompiledICLocker: public StackObj {
+  CompiledMethod* _method;
+  CompiledICProtectionBehaviour* _behaviour;
+  bool _locked;
+
+public:
+  CompiledICLocker(CompiledMethod* method);
+  ~CompiledICLocker();
+  static bool is_safe(CompiledMethod* method);
+  static bool is_safe(address code);
+};
 
 class CompiledICInfo : public StackObj {
  private:
