@@ -37,6 +37,7 @@ private:
   static ZLock               _rebuild_lock;
   static ZNMethodTableEntry* _table;
   static ZNMethodTableEntry* _scanned_table;
+  static GrowableArray<uint8_t*>* _deferred_deletes;
   static size_t              _size;
   static size_t              _scanned_table_size;
   static size_t              _nregistered;
@@ -44,13 +45,12 @@ private:
   static volatile size_t     _claimed ATTRIBUTE_ALIGNED(ZCacheLineSize);
 
   static ZNMethodTableEntry create_entry(nmethod* nm);
-  static void destroy_entry(ZNMethodTableEntry entry);
 
   static size_t first_index(const nmethod* nm, size_t size);
   static size_t next_index(size_t prev_index, size_t size);
 
   static bool register_entry(ZNMethodTableEntry* table, size_t size, ZNMethodTableEntry entry);
-  static bool unregister_entry(ZNMethodTableEntry* table, size_t size, const nmethod* nm);
+  static bool unregister_entry(ZNMethodTableEntry* table, size_t size, nmethod* nm);
 
   static void rebuild(size_t new_size);
   static void rebuild_if_needed();
@@ -68,7 +68,7 @@ public:
   static void gc_prologue();
   static void gc_epilogue();
 
-  static ZNMethod* get(nmethod* nm);
+  static ZNMethod* get(const nmethod* nm);
   static bool enter_entry_barrier(nmethod* nm);
   static void leave_entry_barrier(nmethod* nm);
 

@@ -167,6 +167,8 @@ protected:
   PcDescContainer _pc_desc_container;
   ExceptionCache * volatile _exception_cache;
 
+  void* _gc_data;
+
   virtual void flush() = 0;
 protected:
   CompiledMethod(Method* method, const char* name, CompilerType type, const CodeBlobLayout& layout, int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps, bool caller_must_gc_arguments);
@@ -174,6 +176,9 @@ protected:
 
 public:
   virtual bool is_compiled() const                { return true; }
+
+  void* gc_data() const { return _gc_data; }
+  void set_gc_data(void* gc_data) { _gc_data = gc_data; }
 
   bool  has_unsafe_access() const                 { return _has_unsafe_access; }
   void  set_has_unsafe_access(bool z)             { _has_unsafe_access = z; }
