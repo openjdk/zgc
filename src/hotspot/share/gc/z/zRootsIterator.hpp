@@ -78,16 +78,12 @@ public:
 
 class ZRootsIterator {
 private:
-  ZOopStorageIterator _jni_handles_iter;
-
   void do_universe(OopClosure* cl);
-  void do_jni_handles(OopClosure* cl);
   void do_object_synchronizer(OopClosure* cl);
   void do_management(OopClosure* cl);
   void do_jvmti_export(OopClosure* cl);
   void do_jvmti_weak_export(OopClosure* cl);
   void do_system_dictionary(OopClosure* cl);
-  void do_class_loader_data_graph(OopClosure* cl);
   void do_threads(OopClosure* cl);
   void do_code_cache(OopClosure* cl);
 
@@ -97,8 +93,6 @@ private:
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_jvmti_export>              _jvmti_export;
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_jvmti_weak_export>         _jvmti_weak_export;
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_system_dictionary>         _system_dictionary;
-  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_jni_handles>             _jni_handles;
-  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_class_loader_data_graph> _class_loader_data_graph;
   ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_threads>                 _threads;
   ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_code_cache>              _code_cache;
 
@@ -107,6 +101,23 @@ public:
   ~ZRootsIterator();
 
   void oops_do(OopClosure* cl, bool visit_jvmti_weak_export = false);
+};
+
+class ZConcurrentRootsIterator {
+private:
+  ZConcurrentOopStorageIterator _jni_handles_iter;
+
+  void do_jni_handles(OopClosure* cl);
+  void do_class_loader_data_graph(OopClosure* cl);
+
+  ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_jni_handles>             _jni_handles;
+  ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_class_loader_data_graph> _class_loader_data_graph;
+
+public:
+  ZConcurrentRootsIterator();
+  ~ZConcurrentRootsIterator();
+
+  void oops_do(OopClosure* cl);
 };
 
 class ZWeakRootsIterator {

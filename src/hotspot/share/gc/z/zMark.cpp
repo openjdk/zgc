@@ -582,6 +582,23 @@ void ZMark::work(uint64_t timeout_in_millis) {
   stacks->free(&_allocator);
 }
 
+class ZMarkConcurrentRootsTask : public ZTask {
+private:
+  ZMark* const             _mark;
+  ZConcurrentRootsIterator _roots;
+
+public:
+  ZMarkConcurrentRootsTask(ZMark* mark) :
+      ZTask("ZMarkConcurrentRootsTask"),
+      _mark(mark),
+      _roots() {}
+
+  virtual void work() {
+    ZMarkBarrierOopClosure<false /* finalizable */> cl;
+    _roots.oops_do(&cl);
+  }
+};
+
 class ZMarkTask : public ZTask {
 private:
   ZMark* const   _mark;
@@ -604,7 +621,12 @@ public:
   }
 };
 
-void ZMark::mark() {
+void ZMark::mark(bool initial) {
+  if (initial) {
+    ZMarkConcurrentRootsTask task(this);
+    _workers->run_concurrent(&task);
+  }
+
   ZMarkTask task(this);
   _workers->run_concurrent(&task);
 }

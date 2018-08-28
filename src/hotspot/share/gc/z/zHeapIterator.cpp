@@ -185,6 +185,7 @@ bool ZHeapIterator::visit_referents() const {
 void ZHeapIterator::objects_do(ObjectClosure* cl) {
   ZHeapIteratorRootOopClosure root_cl(this, cl);
   ZRootsIterator roots;
+  ZConcurrentRootsIterator concurrent_roots;
 
   // Follow roots. Note that we also visit the JVMTI weak tag map
   // as if they were strong roots to make sure we visit all tagged
@@ -192,4 +193,5 @@ void ZHeapIterator::objects_do(ObjectClosure* cl) {
   // If we didn't do this the user would have expected to see
   // ObjectFree events for unreachable objects in the tag map.
   roots.oops_do(&root_cl, true /* visit_jvmti_weak_export */);
+  concurrent_roots.oops_do(&root_cl);
 }
