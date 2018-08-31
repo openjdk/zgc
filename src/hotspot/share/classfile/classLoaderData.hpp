@@ -311,8 +311,8 @@ class ClassLoaderData : public CHeapObj<mtClass> {
  private:
   void unload();
   bool keep_alive() const       { return _keep_alive > 0; }
-
   oop holder_phantom() const;
+
   void classes_do(void f(Klass*));
   void loaded_classes_do(KlassClosure* klass_closure);
   void classes_do(void f(InstanceKlass*));
@@ -387,7 +387,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   // method will allocate a Metaspace if needed.
   ClassLoaderMetaspace* metaspace_non_null();
 
-  inline oop class_loader() const;
+  oop class_loader() const;
 
   // Returns true if this class loader data is for a loader going away.
   // Note that this is only safe after the GC has computed if the CLD is

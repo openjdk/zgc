@@ -29,7 +29,8 @@
 
 class ZLock {
 private:
-  pthread_mutex_t _lock;
+  pthread_mutex_t  _lock;
+  volatile Thread* _owner;
 
 public:
   ZLock();
@@ -37,6 +38,8 @@ public:
   void lock();
   bool try_lock();
   void unlock();
+
+  bool is_owned() const;
 };
 
 class ZLocker : public StackObj {

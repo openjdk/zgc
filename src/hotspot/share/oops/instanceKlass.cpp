@@ -2142,6 +2142,7 @@ void InstanceKlass::clean_weak_instanceklass_links() {
   clean_method_data();
 
   // Since GC iterates InstanceKlasses sequentially, it is safe to remove stale entries here.
+  MutexLockerEx m(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   DependencyContext dep_context(&_dep_context);
   dep_context.expunge_stale_entries();
 }

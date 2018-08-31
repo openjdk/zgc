@@ -30,6 +30,7 @@
 #include "gc/z/zCollectorPolicy.hpp"
 #include "gc/z/zDirector.hpp"
 #include "gc/z/zDriver.hpp"
+#include "gc/z/zGlobalBehaviours.hpp"
 #include "gc/z/zInitialize.hpp"
 #include "gc/z/zHeap.hpp"
 #include "gc/z/zRuntimeWorkers.hpp"
@@ -39,6 +40,7 @@ class ZCollectedHeap : public CollectedHeap {
   friend class VMStructs;
 
 private:
+  ZGlobalBehaviours _global_behaviours;
   ZCollectorPolicy* _collector_policy;
   SoftRefPolicy     _soft_ref_policy;
   ZBarrierSet       _barrier_set;

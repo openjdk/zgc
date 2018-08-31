@@ -316,10 +316,11 @@ bool CompiledIC::is_call_to_compiled() const {
 #ifdef ASSERT
   CodeBlob* caller = CodeCache::find_blob_unsafe(instruction_address());
   bool is_c1_or_jvmci_method = caller->is_compiled_by_c1() || caller->is_compiled_by_jvmci();
-  assert( is_c1_or_jvmci_method ||
+  assert(is_c1_or_jvmci_method ||
          !is_monomorphic ||
          is_optimized() ||
          !caller->is_alive() ||
+         (caller->is_nmethod() && ((nmethod*)caller)->is_unloading()) ||
          (cached_metadata() != NULL && cached_metadata()->is_klass()), "sanity check");
 #endif // ASSERT
   return is_monomorphic;
@@ -390,7 +391,7 @@ bool CompiledIC::is_clean() const {
   bool is_clean = false;
   address dest = ic_destination();
   is_clean = dest == _call->get_resolve_call_stub(is_optimized());
-  assert(!is_clean || is_optimized() || cached_value() == NULL, "sanity check");
+  assert(UseZGC || !is_clean || is_optimized() || cached_value() == NULL, "sanity check");
   return is_clean;
 }
 

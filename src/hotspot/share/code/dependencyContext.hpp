@@ -124,7 +124,7 @@ class DependencyContext : public StackObj {
     _safepoint_counter(SafepointSynchronize::_safepoint_counter) {}
 
   ~DependencyContext() {
-    assert(_safepoint_counter == SafepointSynchronize::_safepoint_counter, "safepoint happened");
+    assert(UseZGC || _safepoint_counter == SafepointSynchronize::_safepoint_counter, "safepoint happened");
   }
 #else
   DependencyContext(intptr_t* addr) : _dependency_context_addr(addr) {}

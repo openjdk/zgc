@@ -553,7 +553,6 @@ InstanceKlass* ClassLoaderDataGraph::try_get_next_class() {
   return static_klass_iterator.try_get_next_class();
 }
 
-
 void ClassLoaderData::initialize_holder(Handle loader_or_mirror) {
   if (loader_or_mirror() != NULL) {
     assert(_holder.is_null(), "never replace holders");
@@ -564,7 +563,7 @@ void ClassLoaderData::initialize_holder(Handle loader_or_mirror) {
 // Remove a klass from the _klasses list for scratch_class during redefinition
 // or parsed class in the case of an error.
 void ClassLoaderData::remove_class(Klass* scratch_class) {
-  assert(SafepointSynchronize::is_at_safepoint(), "only called at safepoint");
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "only called at safepoint");
 
   // Adjust global class iterator.
   static_klass_iterator.adjust_saved_class(scratch_class);
@@ -594,6 +593,7 @@ void ClassLoaderData::remove_class(Klass* scratch_class) {
 }
 
 void ClassLoaderData::unload() {
+  MutexLockerEx ml(metaspace_lock(), Mutex::_no_safepoint_check_flag);
   _unloading = true;
 
   LogTarget(Trace, class, loader, data) lt;
@@ -715,12 +715,16 @@ public:
 };
 
 ClassLoaderData::~ClassLoaderData() {
-  // Release C heap structures for all the classes.
-  ReleaseKlassClosure cl;
-  classes_do(&cl);
+  {
+    MutexLockerEx m(SafepointSynchronize::is_at_safepoint() ? NULL : CodeCache_lock,
+                    Mutex::_no_safepoint_check_flag);
+    // Release C heap structures for all the classes.
+    ReleaseKlassClosure cl;
+    classes_do(&cl);
 
-  ClassLoaderDataGraph::dec_array_classes(cl.array_class_released());
-  ClassLoaderDataGraph::dec_instance_classes(cl.instance_class_released());
+    ClassLoaderDataGraph::dec_array_classes(cl.array_class_released());
+    ClassLoaderDataGraph::dec_instance_classes(cl.instance_class_released());
+  }
 
   // Release the WeakHandle
   _holder.release();
@@ -875,8 +879,7 @@ void ClassLoaderData::add_to_deallocate_list(Metadata* m) {
 
 // Deallocate free metadata on the free list.  How useful the PermGen was!
 void ClassLoaderData::free_deallocate_list() {
-  // Don't need lock, at safepoint
-  assert(SafepointSynchronize::is_at_safepoint(), "only called at safepoint");
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   assert(!is_unloading(), "only called for ClassLoaderData that are not unloading");
   if (_deallocate_list == NULL) {
     return;
@@ -910,7 +913,7 @@ void ClassLoaderData::free_deallocate_list() {
 }
 
 void ClassLoaderDataGraph::clean_deallocate_lists(bool walk_previous_versions) {
-  assert(SafepointSynchronize::is_at_safepoint(), "must only be called at safepoint");
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   uint loaders_processed = 0;
   for (ClassLoaderData* cld = _head; cld != NULL; cld = cld->next()) {
     // is_alive check will be necessary for concurrent class unloading.
@@ -928,7 +931,7 @@ void ClassLoaderDataGraph::clean_deallocate_lists(bool walk_previous_versions) {
 }
 
 void ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must only be called at safepoint");
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
 
   _should_clean_deallocate_lists = false; // assume everything gets cleaned
 
@@ -950,8 +953,7 @@ void ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces() {
 // classes. The metadata is removed with the unloading metaspace.
 // There isn't C heap memory allocated for methods, so nothing is done for them.
 void ClassLoaderData::free_deallocate_list_C_heap_structures() {
-  // Don't need lock, at safepoint
-  assert(SafepointSynchronize::is_at_safepoint(), "only called at safepoint");
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   assert(is_unloading(), "only called for ClassLoaderData that are unloading");
   if (_deallocate_list == NULL) {
     return;
@@ -1454,6 +1456,7 @@ void ClassLoaderDataGraph::clean_module_and_package_info() {
     // to its defining class loader's life cycle.  Since a module is
     // considered dead if its class loader is dead, these walks must
     // occur after each class loader's aliveness is determined.
+    MutexLockerEx ml(SafepointSynchronize::is_at_safepoint() ? NULL : Module_lock);
     if (data->packages() != NULL) {
       data->packages()->purge_all_package_exports();
     }
@@ -1465,7 +1468,7 @@ void ClassLoaderDataGraph::clean_module_and_package_info() {
 }
 
 void ClassLoaderDataGraph::purge() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint!");
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   ClassLoaderData* list = _unloading;
   _unloading = NULL;
   ClassLoaderData* next = list;
@@ -1497,7 +1500,7 @@ int ClassLoaderDataGraph::resize_if_needed() {
 
 ClassLoaderDataGraphKlassIteratorAtomic::ClassLoaderDataGraphKlassIteratorAtomic()
     : _next_klass(NULL) {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint!");
+  assert_locked_or_safepoint(ClassLoaderDataGraph_lock);
   ClassLoaderData* cld = ClassLoaderDataGraph::_head;
   Klass* klass = NULL;
 

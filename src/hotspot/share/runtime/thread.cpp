@@ -240,6 +240,7 @@ Thread::Thread() {
   _threads_list_ptr = NULL;
   _nested_threads_hazard_ptr_cnt = 0;
   _rcu_counter = 0;
+  _in_nmethod_entry_barrier = false;
 
   // the handle mark links itself to last_handle_mark
   new HandleMark(this);

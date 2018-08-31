@@ -25,21 +25,26 @@
 #define SHARE_GC_Z_ZNMETHODTABLE_HPP
 
 #include "gc/z/zGlobals.hpp"
+#include "gc/z/zLock.hpp"
 #include "gc/z/zNMethodTableEntry.hpp"
 #include "memory/allocation.hpp"
 
+class ZWorkers;
+class ZNMethod;
+
 class ZNMethodTable : public AllStatic {
 private:
+  static ZLock               _rebuild_lock;
   static ZNMethodTableEntry* _table;
+  static ZNMethodTableEntry* _scanned_table;
   static size_t              _size;
+  static size_t              _scanned_table_size;
   static size_t              _nregistered;
   static size_t              _nunregistered;
   static volatile size_t     _claimed ATTRIBUTE_ALIGNED(ZCacheLineSize);
 
   static ZNMethodTableEntry create_entry(nmethod* nm);
   static void destroy_entry(ZNMethodTableEntry entry);
-
-  static nmethod* method(ZNMethodTableEntry entry);
 
   static size_t first_index(const nmethod* nm, size_t size);
   static size_t next_index(size_t prev_index, size_t size);
@@ -53,8 +58,6 @@ private:
   static void log_register(const nmethod* nm, ZNMethodTableEntry entry);
   static void log_unregister(const nmethod* nm);
 
-  static void entry_oops_do(ZNMethodTableEntry entry, OopClosure* cl);
-
 public:
   static size_t registered_nmethods();
   static size_t unregistered_nmethods();
@@ -65,7 +68,22 @@ public:
   static void gc_prologue();
   static void gc_epilogue();
 
+  static ZNMethod* get(nmethod* nm);
+  static bool enter_entry_barrier(nmethod* nm);
+  static void leave_entry_barrier(nmethod* nm);
+
+  static bool lock(nmethod* nm);
+  static void unlock(nmethod* nm);
+  static bool is_locked(nmethod* nm);
+
   static void oops_do(OopClosure* cl);
+
+  static nmethod* method(ZNMethodTableEntry entry);
+  static void entry_oops_do(ZNMethodTableEntry* entry, OopClosure* cl);
+  static void entry_oops_do_no_fixup(ZNMethodTableEntry* entry, OopClosure* cl);
+  static void nmethod_entries_do(ZNMethodTableEntryClosure* cl);
+  static void do_unloading(ZWorkers* workers, BoolObjectClosure* is_alive, bool unloading_occurred);
+  static void purge(ZWorkers* workers, BoolObjectClosure* is_alive);
 };
 
 #endif // SHARE_GC_Z_ZNMETHODTABLE_HPP

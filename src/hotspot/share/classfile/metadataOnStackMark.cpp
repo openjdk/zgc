@@ -47,12 +47,14 @@ NOT_PRODUCT(bool MetadataOnStackMark::_is_active = false;)
 // the relocator and dummy constant pools.  None of these appear anywhere except
 // in metadata Handles.
 MetadataOnStackMark::MetadataOnStackMark(bool redefinition_walk) {
-  assert(SafepointSynchronize::is_at_safepoint(), "sanity check");
   assert(_used_buffers == NULL, "sanity check");
   assert(!_is_active, "MetadataOnStackMarks do not nest");
   NOT_PRODUCT(_is_active = true;)
 
-  Threads::metadata_handles_do(Metadata::mark_on_stack);
+  if (!UseZGC) {
+    assert(SafepointSynchronize::is_at_safepoint(), "sanity check");
+    Threads::metadata_handles_do(Metadata::mark_on_stack);
+  }
 
   if (redefinition_walk) {
     Threads::metadata_do(Metadata::mark_on_stack);
@@ -67,7 +69,7 @@ MetadataOnStackMark::MetadataOnStackMark(bool redefinition_walk) {
 }
 
 MetadataOnStackMark::~MetadataOnStackMark() {
-  assert(SafepointSynchronize::is_at_safepoint(), "sanity check");
+  assert(SafepointSynchronize::is_at_safepoint() || UseZGC, "sanity check");
   // Unmark everything that was marked.   Can't do the same walk because
   // redefine classes messes up the code cache so the set of methods
   // might not be the same.

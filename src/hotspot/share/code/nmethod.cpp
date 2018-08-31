@@ -1012,8 +1012,8 @@ bool nmethod::can_convert_to_zombie() {
   // Since the nmethod sweeper only does partial sweep the sweeper's traversal
   // count can be greater than the stack traversal count before it hits the
   // nmethod for the second time.
-  return stack_traversal_mark()+1 < NMethodSweeper::traversal_count() &&
-         !is_locked_by_vm();
+  return stack_traversal_mark() + 1 < NMethodSweeper::traversal_count() &&
+         !is_locked_by_vm() && !is_unloading();
 }
 
 void nmethod::inc_decompile_count() {
@@ -1034,7 +1034,7 @@ void nmethod::make_unloaded() {
   // recorded in instanceKlasses get flushed.
   // Since this work is being done during a GC, defer deleting dependencies from the
   // InstanceKlass.
-  assert(Universe::heap()->is_gc_active(), "should only be called during gc");
+  assert(UseZGC || Universe::heap()->is_gc_active(), "should only be called during gc");
   flush_dependencies(/*delete_immediately*/false);
 
   // Break cycle between nmethod & method
@@ -1076,7 +1076,7 @@ void nmethod::make_unloaded() {
   }
 
   // Make the class unloaded - i.e., change state and notify sweeper
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
 
   // Unregister must be done before the state change
   Universe::heap()->unregister_nmethod(this);
@@ -1197,7 +1197,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     // If the state is becoming a zombie, signal to unregister the nmethod with
     // the heap.
     // This nmethod may have already been unloaded during a full GC.
-    if ((state == zombie) && !is_unloaded()) {
+    if (state == zombie) {
       nmethod_needs_unregister = true;
     }
 
@@ -1341,8 +1341,11 @@ void nmethod::flush() {
 // notifies instanceKlasses that are reachable
 
 void nmethod::flush_dependencies(bool delete_immediately) {
+  MutexLockerEx m(SafepointSynchronize::is_at_safepoint() ||
+                  !CodeCache_lock->owned_by_self() ? CodeCache_lock : NULL,
+                  Mutex::_no_safepoint_check_flag);
   assert_locked_or_safepoint(CodeCache_lock);
-  assert(Universe::heap()->is_gc_active() != delete_immediately,
+  assert(UseZGC || Universe::heap()->is_gc_active() != delete_immediately,
   "delete_immediately is false if and only if we are called during GC");
   if (!has_flushed_dependencies()) {
     set_has_flushed_dependencies();
@@ -1882,7 +1885,7 @@ void nmethod::check_all_dependencies(DepChange& changes) {
   while(iter.next()) {
     nmethod* nm = iter.method();
     // Only notify for live nmethods
-    if (nm->is_alive() && !nm->is_marked_for_deoptimization()) {
+    if (nm->is_alive() && !(nm->is_marked_for_deoptimization() || nm->is_unloading())) {
       for (Dependencies::DepStream deps(nm); deps.next(); ) {
         // Construct abstraction of a dependency.
         DependencySignature* current_sig = new DependencySignature(deps);
@@ -2872,6 +2875,9 @@ void nmethod::clear_speculation_log() {
 }
 
 void nmethod::maybe_invalidate_installed_code() {
+  MutexLockerEx m(!SafepointSynchronize::is_at_safepoint() &&
+                  !Patching_lock->owned_by_self() ? Patching_lock : NULL,
+                  Mutex::_no_safepoint_check_flag);
   assert(Patching_lock->is_locked() ||
          SafepointSynchronize::is_at_safepoint(), "should be performed under a lock for consistency");
   oop installed_code = JNIHandles::resolve(_jvmci_installed_code);
@@ -2879,7 +2885,7 @@ void nmethod::maybe_invalidate_installed_code() {
     // Update the values in the InstalledCode instance if it still refers to this nmethod
     nmethod* nm = (nmethod*)InstalledCode::address(installed_code);
     if (nm == this) {
-      if (!is_alive()) {
+      if (!is_alive() || is_unloading()) {
         // Break the link between nmethod and InstalledCode such that the nmethod
         // can subsequently be flushed safely.  The link must be maintained while
         // the method could have live activations since invalidateInstalledCode
@@ -2894,7 +2900,7 @@ void nmethod::maybe_invalidate_installed_code() {
       }
     }
   }
-  if (!is_alive()) {
+  if (!is_alive() || is_unloading()) {
     // Clear these out after the nmethod has been unregistered and any
     // updates to the InstalledCode instance have been performed.
     clear_jvmci_installed_code();
@@ -2918,7 +2924,7 @@ void nmethod::invalidate_installed_code(Handle installedCode, TRAPS) {
   {
     MutexLockerEx pl(Patching_lock, Mutex::_no_safepoint_check_flag);
     // This relationship can only be checked safely under a lock
-    assert(!nm->is_alive() || nm->jvmci_installed_code() == installedCode(), "sanity check");
+    assert(!nm->is_alive() || nm->is_unloading() || nm->jvmci_installed_code() == installedCode(), "sanity check");
   }
 #endif
 

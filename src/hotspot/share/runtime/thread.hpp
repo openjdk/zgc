@@ -282,6 +282,12 @@ class Thread: public ThreadShadow {
 
   DEBUG_ONLY(bool _suspendible_thread;)
 
+  bool                  _in_nmethod_entry_barrier;
+
+public:
+  bool in_nmethod_entry_barrier() const { return _in_nmethod_entry_barrier; }
+  void set_is_in_nmethod_entry_barrier(bool value) { _in_nmethod_entry_barrier = value; }
+
  public:
   void enter_signal_handler() { _num_nested_signal++; }
   void leave_signal_handler() { _num_nested_signal--; }

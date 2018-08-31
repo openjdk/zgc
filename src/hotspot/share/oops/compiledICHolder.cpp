@@ -31,7 +31,11 @@ volatile int CompiledICHolder::_live_not_claimed_count;
 
 
 CompiledICHolder::CompiledICHolder(Metadata* metadata, Klass* klass, bool is_method)
-  : _holder_metadata(metadata), _holder_klass(klass), _is_metadata_method(is_method) {
+  : _holder_metadata(metadata),
+    _holder_klass(klass),
+    _next(NULL),
+    _is_enqueued(false),
+    _is_metadata_method(is_method) {
 #ifdef ASSERT
   Atomic::inc(&_live_count);
   Atomic::inc(&_live_not_claimed_count);

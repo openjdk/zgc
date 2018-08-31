@@ -248,7 +248,8 @@ void Dictionary::clean_cached_protection_domains(DictionaryEntry* probe) {
 
 
 void Dictionary::do_unloading() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  MutexLockerEx m(SystemDictionary_lock);
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
 
   // The NULL class loader doesn't initiate loading classes from other class loaders
   if (loader_data() == ClassLoaderData::the_null_class_loader_data()) {

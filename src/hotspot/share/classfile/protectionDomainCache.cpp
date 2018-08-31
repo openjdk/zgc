@@ -123,6 +123,7 @@ void ProtectionDomainCacheEntry::verify() {
 }
 
 ProtectionDomainCacheEntry* ProtectionDomainCacheTable::get(Handle protection_domain) {
+  MutexLockerEx m(SystemDictionary_lock->owned_by_self() ? NULL : SystemDictionary_lock);
   unsigned int hash = compute_hash(protection_domain);
   int index = hash_to_index(hash);
 

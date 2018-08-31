@@ -62,6 +62,21 @@ inline void ZHeap::mark_object(uintptr_t addr) {
   _mark.mark_object<finalizable, publish>(addr);
 }
 
+template <bool finalizable>
+void ZHeap::mark_klass(Klass* klass) {
+  ClassLoaderData* cld = klass->class_loader_data();
+  int claim = finalizable ? ClassLoaderData::_claim_finalizable
+                          : ClassLoaderData::_claim_strong;
+  if (!cld->try_claim(claim)) {
+    return;
+  }
+  oop holder = cld->holder_no_keepalive();
+  if (holder == NULL) {
+    return;
+  }
+  mark_object<finalizable, false>(ZOop::to_address(holder));
+}
+
 inline uintptr_t ZHeap::alloc_tlab(size_t size) {
   guarantee(size <= max_tlab_size(), "TLAB too large");
   return _object_allocator.alloc_object(size);

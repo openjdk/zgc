@@ -25,21 +25,37 @@
 #define SHARE_GC_Z_ZLOCK_INLINE_HPP
 
 #include "gc/z/zLock.hpp"
+#include "runtime/atomic.hpp"
+#include "runtime/thread.hpp"
 
-inline ZLock::ZLock() {
+inline ZLock::ZLock()
+  : _owner(NULL)
+{
   pthread_mutex_init(&_lock, NULL);
 }
 
 inline void ZLock::lock() {
+  Thread* current = Thread::current();
   pthread_mutex_lock(&_lock);
+  Atomic::store(current, &_owner);
 }
 
 inline bool ZLock::try_lock() {
-  return pthread_mutex_trylock(&_lock) == 0;
+  Thread* current = Thread::current();
+  bool taken = pthread_mutex_trylock(&_lock) == 0;
+  if (taken) {
+    Atomic::store(current, &_owner);
+  }
+  return taken;
 }
 
 inline void ZLock::unlock() {
+  Atomic::store((Thread*)NULL, &_owner);
   pthread_mutex_unlock(&_lock);
+}
+
+inline bool ZLock::is_owned() const {
+  return Atomic::load(&_owner) == Thread::current();
 }
 
 inline ZLocker::ZLocker(ZLock* lock) :

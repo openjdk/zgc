@@ -125,7 +125,7 @@ void PackageEntry::set_is_exported_allUnnamed() {
 // get deleted.  This prevents the package from illegally transitioning from
 // exported to non-exported.
 void PackageEntry::purge_qualified_exports() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   if (_must_walk_exports &&
       _qualified_exports != NULL &&
       !_qualified_exports->is_empty()) {
@@ -160,7 +160,7 @@ void PackageEntry::purge_qualified_exports() {
 }
 
 void PackageEntry::delete_qualified_exports() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   if (_qualified_exports != NULL) {
     delete _qualified_exports;
   }
@@ -228,12 +228,12 @@ PackageEntry* PackageEntryTable::locked_create_entry_or_null(Symbol* name, Modul
 }
 
 PackageEntry* PackageEntryTable::lookup(Symbol* name, ModuleEntry* module) {
+  // If not found, add to table. Grab the PackageEntryTable lock first.
+  MutexLocker ml(Module_lock);
   PackageEntry* p = lookup_only(name);
   if (p != NULL) {
     return p;
   } else {
-    // If not found, add to table. Grab the PackageEntryTable lock first.
-    MutexLocker ml(Module_lock);
 
     // Since look-up was done lock-free, we need to check if another thread beat
     // us in the race to insert the package.
@@ -296,7 +296,7 @@ void PackageEntry::package_exports_do(ModuleClosure* f) {
 }
 
 bool PackageEntry::exported_pending_delete() const {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   return (is_unqual_exported() && _qualified_exports != NULL);
 }
 

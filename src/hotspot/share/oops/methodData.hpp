@@ -1133,7 +1133,8 @@ public:
   Klass* receiver(uint row) const {
     assert(row < row_limit(), "oob");
 
-    Klass* recv = (Klass*)intptr_at(receiver_cell_index(row));
+    int index = receiver_cell_index(row);
+    Klass* recv = (Klass*)intptr_at(index);
     assert(recv == NULL || recv->is_klass(), "wrong type");
     return recv;
   }

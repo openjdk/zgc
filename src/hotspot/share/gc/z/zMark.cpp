@@ -254,6 +254,14 @@ void ZMark::follow_partial_array(ZMarkStackEntry entry, bool finalizable) {
 }
 
 void ZMark::follow_array_object(objArrayOop obj, bool finalizable) {
+  if (ClassUnloading) {
+    if (finalizable) {
+      ZHeap::heap()->mark_klass<true>(obj->klass());
+    } else {
+      ZHeap::heap()->mark_klass<false>(obj->klass());
+    }
+  }
+
   const uintptr_t addr = (uintptr_t)obj->base();
   const size_t size = (size_t)obj->length() * oopSize;
 

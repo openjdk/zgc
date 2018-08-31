@@ -228,6 +228,7 @@ void InlineCacheBuffer::queue_for_release(CompiledICHolder* icholder) {
   MutexLockerEx mex1(CompiledIC_lock->owned_by_self() ? NULL : CompiledIC_lock);
   MutexLockerEx mex2(InlineCacheBuffer_lock);
   icholder->set_next(_pending_released);
+  icholder->set_enqueued();
   _pending_released = icholder;
   _pending_count++;
   if (TraceICBuffer) {

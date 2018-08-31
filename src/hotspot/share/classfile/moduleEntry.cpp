@@ -204,7 +204,7 @@ bool ModuleEntry::has_reads_list() const {
 
 // Purge dead module entries out of reads list.
 void ModuleEntry::purge_reads() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
 
   if (_must_walk_reads && has_reads_list()) {
     // This module's _must_walk_reads flag will be reset based
@@ -245,7 +245,7 @@ void ModuleEntry::module_reads_do(ModuleClosure* f) {
 }
 
 void ModuleEntry::delete_reads() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
+  assert(UseZGC || SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   delete _reads;
   _reads = NULL;
 }

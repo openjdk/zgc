@@ -398,6 +398,7 @@ void Klass::clean_weak_klass_links(bool unloading_occurred, bool clean_alive_kla
     return;
   }
 
+  MutexLockerEx ml(UseZGC ? Compile_lock : NULL);
   Klass* root = SystemDictionary::Object_klass();
   Stack<Klass*, mtGC> stack;
 

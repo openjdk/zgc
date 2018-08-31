@@ -1873,6 +1873,7 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer,
     }
 
     {
+      MutexLockerEx ml(UseZGC ? SystemDictionary_lock : NULL);
       GCTraceTime(Debug, gc, phases) t("Dictionary", gc_timer);
       constraints()->purge_loader_constraints();
       resolution_errors()->purge_resolution_errors();

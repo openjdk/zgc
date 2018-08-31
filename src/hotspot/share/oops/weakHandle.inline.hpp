@@ -46,4 +46,3 @@ void WeakHandle<T>::replace(oop with_obj) {
 }
 
 #endif // SHARE_VM_OOPS_WEAKHANDLE_INLINE_HPP
-

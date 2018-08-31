@@ -51,6 +51,7 @@ class CompiledICHolder : public CHeapObj<mtCompiler> {
   Metadata* _holder_metadata;
   Klass*    _holder_klass;    // to avoid name conflict with oopDesc::_klass
   CompiledICHolder* _next;
+  bool _is_enqueued;
   bool _is_metadata_method;
 
  public:
@@ -71,7 +72,9 @@ class CompiledICHolder : public CHeapObj<mtCompiler> {
   static int holder_metadata_offset() { return offset_of(CompiledICHolder, _holder_metadata); }
   static int holder_klass_offset()    { return offset_of(CompiledICHolder, _holder_klass); }
 
-  CompiledICHolder* next()     { return _next; }
+  bool is_enqueued() const           { return _is_enqueued; }
+  void set_enqueued()                { _is_enqueued = true; }
+  CompiledICHolder* next() const     { return _next; }
   void set_next(CompiledICHolder* n) { _next = n; }
 
   inline bool is_loader_alive() {
