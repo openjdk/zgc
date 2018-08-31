@@ -104,7 +104,7 @@ inline void ParCompactionManager::FollowStackClosure::do_void() {
 inline void ParCompactionManager::follow_class_loader(ClassLoaderData* cld) {
   MarkAndPushClosure mark_and_push_closure(this);
 
-  cld->oops_do(&mark_and_push_closure, true);
+  cld->oops_do(&mark_and_push_closure, ClassLoaderData::_claim_strong);
 }
 
 inline void ParCompactionManager::follow_contents(oop obj) {

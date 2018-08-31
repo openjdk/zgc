@@ -255,7 +255,7 @@ void ZConcurrentRootsIterator::do_jni_handles(OopClosure* cl) {
 
 void ZConcurrentRootsIterator::do_class_loader_data_graph(OopClosure* cl) {
   ZStatTimer timer(ZSubPhaseConcurrentRootsClassLoaderDataGraph);
-  CLDToOopClosure cld_cl(cl);
+  CLDToOopClosure cld_cl(cl, ClassLoaderData::_claim_strong);
   ClassLoaderDataGraph::cld_do(&cld_cl);
 }
 
