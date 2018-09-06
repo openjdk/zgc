@@ -152,7 +152,7 @@ class OopStorage::BasicParState {
 
   struct IterationData;
 
-  void update_iteration_state(bool value);
+  void update_iteration_state(int value);
   bool claim_next_segment(IterationData* data);
   bool finish_iteration(const IterationData* data) const;
 
