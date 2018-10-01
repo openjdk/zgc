@@ -67,6 +67,10 @@ jint ZCollectedHeap::initialize() {
   initialize_reserved_region((HeapWord*)ZAddressReservedStart(),
                              (HeapWord*)ZAddressReservedEnd());
 
+  // ZGC fixes up nmethods lazily, so the assumption that nmethods will
+  // look good after GC safepoints, does not hold.
+  Universe::disable_verify_subset(Universe::Verify_CodeCacheOops);
+
   return JNI_OK;
 }
 

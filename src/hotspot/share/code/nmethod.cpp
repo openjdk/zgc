@@ -2040,9 +2040,6 @@ void nmethod::verify() {
     }
   }
 
-  VerifyOopsClosure voc(this);
-  oops_do(&voc);
-  assert(voc.ok(), "embedded oops must be OK");
   Universe::heap()->verify_nmethod(this);
 
   verify_scopes();

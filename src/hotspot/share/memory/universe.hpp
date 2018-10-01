@@ -487,6 +487,9 @@ class Universe: AllStatic {
   };
   static void initialize_verify_flags();
   static bool should_verify_subset(uint subset);
+  static void disable_verify_subset(uint subset) {
+    verify_flags &= ~subset;
+  }
   static bool verify_in_progress() { return _verify_in_progress; }
   static void verify(VerifyOption option, const char* prefix);
   static void verify(const char* prefix) {
