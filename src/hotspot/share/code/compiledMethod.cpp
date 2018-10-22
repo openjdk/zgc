@@ -45,7 +45,8 @@ CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType ty
   : CodeBlob(name, type, layout, frame_complete_offset, frame_size, oop_maps, caller_must_gc_arguments),
     _mark_for_deoptimization_status(not_marked),
     _is_unloading_state(0),
-    _method(method)
+    _method(method),
+    _gc_data(NULL)
 {
   init_defaults();
   clear_unloading_state();
@@ -58,7 +59,8 @@ CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType ty
              frame_complete_offset, frame_size, oop_maps, caller_must_gc_arguments),
     _mark_for_deoptimization_status(not_marked),
     _is_unloading_state(0),
-    _method(method)
+    _method(method),
+    _gc_data(NULL)
 {
   init_defaults();
   clear_unloading_state();

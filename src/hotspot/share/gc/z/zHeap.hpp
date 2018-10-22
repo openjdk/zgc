@@ -68,6 +68,7 @@ private:
   void out_of_memory();
   void flip_views();
   void fixup_partial_loads();
+  void mutator_rendezvous();
 
 public:
   static ZHeap* heap();
@@ -113,6 +114,7 @@ public:
 
   // Non-strong reference processing
   void process_non_strong_references();
+  void do_class_unloading();
 
   // Page allocation
   ZPage* alloc_page(uint8_t type, size_t size, ZAllocationFlags flags);
@@ -132,6 +134,7 @@ public:
   bool is_object_live(uintptr_t addr) const;
   bool is_object_strongly_live(uintptr_t addr) const;
   template <bool finalizable, bool publish> void mark_object(uintptr_t addr);
+  template <bool finalizable> void mark_klass(Klass* klass);
   void mark_start();
   void mark(bool initial);
   void mark_flush_and_free(Thread* thread);

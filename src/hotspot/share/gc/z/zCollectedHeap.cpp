@@ -268,7 +268,7 @@ void ZCollectedHeap::register_nmethod(nmethod* nm) {
 }
 
 void ZCollectedHeap::unregister_nmethod(nmethod* nm) {
-  assert_locked_or_safepoint(CodeCache_lock);
+  //assert_locked_or_safepoint(CodeCache_lock);
   ZNMethodTable::unregister_nmethod(nm);
 }
 

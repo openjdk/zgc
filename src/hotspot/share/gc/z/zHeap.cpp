@@ -22,14 +22,17 @@
  */
 
 #include "precompiled.hpp"
+#include "code/codeCache.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/shared/oopStorage.hpp"
+#include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zAddress.hpp"
-#include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zHeapIterator.hpp"
 #include "gc/z/zList.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
 #include "gc/z/zMark.inline.hpp"
+#include "gc/z/zNMethodTable.hpp"
 #include "gc/z/zOopClosures.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageTable.inline.hpp"
@@ -353,9 +356,6 @@ bool ZHeap::mark_end() {
   // Enter mark completed phase
   ZGlobalPhase = ZPhaseMarkCompleted;
 
-  // Resize metaspace
-  MetaspaceGC::compute_new_size();
-
   // Update statistics
   ZStatSample(ZSamplerHeapUsedAfterMark, used());
   ZStatHeap::set_at_mark_end(capacity(), allocated(), used());
@@ -365,6 +365,10 @@ bool ZHeap::mark_end() {
 
   // Process weak roots
   _weak_roots_processor.process_weak_roots();
+
+  if (ClassUnloading) {
+    CodeCache::increment_unloading_cycle();
+  }
 
   // Verification
   if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
@@ -378,12 +382,75 @@ void ZHeap::set_soft_reference_policy(bool clear) {
   _reference_processor.set_soft_reference_policy(clear);
 }
 
+class ZNoOpHandshakeClosure : public ThreadClosure {
+public:
+  void do_thread(Thread* thread) { }
+};
+
+void ZHeap::mutator_rendezvous() {
+  ZNoOpHandshakeClosure cl;
+  Handshake::execute(&cl);
+}
+
+void ZHeap::do_class_unloading() {
+  if (!ClassUnloading) {
+    return;
+  }
+
+  // ================================================================================
+  // 1. This is the unlinking phase; remove references to stale metadata and nmethods
+  // ================================================================================
+  ZPhantomIsAliveObjectClosure is_alive;
+  bool unloading_occurred;
+
+  {
+    SuspendibleThreadSetJoiner sts_joiner;
+    // Unlink the classes.
+    MutexLockerEx ml(ClassLoaderDataGraph_lock);
+    unloading_occurred = SystemDictionary::do_unloading(ZStatPhase::timer(),
+                                                        true /* do_cleaning */,
+                                                        true /* concurrent */);
+  }
+
+  {
+    SuspendibleThreadSetJoiner sts_joiner;
+    // Unload the nmethods.
+    ZNMethodTable::do_unloading(&_workers, &is_alive, unloading_occurred);
+  }
+
+  {
+    SuspendibleThreadSetJoiner sts_joiner;
+    // Unlink dead klasses from subklass/sibling/implementor lists.
+    MutexLockerEx ml(Compile_lock);
+    Klass::clean_weak_klass_links(unloading_occurred);
+  }
+
+  // Make sure the old links are no longer observable before purging
+  mutator_rendezvous();
+
+  // =========================================================================
+  // 2. This is the purging phase; delete the stale metadata that was unlinked
+  // =========================================================================
+  {
+    SuspendibleThreadSetJoiner sts_joiner;
+    // Purge the metaspace
+    MutexLockerEx ml(ClassLoaderDataGraph_lock);
+    ClassLoaderDataGraph::purge();
+  }
+  SuspendibleThreadSetJoiner sts_joiner;
+  // MetaspaceUtils::verify_metrics();
+  // Resize metaspace
+  MetaspaceGC::compute_new_size();
+}
+
 void ZHeap::process_non_strong_references() {
   // Process Soft/Weak/Final/PhantomReferences
   _reference_processor.process_references();
 
   // Process concurrent weak roots
   _weak_roots_processor.process_concurrent_weak_roots();
+
+  do_class_unloading();
 
   // Unblock resurrection of weak/phantom references
   ZResurrection::unblock();
