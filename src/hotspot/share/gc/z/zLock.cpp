@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,39 +21,38 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZLOCK_INLINE_HPP
-#define SHARE_GC_Z_ZLOCK_INLINE_HPP
 
-#include "gc/z/zLock.hpp"
-#include "runtime/thread.hpp"
+#include "precompiled.hpp"
+#include "gc/z/zLock.inline.hpp"
 
-inline ZLock::ZLock() {
-  pthread_mutex_init(&_lock, NULL);
+void ZLock::lock() {
+  pthread_mutex_lock(&_lock);
 }
 
-inline ZLocker::ZLocker(ZLock* lock) :
-    _lock(lock) {
-  _lock->lock();
+bool ZLock::try_lock() {
+  return pthread_mutex_trylock(&_lock) == 0;
 }
 
-inline ZLocker::~ZLocker() {
-  _lock->unlock();
+void ZLock::unlock() {
+  pthread_mutex_unlock(&_lock);
 }
 
-inline ZReentrantLock::ZReentrantLock() :
-    ZLock(),
-    _owner(NULL) { }
 
-inline bool ZReentrantLock::is_owned() const {
-  return _owner == Thread::current();
+void ZReentrantLock::lock() {
+  ZLock::lock();
+  _owner = Thread::current();
 }
 
-inline bool ZReentrantLock::reentrant_lock() {
-  if (is_owned()) {
+bool ZReentrantLock::try_lock() {
+  if (!ZLock::try_lock()) {
     return false;
   }
-  lock();
+
+  _owner = Thread::current();
   return true;
 }
 
-#endif // SHARE_GC_Z_ZLOCK_INLINE_HPP
+void ZReentrantLock::unlock() {
+  _owner = NULL;
+  ZLock::unlock();
+}
