@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/z/zBarrierSet.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
+#include "gc/z/zBarrierSetNMethod.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zThreadLocalData.hpp"
@@ -43,7 +44,7 @@ ZBarrierSet::ZBarrierSet() :
     BarrierSet(make_barrier_set_assembler<ZBarrierSetAssembler>(),
                make_barrier_set_c1<ZBarrierSetC1>(),
                make_barrier_set_c2<ZBarrierSetC2>(),
-               NULL /* barrier_set_nmethod */,
+               ClassUnloading ? new ZBarrierSetNMethod() : NULL,
                BarrierSet::FakeRtti(BarrierSet::ZBarrierSet)) {}
 
 ZBarrierSetAssembler* ZBarrierSet::assembler() {

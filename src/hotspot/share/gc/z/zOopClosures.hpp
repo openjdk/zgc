@@ -40,12 +40,18 @@ public:
 };
 
 template <bool finalizable>
-class ZMarkBarrierOopClosure : public BasicOopIterateClosure {
+class ZMarkBarrierOopClosure : public OopIterateClosure {
 public:
   ZMarkBarrierOopClosure();
 
   virtual void do_oop(oop* p);
   virtual void do_oop(narrowOop* p);
+
+  // Uses it's own CLD claiming mechanism, so don't piggy-back on MetadataAwareOopClosure
+
+  virtual bool do_metadata();
+  virtual void do_klass(Klass* k);
+  virtual void do_cld(ClassLoaderData* cld);
 
 #ifdef ASSERT
   virtual bool should_verify_oops() {

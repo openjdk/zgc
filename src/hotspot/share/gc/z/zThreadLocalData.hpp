@@ -25,9 +25,11 @@
 #define SHARE_GC_Z_ZTHREADLOCALDATA_HPP
 
 #include "gc/z/zMarkStack.hpp"
+#include "gc/z/zBarrierSetNMethod.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/sizes.hpp"
+#include "utilities/macros.hpp"
 
 class ZThreadLocalData {
 private:
@@ -61,6 +63,10 @@ public:
 
   static ByteSize address_bad_mask_offset() {
     return Thread::gc_data_offset() + byte_offset_of(ZThreadLocalData, _address_bad_mask);
+  }
+
+  static ByteSize address_nmethod_barrier_offset() {
+    return address_bad_mask_offset() + in_ByteSize(4);
   }
 };
 
