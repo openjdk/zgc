@@ -866,6 +866,7 @@ void nmethod::maybe_print_nmethod(DirectiveSet* directive) {
 }
 
 void nmethod::print_nmethod(bool printmethod) {
+  MutexLockerEx ml(CodeCache_lock, Mutex::_no_safepoint_check_flag);
   ttyLocker ttyl;  // keep the following output all in one block
   if (xtty != NULL) {
     xtty->begin_head("print_nmethod");
@@ -1361,8 +1362,11 @@ oop nmethod::oop_at(int index) const {
 // notifies instanceKlasses that are reachable
 
 void nmethod::flush_dependencies(bool delete_immediately) {
+  MutexLockerEx m(!SafepointSynchronize::is_at_safepoint() &&
+                  !CodeCache_lock->owned_by_self() ? CodeCache_lock : NULL,
+                  Mutex::_no_safepoint_check_flag);
   assert_locked_or_safepoint(CodeCache_lock);
-  assert(Universe::heap()->is_gc_active() != delete_immediately,
+  assert((Universe::heap()->is_gc_active() || Thread::current()->is_ConcurrentGC_thread()) != delete_immediately,
   "delete_immediately is false if and only if we are called during GC");
   if (!has_flushed_dependencies()) {
     set_has_flushed_dependencies();
