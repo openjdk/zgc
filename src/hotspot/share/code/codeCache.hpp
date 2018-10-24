@@ -338,9 +338,14 @@ template <class T, class Filter> class CodeBlobIterator : public StackObj {
   CodeBlob* _code_blob;   // Current CodeBlob
   GrowableArrayIterator<CodeHeap*> _heap;
   GrowableArrayIterator<CodeHeap*> _end;
+  bool _only_alive;
+  bool _only_not_unloading;
 
  public:
-  CodeBlobIterator(T* nm = NULL) {
+  CodeBlobIterator(bool only_alive, bool only_not_unloading, T* nm = NULL)
+    : _only_alive(only_alive),
+      _only_not_unloading(only_not_unloading)
+  {
     if (Filter::heaps() == NULL) {
       return;
     }
@@ -356,33 +361,47 @@ template <class T, class Filter> class CodeBlobIterator : public StackObj {
     }
   }
 
+  CodeBlobIterator(const CodeBlobIterator& other)
+    : _code_blob(other._code_blob),
+      _heap(other._heap),
+      _end(other._end),
+      _only_alive(other._only_alive),
+      _only_not_unloading(other._only_not_unloading)
+  { }
+
   // Advance iterator to next blob
   bool next() {
     assert_locked_or_safepoint(CodeCache_lock);
 
-    bool result = next_blob();
-    while (!result && _heap != _end) {
-      // Advance to next code heap of segmented code cache
-      if (++_heap == _end) {
-        break;
+    for (;;) {
+      // Walk through heaps as required
+      if (!next_blob()) {
+        if (_heap == _end) {
+          return false;
+        }
+        ++_heap;
+        continue;
       }
-      result = next_blob();
-    }
 
-    return result;
+      // Filter is_alive as required
+      if (_only_alive && !_code_blob->is_alive()) {
+        continue;
+      }
+
+      // Filter is_unloading as required
+      if (_only_not_unloading) {
+        CompiledMethod* cm = _code_blob->as_compiled_method_or_null();
+        if (cm != NULL && cm->is_unloading()) {
+          continue;
+        }
+      }
+
+      return true;
+    }
   }
 
-  // Advance iterator to next alive blob
-  bool next_alive() {
-    bool result = next();
-    while(result && !_code_blob->is_alive()) {
-      result = next();
-    }
-    return result;
-  }
-
-  bool end()        const   { return _code_blob == NULL; }
-  T* method() const   { return (T*)_code_blob; }
+  bool end()  const { return _code_blob == NULL; }
+  T* method() const { return (T*)_code_blob; }
 
 private:
 
@@ -421,7 +440,6 @@ struct NMethodFilter {
   static bool apply(CodeBlob* cb) { return cb->is_nmethod(); }
   static const GrowableArray<CodeHeap*>* heaps() { return CodeCache::nmethod_heaps(); }
 };
-
 
 typedef CodeBlobIterator<CompiledMethod, CompiledMethodFilter> CompiledMethodIterator;
 typedef CodeBlobIterator<nmethod, NMethodFilter> NMethodIterator;
