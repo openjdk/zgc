@@ -346,7 +346,8 @@ public:
   // Unload (that is, break root links to) all unmarked classes and
   // loaders.  Returns "true" iff something was unloaded.
   static bool do_unloading(GCTimer* gc_timer,
-                           bool do_cleaning = true);
+                           bool do_cleaning = true,
+                           bool concurrent = false);
 
   // Used by DumpSharedSpaces only to remove classes that failed verification
   static void remove_classes_in_error_state();
