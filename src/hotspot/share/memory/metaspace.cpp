@@ -1518,7 +1518,8 @@ void ClassLoaderMetaspace::deallocate(MetaWord* ptr, size_t word_size, bool is_c
 
   DEBUG_ONLY(Atomic::inc(&g_internal_statistics.num_external_deallocs));
 
-  MutexLockerEx ml(vsm()->lock(), Mutex::_no_safepoint_check_flag);
+  MutexLockerEx ml(vsm()->lock()->owned_by_self() ? NULL : vsm()->lock(),
+                   Mutex::_no_safepoint_check_flag);
 
   if (is_class && Metaspace::using_class_space()) {
     class_vsm()->deallocate(ptr, word_size);

@@ -1846,15 +1846,21 @@ void SystemDictionary::add_to_hierarchy(InstanceKlass* k, TRAPS) {
 // Assumes classes in the SystemDictionary are only unloaded at a safepoint
 // Note: anonymous classes are not in the SD.
 bool SystemDictionary::do_unloading(GCTimer* gc_timer,
-                                    bool do_cleaning) {
+                                    bool do_cleaning,
+                                    bool concurrent) {
 
   bool unloading_occurred;
   {
     GCTraceTime(Debug, gc, phases) t("ClassLoaderData", gc_timer);
 
-    // First, mark for unload all ClassLoaderData referencing a dead class loader.
-    unloading_occurred = ClassLoaderDataGraph::do_unloading(do_cleaning);
+    {
+      MutexLockerEx ml(concurrent ? CodeCache_lock : NULL, Mutex::_no_safepoint_check_flag);
+      // First, mark for unload all ClassLoaderData referencing a dead class loader.
+      unloading_occurred = ClassLoaderDataGraph::do_unloading(do_cleaning);
+    }
     if (unloading_occurred) {
+      MutexLockerEx ml2(concurrent ? Module_lock : NULL);
+      MutexLockerEx ml1(concurrent ? SystemDictionary_lock : NULL);
       JFR_ONLY(Jfr::on_unloading_classes();)
       ClassLoaderDataGraph::clean_module_and_package_info();
     }
@@ -1869,6 +1875,7 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer,
     }
 
     {
+      MutexLockerEx ml(concurrent ? SystemDictionary_lock : NULL);
       GCTraceTime(Debug, gc, phases) t("Dictionary", gc_timer);
       constraints()->purge_loader_constraints();
       resolution_errors()->purge_resolution_errors();
