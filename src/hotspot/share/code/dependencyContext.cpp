@@ -60,6 +60,7 @@ void DependencyContext::init() {
 // deoptimization.  Returns the number of nmethods found.
 //
 int DependencyContext::mark_dependent_nmethods(DepChange& changes) {
+  assert_locked_or_safepoint(CodeCache_lock);
   int found = 0;
   for (nmethodBucket* b = dependencies(); b != NULL; b = b->next()) {
     nmethod* nm = b->get_nmethod();
@@ -220,6 +221,7 @@ int DependencyContext::remove_all_dependents() {
 
 #ifndef PRODUCT
 void DependencyContext::print_dependent_nmethods(bool verbose) {
+  assert_locked_or_safepoint(CodeCache_lock);
   int idx = 0;
   for (nmethodBucket* b = dependencies(); b != NULL; b = b->next()) {
     nmethod* nm = b->get_nmethod();
@@ -236,6 +238,7 @@ void DependencyContext::print_dependent_nmethods(bool verbose) {
 }
 
 bool DependencyContext::is_dependent_nmethod(nmethod* nm) {
+  assert_locked_or_safepoint(CodeCache_lock);
   for (nmethodBucket* b = dependencies(); b != NULL; b = b->next()) {
     if (nm == b->get_nmethod()) {
 #ifdef ASSERT
@@ -249,6 +252,7 @@ bool DependencyContext::is_dependent_nmethod(nmethod* nm) {
 }
 
 bool DependencyContext::find_stale_entries() {
+  assert_locked_or_safepoint(CodeCache_lock);
   for (nmethodBucket* b = dependencies(); b != NULL; b = b->next()) {
     if (b->count() == 0)  return true;
   }
