@@ -1865,9 +1865,9 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer,
       unloading_occurred = ClassLoaderDataGraph::do_unloading(do_cleaning);
     }
     if (unloading_occurred) {
-      JFR_ONLY(Jfr::on_unloading_classes();)
       MutexLockerEx ml2(concurrent ? Module_lock : NULL);
       MutexLockerEx ml1(concurrent ? SystemDictionary_lock : NULL);
+      JFR_ONLY(Jfr::on_unloading_classes();)
       ClassLoaderDataGraph::clean_module_and_package_info();
     }
   }
