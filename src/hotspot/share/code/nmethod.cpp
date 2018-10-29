@@ -1014,7 +1014,7 @@ bool nmethod::can_convert_to_zombie() {
   // count can be greater than the stack traversal count before it hits the
   // nmethod for the second time.
   return stack_traversal_mark() + 1 < NMethodSweeper::traversal_count() &&
-         !is_locked_by_vm() && !is_unloading();
+         !is_locked_by_vm() && (!is_unloading() || is_unloaded());
 }
 
 void nmethod::inc_decompile_count() {
