@@ -105,21 +105,56 @@ const char* CompiledMethod::state() const {
 
 //-----------------------------------------------------------------------------
 
+ExceptionCache* CompiledMethod::exception_cache_acquire() const {
+  return OrderAccess::load_acquire(&_exception_cache);
+}
+
+static ExceptionCache* volatile _exception_cache_free_list = NULL;
+
+static void deferred_exception_cache_free(ExceptionCache* entry) {
+  for (;;) {
+    ExceptionCache* free_list_head = Atomic::load(&_exception_cache_free_list);
+    entry->set_freelist_next(free_list_head);
+    if (Atomic::cmpxchg(entry, &_exception_cache_free_list, free_list_head) == free_list_head) {
+      break;
+    }
+  }
+}
+
 void CompiledMethod::add_exception_cache_entry(ExceptionCache* new_entry) {
   assert(ExceptionCache_lock->owned_by_self(),"Must hold the ExceptionCache_lock");
   assert(new_entry != NULL,"Must be non null");
   assert(new_entry->next() == NULL, "Must be null");
 
-  ExceptionCache *ec = exception_cache();
-  if (ec != NULL) {
-    new_entry->set_next(ec);
+  for (;;) {
+    ExceptionCache *ec = exception_cache();
+    if (ec != NULL) {
+      Klass* ex_klass = ec->exception_type();
+      if (ex_klass != NULL && !ex_klass->is_loader_alive()) {
+        // Never add next pointers to unloading caches.
+        ExceptionCache* next = ec->next();
+        Klass* ex_klass = ec->exception_type();
+        if (ex_klass != NULL && !ex_klass->is_loader_alive()) {
+          Atomic::cmpxchg(next, &_exception_cache, ec);
+          deferred_exception_cache_free(ec);
+          continue;
+        }
+      }
+      ec = exception_cache();
+      if (ec != NULL) {
+        new_entry->set_next(ec);
+      }
+    }
+    if (Atomic::cmpxchg(new_entry, &_exception_cache, ec) == ec) {
+      return;
+    }
   }
-  release_set_exception_cache(new_entry);
 }
 
 void CompiledMethod::clean_exception_cache() {
   ExceptionCache* prev = NULL;
-  ExceptionCache* curr = exception_cache();
+  ExceptionCache* top = exception_cache_acquire();
+  ExceptionCache* curr = top;
 
   while (curr != NULL) {
     ExceptionCache* next = curr->next();
@@ -127,16 +162,33 @@ void CompiledMethod::clean_exception_cache() {
     Klass* ex_klass = curr->exception_type();
     if (ex_klass != NULL && !ex_klass->is_loader_alive()) {
       if (prev == NULL) {
-        set_exception_cache(next);
+        if (Atomic::cmpxchg(next, &_exception_cache, top) != top) {
+          top = curr = exception_cache_acquire();
+          continue;
+        }
       } else {
         prev->set_next(next);
       }
-      delete curr;
       // prev stays the same.
+
+      if (SafepointSynchronize::is_at_safepoint()) {
+        delete curr;
+      } else {
+        deferred_exception_cache_free(curr);
+      }
     } else {
       prev = curr;
     }
 
+    curr = next;
+  }
+}
+
+void CompiledMethod::purge_exception_cache() {
+  ExceptionCache* curr = Atomic::load(&_exception_cache_free_list);
+  while (curr != NULL) {
+    ExceptionCache* next = curr->freelist_next();
+    delete curr;
     curr = next;
   }
 }
@@ -147,7 +199,7 @@ address CompiledMethod::handler_for_exception_and_pc(Handle exception, address p
   // We never grab a lock to read the exception cache, so we may
   // have false negatives. This is okay, as it can only happen during
   // the first few exception lookups for a given nmethod.
-  ExceptionCache* ec = exception_cache();
+  ExceptionCache* ec = exception_cache_acquire();
   while (ec != NULL) {
     address ret_val;
     if ((ret_val = ec->match(exception,pc)) != NULL) {
@@ -174,13 +226,11 @@ void CompiledMethod::add_handler_for_exception_and_pc(Handle exception, address 
   }
 }
 
-//-------------end of code for ExceptionCache--------------
-
 // private method for handling exception cache
 // These methods are private, and used to manipulate the exception cache
 // directly.
 ExceptionCache* CompiledMethod::exception_cache_entry_for_exception(Handle exception) {
-  ExceptionCache* ec = exception_cache();
+  ExceptionCache* ec = exception_cache_acquire();
   while (ec != NULL) {
     if (ec->match_exception_with_space(exception)) {
       return ec;
@@ -189,6 +239,8 @@ ExceptionCache* CompiledMethod::exception_cache_entry_for_exception(Handle excep
   }
   return NULL;
 }
+
+//-------------end of code for ExceptionCache--------------
 
 bool CompiledMethod::is_at_poll_return(address pc) {
   RelocIterator iter(this, pc, pc+1);

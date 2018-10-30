@@ -49,6 +49,7 @@ class ExceptionCache : public CHeapObj<mtCode> {
   address  _handler[cache_size];
   volatile int _count;
   ExceptionCache* _next;
+  ExceptionCache* _freelist_next;
 
   inline address pc_at(int index);
   void set_pc_at(int index, address a)      { assert(index >= 0 && index < cache_size,""); _pc[index] = a; }
@@ -67,6 +68,8 @@ class ExceptionCache : public CHeapObj<mtCode> {
   Klass*    exception_type()                { return _exception_type; }
   ExceptionCache* next()                    { return _next; }
   void      set_next(ExceptionCache *ec)    { _next = ec; }
+  ExceptionCache* freelist_next()                 { return _next; }
+  void      set_freelist_next(ExceptionCache *ec) { _next = ec; }
 
   address match(Handle exception, address pc);
   bool    match_exception_with_space(Handle exception) ;
@@ -301,11 +304,13 @@ public:
   // Exception cache support
   // Note: _exception_cache may be read concurrently. We rely on memory_order_consume here.
   ExceptionCache* exception_cache() const         { return _exception_cache; }
+  ExceptionCache* exception_cache_acquire() const;
   void set_exception_cache(ExceptionCache *ec)    { _exception_cache = ec; }
   void release_set_exception_cache(ExceptionCache *ec);
   address handler_for_exception_and_pc(Handle exception, address pc);
   void add_handler_for_exception_and_pc(Handle exception, address pc, address handler);
   void clean_exception_cache();
+  static void purge_exception_cache();
 
   void add_exception_cache_entry(ExceptionCache* new_entry);
   ExceptionCache* exception_cache_entry_for_exception(Handle exception);

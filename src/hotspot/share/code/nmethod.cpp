@@ -245,6 +245,7 @@ ExceptionCache::ExceptionCache(Handle exception, address pc, address handler) {
   _count = 0;
   _exception_type = exception->klass();
   _next = NULL;
+  _freelist_next = NULL;
 
   add_address_and_handler(pc,handler);
 }

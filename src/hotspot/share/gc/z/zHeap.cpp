@@ -432,6 +432,7 @@ void ZHeap::do_class_unloading() {
   // 2. This is the purging phase; delete the stale metadata that was unlinked
   // =========================================================================
   {
+    CompiledMethod::purge_exception_cache();
     SuspendibleThreadSetJoiner sts_joiner;
     // Purge the metaspace
     MutexLockerEx ml(ClassLoaderDataGraph_lock);
