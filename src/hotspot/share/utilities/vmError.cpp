@@ -1767,4 +1767,3 @@ void VMError::controlled_crash(int how) {
   ShouldNotReachHere();
 }
 #endif // !PRODUCT
-
