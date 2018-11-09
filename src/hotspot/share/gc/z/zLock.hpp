@@ -33,18 +33,35 @@ private:
 
 public:
   ZLock();
+  ~ZLock();
 
   void lock();
   bool try_lock();
   void unlock();
 };
 
-class ZLocker : public StackObj {
+class ZReentrantLock {
 private:
-  ZLock* const _lock;
+  ZLock            _lock;
+  Thread* volatile _owner;
+  uint64_t         _count;
 
 public:
-  ZLocker(ZLock* lock);
+  ZReentrantLock();
+
+  void lock();
+  void unlock();
+
+  bool is_owned() const;
+};
+
+template <typename T>
+class ZLocker : public StackObj {
+private:
+  T* const _lock;
+
+public:
+  ZLocker(T* lock);
   ~ZLocker();
 };
 

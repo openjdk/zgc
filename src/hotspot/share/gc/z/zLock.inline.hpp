@@ -25,9 +25,14 @@
 #define SHARE_GC_Z_ZLOCK_INLINE_HPP
 
 #include "gc/z/zLock.hpp"
+#include "runtime/thread.hpp"
 
 inline ZLock::ZLock() {
   pthread_mutex_init(&_lock, NULL);
+}
+
+inline ZLock::~ZLock() {
+  pthread_mutex_destroy(&_lock);
 }
 
 inline void ZLock::lock() {
@@ -42,12 +47,39 @@ inline void ZLock::unlock() {
   pthread_mutex_unlock(&_lock);
 }
 
-inline ZLocker::ZLocker(ZLock* lock) :
+inline ZReentrantLock::ZReentrantLock() :
+    _lock(),
+    _owner(NULL),
+    _count(0) {}
+
+inline void ZReentrantLock::lock() {
+  Thread* const thread = Thread::current();
+  if (_owner != thread) {
+    _lock.lock();
+    _owner = thread;
+  }
+  _count++;
+}
+
+inline void ZReentrantLock::unlock() {
+  if (--_count == 0) {
+    _owner = NULL;
+    _lock.unlock();
+  }
+}
+
+inline bool ZReentrantLock::is_owned() const {
+  return _owner == Thread::current();
+}
+
+template <typename T>
+inline ZLocker<T>::ZLocker(T* lock) :
     _lock(lock) {
   _lock->lock();
 }
 
-inline ZLocker::~ZLocker() {
+template <typename T>
+inline ZLocker<T>::~ZLocker() {
   _lock->unlock();
 }
 
