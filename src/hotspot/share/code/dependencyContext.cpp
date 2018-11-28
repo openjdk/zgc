@@ -204,7 +204,6 @@ void DependencyContext::clean_unloading_dependents() {
 //
 // Invalidate all dependencies in the context
 int DependencyContext::remove_all_dependents() {
-  assert_locked_or_safepoint(CodeCache_lock);
   nmethodBucket* b = dependencies_not_unloading();
   set_dependencies(NULL);
   int marked = 0;
