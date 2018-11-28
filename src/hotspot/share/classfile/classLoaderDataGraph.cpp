@@ -29,6 +29,7 @@
 #include "classfile/metadataOnStackMark.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
+#include "code/dependencyContext.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -587,6 +588,7 @@ void ClassLoaderDataGraph::purge() {
   _unloading = NULL;
   ClassLoaderData* next = list;
   bool classes_unloaded = false;
+  DependencyContext::purge_dependency_contexts();
   while (next != NULL) {
     ClassLoaderData* purge_me = next;
     next = purge_me->next();
