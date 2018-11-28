@@ -30,6 +30,9 @@ class ZUnload {
 private:
   ZWorkers* const _workers;
 
+  void unlink();
+  void purge();
+
 public:
   ZUnload(ZWorkers* workers);
 

@@ -173,7 +173,7 @@ ZRootsIterator::ZRootsIterator() :
   Threads::change_thread_claim_parity();
   COMPILER2_PRESENT(DerivedPointerTable::clear());
   if (!ClassUnloading) {
-    ZNMethodTable::gc_prologue();
+    ZNMethodTable::nmethod_entries_do_begin();
   } else {
     nmethod::oops_do_marking_prologue();
   }
@@ -183,7 +183,7 @@ ZRootsIterator::~ZRootsIterator() {
   ZStatTimer timer(ZSubPhasePauseRootsTeardown);
   ResourceMark rm;
   if (!ClassUnloading) {
-    ZNMethodTable::gc_epilogue();
+    ZNMethodTable::nmethod_entries_do_end();
   } else {
     nmethod::oops_do_marking_epilogue();
   }

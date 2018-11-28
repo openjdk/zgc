@@ -34,54 +34,82 @@
 #include "gc/z/zOopClosures.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zUnload.hpp"
-#include "gc/z/zWorkers.hpp"
-#include "runtime/interfaceSupport.inline.hpp"
+#include "oops/access.inline.hpp"
 
-class ZIsUnloadingBehaviour : public ClosureIsUnloadingBehaviour {
+class ZIsUnloadingOopClosure : public OopClosure {
 private:
   ZPhantomIsAliveObjectClosure _is_alive;
+  bool                         _is_unloading;
 
 public:
-  ZIsUnloadingBehaviour() :
-      ClosureIsUnloadingBehaviour(&_is_alive) {}
+  ZIsUnloadingOopClosure() :
+      _is_alive(),
+      _is_unloading(false) {}
 
+  virtual void do_oop(oop* p) {
+    const oop o = RawAccess<>::oop_load(p);
+    if (o != NULL && !_is_alive.do_object_b(o)) {
+      _is_unloading = true;
+    }
+  }
+
+  virtual void do_oop(narrowOop* p) {
+    ShouldNotReachHere();
+  }
+
+  bool is_unloading() const {
+    return _is_unloading;
+  }
+};
+
+class ZIsUnloadingBehaviour : public IsUnloadingBehaviour {
+private:
+  bool is_unloading(nmethod* nm) const {
+    ZIsUnloadingOopClosure cl;
+    nm->oops_do(&cl);
+    return cl.is_unloading();
+  }
+
+public:
   virtual bool is_unloading(CompiledMethod* method) const {
-    nmethod* const nm = (nmethod*)method;
+    nmethod* const nm = method->as_nmethod();
     ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
-    if (SafepointSynchronize::is_at_safepoint() || lock == NULL) {
-      return ClosureIsUnloadingBehaviour::is_unloading(method);
+    if (lock == NULL) {
+      return is_unloading(nm);
     } else {
       ZLocker<ZReentrantLock> locker(lock);
-      return ClosureIsUnloadingBehaviour::is_unloading(method);
+      return is_unloading(nm);
     }
   }
 };
 
-class ZICProtectionBehaviour : public CompiledICProtectionBehaviour {
+class ZCompiledICProtectionBehaviour : public CompiledICProtectionBehaviour {
 public:
   virtual bool lock(CompiledMethod* method) {
-    nmethod* const nm = (nmethod*)method;
+    nmethod* const nm = method->as_nmethod();
     ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
-    if (SafepointSynchronize::is_at_safepoint() || lock == NULL || lock->is_owned()) {
-      return false;
+    if (lock != NULL) {
+      lock->lock();
     }
-    lock->lock();
     return true;
   }
 
   virtual void unlock(CompiledMethod* method) {
-    nmethod* const nm = (nmethod*)method;
+    nmethod* const nm = method->as_nmethod();
     ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
-    if (lock == NULL) {
-      return;
+    if (lock != NULL) {
+      lock->unlock();
     }
-    lock->unlock();
   }
 
   virtual bool is_safe(CompiledMethod* method) {
-    nmethod* const nm = (nmethod*)method;
+    if (SafepointSynchronize::is_at_safepoint()) {
+      return true;
+    }
+
+    nmethod* const nm = method->as_nmethod();
     ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
-    return SafepointSynchronize::is_at_safepoint() || lock == NULL || lock->is_owned();
+    return lock == NULL || lock->is_owned();
   }
 };
 
@@ -95,7 +123,7 @@ ZUnload::ZUnload(ZWorkers* workers) :
   static ZIsUnloadingBehaviour is_unloading_behaviour;
   IsUnloadingBehaviour::set_current(&is_unloading_behaviour);
 
-  static ZICProtectionBehaviour ic_protection_behaviour;
+  static ZCompiledICProtectionBehaviour ic_protection_behaviour;
   CompiledICProtectionBehaviour::set_current(&ic_protection_behaviour);
 }
 
@@ -105,7 +133,33 @@ void ZUnload::prepare() {
   }
 
   CodeCache::increment_unloading_cycle();
-  DependencyContext::gc_prologue();
+  DependencyContext::cleaning_start();
+}
+
+void ZUnload::unlink() {
+  SuspendibleThreadSetJoiner sts;
+  bool unloading_occurred;
+
+  {
+    MutexLockerEx ml(ClassLoaderDataGraph_lock);
+    unloading_occurred = SystemDictionary::do_unloading(ZStatPhase::timer());
+  }
+
+  Klass::clean_weak_klass_links(unloading_occurred);
+
+  ZNMethodTable::unlink(_workers, unloading_occurred);
+
+  DependencyContext::cleaning_end();
+}
+
+void ZUnload::purge() {
+  {
+    SuspendibleThreadSetJoiner sts;
+    ZNMethodTable::purge(_workers);
+  }
+
+  ClassLoaderDataGraph::purge();
+  CodeCache::purge_exception_caches();
 }
 
 class ZUnloadRendezvousClosure : public ThreadClosure {
@@ -118,43 +172,15 @@ void ZUnload::unload() {
     return;
   }
 
-  //
-  // Phase 1: Unlink - Remove references to stale metadata and nmethods
-  //
-  bool unloading_occurred;
+  // Unlink stale metadata and nmethods
+  unlink();
 
-  // Unlink klasses
-  {
-    SuspendibleThreadSetJoiner sts;
-    MutexLockerEx ml(ClassLoaderDataGraph_lock);
-    unloading_occurred = SystemDictionary::do_unloading(ZStatPhase::timer());
-  }
+  // Make sure stale metadata and nmethods are no longer observable
+  ZUnloadRendezvousClosure cl;
+  Handshake::execute(&cl);
 
-  // Unload nmethods
-  ZNMethodTable::clean_caches(_workers, unloading_occurred);
-
-  // Unlink klasses from subklass/sibling/implementor lists
-  /* if (unloading_occurred) */ {
-    SuspendibleThreadSetJoiner sts;
-    Klass::clean_weak_klass_links(unloading_occurred);
-  }
-
-  DependencyContext::gc_epilogue();
-
-  // Make sure the old links are no longer observable before purging
-  {
-    ZUnloadRendezvousClosure cl;
-    Handshake::execute(&cl);
-  }
-
-  //
-  // Phase 2: Purge - Delete the stale metadata that was unlinked
-  //
-
-  // Purge metaspace
-  ZNMethodTable::unload(_workers);
-  ClassLoaderDataGraph::purge();
-  CodeCache::purge_exception_caches();
+  // Purge stale metadata and nmethods that were unlinked
+  purge();
 }
 
 void ZUnload::finish() {

@@ -24,22 +24,27 @@
 #ifndef SHARE_GC_Z_ZNMETHODTABLE_HPP
 #define SHARE_GC_Z_ZNMETHODTABLE_HPP
 
+#include "gc/z/zArray.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zLock.hpp"
 #include "gc/z/zNMethodTableEntry.hpp"
 #include "memory/allocation.hpp"
 
 class ZWorkers;
-class ZNMethod;
+
+class ZNMethodTableEntryClosure {
+public:
+  virtual void do_nmethod_entry(ZNMethodTableEntry entry) = 0;
+};
 
 class ZNMethodTable : public AllStatic {
 private:
-  static ZReentrantLock      _rebuild_lock;
   static ZNMethodTableEntry* _table;
-  static ZNMethodTableEntry* _scanned_table;
-  static GrowableArray<uint8_t*>* _deferred_deletes;
   static size_t              _size;
-  static size_t              _scanned_table_size;
+  static ZLock               _iter_lock;
+  static ZNMethodTableEntry* _iter_table;
+  static size_t              _iter_table_size;
+  static ZArray<void*>       _iter_deferred_deletes;
   static size_t              _nregistered;
   static size_t              _nunregistered;
   static volatile size_t     _claimed ATTRIBUTE_ALIGNED(ZCacheLineSize);
@@ -48,6 +53,8 @@ private:
 
   static size_t first_index(const nmethod* nm, size_t size);
   static size_t next_index(size_t prev_index, size_t size);
+
+  static void sweeper_wait_for_iteration();
 
   static bool register_entry(ZNMethodTableEntry* table, size_t size, ZNMethodTableEntry entry);
   static bool unregister_entry(ZNMethodTableEntry* table, size_t size, nmethod* nm);
@@ -59,29 +66,27 @@ private:
   static void log_unregister(const nmethod* nm);
 
 public:
-  static void destroy(void* cell);
+  static void safe_delete(void* data);
 
   static size_t registered_nmethods();
   static size_t unregistered_nmethods();
 
   static void register_nmethod(nmethod* nm);
   static void unregister_nmethod(nmethod* nm);
-
-  static void gc_prologue();
-  static void gc_epilogue();
-
-  static ZNMethod* get(const nmethod* nm);
+  static void disarm_nmethod(nmethod* nm);
 
   static ZReentrantLock* lock_for_nmethod(nmethod* nm);
 
   static void oops_do(OopClosure* cl);
 
-  static nmethod* method(ZNMethodTableEntry entry);
-  static void entry_oops_do(ZNMethodTableEntry* entry, OopClosure* cl);
-  static void entry_oops_do_no_fixup(ZNMethodTableEntry* entry, OopClosure* cl);
+  static void entry_oops_do(ZNMethodTableEntry entry, OopClosure* cl);
+
+  static void nmethod_entries_do_begin();
+  static void nmethod_entries_do_end();
   static void nmethod_entries_do(ZNMethodTableEntryClosure* cl);
-  static void clean_caches(ZWorkers* workers, bool unloading_occurred);
-  static void unload(ZWorkers* workers);
+
+  static void unlink(ZWorkers* workers, bool unloading_occurred);
+  static void purge(ZWorkers* workers);
 };
 
 #endif // SHARE_GC_Z_ZNMETHODTABLE_HPP

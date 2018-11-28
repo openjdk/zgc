@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,24 +43,23 @@
 //  |                                                                        |
 //  |                                           0-0 Registered Flag (1-bits) *
 //  |
-//  * 63-3 ZNMethod Address (61-bits)
+//  * 63-3 NMethod Address (61-bits)
 //
 
 class nmethod;
-class ZNMethod;
 
 class ZNMethodTableEntry : public CHeapObj<mtGC> {
 private:
-  typedef ZBitField<uint64_t, bool,        0,  1> field_registered;
-  typedef ZBitField<uint64_t, bool,        1,  1> field_unregistered;
-  typedef ZBitField<uint64_t, bool,        1,  1> field_immediate_oops;
-  typedef ZBitField<uint64_t, bool,        2,  1> field_non_immediate_oops;
+  typedef ZBitField<uint64_t, bool,     0,  1>    field_registered;
+  typedef ZBitField<uint64_t, bool,     1,  1>    field_unregistered;
+  typedef ZBitField<uint64_t, bool,     1,  1>    field_immediate_oops;
+  typedef ZBitField<uint64_t, bool,     2,  1>    field_non_immediate_oops;
   typedef ZBitField<uint64_t, nmethod*, 3, 61, 3> field_method;
 
   uint64_t _entry;
 
 public:
-  ZNMethodTableEntry(bool unregistered = false) :
+  explicit ZNMethodTableEntry(bool unregistered = false) :
       _entry(field_unregistered::encode(unregistered) |
              field_registered::encode(false)) {}
 
@@ -89,11 +88,6 @@ public:
   nmethod* method() const {
     return field_method::decode(_entry);
   }
-};
-
-class ZNMethodTableEntryClosure {
-public:
-  virtual void do_nmethod_entry(ZNMethodTableEntry* entry) = 0;
 };
 
 #endif // SHARE_GC_Z_ZNMETHODTABLEENTRY_HPP

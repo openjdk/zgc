@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNMETHODBARRIER_HPP
-#define SHARE_GC_Z_ZNMETHODBARRIER_HPP
+#ifndef SHARE_GC_Z_ZBARRIERSETNMETHOD_HPP
+#define SHARE_GC_Z_ZBARRIERSETNMETHOD_HPP
 
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "memory/allocation.hpp"
@@ -30,9 +30,6 @@
 class nmethod;
 
 class ZBarrierSetNMethod : public BarrierSetNMethod {
-private:
-  void heal(nmethod* nm);
-
 protected:
   virtual int disarmed_value() const;
   virtual bool nmethod_entry_barrier(nmethod* nm);
@@ -41,4 +38,4 @@ public:
   virtual ByteSize thread_disarmed_offset() const;
 };
 
-#endif // SHARE_Z_ZNMETHODBARRIER_HPP
+#endif // SHARE_GC_Z_ZBARRIERSETNMETHOD_HPP

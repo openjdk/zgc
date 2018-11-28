@@ -22,14 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "code/codeCache.hpp"
-#include "code/compiledIC.hpp"
 #include "code/relocInfo.hpp"
-#include "code/nativeInst.hpp"
 #include "code/nmethod.hpp"
 #include "code/icBuffer.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
+#include "gc/z/zArray.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHash.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
@@ -40,127 +38,141 @@
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
-#include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/os.hpp"
 #include "utilities/debug.hpp"
-#include "utilities/spinYield.hpp"
 
-class ZNMethodImmediateOops {
+class ZNMethodDataImmediateOops {
 private:
   const size_t _nimmediate_oops;
 
+  static size_t header_size();
+
+  ZNMethodDataImmediateOops(const GrowableArray<oop*>& immediate_oops);
+
 public:
-  ZNMethodImmediateOops(const GrowableArray<oop*>& immediate_oops);
+  static ZNMethodDataImmediateOops* create(const GrowableArray<oop*>& immediate_oops);
+  static void destroy(ZNMethodDataImmediateOops* data_immediate_oops);
+
   size_t immediate_oops_count() const;
   oop** immediate_oops_begin() const;
   oop** immediate_oops_end() const;
-
-  static size_t header_size();
 };
 
-size_t ZNMethodImmediateOops::header_size() {
-  const size_t size = sizeof(ZNMethodImmediateOops);
+size_t ZNMethodDataImmediateOops::header_size() {
+  const size_t size = sizeof(ZNMethodDataImmediateOops);
   assert(is_aligned(size, sizeof(oop*)), "Header misaligned");
   return size;
 }
 
-ZNMethodImmediateOops::ZNMethodImmediateOops(const GrowableArray<oop*>& immediate_oops)
-  : _nimmediate_oops(immediate_oops.length())
-{
+ZNMethodDataImmediateOops* ZNMethodDataImmediateOops::create(const GrowableArray<oop*>& immediate_oops) {
+  // Allocate memory for the ZNMethodDataImmediateOops object
+  // plus the immediate oop* array that follows right after.
+  const size_t size = ZNMethodDataImmediateOops::header_size() + (sizeof(oop*) * immediate_oops.length());
+  void* const data_immediate_oops = NEW_C_HEAP_ARRAY(uint8_t, size, mtGC);
+  return ::new (data_immediate_oops) ZNMethodDataImmediateOops(immediate_oops);
+}
+
+void ZNMethodDataImmediateOops::destroy(ZNMethodDataImmediateOops* data_immediate_oops) {
+  ZNMethodTable::safe_delete(data_immediate_oops);
+}
+
+ZNMethodDataImmediateOops::ZNMethodDataImmediateOops(const GrowableArray<oop*>& immediate_oops) :
+    _nimmediate_oops(immediate_oops.length()) {
   // Save all immediate oops
   for (size_t i = 0; i < _nimmediate_oops; i++) {
     immediate_oops_begin()[i] = immediate_oops.at(i);
   }
 }
 
-size_t ZNMethodImmediateOops::immediate_oops_count() const {
+size_t ZNMethodDataImmediateOops::immediate_oops_count() const {
   return _nimmediate_oops;
 }
 
-oop** ZNMethodImmediateOops::immediate_oops_begin() const {
+oop** ZNMethodDataImmediateOops::immediate_oops_begin() const {
   // The immediate oop* array starts immediately after this object
   return (oop**)((uintptr_t)this + header_size());
 }
 
-oop** ZNMethodImmediateOops::immediate_oops_end() const {
+oop** ZNMethodDataImmediateOops::immediate_oops_end() const {
   return immediate_oops_begin() + immediate_oops_count();
 }
 
-
-class ZNMethod {
+class ZNMethodData {
 private:
-  ZReentrantLock _lock;
-  ZNMethodImmediateOops* _immediate_oops;
+  ZReentrantLock             _lock;
+  ZNMethodDataImmediateOops* _immediate_oops;
 
-protected:
-  nmethod* const _nm;
+  ZNMethodData(nmethod* nm);
 
 public:
-  ZNMethod(nmethod* nm)
-    : _immediate_oops(NULL),
-      _nm(nm)
-  { }
+  static ZNMethodData* create(nmethod* nm);
+  static void destroy(ZNMethodData* data);
 
-  ZReentrantLock* lock() { return &_lock; }
-  nmethod* method() const;
+  ZReentrantLock* lock();
 
-  ZNMethodImmediateOops* attach_immediate_oops(const GrowableArray<oop*>* immediate_oops);
-  ZNMethodImmediateOops* immediate_oops() const {
-    return _immediate_oops;
-  }
-
-  static ZNMethod* create(nmethod* nm);
-  static void destroy(ZNMethod* nmi);
+  ZNMethodDataImmediateOops* immediate_oops() const;
+  ZNMethodDataImmediateOops* swap_immediate_oops(const GrowableArray<oop*>& immediate_oops);
 };
 
-ZNMethodImmediateOops* ZNMethod::attach_immediate_oops(const GrowableArray<oop*>* immediate_oops) {
-  ZNMethodImmediateOops* old_immediates = _immediate_oops;
-  if (immediate_oops == NULL || immediate_oops->is_empty()) {
-    return old_immediates;
-  }
-  // Allocate memory for the ZNMethodImmediateOops object
-  // plus the immediate oop* array that follows right after.
-  const size_t size = ZNMethodImmediateOops::header_size() + (sizeof(oop*) * immediate_oops->length());
-  void* const method_with_immediate_oops = NEW_C_HEAP_ARRAY(uint8_t, size, mtGC);
-  _immediate_oops = ::new (method_with_immediate_oops) ZNMethodImmediateOops(*immediate_oops);
-  return old_immediates;
+ZNMethodData* ZNMethodData::create(nmethod* nm) {
+  void* const method = NEW_C_HEAP_ARRAY(uint8_t, sizeof(ZNMethodData), mtGC);
+  return ::new (method) ZNMethodData(nm);
 }
 
-nmethod* ZNMethod::method() const {
-  return _nm;
+void ZNMethodData::destroy(ZNMethodData* data) {
+  ZNMethodDataImmediateOops::destroy(data->immediate_oops());
+  ZNMethodTable::safe_delete(data);
 }
 
-ZNMethod* ZNMethod::create(nmethod* nm) {
-  void* const method = NEW_C_HEAP_ARRAY(uint8_t, sizeof(ZNMethod), mtGC);
-  return ::new (method) ZNMethod(nm);
+ZNMethodData::ZNMethodData(nmethod* nm) :
+    _lock(),
+    _immediate_oops(NULL) {}
+
+ZReentrantLock* ZNMethodData::lock() {
+  return &_lock;
 }
 
-void ZNMethod::destroy(ZNMethod* nmi) {
-  ZNMethodTable::destroy(nmi->immediate_oops());
-  ZNMethodTable::destroy(nmi);
+ZNMethodDataImmediateOops* ZNMethodData::immediate_oops() const {
+  return _immediate_oops;
 }
 
-ZReentrantLock ZNMethodTable::_rebuild_lock;
+ZNMethodDataImmediateOops* ZNMethodData::swap_immediate_oops(const GrowableArray<oop*>& immediate_oops) {
+  ZNMethodDataImmediateOops* const old_immediate_oops = _immediate_oops;
+  _immediate_oops = immediate_oops.is_empty() ? NULL : ZNMethodDataImmediateOops::create(immediate_oops);
+  return old_immediate_oops;
+}
+
+static ZNMethodData* gc_data(const nmethod* nm) {
+  return nm->gc_data<ZNMethodData>();
+}
+
+static void set_gc_data(nmethod* nm, ZNMethodData* data) {
+  return nm->set_gc_data<ZNMethodData>(data);
+}
+
 ZNMethodTableEntry* ZNMethodTable::_table = NULL;
-ZNMethodTableEntry* ZNMethodTable::_scanned_table = NULL;
 size_t ZNMethodTable::_size = 0;
-size_t ZNMethodTable::_scanned_table_size = 0;
+ZLock ZNMethodTable::_iter_lock;
+ZNMethodTableEntry* ZNMethodTable::_iter_table = NULL;
+size_t ZNMethodTable::_iter_table_size = 0;
+ZArray<void*> ZNMethodTable::_iter_deferred_deletes;
 size_t ZNMethodTable::_nregistered = 0;
 size_t ZNMethodTable::_nunregistered = 0;
-GrowableArray<uint8_t*>* ZNMethodTable::_deferred_deletes = NULL;
 volatile size_t ZNMethodTable::_claimed = 0;
 
-void ZNMethodTable::destroy(void* cell) {
-  if (cell == NULL) {
+void ZNMethodTable::safe_delete(void* data) {
+  if (data == NULL) {
     return;
   }
 
-  ZLocker<ZReentrantLock> locker(&_rebuild_lock);
-  if (_scanned_table != NULL) {
-    // If there is a concurrent GC scan through the nmethod, we must defer deleting
-    _deferred_deletes->append((uint8_t*)cell);
+  ZLocker<ZLock> locker(&_iter_lock);
+  if (_iter_table != NULL) {
+    // Iteration in progress, defer delete
+    _iter_deferred_deletes.add(data);
   } else {
-    FREE_C_HEAP_ARRAY(uint8_t, cell);
+    // Iteration not in progress, delete now
+    FREE_C_HEAP_ARRAY(uint8_t, data);
   }
 }
 
@@ -192,40 +204,27 @@ ZNMethodTableEntry ZNMethodTable::create_entry(nmethod* nm) {
     }
   }
 
-  // Attach ZNMethod to nmethod.
-  ZNMethod* method = nm->gc_data<ZNMethod>();
-  if (method == NULL) {
-    assert(CodeCache_lock->owned_by_self(), "sanity");
-    method = ZNMethod::create(nm);
-    OrderAccess::release();
-    nm->set_gc_data<ZNMethod>(method);
+  // Attach GC data to nmethod
+  ZNMethodData* data = gc_data(nm);
+  if (data == NULL) {
+    data = ZNMethodData::create(nm);
+    set_gc_data(nm, data);
   }
 
-  // Attach immediate oops to ZNMethod
-  if (!immediate_oops.is_empty()) {
-    ZNMethodTable::destroy(method->attach_immediate_oops(&immediate_oops));
-  }
+  // Attach immediate oops in GC data
+  ZNMethodDataImmediateOops* const old_data_immediate_oops = data->swap_immediate_oops(immediate_oops);
+  ZNMethodDataImmediateOops::destroy(old_data_immediate_oops);
 
   // Create entry
   return ZNMethodTableEntry(nm, non_immediate_oops, !immediate_oops.is_empty());
 }
 
-nmethod* ZNMethodTable::method(ZNMethodTableEntry entry) {
-  return entry.method();
-}
-
-ZNMethod* ZNMethodTable::get(const nmethod* nm) {
-  ZNMethod* result = (ZNMethod*)nm->gc_data<ZNMethod>();
-  OrderAccess::acquire();
-  return result;
-}
-
 ZReentrantLock* ZNMethodTable::lock_for_nmethod(nmethod* nm) {
-  ZNMethod* m = get(nm);
-  if (m == NULL) {
+  ZNMethodData* const data = gc_data(nm);
+  if (data == NULL) {
     return NULL;
   }
-  return m->lock();
+  return data->lock();
 }
 
 size_t ZNMethodTable::first_index(const nmethod* nm, size_t size) {
@@ -242,7 +241,7 @@ size_t ZNMethodTable::next_index(size_t prev_index, size_t size) {
 }
 
 bool ZNMethodTable::register_entry(ZNMethodTableEntry* table, size_t size, ZNMethodTableEntry entry) {
-  const nmethod* const nm = method(entry);
+  const nmethod* const nm = entry.method();
   size_t index = first_index(nm, size);
 
   for (;;) {
@@ -254,7 +253,7 @@ bool ZNMethodTable::register_entry(ZNMethodTableEntry* table, size_t size, ZNMet
       return true;
     }
 
-    if (table_entry.registered() && method(table_entry) == nm) {
+    if (table_entry.registered() && table_entry.method() == nm) {
       // Replace existing entry
       table[index] = entry;
       return false;
@@ -280,12 +279,13 @@ bool ZNMethodTable::unregister_entry(ZNMethodTableEntry* table, size_t size, nme
       return false;
     }
 
-    if (table_entry.registered() && method(table_entry) == nm) {
+    if (table_entry.registered() && table_entry.method() == nm) {
       // Remove entry
-      ZNMethod* method = get(nm);
-      nm->set_gc_data<ZNMethod>(NULL);
       table[index] = ZNMethodTableEntry(true /* unregistered */);
-      ZNMethod::destroy(method);
+
+      // Destroy GC data
+      ZNMethodData::destroy(gc_data(nm));
+      set_gc_data(nm, NULL);
       return true;
     }
 
@@ -294,7 +294,7 @@ bool ZNMethodTable::unregister_entry(ZNMethodTableEntry* table, size_t size, nme
 }
 
 void ZNMethodTable::rebuild(size_t new_size) {
-  ZLocker<ZReentrantLock> m(&_rebuild_lock);
+  ZLocker<ZLock> locker(&_iter_lock);
   assert(is_power_of_2(new_size), "Invalid size");
 
   log_debug(gc, nmethod)("Rebuilding NMethod Table: "
@@ -316,7 +316,7 @@ void ZNMethodTable::rebuild(size_t new_size) {
     }
   }
 
-  if (_table != _scanned_table) {
+  if (_iter_table != _table) {
     // Delete old table
     delete [] _table;
   }
@@ -369,8 +369,8 @@ void ZNMethodTable::log_register(const nmethod* nm, ZNMethodTableEntry entry) {
             p2i(nm),
             nm->compiler_name(),
             nm->oops_count() - 1,
-            entry.immediate_oops() ? get(nm)->immediate_oops()->immediate_oops_count() : 0,
-            BOOL_TO_STR(entry.non_immediate_oops()));
+            entry.immediate_oops() ? gc_data(nm)->immediate_oops()->immediate_oops_count() : 0,
+            entry.non_immediate_oops() ? "Yes" : "No");
 
   LogTarget(Trace, gc, nmethod, oops) log_oops;
   if (!log_oops.is_enabled()) {
@@ -387,7 +387,7 @@ void ZNMethodTable::log_register(const nmethod* nm, ZNMethodTableEntry entry) {
 
   if (entry.immediate_oops()) {
     // Print nmethod immediate oops
-    const ZNMethodImmediateOops* const nmi = get(nm)->immediate_oops();
+    const ZNMethodDataImmediateOops* const nmi = gc_data(nm)->immediate_oops();
     if (nmi != NULL) {
       oop** const begin = nmi->immediate_oops_begin();
       oop** const end = nmi->immediate_oops_end();
@@ -420,23 +420,16 @@ size_t ZNMethodTable::unregistered_nmethods() {
 }
 
 void ZNMethodTable::register_nmethod(nmethod* nm) {
+  assert(CodeCache_lock->owned_by_self(), "Lock must be held");
   ResourceMark rm;
-  if (ClassUnloading) {
-    BarrierSet::barrier_set()->barrier_set_nmethod()->disarm(nm);
-  }
+
+  // Grow/Shrink/Prune table if needed
+  rebuild_if_needed();
 
   // Create entry
   const ZNMethodTableEntry entry = create_entry(nm);
 
   log_register(nm, entry);
-
-  if (!entry.registered()) {
-    // Method doesn't have any oops, ignore it
-    return;
-  }
-
-  // Grow/Shrink/Prune table if needed
-  rebuild_if_needed();
 
   // Insert new entry
   if (register_entry(_table, _size, entry)) {
@@ -445,22 +438,32 @@ void ZNMethodTable::register_nmethod(nmethod* nm) {
     // to increase number of registered entries in that case.
     _nregistered++;
   }
+
+  // Disarm nmethod entry barrier
+  disarm_nmethod(nm);
+}
+
+void ZNMethodTable::sweeper_wait_for_iteration() {
+  // The sweeper must wait for any ongoing iteration to complete
+  // before it can unregister an nmethod.
+  if (!Thread::current()->is_Code_cache_sweeper_thread()) {
+    return;
+  }
+
+  assert(CodeCache_lock->owned_by_self(), "Lock must be held");
+
+  while (_iter_table != NULL) {
+    MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
+    os::naked_short_sleep(1);
+  }
 }
 
 void ZNMethodTable::unregister_nmethod(nmethod* nm) {
   ResourceMark rm;
 
-  log_unregister(nm);
+  sweeper_wait_for_iteration();
 
-  if (CodeCache_lock->owned_by_self()) {
-    // Entering from the sweeper; prevent it from deleting concurrently scanned nmethods
-    SpinYield yield;
-    while (_scanned_table != NULL) {
-      MutexUnlockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-      yield.wait();
-    }
-  }
-  ZLocker<ZReentrantLock> m(&_rebuild_lock);
+  log_unregister(nm);
 
   // Remove entry
   if (unregister_entry(_table, _size, nm)) {
@@ -473,46 +476,45 @@ void ZNMethodTable::unregister_nmethod(nmethod* nm) {
   }
 }
 
-void ZNMethodTable::gc_prologue() {
+void ZNMethodTable::disarm_nmethod(nmethod* nm) {
+  BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
+  if (bs != NULL) {
+    bs->disarm(nm);
+  }
+}
+
+void ZNMethodTable::nmethod_entries_do_begin() {
   MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-  ZLocker<ZReentrantLock> m(&_rebuild_lock);
-  _scanned_table = _table;
-  _scanned_table_size = _size;
+  ZLocker<ZLock> locker(&_iter_lock);
+
+  // Prepare iteration
+  _iter_table = _table;
+  _iter_table_size = _size;
   _claimed = 0;
-  if (_deferred_deletes == NULL) {
-    _deferred_deletes = new (ResourceObj::C_HEAP, mtGC) GrowableArray<uint8_t*>(0, true, mtGC);
-  }
+  assert(_iter_deferred_deletes.is_empty(), "Should be emtpy");
 }
 
-void ZNMethodTable::gc_epilogue() {
+void ZNMethodTable::nmethod_entries_do_end() {
   MutexLockerEx mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-  ZLocker<ZReentrantLock> m(&_rebuild_lock);
-  if (_scanned_table != _table) {
-    delete [] _scanned_table;
+  ZLocker<ZLock> locker(&_iter_lock);
+
+  // Finish iteration
+  if (_iter_table != _table) {
+    delete [] _iter_table;
   }
-  _scanned_table = NULL;
-  for (int i = 0; i < _deferred_deletes->length(); i++) {
-    FREE_C_HEAP_ARRAY(uint8_t, _deferred_deletes->at(i));
+  _iter_table = NULL;
+  assert(_claimed >= _iter_table_size, "Failed to claim all table entries");
+
+  // Process deferred deletes
+  ZArrayIterator<void*> iter(&_iter_deferred_deletes);
+  for (void* data; iter.next(&data);) {
+    FREE_C_HEAP_ARRAY(uint8_t, data);
   }
-  _deferred_deletes->clear();
-  assert(_claimed >= _scanned_table_size, "Failed to claim all table entries");
+  _iter_deferred_deletes.clear();
 }
 
-void ZNMethodTable::entry_oops_do(ZNMethodTableEntry* entry, OopClosure* cl) {
-  entry_oops_do_no_fixup(entry, cl);
-  if (entry->immediate_oops()) {
-    // Process non-immediate oops
-    nmethod* const nm = method(*entry);
-    nm->fix_oop_relocations();
-  }
-}
-
-void ZNMethodTable::entry_oops_do_no_fixup(ZNMethodTableEntry* entry, OopClosure* cl) {
-  nmethod* const nm = ZNMethodTable::method(*entry);
-  if (!nm->is_alive()) {
-    // No need to visit oops
-    return;
-  }
+void ZNMethodTable::entry_oops_do(ZNMethodTableEntry entry, OopClosure* cl) {
+  nmethod* const nm = entry.method();
 
   // Process oops table
   oop* const begin = nm->oops_begin();
@@ -523,16 +525,24 @@ void ZNMethodTable::entry_oops_do_no_fixup(ZNMethodTableEntry* entry, OopClosure
     }
   }
 
-  if (entry->immediate_oops()) {
-    // Process immediate oops
-    const ZNMethodImmediateOops* const nmi = get(nm)->immediate_oops();
+  // Process immediate oops
+  if (entry.immediate_oops()) {
+    const ZNMethodDataImmediateOops* const nmi = gc_data(nm)->immediate_oops();
     if (nmi != NULL) {
       oop** const begin = nmi->immediate_oops_begin();
       oop** const end = nmi->immediate_oops_end();
       for (oop** p = begin; p < end; p++) {
-        cl->do_oop(*p);
+        if (**p != Universe::non_oop_word()) {
+          cl->do_oop(*p);
+        }
       }
     }
+  }
+
+  // Process non-immediate oops
+  if (entry.non_immediate_oops()) {
+    nmethod* const nm = entry.method();
+    nm->fix_oop_relocations();
   }
 }
 
@@ -541,9 +551,10 @@ private:
   OopClosure* _cl;
 
 public:
-  ZNMethodTableEntryToOopsDo(OopClosure* cl) : _cl(cl)  {}
+  ZNMethodTableEntryToOopsDo(OopClosure* cl) :
+      _cl(cl) {}
 
-  void do_nmethod_entry(ZNMethodTableEntry* entry) {
+  void do_nmethod_entry(ZNMethodTableEntry entry) {
     ZNMethodTable::entry_oops_do(entry, _cl);
   }
 };
@@ -558,8 +569,8 @@ void ZNMethodTable::nmethod_entries_do(ZNMethodTableEntryClosure* cl) {
     // Claim table partition. Each partition is currently sized to span
     // two cache lines. This number is just a guess, but seems to work well.
     const size_t partition_size = (ZCacheLineSize * 2) / sizeof(ZNMethodTableEntry);
-    const size_t partition_start = MIN2(Atomic::add(partition_size, &_claimed) - partition_size, _scanned_table_size);
-    const size_t partition_end = MIN2(partition_start + partition_size, _scanned_table_size);
+    const size_t partition_start = MIN2(Atomic::add(partition_size, &_claimed) - partition_size, _iter_table_size);
+    const size_t partition_end = MIN2(partition_start + partition_size, _iter_table_size);
     if (partition_start == partition_end) {
       // End of table
       break;
@@ -567,134 +578,141 @@ void ZNMethodTable::nmethod_entries_do(ZNMethodTableEntryClosure* cl) {
 
     // Process table partition
     for (size_t i = partition_start; i < partition_end; i++) {
-      ZNMethodTableEntry& entry = _scanned_table[i];
+      const ZNMethodTableEntry entry = _iter_table[i];
       if (entry.registered()) {
-        cl->do_nmethod_entry(&entry);
+        cl->do_nmethod_entry(entry);
       }
     }
   }
 }
 
-class ZNMethodTableCleanupClosure : public ZNMethodTableEntryClosure {
+class ZNMethodTableUnlinkClosure : public ZNMethodTableEntryClosure {
 private:
   bool          _unloading_occurred;
-  bool          _heal_oops;
   volatile bool _failed;
 
+  void set_failed() {
+    Atomic::store(true, &_failed);
+  }
+
 public:
-  ZNMethodTableCleanupClosure(BoolObjectClosure* is_alive, bool heal_oops, bool unloading_occurred)
-    : ZNMethodTableEntryClosure(),
+  ZNMethodTableUnlinkClosure(bool unloading_occurred) :
       _unloading_occurred(unloading_occurred),
-      _heal_oops(heal_oops),
       _failed(false) {}
 
-  virtual void do_nmethod_entry(ZNMethodTableEntry* entry_ptr) {
-    ZNMethodTableEntry entry = *entry_ptr;
-    nmethod* nm = entry.method();
+  virtual void do_nmethod_entry(ZNMethodTableEntry entry) {
+    if (failed()) {
+      return;
+    }
+
+    nmethod* const nm = entry.method();
     if (!nm->is_alive()) {
       return;
     }
+
     if (nm->is_unloading()) {
+      // Unlinking of the dependencies must happen before the
+      // handshake separating unlink and purge.
       nm->flush_dependencies(false /* delete_immediately */);
       return;
     }
 
-    ResourceMark mark;
-    ZLocker<ZReentrantLock> l(ZNMethodTable::lock_for_nmethod(nm));
+    ZLocker<ZReentrantLock> locker(ZNMethodTable::lock_for_nmethod(nm));
 
-    if (_heal_oops) {
-      ZNMethodOopClosure cl;
-      ZNMethodTable::entry_oops_do(&entry, &cl);
-      BarrierSet::barrier_set()->barrier_set_nmethod()->disarm(nm);
-    }
-    if (Atomic::load(&_failed) || !nm->unload_nmethod_caches(_unloading_occurred)) {
-      Atomic::store(true, &_failed);
+    // Heal oops and disarm
+    ZNMethodOopClosure cl;
+    ZNMethodTable::entry_oops_do(entry, &cl);
+    ZNMethodTable::disarm_nmethod(nm);
+
+    // Clear compiled ICs and exception caches
+    if (!nm->unload_nmethod_caches(_unloading_occurred)) {
+      set_failed();
     }
   }
 
-  bool failed() const { return Atomic::load(&_failed); }
+  bool failed() const {
+    return Atomic::load(&_failed);
+  }
 };
 
-class ZNMethodTableCleanupTask : public ZTask {
+class ZNMethodTableUnlinkTask : public ZTask {
 private:
-  ZNMethodTableCleanupClosure _cleanup_cl;
+  ZNMethodTableUnlinkClosure _cl;
+  ICRefillVerifier*          _verifier;
 
 public:
-  ZNMethodTableCleanupTask(BoolObjectClosure* cl, bool fixup_oops, bool unloading_occurred)
-    : ZTask("ZNMethodTableUnloadTask"),
-      _cleanup_cl(cl, fixup_oops, unloading_occurred)
-  {
-    ZNMethodTable::gc_prologue();
+  ZNMethodTableUnlinkTask(bool unloading_occurred, ICRefillVerifier* verifier) :
+      ZTask("ZNMethodTableUnlinkTask"),
+      _cl(unloading_occurred),
+      _verifier(verifier) {
+    ZNMethodTable::nmethod_entries_do_begin();
   }
 
-  ~ZNMethodTableCleanupTask() {
-    ZNMethodTable::gc_epilogue();
+  ~ZNMethodTableUnlinkTask() {
+    ZNMethodTable::nmethod_entries_do_end();
   }
 
   virtual void work() {
-    ZNMethodTable::nmethod_entries_do(&_cleanup_cl);
+    ICRefillVerifierMark mark(_verifier);
+    ZNMethodTable::nmethod_entries_do(&_cl);
   }
 
-  bool failed() const { return _cleanup_cl.failed(); }
+  bool success() const {
+    return !_cl.failed();
+  }
 };
 
-void ZNMethodTable::clean_caches(ZWorkers* workers, bool unloading_occurred) {
-  bool fixup_oops = true;
+void ZNMethodTable::unlink(ZWorkers* workers, bool unloading_occurred) {
   for (;;) {
-    { SuspendibleThreadSetJoiner sts;
-      ZPhantomIsAliveObjectClosure is_alive;
-      ZNMethodTableCleanupTask task(&is_alive, fixup_oops, unloading_occurred);
+    ICRefillVerifier verifier;
+
+    {
+      ZNMethodTableUnlinkTask task(unloading_occurred, &verifier);
       workers->run_concurrent(&task);
-      if (!task.failed()) {
+      if (task.success()) {
         return;
       }
     }
-    // If cleaning runs out of transitional IC stubs, we have to refill
-    // and try again.
+
+    // Cleaning failed because we ran out of transitional IC stubs,
+    // so we have to refill and try again. Refilling requires taking
+    // a safepoint, so we temporarily leave the suspendible thread set.
+    SuspendibleThreadSetLeaver sts;
     InlineCacheBuffer::refill_ic_stubs();
-    fixup_oops = false;
   }
 }
 
-class ZNMethodTableUnloadClosure : public ZNMethodTableEntryClosure {
+class ZNMethodTablePurgeClosure : public ZNMethodTableEntryClosure {
 public:
-  ZNMethodTableUnloadClosure()
-    : ZNMethodTableEntryClosure() {}
-
-  virtual void do_nmethod_entry(ZNMethodTableEntry* entry_ptr) {
-    ZNMethodTableEntry entry = *entry_ptr;
-    nmethod* nm = entry.method();
-    if (!nm->is_alive() || !nm->is_unloading()) {
-      return;
+  virtual void do_nmethod_entry(ZNMethodTableEntry entry) {
+    nmethod* const nm = entry.method();
+    if (nm->is_alive() && nm->is_unloading()) {
+      nm->make_unloaded();
     }
-
-    nm->make_unloaded();
   }
 };
 
-class ZNMethodTableUnloadTask : public ZTask {
+class ZNMethodTablePurgeTask : public ZTask {
 private:
-  ZNMethodTableUnloadClosure _unload_cl;
+  ZNMethodTablePurgeClosure _cl;
 
 public:
-  ZNMethodTableUnloadTask()
-    : ZTask("ZNMethodTableUnloadTask"),
-      _unload_cl()
-  {
-    ZNMethodTable::gc_prologue();
+  ZNMethodTablePurgeTask() :
+      ZTask("ZNMethodTablePurgeTask"),
+      _cl() {
+    ZNMethodTable::nmethod_entries_do_begin();
   }
 
-  ~ZNMethodTableUnloadTask() {
-    ZNMethodTable::gc_epilogue();
+  ~ZNMethodTablePurgeTask() {
+    ZNMethodTable::nmethod_entries_do_end();
   }
 
   virtual void work() {
-    ZNMethodTable::nmethod_entries_do(&_unload_cl);
+    ZNMethodTable::nmethod_entries_do(&_cl);
   }
 };
 
-void ZNMethodTable::unload(ZWorkers* workers) {
-  SuspendibleThreadSetJoiner sts;
-  ZNMethodTableUnloadTask task;
+void ZNMethodTable::purge(ZWorkers* workers) {
+  ZNMethodTablePurgeTask task;
   workers->run_concurrent(&task);
 }

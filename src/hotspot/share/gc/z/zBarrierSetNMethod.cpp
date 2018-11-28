@@ -22,43 +22,42 @@
  */
 
 #include "precompiled.hpp"
-#include "code/codeCache.hpp"
 #include "code/nmethod.hpp"
-#include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/z/zBarrierSetNMethod.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zLock.inline.hpp"
-#include "gc/z/zResurrection.inline.hpp"
 #include "gc/z/zOopClosures.hpp"
 #include "gc/z/zNMethodTable.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #include "logging/log.hpp"
-#include "memory/resourceArea.hpp"
-#include "runtime/interfaceSupport.inline.hpp"
 
 bool ZBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
-  ZLocker<ZReentrantLock> l(ZNMethodTable::lock_for_nmethod(nm));
-  log_trace(nmethod, barrier)("entered critical zone for %p", nm);
+  ZLocker<ZReentrantLock> locker(ZNMethodTable::lock_for_nmethod(nm));
+  log_trace(nmethod, barrier)("Entered critical zone for %p", nm);
 
   if (!is_armed(nm)) {
+    // Some other thread got here first and healed the oops
+    // and disarmed the nmethod.
     return true;
   }
 
   if (nm->is_unloading()) {
+    // We can end up calling nmethods that are unloading
+    // since we clear compiled ICs lazily. Returning false
+    // will re-resovle the call and update the compiled IC.
     return false;
   }
 
-  heal(nm);
-
-  return true;
-}
-
-void ZBarrierSetNMethod::heal(nmethod* nm) {
+  // Heal oops and disarm
   ZNMethodOopClosure cl;
   nm->oops_do(&cl);
   nm->fix_oop_relocations();
+
   OrderAccess::release();
+
   disarm(nm);
+
+  return true;
 }
 
 int ZBarrierSetNMethod::disarmed_value() const {
