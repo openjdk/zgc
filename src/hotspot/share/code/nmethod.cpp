@@ -1582,7 +1582,13 @@ bool nmethod::is_unloading() {
   // The IsUnloadingBehaviour is responsible for checking if there are any dead
   // oops in the CompiledMethod, by calling oops_do on it.
   state_unloading_cycle = CodeCache::unloading_cycle();
-  state_is_unloading = IsUnloadingBehaviour::current()->is_unloading(this);
+
+  if (is_zombie()) {
+    // Zombies without calculated unloading epoch are never unloading due to GC.
+    state_is_unloading = false;
+  } else {
+    state_is_unloading = IsUnloadingBehaviour::current()->is_unloading(this);
+  }
 
   state = IsUnloadingState::create(state_is_unloading, state_unloading_cycle);
 
