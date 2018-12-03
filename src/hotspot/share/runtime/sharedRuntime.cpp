@@ -1059,7 +1059,7 @@ methodHandle SharedRuntime::extract_attached_method(vframeStream& vfst) {
 
   address pc = vfst.frame_pc();
   { // Get call instruction under lock because another thread may be busy patching it.
-    MutexLockerEx ml_patch(Patching_lock, Mutex::_no_safepoint_check_flag);
+    CompiledICLocker ic_locker(caller);
     return caller->attached_method_before_pc(pc);
   }
   return NULL;
@@ -1721,14 +1721,11 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
     //       we jump to it the target gets deoptimized. Similar to 1
     //       we will wind up in the interprter (thru a c2i with c2).
     //
-    address call_addr = NULL;
-    {
-      // Get call instruction under lock because another thread may be
-      // busy patching it.
-      MutexLockerEx ml_patch(Patching_lock, Mutex::_no_safepoint_check_flag);
-      // Location of call instruction
-      call_addr = caller_nm->call_instruction_address(pc);
-    }
+    CompiledICLocker ml(caller_nm);
+    // Get call instruction under lock because another thread may be
+    // busy patching it.
+    // Location of call instruction
+    address call_addr = caller_nm->call_instruction_address(pc);
     // Make sure nmethod doesn't get deoptimized and removed until
     // this is done with it.
     // CLEANUP - with lazy deopt shouldn't need this lock
@@ -1757,7 +1754,6 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, TRAPS) {
       // to a wrong method). It should not be performance critical, since the
       // resolve is only done once.
 
-      CompiledICLocker ml(caller_nm);
       if (is_static_call) {
         CompiledStaticCall* ssc = caller_nm->compiledStaticCall_at(call_addr);
         if (!ssc->is_clean()) {
@@ -1906,9 +1902,8 @@ IRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
   if (moop->code() == NULL) return;
 
   if (nm->is_in_use()) {
-
     // Expect to find a native call there (unless it was no-inline cache vtable dispatch)
-    MutexLockerEx ml_patch(Patching_lock, Mutex::_no_safepoint_check_flag);
+    CompiledICLocker ic_locker(nm);
     if (NativeCall::is_call_before(return_pc)) {
       ResourceMark mark;
       NativeCallWrapper* call = nm->call_wrapper_before(return_pc);
