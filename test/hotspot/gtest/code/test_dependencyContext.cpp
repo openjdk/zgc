@@ -28,8 +28,7 @@
 
 class TestDependencyContext {
  public:
-  char* _buffer[sizeof(nmethod) * 3];
-  nmethod* _nmethods[3];
+  nmethod _nmethods[3];
 
   nmethodBucket* volatile _dependency_context;
   volatile uint64_t _last_cleanup;
@@ -44,18 +43,13 @@ class TestDependencyContext {
       _last_cleanup(0) {
     CodeCache_lock->lock_without_safepoint_check();
 
-    memset(_buffer, 0, sizeof(nmethod) * 3);
-    _nmethods[0] = reinterpret_cast<nmethod*>(_buffer) + 0;
-    _nmethods[1] = reinterpret_cast<nmethod*>(_buffer) + 1;
-    _nmethods[2] = reinterpret_cast<nmethod*>(_buffer) + 2;
+    _nmethods[0].clear_unloading_state();
+    _nmethods[1].clear_unloading_state();
+    _nmethods[2].clear_unloading_state();
 
-    _nmethods[0]->clear_unloading_state();
-    _nmethods[1]->clear_unloading_state();
-    _nmethods[2]->clear_unloading_state();
-
-    dependencies().add_dependent_nmethod(_nmethods[2]);
-    dependencies().add_dependent_nmethod(_nmethods[1]);
-    dependencies().add_dependent_nmethod(_nmethods[0]);
+    dependencies().add_dependent_nmethod(&_nmethods[2]);
+    dependencies().add_dependent_nmethod(&_nmethods[1]);
+    dependencies().add_dependent_nmethod(&_nmethods[0]);
   }
 
   ~TestDependencyContext() {
@@ -79,7 +73,7 @@ static void test_remove_dependent_nmethod(int id) {
   TestDependencyContext c;
   DependencyContext depContext = c.dependencies();
 
-  nmethod* nm = c._nmethods[id];
+  nmethod* nm = &c._nmethods[id];
   depContext.remove_dependent_nmethod(nm);
 
   NOT_PRODUCT(ASSERT_FALSE(depContext.is_dependent_nmethod(nm)));
