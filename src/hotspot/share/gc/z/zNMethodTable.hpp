@@ -80,7 +80,8 @@ public:
   static void entry_oops_do(ZNMethodTableEntry* entry, OopClosure* cl);
   static void entry_oops_do_no_fixup(ZNMethodTableEntry* entry, OopClosure* cl);
   static void nmethod_entries_do(ZNMethodTableEntryClosure* cl);
-  static void do_unloading(ZWorkers* workers, BoolObjectClosure* is_alive, bool unloading_occurred);
+  static void clean_caches(ZWorkers* workers, bool unloading_occurred);
+  static void unload(ZWorkers* workers);
 };
 
 #endif // SHARE_GC_Z_ZNMETHODTABLE_HPP

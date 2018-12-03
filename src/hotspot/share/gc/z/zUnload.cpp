@@ -62,65 +62,26 @@ public:
   virtual bool lock(CompiledMethod* method) {
     nmethod* const nm = (nmethod*)method;
     ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
-    if (lock == NULL) {
-      // FIXME: Fix racy assert
-      //assert(method->is_unloaded(), "nmethods must have a lock unless unloaded");
+    if (SafepointSynchronize::is_at_safepoint() || lock == NULL || lock->is_owned()) {
       return false;
     }
-
-    if (Thread::current()->is_Java_thread()) {
-      CompiledIC_lock->lock();
-      lock->lock();
-      lock->unlock();
-      return true;
-    }
-
-    if (SafepointSynchronize::is_at_safepoint()) {
-      return false;
-    }
-
-    if (lock->is_owned()) {
-      return false;
-    }
-
     lock->lock();
-
-    if (CompiledIC_lock->is_locked()) {
-      lock->unlock();
-      CompiledIC_lock->lock_without_safepoint_check();
-      lock->lock();
-      lock->unlock();
-    }
-
     return true;
   }
 
   virtual void unlock(CompiledMethod* method) {
-    assert(method->is_nmethod(), "No support for JVMCI yet");
-    if (Thread::current()->is_Java_thread() || CompiledIC_lock->owned_by_self()) {
-      CompiledIC_lock->unlock();
-    } else {
-      nmethod* const nm = (nmethod*)method;
-      ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
-      lock->unlock();
-    }
-  }
-
-  virtual bool is_safe(CompiledMethod* method) {
-    if (SafepointSynchronize::is_at_safepoint() ||
-        CompiledIC_lock->owned_by_self() ||
-        method->is_unloaded()) {
-      return true;
-    }
-
-    assert(method->is_nmethod(), "No support for JVMCI yet");
     nmethod* const nm = (nmethod*)method;
     ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
     if (lock == NULL) {
-      return true;
+      return;
     }
+    lock->unlock();
+  }
 
-    return lock->is_owned();
+  virtual bool is_safe(CompiledMethod* method) {
+    nmethod* const nm = (nmethod*)method;
+    ZReentrantLock* const lock = ZNMethodTable::lock_for_nmethod(nm);
+    return SafepointSynchronize::is_at_safepoint() || lock == NULL || lock->is_owned();
   }
 };
 
@@ -170,11 +131,7 @@ void ZUnload::unload() {
   }
 
   // Unload nmethods
-  {
-    SuspendibleThreadSetJoiner sts;
-    ZPhantomIsAliveObjectClosure is_alive;
-    ZNMethodTable::do_unloading(_workers, &is_alive, unloading_occurred);
-  }
+  ZNMethodTable::clean_caches(_workers, unloading_occurred);
 
   // Unlink klasses from subklass/sibling/implementor lists
   /* if (unloading_occurred) */ {
@@ -195,16 +152,12 @@ void ZUnload::unload() {
   //
 
   // Purge metaspace
+  ZNMethodTable::unload(_workers);
   ClassLoaderDataGraph::purge();
   CodeCache::purge_exception_caches();
 }
 
 void ZUnload::finish() {
-  //????
-  //  if (!ClassUnloading) {
-  //    return;
-  //  }
-
   // Resize and verify metaspace
   MetaspaceGC::compute_new_size();
   MetaspaceUtils::verify_metrics();

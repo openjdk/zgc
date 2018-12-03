@@ -27,6 +27,7 @@
 #include "code/relocInfo.hpp"
 #include "code/nativeInst.hpp"
 #include "code/nmethod.hpp"
+#include "code/icBuffer.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/z/zGlobals.hpp"
@@ -574,14 +575,18 @@ void ZNMethodTable::nmethod_entries_do(ZNMethodTableEntryClosure* cl) {
   }
 }
 
-class ZNMethodTableUnloadClosure : public ZNMethodTableEntryClosure {
+class ZNMethodTableCleanupClosure : public ZNMethodTableEntryClosure {
 private:
-  bool _unloading_occurred;
+  bool          _unloading_occurred;
+  bool          _heal_oops;
+  volatile bool _failed;
 
 public:
-  ZNMethodTableUnloadClosure(BoolObjectClosure* is_alive, bool unloading_occurred)
+  ZNMethodTableCleanupClosure(BoolObjectClosure* is_alive, bool heal_oops, bool unloading_occurred)
     : ZNMethodTableEntryClosure(),
-      _unloading_occurred(unloading_occurred) {}
+      _unloading_occurred(unloading_occurred),
+      _heal_oops(heal_oops),
+      _failed(false) {}
 
   virtual void do_nmethod_entry(ZNMethodTableEntry* entry_ptr) {
     ZNMethodTableEntry entry = *entry_ptr;
@@ -589,32 +594,92 @@ public:
     if (!nm->is_alive()) {
       return;
     }
-
-    ResourceMark mark;
-
     if (nm->is_unloading()) {
-      log_trace(nmethod, barrier)("make unloaded %p", nm);
-      nm->make_unloaded();
+      nm->flush_dependencies(false /* delete_immediately */);
       return;
     }
 
+    ResourceMark mark;
     ZLocker<ZReentrantLock> l(ZNMethodTable::lock_for_nmethod(nm));
 
-    ZNMethodOopClosure cl;
-    ZNMethodTable::entry_oops_do(&entry, &cl);
-    nm->unload_nmethod_caches(_unloading_occurred);
-    BarrierSet::barrier_set()->barrier_set_nmethod()->disarm(nm);
+    if (_heal_oops) {
+      ZNMethodOopClosure cl;
+      ZNMethodTable::entry_oops_do(&entry, &cl);
+      BarrierSet::barrier_set()->barrier_set_nmethod()->disarm(nm);
+    }
+    if (Atomic::load(&_failed) || !nm->unload_nmethod_caches(_unloading_occurred)) {
+      Atomic::store(true, &_failed);
+    }
+  }
+
+  bool failed() const { return Atomic::load(&_failed); }
+};
+
+class ZNMethodTableCleanupTask : public ZTask {
+private:
+  ZNMethodTableCleanupClosure _cleanup_cl;
+
+public:
+  ZNMethodTableCleanupTask(BoolObjectClosure* cl, bool fixup_oops, bool unloading_occurred)
+    : ZTask("ZNMethodTableUnloadTask"),
+      _cleanup_cl(cl, fixup_oops, unloading_occurred)
+  {
+    ZNMethodTable::gc_prologue();
+  }
+
+  ~ZNMethodTableCleanupTask() {
+    ZNMethodTable::gc_epilogue();
+  }
+
+  virtual void work() {
+    ZNMethodTable::nmethod_entries_do(&_cleanup_cl);
+  }
+
+  bool failed() const { return _cleanup_cl.failed(); }
+};
+
+void ZNMethodTable::clean_caches(ZWorkers* workers, bool unloading_occurred) {
+  bool fixup_oops = true;
+  for (;;) {
+    { SuspendibleThreadSetJoiner sts;
+      ZPhantomIsAliveObjectClosure is_alive;
+      ZNMethodTableCleanupTask task(&is_alive, fixup_oops, unloading_occurred);
+      workers->run_concurrent(&task);
+      if (!task.failed()) {
+        return;
+      }
+    }
+    // If cleaning runs out of transitional IC stubs, we have to refill
+    // and try again.
+    InlineCacheBuffer::refill_ic_stubs();
+    fixup_oops = false;
+  }
+}
+
+class ZNMethodTableUnloadClosure : public ZNMethodTableEntryClosure {
+public:
+  ZNMethodTableUnloadClosure()
+    : ZNMethodTableEntryClosure() {}
+
+  virtual void do_nmethod_entry(ZNMethodTableEntry* entry_ptr) {
+    ZNMethodTableEntry entry = *entry_ptr;
+    nmethod* nm = entry.method();
+    if (!nm->is_alive() || !nm->is_unloading()) {
+      return;
+    }
+
+    nm->make_unloaded();
   }
 };
 
 class ZNMethodTableUnloadTask : public ZTask {
 private:
-  ZNMethodTableUnloadClosure _unlink_cl;
+  ZNMethodTableUnloadClosure _unload_cl;
 
 public:
-  ZNMethodTableUnloadTask(BoolObjectClosure* cl, bool unloading_occurred)
+  ZNMethodTableUnloadTask()
     : ZTask("ZNMethodTableUnloadTask"),
-      _unlink_cl(cl, unloading_occurred)
+      _unload_cl()
   {
     ZNMethodTable::gc_prologue();
   }
@@ -624,11 +689,12 @@ public:
   }
 
   virtual void work() {
-    ZNMethodTable::nmethod_entries_do(&_unlink_cl);
+    ZNMethodTable::nmethod_entries_do(&_unload_cl);
   }
 };
 
-void ZNMethodTable::do_unloading(ZWorkers* workers, BoolObjectClosure* is_alive, bool unloading_occurred) {
-  ZNMethodTableUnloadTask task(is_alive, unloading_occurred);
+void ZNMethodTable::unload(ZWorkers* workers) {
+  SuspendibleThreadSetJoiner sts;
+  ZNMethodTableUnloadTask task;
   workers->run_concurrent(&task);
 }
