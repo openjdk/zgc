@@ -272,8 +272,8 @@ class CompiledIC: public ResourceObj {
   //
   // They all takes a TRAP argument, since they can cause a GC if the inline-cache buffer is full.
   //
-  void set_to_clean(bool in_use = true);
-  void set_to_monomorphic(CompiledICInfo& info);
+  bool set_to_clean(bool in_use = true);
+  bool set_to_monomorphic(CompiledICInfo& info);
   void clear_ic_stub();
 
   // Returns true if successful and false otherwise. The call can fail if memory
@@ -372,7 +372,7 @@ public:
   virtual address destination() const = 0;
 
   // Clean static call (will force resolving on next use)
-  void set_to_clean(bool in_use = true);
+  bool set_to_clean(bool in_use = true);
 
   // Set state. The entry must be the same, as computed by compute_entry.
   // Computation and setting is split up, since the actions are separate during
