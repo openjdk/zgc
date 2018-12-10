@@ -280,11 +280,7 @@ void ZConcurrentRootsIterator::do_class_loader_data_graph(ZRootsIteratorClosure*
   ZStatTimer timer(ZSubPhaseConcurrentRootsClassLoaderDataGraph);
   if (_marking) {
     CLDToOopClosure cld_cl(cl, ClassLoaderData::_claim_strong);
-    if (ClassUnloading) {
-      ClassLoaderDataGraph::always_strong_cld_do(&cld_cl);
-    } else {
-      ClassLoaderDataGraph::cld_do(&cld_cl);
-    }
+    ClassLoaderDataGraph::always_strong_cld_do(&cld_cl);
   } else {
     CLDToOopClosure cld_cl(cl, ClassLoaderData::_claim_none);
     ClassLoaderDataGraph::cld_do(&cld_cl);
