@@ -66,7 +66,7 @@ class ZIsUnloadingBehaviour : public IsUnloadingBehaviour {
 private:
   bool is_unloading(nmethod* nm) const {
     ZIsUnloadingOopClosure cl;
-    nm->oops_do(&cl);
+    nm->oops_do(&cl, true /* allow_zombie */);
     return cl.is_unloading();
   }
 
