@@ -36,6 +36,8 @@
 #include "gc/z/zUnload.hpp"
 #include "oops/access.inline.hpp"
 
+static const ZStatSubPhase ZSubPhaseConcurrentClassesUnload("Concurrent Classes Unload");
+
 class ZIsUnloadingOopClosure : public OopClosure {
 private:
   ZPhantomIsAliveObjectClosure _is_alive;
@@ -171,6 +173,8 @@ void ZUnload::unload() {
   if (!ClassUnloading) {
     return;
   }
+
+  ZStatTimer timer(ZSubPhaseConcurrentClassesUnload);
 
   // Unlink stale metadata and nmethods
   unlink();
