@@ -39,6 +39,7 @@
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"
 
@@ -100,8 +101,8 @@ oop** ZNMethodDataImmediateOops::immediate_oops_end() const {
 
 class ZNMethodData {
 private:
-  ZReentrantLock             _lock;
-  ZNMethodDataImmediateOops* _immediate_oops;
+  ZReentrantLock                      _lock;
+  ZNMethodDataImmediateOops* volatile _immediate_oops;
 
   ZNMethodData(nmethod* nm);
 
@@ -134,13 +135,13 @@ ZReentrantLock* ZNMethodData::lock() {
 }
 
 ZNMethodDataImmediateOops* ZNMethodData::immediate_oops() const {
-  return _immediate_oops;
+  return OrderAccess::load_acquire(&_immediate_oops);
 }
 
 ZNMethodDataImmediateOops* ZNMethodData::swap_immediate_oops(const GrowableArray<oop*>& immediate_oops) {
-  ZNMethodDataImmediateOops* const old_immediate_oops = _immediate_oops;
-  _immediate_oops = immediate_oops.is_empty() ? NULL : ZNMethodDataImmediateOops::create(immediate_oops);
-  return old_immediate_oops;
+  ZNMethodDataImmediateOops* const data_immediate_oops =
+    immediate_oops.is_empty() ? NULL : ZNMethodDataImmediateOops::create(immediate_oops);
+  return Atomic::xchg(data_immediate_oops, &_immediate_oops);
 }
 
 static ZNMethodData* gc_data(const nmethod* nm) {
