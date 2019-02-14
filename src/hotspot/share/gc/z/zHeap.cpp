@@ -358,12 +358,6 @@ void ZHeap::fixup_partial_loads() {
 bool ZHeap::mark_end() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
-  // C2 can generate code where a safepoint poll is inserted
-  // between a load and the associated load barrier. To handle
-  // this case we need to rescan the thread stack here to make
-  // sure such oops are marked.
-  fixup_partial_loads();
-
   // Try end marking
   if (!_mark.end()) {
     // Marking not completed, continue concurrent mark

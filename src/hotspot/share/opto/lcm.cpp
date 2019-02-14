@@ -171,7 +171,6 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
     case Op_LoadL:
     case Op_LoadP:
     case Op_LoadBarrierSlowReg:
-    case Op_LoadBarrierWeakSlowReg:
     case Op_LoadN:
     case Op_LoadS:
     case Op_LoadKlass:
@@ -1308,7 +1307,7 @@ void PhaseCFG::catch_cleanup_inter_block(Node *use, Block *use_blk, Node *def, B
 //------------------------------call_catch_cleanup-----------------------------
 // If we inserted any instructions between a Call and his CatchNode,
 // clone the instructions on all paths below the Catch.
-void PhaseCFG::call_catch_cleanup(Block* block) {
+void PhaseCFG:: call_catch_cleanup(Block* block) {
 
   // End of region to clone
   uint end = block->end_idx();

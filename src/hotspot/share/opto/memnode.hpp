@@ -164,6 +164,14 @@ public:
     Pinned,
     DependsOnlyOnTest
   };
+
+  enum LoadBarrier {
+    UnProcessed     = 0,
+    RequireBarrier  = 1,
+    WeakBarrier     = 3,  // Inclusive with RequireBarrier
+    ExpandedBarrier = 4
+  };
+
 private:
   // LoadNode::hash() doesn't take the _control_dependency field
   // into account: If the graph already has a non-pinned LoadNode and
@@ -182,6 +190,8 @@ private:
   // this field.
   const MemOrd _mo;
 
+  uint _barrier; // Bit field with barrier information
+
 protected:
   virtual bool cmp(const Node &n) const;
   virtual uint size_of() const; // Size is bigger
@@ -193,7 +203,7 @@ protected:
 public:
 
   LoadNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *rt, MemOrd mo, ControlDependency control_dependency)
-    : MemNode(c,mem,adr,at), _control_dependency(control_dependency), _mo(mo), _type(rt) {
+    : MemNode(c,mem,adr,at), _control_dependency(control_dependency), _mo(mo), _barrier(LoadNode::UnProcessed), _type(rt) {
     init_class_id(Class_Load);
   }
   inline bool is_unordered() const { return !is_acquire(); }
@@ -261,6 +271,14 @@ public:
 
   Node* convert_to_unsigned_load(PhaseGVN& gvn);
   Node* convert_to_signed_load(PhaseGVN& gvn);
+
+  void copy_barrier_info(const Node* n) { _barrier = n->as_Load()->_barrier; }
+
+  bool is_barrier_required()      { return _barrier & RequireBarrier; }  // load has any type of barrier
+  bool is_barrier_weak()          { return _barrier & WeakBarrier; }     // only some barriers are weak
+  bool is_barrier_expanded()      { return _barrier & ExpandedBarrier; }
+  void set_barrier(bool weak)     { weak ? _barrier |= WeakBarrier : _barrier |= RequireBarrier; }
+  void set_barrier_expanded()     { _barrier |= ExpandedBarrier; }
 
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
@@ -810,6 +828,7 @@ class LoadStoreNode : public Node {
 private:
   const Type* const _type;      // What kind of value is loaded?
   const TypePtr* _adr_type;     // What kind of memory is being addressed?
+  bool _has_barrier;
   virtual uint size_of() const; // Size is bigger
 public:
   LoadStoreNode( Node *c, Node *mem, Node *adr, Node *val, const TypePtr* at, const Type* rt, uint required );
@@ -822,6 +841,8 @@ public:
 
   bool result_not_used() const;
   MemBarNode* trailing_membar() const;
+  void set_has_barrier() { _has_barrier = true; };
+  bool has_barrier() const { return _has_barrier; };
 };
 
 class LoadStoreConditionalNode : public LoadStoreNode {

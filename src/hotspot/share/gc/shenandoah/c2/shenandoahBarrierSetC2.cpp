@@ -952,7 +952,7 @@ bool ShenandoahBarrierSetC2::expand_macro_nodes(PhaseMacroExpand* macro) const {
 
 #ifdef ASSERT
 void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase phase) const {
-  if (ShenandoahVerifyOptoBarriers && phase == BarrierSetC2::BeforeExpand) {
+  if (ShenandoahVerifyOptoBarriers && phase == BarrierSetC2::BeforeMacroExpand) {
     ShenandoahBarrierC2Support::verify(Compile::current()->root());
   } else if (phase == BarrierSetC2::BeforeCodeGen) {
     // Verify G1 pre-barriers
