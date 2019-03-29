@@ -39,7 +39,7 @@
 #endif
 
 static int z_get_mempolicy(uint32_t* mode, const unsigned long *nmask, unsigned long maxnode, uintptr_t addr, int flags) {
-  return syscall(__NR_get_mempolicy, mode, nmask, maxnode, addr, flags);
+  return syscall(SYS_get_mempolicy, mode, nmask, maxnode, addr, flags);
 }
 
 void ZNUMA::initialize_platform() {

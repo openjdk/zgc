@@ -51,16 +51,4 @@ inline size_t ZVirtualMemory::size() const {
   return _end - _start;
 }
 
-inline ZVirtualMemory ZVirtualMemory::split(size_t split_size) {
-  assert(split_size <= size(), "precondition");
-  ZVirtualMemory mem(_start, split_size);
-  _start += split_size;
-  return mem;
-}
-
-inline void ZVirtualMemory::clear() {
-  _start = UINTPTR_MAX;
-  _end = UINTPTR_MAX;
-}
-
 #endif // SHARE_GC_Z_ZVIRTUALMEMORY_INLINE_HPP

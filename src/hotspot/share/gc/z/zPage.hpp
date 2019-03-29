@@ -35,17 +35,15 @@ class ZPage : public CHeapObj<mtGC> {
   friend class ZList<ZPage>;
 
 private:
-  // Always hot
-  const uint8_t        _type;             // Page type
-  uint8_t              _numa_id;          // NUMA node affinity
-  uint32_t             _seqnum;           // Allocation sequence number
-  const ZVirtualMemory _virtual;          // Virtual start/end address
-  volatile uintptr_t   _top;              // Virtual top address
-  ZLiveMap             _livemap;          // Live map
-
-  // Hot when relocated and cached
-  ZPhysicalMemory      _physical;         // Physical memory for page
-  ZListNode<ZPage>     _node;             // Page list node
+  const uint8_t         _type;
+  uint8_t               _numa_id;
+  uint32_t              _seqnum;
+  const ZVirtualMemory  _virtual;
+  volatile uintptr_t    _top;
+  ZLiveMap              _livemap;
+  uint64_t              _last_used;
+  const ZPhysicalMemory _physical;
+  ZListNode<ZPage>      _node;
 
   const char* type_to_string() const;
 
@@ -53,8 +51,7 @@ private:
   bool is_object_strongly_marked(uintptr_t addr) const;
 
 public:
-  ZPage(uint8_t type, ZVirtualMemory vmem, ZPhysicalMemory pmem);
-  ~ZPage();
+  ZPage(uint8_t type, const ZVirtualMemory& vmem, const ZPhysicalMemory& pmem);
 
   uint32_t object_max_count() const;
   size_t object_alignment_shift() const;
@@ -69,7 +66,10 @@ public:
 
   uint8_t numa_id();
 
-  ZPhysicalMemory& physical_memory();
+  uint64_t last_used() const;
+  void set_last_used();
+
+  const ZPhysicalMemory& physical_memory() const;
   const ZVirtualMemory& virtual_memory() const;
 
   void reset();
@@ -83,7 +83,6 @@ public:
   bool is_relocatable() const;
 
   bool is_mapped() const;
-  void set_pre_mapped();
 
   bool is_marked() const;
   bool is_object_live(uintptr_t addr) const;

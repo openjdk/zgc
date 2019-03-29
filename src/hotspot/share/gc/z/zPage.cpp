@@ -28,13 +28,14 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
-ZPage::ZPage(uint8_t type, ZVirtualMemory vmem, ZPhysicalMemory pmem) :
+ZPage::ZPage(uint8_t type, const ZVirtualMemory& vmem, const ZPhysicalMemory& pmem) :
     _type(type),
     _numa_id((uint8_t)-1),
     _seqnum(0),
     _virtual(vmem),
     _top(start()),
     _livemap(object_max_count()),
+    _last_used(0),
     _physical(pmem) {
   assert(!_physical.is_null(), "Should not be null");
   assert(!_virtual.is_null(), "Should not be null");
@@ -44,14 +45,11 @@ ZPage::ZPage(uint8_t type, ZVirtualMemory vmem, ZPhysicalMemory pmem) :
          "Page type/size mismatch");
 }
 
-ZPage::~ZPage() {
-  assert(_physical.is_null(), "Should be null");
-}
-
 void ZPage::reset() {
   _seqnum = ZGlobalSeqNum;
   _top = start();
   _livemap.reset();
+  _last_used = 0;
 }
 
 void ZPage::print_on(outputStream* out) const {

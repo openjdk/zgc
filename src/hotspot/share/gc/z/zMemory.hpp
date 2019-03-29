@@ -54,7 +54,9 @@ private:
 
 public:
   uintptr_t alloc_from_front(size_t size);
+  uintptr_t alloc_from_front_at_most(size_t* size);
   uintptr_t alloc_from_back(size_t size);
+  uintptr_t alloc_from_back_at_most(size_t* size);
   void free(uintptr_t start, size_t size);
 };
 

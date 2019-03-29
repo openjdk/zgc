@@ -25,14 +25,13 @@
 #define SHARE_GC_Z_ZVIRTUALMEMORY_HPP
 
 #include "gc/z/zMemory.hpp"
-#include "memory/allocation.hpp"
 
 class ZVirtualMemory {
   friend class VMStructs;
 
 private:
-  uintptr_t _start;
-  uintptr_t _end;
+  const uintptr_t _start;
+  const uintptr_t _end;
 
 public:
   ZVirtualMemory();
@@ -42,8 +41,6 @@ public:
   uintptr_t start() const;
   uintptr_t end() const;
   size_t size() const;
-  ZVirtualMemory split(size_t size);
-  void clear();
 };
 
 class ZVirtualMemoryManager {
@@ -59,8 +56,8 @@ public:
 
   bool is_initialized() const;
 
-  ZVirtualMemory alloc(size_t size, bool alloc_from_front = false);
-  void free(ZVirtualMemory vmem);
+  ZVirtualMemory alloc(size_t size);
+  void free(const ZVirtualMemory& vmem);
 };
 
 #endif // SHARE_GC_Z_ZVIRTUALMEMORY_HPP

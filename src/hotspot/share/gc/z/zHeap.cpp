@@ -45,6 +45,7 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/align.hpp"
@@ -62,7 +63,7 @@ ZHeap* ZHeap::_heap = NULL;
 ZHeap::ZHeap() :
     _workers(),
     _object_allocator(_workers.nworkers()),
-    _page_allocator(heap_min_size(), heap_max_size(), heap_max_reserve_size()),
+    _page_allocator(heap_min_size(), heap_max_size(), heap_initial_size(), heap_max_reserve_size()),
     _page_table(),
     _forwarding_table(),
     _mark(&_workers, &_page_table),
@@ -81,13 +82,18 @@ ZHeap::ZHeap() :
 }
 
 size_t ZHeap::heap_min_size() const {
-  const size_t aligned_min_size = align_up(InitialHeapSize, ZGranuleSize);
-  return MIN2(aligned_min_size, heap_max_size());
+  const size_t aligned_min_size = align_up(Arguments::min_heap_size(), ZGranuleSize);
+  return MAX2(MIN2(aligned_min_size, heap_max_size()), heap_max_reserve_size());
 }
 
 size_t ZHeap::heap_max_size() const {
   const size_t aligned_max_size = align_up(MaxHeapSize, ZGranuleSize);
   return MIN2(aligned_max_size, ZAddressOffsetMax);
+}
+
+size_t ZHeap::heap_initial_size() const {
+  const size_t aligned_initial_size = align_up(InitialHeapSize, ZGranuleSize);
+  return MAX2(MIN2(aligned_initial_size, heap_max_size()), heap_min_size());
 }
 
 size_t ZHeap::heap_max_reserve_size() const {
@@ -102,7 +108,7 @@ bool ZHeap::is_initialized() const {
 }
 
 size_t ZHeap::min_capacity() const {
-  return heap_min_size();
+  return _page_allocator.min_capacity();
 }
 
 size_t ZHeap::max_capacity() const {
@@ -244,6 +250,10 @@ void ZHeap::free_page(ZPage* page, bool reclaimed) {
 
   // Free page
   _page_allocator.free_page(page, reclaimed);
+}
+
+uint64_t ZHeap::uncommit() {
+  return _page_allocator.uncommit();
 }
 
 void ZHeap::before_flip() {

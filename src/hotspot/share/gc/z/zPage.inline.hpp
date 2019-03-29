@@ -34,7 +34,7 @@
 #include "gc/z/zVirtualMemory.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/orderAccess.hpp"
+#include "runtime/os.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
@@ -116,12 +116,20 @@ inline size_t ZPage::remaining() const {
   return end() - top();
 }
 
-inline ZPhysicalMemory& ZPage::physical_memory() {
+inline const ZPhysicalMemory& ZPage::physical_memory() const {
   return _physical;
 }
 
 inline const ZVirtualMemory& ZPage::virtual_memory() const {
   return _virtual;
+}
+
+inline uint64_t ZPage::last_used() const {
+  return _last_used;
+}
+
+inline void ZPage::set_last_used() {
+  _last_used = os::elapsedTime();
 }
 
 inline uint8_t ZPage::numa_id() {
@@ -159,13 +167,6 @@ inline bool ZPage::is_relocatable() const {
 
 inline bool ZPage::is_mapped() const {
   return _seqnum > 0;
-}
-
-inline void ZPage::set_pre_mapped() {
-  // The _seqnum variable is also used to signal that the virtual and physical
-  // memory has been mapped. So, we need to set it to non-zero when the memory
-  // has been pre-mapped.
-  _seqnum = 1;
 }
 
 inline bool ZPage::is_marked() const {

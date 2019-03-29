@@ -53,10 +53,10 @@ bool ZVirtualMemoryManager::is_initialized() const {
   return _initialized;
 }
 
-ZVirtualMemory ZVirtualMemoryManager::alloc(size_t size, bool alloc_from_front) {
+ZVirtualMemory ZVirtualMemoryManager::alloc(size_t size) {
   uintptr_t start;
 
-  if (alloc_from_front || size <= ZPageSizeSmall) {
+  if (size <= ZPageSizeSmall) {
     // Small page
     start = _manager.alloc_from_front(size);
   } else {
@@ -67,6 +67,6 @@ ZVirtualMemory ZVirtualMemoryManager::alloc(size_t size, bool alloc_from_front) 
   return ZVirtualMemory(start, size);
 }
 
-void ZVirtualMemoryManager::free(ZVirtualMemory vmem) {
+void ZVirtualMemoryManager::free(const ZVirtualMemory& vmem) {
   _manager.free(vmem.start(), vmem.size());
 }

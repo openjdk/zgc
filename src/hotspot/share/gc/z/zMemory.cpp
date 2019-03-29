@@ -49,6 +49,29 @@ uintptr_t ZMemoryManager::alloc_from_front(size_t size) {
   return UINTPTR_MAX;
 }
 
+uintptr_t ZMemoryManager::alloc_from_front_at_most(size_t* size) {
+  ZMemory* area = _freelist.first();
+  if (area != NULL) {
+    if (area->size() <= *size) {
+      // Smaller than or equal to requested, remove area
+      const uintptr_t start = area->start();
+      *size = area->size();
+      _freelist.remove(area);
+      delete area;
+      return start;
+    } else {
+      // Larger than requested, shrink area
+      const uintptr_t start = area->start();
+      area->shrink_from_front(*size);
+      return start;
+    }
+  }
+
+  // Out of memory
+  *size = 0;
+  return UINTPTR_MAX;
+}
+
 uintptr_t ZMemoryManager::alloc_from_back(size_t size) {
   ZListReverseIterator<ZMemory> iter(&_freelist);
   for (ZMemory* area; iter.next(&area);) {
@@ -68,6 +91,28 @@ uintptr_t ZMemoryManager::alloc_from_back(size_t size) {
   }
 
   // Out of memory
+  return UINTPTR_MAX;
+}
+
+uintptr_t ZMemoryManager::alloc_from_back_at_most(size_t* size) {
+  ZMemory* area = _freelist.last();
+  if (area != NULL) {
+    if (area->size() <= *size) {
+      // Smaller than or equal to requested, remove area
+      const uintptr_t start = area->start();
+      *size = area->size();
+      _freelist.remove(area);
+      delete area;
+      return start;
+    } else {
+      // Larger than requested, shrink area
+      area->shrink_from_back(*size);
+      return area->end();
+    }
+  }
+
+  // Out of memory
+  *size = 0;
   return UINTPTR_MAX;
 }
 
