@@ -276,7 +276,7 @@ void InterpreterMacroAssembler::dispatch_Lbyte_code(TosState state, address* tab
     Label no_safepoint;
 
     if (tbl.value() != sfpt_tbl.value()) {
-      ldx(Address(G2_thread, Thread::polling_page_offset()), G3_scratch, 0);
+      ldx(Address(G2_thread, Thread::polling_word_offset()), G3_scratch, 0);
       // Armed page has poll_bit set, if poll bit is cleared just continue.
       and3(G3_scratch, SafepointMechanism::poll_bit(), G3_scratch);
 

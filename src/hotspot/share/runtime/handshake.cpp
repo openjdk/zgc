@@ -31,6 +31,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/semaphore.inline.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/task.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"
@@ -304,7 +305,6 @@ void HandshakeState::set_operation(JavaThread* target, HandshakeOperation* op) {
 
 void HandshakeState::clear_handshake(JavaThread* target) {
   _operation = NULL;
-  SafepointMechanism::disarm_if_needed(target, true /* release */);
 }
 
 void HandshakeState::process_self_inner(JavaThread* thread) {
@@ -394,6 +394,7 @@ bool HandshakeState::try_process_by_vmThread(JavaThread* target) {
     guarantee(!_semaphore.trywait(), "we should already own the semaphore");
     log_trace(handshake)("Processing handshake by VMThtread");
     DEBUG_ONLY(_vmthread_processing_handshake = true;)
+    StackWatermarkSet::start_iteration(target, StackWatermarkSet::gc);
     _operation->do_handshake(target);
     DEBUG_ONLY(_vmthread_processing_handshake = false;)
     // Disarm after VM thread have executed the operation.

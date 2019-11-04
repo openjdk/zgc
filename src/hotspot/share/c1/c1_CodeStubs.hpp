@@ -89,6 +89,28 @@ class CodeStubList: public GrowableArray<CodeStub*> {
   }
 };
 
+class C1SafepointPollStub: public CodeStub {
+ private:
+  address _safepoint_pc;
+
+ public:
+  C1SafepointPollStub() :
+      _safepoint_pc(NULL) {
+  }
+
+  address safepoint_pc() { return _safepoint_pc; }
+  void set_safepoint_pc(address pc) { _safepoint_pc = pc; }
+
+  virtual void emit_code(LIR_Assembler* e);
+  virtual void visit(LIR_OpVisitState* visitor) {
+    // don't pass in the code emit info since it's processed in the fast path
+    visitor->do_slow_case();
+  }
+#ifndef PRODUCT
+  virtual void print_name(outputStream* out) const { out->print("C1SafepointPollStub"); }
+#endif // PRODUCT
+};
+
 class CounterOverflowStub: public CodeStub {
  private:
   CodeEmitInfo* _info;

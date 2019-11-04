@@ -42,6 +42,7 @@
 #include "runtime/osThread.hpp"
 #include "runtime/park.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/threadHeapSampler.hpp"
 #include "runtime/threadLocalStorage.hpp"
 #include "runtime/threadStatisticalInfo.hpp"
@@ -282,6 +283,12 @@ class Thread: public ThreadShadow {
   // suspend/resume lock: used for self-suspend
   Monitor* _SR_lock;
 
+  // Stack watermark barriers.
+  StackWatermarkSet _stack_watermark_set;
+
+ public:
+  inline StackWatermarkSet* stack_watermark_set() { return &_stack_watermark_set; }
+
  protected:
   enum SuspendFlags {
     // NOTE: avoid using the sign-bit as cc generates different test code
@@ -389,7 +396,8 @@ class Thread: public ThreadShadow {
   friend class NoSafepointVerifier;
   friend class PauseNoSafepointVerifier;
 
-  volatile void* _polling_page;                 // Thread local polling page
+  volatile uintptr_t _polling_word;             // Thread local polling word
+  volatile uintptr_t _polling_page;             // Thread local polling word
 
   ThreadLocalAllocBuffer _tlab;                 // Thread-local eden
   jlong _allocated_bytes;                       // Cumulative number of bytes allocated on
@@ -657,7 +665,7 @@ class Thread: public ThreadShadow {
   // Apply "f->do_oop" to all root oops in "this".
   //   Used by JavaThread::oops_do.
   // Apply "cf->do_code_blob" (if !NULL) to all code blobs active in frames
-  virtual void oops_do(OopClosure* f, CodeBlobClosure* cf);
+  virtual void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames = true);
 
   // Handles the parallel case for claim_threads_do.
  private:
@@ -744,7 +752,8 @@ protected:
   size_t           _stack_size;
   int              _lgrp_id;
 
-  volatile void** polling_page_addr() { return &_polling_page; }
+  volatile uintptr_t* polling_word_addr() { return &_polling_word; }
+  volatile uintptr_t* polling_page_addr() { return &_polling_page; }
 
  public:
   // Stack overflow support
@@ -808,6 +817,7 @@ protected:
   static ByteSize stack_base_offset()            { return byte_offset_of(Thread, _stack_base); }
   static ByteSize stack_size_offset()            { return byte_offset_of(Thread, _stack_size); }
 
+  static ByteSize polling_word_offset()          { return byte_offset_of(Thread, _polling_word); }
   static ByteSize polling_page_offset()          { return byte_offset_of(Thread, _polling_page); }
 
   static ByteSize tlab_start_offset()            { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::start_offset(); }
@@ -1269,7 +1279,7 @@ class JavaThread: public Thread {
 
   // Thread oop. threadObj() can be NULL for initial JavaThread
   // (or for threads attached via JNI)
-  oop threadObj() const                          { return _threadObj; }
+  oop threadObj() const;
   void set_threadObj(oop p)                      { _threadObj = p; }
 
   // Prepare thread and add to priority queue.  If a priority is
@@ -1331,9 +1341,11 @@ class JavaThread: public Thread {
   bool do_not_unlock_if_synchronized()             { return _do_not_unlock_if_synchronized; }
   void set_do_not_unlock_if_synchronized(bool val) { _do_not_unlock_if_synchronized = val; }
 
-  inline void set_polling_page_release(void* poll_value);
-  inline void set_polling_page(void* poll_value);
-  inline volatile void* get_polling_page();
+  inline void set_polling_word(uintptr_t poll_value);
+  inline uintptr_t get_polling_word();
+
+  inline void set_polling_page(uintptr_t poll_value);
+  inline uintptr_t get_polling_page();
 
  private:
   // Support for thread handshake operations
@@ -1875,7 +1887,7 @@ class JavaThread: public Thread {
   void frames_do(void f(frame*, const RegisterMap*));
 
   // Memory operations
-  void oops_do(OopClosure* f, CodeBlobClosure* cf);
+  void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames = true);
 
   // Sweeper operations
   virtual void nmethods_do(CodeBlobClosure* cf);
@@ -1901,10 +1913,13 @@ class JavaThread: public Thread {
   virtual const char* get_thread_name_string(char* buf = NULL, int buflen = 0) const;
  public:
   // Accessing frames
-  frame last_frame() {
+  frame last_frame();
+
+  frame last_frame_raw() {
     _anchor.make_walkable(this);
     return pd_last_frame();
   }
+
   javaVFrame* last_java_vframe(RegisterMap* reg_map);
 
   // Returns method at 'depth' java or native frames down the stack
@@ -2136,7 +2151,7 @@ class CodeCacheSweeperThread : public JavaThread {
   bool is_Code_cache_sweeper_thread() const { return true; }
 
   // Prevent GC from unloading _scanned_compiled_method
-  void oops_do(OopClosure* f, CodeBlobClosure* cf);
+  void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames = true);
   void nmethods_do(CodeBlobClosure* cf);
 };
 

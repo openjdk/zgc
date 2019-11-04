@@ -54,6 +54,9 @@
   experimental(bool, ZProactive, true,                                      \
           "Enable proactive GC cycles")                                     \
                                                                             \
+  experimental(bool, ZConcStack, true,                                      \
+               "Scan thread stacks concurrently")                           \
+                                                                            \
   experimental(bool, ZUncommit, true,                                       \
           "Uncommit unused memory")                                         \
                                                                             \

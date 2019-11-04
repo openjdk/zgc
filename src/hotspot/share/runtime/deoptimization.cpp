@@ -62,6 +62,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
@@ -253,6 +254,10 @@ static void eliminate_locks(JavaThread* thread, GrowableArray<compiledVFrame*>* 
 
 // This is factored, since it is both called from a JRT_LEAF (deoptimization) and a JRT_ENTRY (uncommon_trap)
 Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread* thread, int exec_mode) {
+  // When we get here we are about to unwind a frame. In order to catch not yet
+  // safe to use frames, the following stack watermark barrier poll will make
+  // such frames safe to use.
+  StackWatermarkSet::on_unwind(thread);
 
   // Note: there is a safepoint safety issue here. No matter whether we enter
   // via vanilla deopt or uncommon trap we MUST NOT stop at a safepoint once

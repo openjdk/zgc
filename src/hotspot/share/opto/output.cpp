@@ -46,6 +46,7 @@
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/xmlstream.hpp"
@@ -1052,6 +1053,7 @@ CodeBuffer* Compile::init_buffer(BufferSizingData& buf_sizes) {
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   stub_req += bs->estimate_stub_size();
+  stub_req += safepoint_poll_table()->estimate_stub_size();
 
   // nmethod and CodeBuffer count stubs & constants as part of method's code.
   // class HandlerImpl is platform-specific and defined in the *.ad files.
@@ -1548,6 +1550,10 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bs->emit_stubs(*cb);
+  if (failing())  return;
+
+  // Fill in stubs for calling the runtime from safepoint polls.
+  safepoint_poll_table()->emit(*cb, SharedRuntime::is_wide_vector(max_vector_size()));
   if (failing())  return;
 
 #ifndef PRODUCT

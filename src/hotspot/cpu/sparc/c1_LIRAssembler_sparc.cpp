@@ -1424,7 +1424,7 @@ void LIR_Assembler::reg2mem(LIR_Opr from_reg, LIR_Opr dest, BasicType type,
 }
 
 
-void LIR_Assembler::return_op(LIR_Opr result) {
+void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();
   }

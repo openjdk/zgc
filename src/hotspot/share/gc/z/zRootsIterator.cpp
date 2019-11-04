@@ -46,6 +46,7 @@
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/safepoint.hpp"
+#include "runtime/stackWatermark.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"
@@ -71,6 +72,7 @@ static const ZStatSubPhase ZSubPhasePauseRootsCodeCache("Pause Roots CodeCache")
 static const ZStatSubPhase ZSubPhaseConcurrentRootsSetup("Concurrent Roots Setup");
 static const ZStatSubPhase ZSubPhaseConcurrentRoots("Concurrent Roots");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsTeardown("Concurrent Roots Teardown");
+static const ZStatSubPhase ZSubPhaseConcurrentRootsJavaThreads("Concurrent Roots Java Threads");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsJNIHandles("Concurrent Roots JNIHandles");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsVMHandles("Concurrent Roots VMHandles");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsClassLoaderDataGraph("Concurrent Roots ClassLoaderDataGraph");
@@ -285,7 +287,9 @@ void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   _jvmti_export.oops_do(cl);
   _system_dictionary.oops_do(cl);
   _vm_thread.oops_do(cl);
-  _java_threads.oops_do(cl);
+  if (!ZConcStack) {
+    _java_threads.oops_do(cl);
+  }
   if (!ClassUnloading) {
     _code_cache.oops_do(cl);
   }
@@ -297,8 +301,10 @@ void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
 ZConcurrentRootsIterator::ZConcurrentRootsIterator(int cld_claim) :
     _jni_handles_iter(OopStorageSet::jni_global()),
     _vm_handles_iter(OopStorageSet::vm_global()),
+    _java_threads_iter(),
     _cld_claim(cld_claim),
     _jni_handles(this),
+    _java_threads(this),
     _vm_handles(this),
     _class_loader_data_graph(this) {
   ZStatTimer timer(ZSubPhaseConcurrentRootsSetup);
@@ -312,6 +318,26 @@ ZConcurrentRootsIterator::~ZConcurrentRootsIterator() {
 void ZConcurrentRootsIterator::do_jni_handles(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhaseConcurrentRootsJNIHandles);
   _jni_handles_iter.oops_do(cl);
+}
+
+class ZConcurrentRootsIteratorThreadClosure : public ThreadClosure {
+private:
+  ZRootsIteratorClosure* const _cl;
+  ResourceMark                 _rm;
+
+public:
+  ZConcurrentRootsIteratorThreadClosure(ZRootsIteratorClosure* cl) :
+    _cl(cl) {}
+
+  virtual void do_thread(Thread* thread) {
+    _cl->do_thread(thread);
+  }
+};
+
+void ZConcurrentRootsIterator::do_java_threads(ZRootsIteratorClosure* cl) {
+  ZStatTimer timer(ZSubPhaseConcurrentRootsJavaThreads);
+  ZConcurrentRootsIteratorThreadClosure thread_cl(cl);
+  _java_threads_iter.threads_do(&thread_cl);
 }
 
 void ZConcurrentRootsIterator::do_vm_handles(ZRootsIteratorClosure* cl) {
@@ -330,6 +356,9 @@ void ZConcurrentRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   _jni_handles.oops_do(cl);
   _vm_handles.oops_do(cl),
   _class_loader_data_graph.oops_do(cl);
+  if (ZConcStack) {
+    _java_threads.oops_do(cl);
+  }
 }
 
 ZWeakRootsIterator::ZWeakRootsIterator() :

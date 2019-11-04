@@ -40,6 +40,7 @@
 #include "opto/phasetype.hpp"
 #include "opto/phase.hpp"
 #include "opto/regmask.hpp"
+#include "opto/safepointPollStubTable.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/timerTrace.hpp"
 #include "runtime/vmThread.hpp"
@@ -292,6 +293,12 @@ class Compile : public Phase {
 
     bool    can_be_reused() const  { return _can_be_reused; }
   };
+
+private:
+  C2SafepointPollStubTable _safepoint_poll_table;
+
+public:
+  C2SafepointPollStubTable* safepoint_poll_table() { return &_safepoint_poll_table; }
 
   // Constant table.
   class ConstantTable {

@@ -64,14 +64,15 @@ static void fixup_address(HeapWord** p) {
   *p = (HeapWord*)ZAddress::good_or_null((uintptr_t)*p);
 }
 
-void ZThreadLocalAllocBuffer::retire(Thread* thread) {
-  if (UseTLAB && thread->is_Java_thread()) {
-    ThreadLocalAllocStats* const stats = _stats->addr();
-    thread->tlab().addresses_do(fixup_address);
-    thread->tlab().retire(stats);
-    if (ResizeTLAB) {
-      thread->tlab().resize();
-    }
+ThreadLocalAllocStats* ZThreadLocalAllocBuffer::get_stats() {
+  return _stats->addr();
+}
+
+void ZThreadLocalAllocBuffer::retire(Thread* thread, ThreadLocalAllocStats* stats) {
+  thread->tlab().addresses_do(fixup_address);
+  thread->tlab().retire(stats);
+  if (ResizeTLAB) {
+    thread->tlab().resize();
   }
 }
 
