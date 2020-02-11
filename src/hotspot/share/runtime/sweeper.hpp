@@ -66,7 +66,6 @@ class NMethodSweeper : public AllStatic {
   };
   static long      _traversals;                   // Stack scan count, also sweep ID.
   static long      _total_nof_code_cache_sweeps;  // Total number of full sweeps of the code cache
-  static long      _time_counter;                 // Virtual time used to periodically invoke sweeper
   static long      _last_sweep;                   // Value of _time_counter when the last sweep happened
   static CompiledMethodIterator _current;         // Current compiled method
   static int       _seen;                         // Nof. nmethod we have currently processed in current pass of CodeCache
@@ -114,7 +113,6 @@ class NMethodSweeper : public AllStatic {
 
   static void mark_active_nmethods();      // Invoked at the end of each safepoint
   static CodeBlobClosure* prepare_mark_active_nmethods();
-  static CodeBlobClosure* prepare_reset_hotness_counters();
   static void sweeper_loop();
   static void notify(int code_blob_type);  // Possibly start the sweeper thread.
   static void force_sweep();

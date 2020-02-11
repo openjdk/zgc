@@ -538,21 +538,14 @@ bool SafepointSynchronize::is_forced_cleanup_needed() {
 
 class ParallelSPCleanupThreadClosure : public ThreadClosure {
 private:
-  CodeBlobClosure* _nmethod_cl;
   DeflateMonitorCounters* _counters;
 
 public:
   ParallelSPCleanupThreadClosure(DeflateMonitorCounters* counters) :
-    _nmethod_cl(UseCodeAging ? NMethodSweeper::prepare_reset_hotness_counters() : NULL),
     _counters(counters) {}
 
   void do_thread(Thread* thread) {
     ObjectSynchronizer::deflate_thread_local_monitors(thread, _counters);
-    if (_nmethod_cl != NULL && thread->is_Java_thread() &&
-        ! thread->is_Code_cache_sweeper_thread()) {
-      JavaThread* jt = (JavaThread*) thread;
-      jt->nmethods_do(_nmethod_cl);
-    }
   }
 };
 
