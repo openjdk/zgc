@@ -32,6 +32,7 @@
 #include "gc/z/zPage.hpp"
 #include "gc/z/zPageTable.inline.hpp"
 #include "gc/z/zRootsIterator.hpp"
+#include "gc/z/zStackWatermark.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zThread.inline.hpp"
@@ -46,6 +47,8 @@
 #include "runtime/handshake.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
+#include "runtime/stackWatermark.hpp"
+#include "runtime/stackWatermarkSet.inline.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -123,11 +126,15 @@ void ZMark::prepare_mark() {
 class ZMarkRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
   ZMarkRootsIteratorClosure() {
-    ZThreadLocalAllocBuffer::reset_statistics();
+    if (!ZConcStack) {
+      ZThreadLocalAllocBuffer::reset_statistics();
+    }
   }
 
   ~ZMarkRootsIteratorClosure() {
-    ZThreadLocalAllocBuffer::publish_statistics();
+    if (!ZConcStack) {
+      ZThreadLocalAllocBuffer::publish_statistics();
+    }
   }
 
   virtual void do_thread(Thread* thread) {
@@ -138,7 +145,9 @@ public:
     ZThreadLocalData::do_invisible_root(thread, ZBarrier::mark_barrier_on_invisible_root_oop_field);
 
     // Retire TLAB
-    ZThreadLocalAllocBuffer::retire(thread);
+    if (UseTLAB && thread->is_Java_thread()) {
+      ZThreadLocalAllocBuffer::retire(thread, ZThreadLocalAllocBuffer::get_stats());
+    }
   }
 
   virtual bool should_disarm_nmethods() const {
@@ -636,6 +645,29 @@ void ZMark::work(uint64_t timeout_in_millis) {
 
 class ZMarkConcurrentRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
+  ZMarkConcurrentRootsIteratorClosure() {
+    if (ZConcStack) {
+      ZThreadLocalAllocBuffer::reset_statistics();
+    }
+  }
+
+  ~ZMarkConcurrentRootsIteratorClosure() {
+    if (ZConcStack) {
+      ZThreadLocalAllocBuffer::publish_statistics();
+    }
+  }
+
+
+  virtual void do_thread(Thread* thread) {
+    JavaThread* jt = static_cast<JavaThread*>(thread);
+    StackWatermarkSet::finish_iteration(jt, this, StackWatermarkSet::gc);
+    ZStackWatermark* watermark = jt->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
+
+    if (UseTLAB && thread->is_Java_thread()) {
+      ZThreadLocalAllocBuffer::get_stats()->update(watermark->stats());
+    }
+  }
+
   virtual void do_oop(oop* p) {
     ZBarrier::mark_barrier_on_oop_field(p, false /* finalizable */);
   }

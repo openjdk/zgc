@@ -292,7 +292,7 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
 
 void MacroAssembler::safepoint_poll(Label& slow_path) {
   if (SafepointMechanism::uses_thread_local_poll()) {
-    ldr(rscratch1, Address(rthread, Thread::polling_page_offset()));
+    ldr(rscratch1, Address(rthread, Thread::polling_word_offset()));
     tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
   } else {
     unsigned long offset;
@@ -317,7 +317,7 @@ void MacroAssembler::safepoint_poll(Label& slow_path) {
 //
 void MacroAssembler::safepoint_poll_acquire(Label& slow_path) {
   if (SafepointMechanism::uses_thread_local_poll()) {
-    lea(rscratch1, Address(rthread, Thread::polling_page_offset()));
+    lea(rscratch1, Address(rthread, Thread::polling_word_offset()));
     ldar(rscratch1, rscratch1);
     tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
   } else {

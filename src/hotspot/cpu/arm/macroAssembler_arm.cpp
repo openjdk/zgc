@@ -2058,7 +2058,7 @@ void MacroAssembler::fast_unlock(Register Roop, Register Rbox, Register Rscratch
 
 void MacroAssembler::safepoint_poll(Register tmp1, Label& slow_path) {
   if (SafepointMechanism::uses_thread_local_poll()) {
-    ldr_u32(tmp1, Address(Rthread, Thread::polling_page_offset()));
+    ldr_u32(tmp1, Address(Rthread, Thread::polling_word_offset()));
     tst(tmp1, exact_log2(SafepointMechanism::poll_bit()));
     b(slow_path, eq);
   } else {

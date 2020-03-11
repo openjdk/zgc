@@ -108,6 +108,22 @@ void ZArguments::initialize() {
 
   // Initialize platform specific arguments
   initialize_platform();
+
+  if (!VM_Version::supports_stack_watermark_barrier()) {
+    if (FLAG_IS_DEFAULT(ZConcStack)) {
+      FLAG_SET_DEFAULT(ZConcStack, false);
+    } else {
+      vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:+ZConcStack on this architecture");
+    }
+  }
+
+  if (!ClassUnloading) {
+    if (FLAG_IS_DEFAULT(ZConcStack)) {
+      FLAG_SET_DEFAULT(ZConcStack, false);
+    } else {
+      vm_exit_during_initialization("The flag -XX:+ZConcStack can not be combined with -XX:-ClassUnloading");
+    }
+  }
 }
 
 size_t ZArguments::conservative_max_heap_alignment() {

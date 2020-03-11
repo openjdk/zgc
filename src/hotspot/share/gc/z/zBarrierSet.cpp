@@ -27,6 +27,7 @@
 #include "gc/z/zBarrierSetNMethod.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
+#include "gc/z/zStackWatermark.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/macros.hpp"
@@ -89,6 +90,12 @@ void ZBarrierSet::on_thread_destroy(Thread* thread) {
 void ZBarrierSet::on_thread_attach(Thread* thread) {
   // Set thread local address bad mask
   ZThreadLocalData::set_address_bad_mask(thread, ZAddressBadMask);
+  if (ZConcStack && thread->is_Java_thread()) {
+    JavaThread* jt = static_cast<JavaThread*>(thread);
+    StackWatermark* watermark = new ZStackWatermark(jt);
+    watermark->init_epoch();
+    jt->stack_watermark_set()->add_watermark(watermark);
+  }
 }
 
 void ZBarrierSet::on_thread_detach(Thread* thread) {

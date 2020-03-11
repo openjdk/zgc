@@ -240,7 +240,7 @@ void MacroAssembler::breakpoint_trap() {
 
 void MacroAssembler::safepoint_poll(Label& slow_path, bool a, Register thread_reg, Register temp_reg) {
   if (SafepointMechanism::uses_thread_local_poll()) {
-    ldx(Address(thread_reg, Thread::polling_page_offset()), temp_reg, 0);
+    ldx(Address(thread_reg, Thread::polling_word_offset()), temp_reg, 0);
     // Armed page has poll bit set.
     and3(temp_reg, SafepointMechanism::poll_bit(), temp_reg);
     br_notnull(temp_reg, a, Assembler::pn, slow_path);

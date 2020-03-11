@@ -146,6 +146,7 @@
   LOG_TAG(scavenge) \
   LOG_TAG(setting) \
   LOG_TAG(smr) \
+  LOG_TAG(stackbarrier) \
   LOG_TAG(stacktrace) \
   LOG_TAG(stackwalk) \
   LOG_TAG(start) \

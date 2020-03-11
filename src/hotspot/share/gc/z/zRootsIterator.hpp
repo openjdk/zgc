@@ -136,15 +136,18 @@ public:
 
 class ZConcurrentRootsIterator {
 private:
-  ZOopStorageIterator _jni_handles_iter;
-  ZOopStorageIterator _vm_handles_iter;
-  const int           _cld_claim;
+  ZOopStorageIterator  _jni_handles_iter;
+  ZOopStorageIterator  _vm_handles_iter;
+  ZJavaThreadsIterator _java_threads_iter;
+  const int            _cld_claim;
 
   void do_jni_handles(ZRootsIteratorClosure* cl);
+  void do_java_threads(ZRootsIteratorClosure* cl);
   void do_vm_handles(ZRootsIteratorClosure* cl);
   void do_class_loader_data_graph(ZRootsIteratorClosure* cl);
 
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_jni_handles>             _jni_handles;
+  ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_java_threads>            _java_threads;
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_vm_handles>              _vm_handles;
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_class_loader_data_graph> _class_loader_data_graph;
 

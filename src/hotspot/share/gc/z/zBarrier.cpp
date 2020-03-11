@@ -125,6 +125,15 @@ uintptr_t ZBarrier::load_barrier_on_oop_slow_path(uintptr_t addr) {
   return relocate_or_mark(addr);
 }
 
+uintptr_t ZBarrier::load_barrier_on_invisible_root_oop_slow_path(uintptr_t addr) {
+  if (during_mark()) {
+    // Mark
+    return mark<DontFollow, Strong, Publish>(addr);
+  } else {
+    return relocate_or_remap(addr);
+  }
+}
+
 void ZBarrier::load_barrier_on_oop_fields(oop o) {
   assert(ZAddress::is_good(ZOop::to_address(o)), "Should be good");
   ZLoadBarrierOopClosure cl;
@@ -199,7 +208,6 @@ uintptr_t ZBarrier::mark_barrier_on_root_oop_slow_path(uintptr_t addr) {
 }
 
 uintptr_t ZBarrier::mark_barrier_on_invisible_root_oop_slow_path(uintptr_t addr) {
-  assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   assert(during_mark(), "Invalid phase");
 
   // Mark

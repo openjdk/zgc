@@ -3499,13 +3499,29 @@ void MacroAssembler::safepoint_poll(Label& slow_path, Register thread_reg, Regis
       get_thread(thread_reg);
     }
 #endif
-    testb(Address(thread_reg, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
-    jcc(Assembler::notZero, slow_path); // handshake bit set implies poll
+    testb(Address(thread_reg, Thread::polling_word_offset()), SafepointMechanism::poll_bit());
+    jcc(Assembler::notZero, slow_path);
   } else {
     cmp32(ExternalAddress(SafepointSynchronize::address_of_state()),
         SafepointSynchronize::_not_synchronized);
     jcc(Assembler::notEqual, slow_path);
   }
+}
+
+void MacroAssembler::safepoint_poll_return(Label& slow_path, Register thread_reg, Register temp_reg) {
+#ifndef _LP64
+  safepoint_poll(slow_path, thread_reg, temp_reg);
+#else
+  if (SafepointMechanism::uses_thread_local_poll()) {
+    assert(thread_reg == r15_thread, "should be");
+    cmpq(Address(thread_reg, Thread::polling_word_offset()), rbp);
+    jcc(Assembler::above, slow_path);
+  } else {
+    cmp32(ExternalAddress(SafepointSynchronize::address_of_state()),
+          SafepointSynchronize::_not_synchronized);
+    jcc(Assembler::notEqual, slow_path);
+  }
+#endif
 }
 
 // Calls to C land
