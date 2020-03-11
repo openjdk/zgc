@@ -527,9 +527,24 @@ void VMThread::loop() {
               // evaluate_operation deletes the op object so we have
               // to grab the next op now
               VM_Operation* next = _cur_vm_operation->next();
+              bool next_cant_coalesce = next != NULL && (!next->allow_coalesced_vm_operations() ||
+                                                         !_cur_vm_operation->allow_coalesced_vm_operations());
               evaluate_operation(_cur_vm_operation);
               _cur_vm_operation = next;
-              _coalesced_count++;
+              if (next_cant_coalesce) {
+                // Safepoint coalescing fence for operations that may not be
+                // coalesced with other safepoint operations.
+                if (_timeout_task != NULL) {
+                  _timeout_task->disarm();
+                }
+                SafepointSynchronize::end();
+                SafepointSynchronize::begin();
+                if (_timeout_task != NULL) {
+                  _timeout_task->arm();
+                }
+              } else if (next != NULL) {
+                _coalesced_count++;
+              }
             } while (_cur_vm_operation != NULL);
           }
           // There is a chance that a thread enqueued a safepoint op
