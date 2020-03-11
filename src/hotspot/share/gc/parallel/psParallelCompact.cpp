@@ -1996,7 +1996,7 @@ public:
     PCMarkAndPushClosure mark_and_push_closure(cm);
     MarkingCodeBlobClosure mark_and_push_in_blobs(&mark_and_push_closure, !CodeBlobToOopClosure::FixRelocations);
 
-    thread->oops_do(&mark_and_push_closure, &mark_and_push_in_blobs);
+    thread->oops_do(&mark_and_push_closure, &mark_and_push_in_blobs, true /* do_frames */);
 
     // Do the real work
     cm->follow_marking_stacks();

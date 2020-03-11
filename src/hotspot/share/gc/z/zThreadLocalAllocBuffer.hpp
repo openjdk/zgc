@@ -38,8 +38,9 @@ public:
   static void reset_statistics();
   static void publish_statistics();
 
-  static void retire(Thread* thread);
+  static void retire(Thread* thread, ThreadLocalAllocStats* stats);
   static void remap(Thread* thread);
+  static ThreadLocalAllocStats* get_stats();
 };
 
 #endif // SHARE_GC_Z_ZTHREADLOCALALLOCBUFFER_HPP

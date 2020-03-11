@@ -37,6 +37,19 @@
 
 #define __ ce->masm()->
 
+void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
+  __ bind(_entry);
+  InternalAddress pc_addr(safepoint_pc());
+  __ lea(rscratch1, pc_addr);
+  __ str(rscratch1, Address(rthread, JavaThread::saved_exception_pc_offset()));
+
+  assert(SharedRuntime::polling_page_return_handler_blob() != NULL,
+         "polling page return stub not created yet");
+  address stub = SharedRuntime::polling_page_return_handler_blob()->entry_point();
+
+  __ far_jump(RuntimeAddress(stub));
+}
+
 void CounterOverflowStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   Metadata *m = _method->as_constant_ptr()->as_metadata();

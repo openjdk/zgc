@@ -473,7 +473,7 @@ void InterpreterMacroAssembler::dispatch_base(TosState state,
 
   if (needs_thread_local_poll) {
     NOT_PRODUCT(block_comment("Thread-local Safepoint poll"));
-    ldr(rscratch2, Address(rthread, Thread::polling_page_offset()));
+    ldr(rscratch2, Address(rthread, Thread::polling_word_offset()));
     tbnz(rscratch2, exact_log2(SafepointMechanism::poll_bit()), safepoint);
   }
 
@@ -540,6 +540,16 @@ void InterpreterMacroAssembler::remove_activation(
   // Note: Registers r3 xmm0 may be in use for the
   // result check if synchronized method
   Label unlocked, unlock, no_unlock;
+
+  Label slow_path;
+  Label fast_path;
+  safepoint_poll(slow_path, true /* at_return */, false /* acquire */, false /* in_nmethod */);
+  br(Assembler::AL, fast_path);
+  bind(slow_path);
+  push(state);
+  call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::at_unwind));
+  pop(state);
+  bind(fast_path);
 
   // get the value of _do_not_unlock_if_synchronized into r3
   const Address do_not_unlock_if_synchronized(rthread,

@@ -28,6 +28,7 @@
 #include "opto/ad.hpp"
 #include "opto/constantTable.hpp"
 #include "opto/phase.hpp"
+#include "opto/safepointPollStubTable.hpp"
 #include "code/debugInfo.hpp"
 #include "code/exceptionHandlerTable.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -78,6 +79,7 @@ private:
   int                    _first_block_size;      // Size of unvalidated entry point code / OSR poison code
   ExceptionHandlerTable  _handler_table;         // Table of native-code exception handlers
   ImplicitExceptionTable _inc_table;             // Table of implicit null checks in native code
+  C2SafepointPollStubTable _safepoint_poll_table;// Table for safepoint polls
   OopMapSet*             _oop_map_set;           // Table of oop maps (one for each safepoint location)
   BufferBlob*            _scratch_buffer_blob;   // For temporary code buffers.
   relocInfo*             _scratch_locs_memory;   // For temporary code buffers.
@@ -125,6 +127,9 @@ public:
 
   // Constant table
   ConstantTable& constant_table() { return _constant_table; }
+
+  // Safepoint poll table
+  C2SafepointPollStubTable* safepoint_poll_table() { return &_safepoint_poll_table; }
 
   // Code emission iterator
   Block* block()   { return _block; }

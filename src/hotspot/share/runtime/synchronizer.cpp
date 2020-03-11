@@ -1347,12 +1347,10 @@ void ObjectSynchronizer::global_used_oops_do(OopClosure* f) {
 }
 
 void ObjectSynchronizer::thread_local_used_oops_do(Thread* thread, OopClosure* f) {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   list_oops_do(thread->om_in_use_list, f);
 }
 
 void ObjectSynchronizer::list_oops_do(ObjectMonitor* list, OopClosure* f) {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   // The oops_do() phase does not overlap with monitor deflation
   // so no need to lock ObjectMonitors for the list traversal.
   for (ObjectMonitor* mid = list; mid != NULL; mid = unmarked_next(mid)) {
@@ -2396,7 +2394,7 @@ int ObjectSynchronizer::deflate_monitor_list_using_JT(ObjectMonitor** list_p,
       mid = next;  // mid keeps non-NULL next's locked state
       next = next_next;
 
-      if (SafepointMechanism::should_block(self) &&
+      if (SafepointMechanism::should_process_operation(self) &&
           cur_mid_in_use != Atomic::load(list_p) && cur_mid_in_use->is_old()) {
         // If a safepoint has started and cur_mid_in_use is not the list
         // head and is old, then it is safe to use as saved state. Return
@@ -2664,7 +2662,7 @@ void ObjectSynchronizer::deflate_common_idle_monitors_using_JT(bool is_global, J
         } else {
           log_debug(monitorinflation)("jt=" INTPTR_FORMAT ": pausing deflation of per-thread idle monitors for a safepoint.", p2i(target));
         }
-        assert(SafepointMechanism::should_block(self), "sanity check");
+        assert(SafepointMechanism::should_process_operation(self), "sanity check");
         ThreadBlockInVM blocker(self);
       }
       // Prepare for another loop after the safepoint.
