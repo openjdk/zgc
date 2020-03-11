@@ -143,8 +143,7 @@ void NMethodSweeper::init_sweeper_log() {
 CompiledMethodIterator NMethodSweeper::_current(CompiledMethodIterator::all_blobs); // Current compiled method
 long     NMethodSweeper::_traversals                   = 0;    // Stack scan count, also sweep ID.
 long     NMethodSweeper::_total_nof_code_cache_sweeps  = 0;    // Total number of full sweeps of the code cache
-long     NMethodSweeper::_time_counter                 = 0;    // Virtual time used to periodically invoke sweeper
-long     NMethodSweeper::_last_sweep                   = 0;    // Value of _time_counter when the last sweep happened
+long     NMethodSweeper::_last_sweep                   = 0;    // Value of safepoint counter when the last sweep happened
 int      NMethodSweeper::_seen                         = 0;    // Nof. nmethod we have currently processed in current pass of CodeCache
 
 volatile bool NMethodSweeper::_should_sweep            = false;// Indicates if we should invoke the sweeper
@@ -175,17 +174,6 @@ public:
   }
 };
 static MarkActivationClosure mark_activation_closure;
-
-class SetHotnessClosure: public CodeBlobClosure {
-public:
-  virtual void do_code_blob(CodeBlob* cb) {
-    assert(cb->is_nmethod(), "CodeBlob should be nmethod");
-    nmethod* nm = (nmethod*)cb;
-    nm->set_hotness_counter(NMethodSweeper::hotness_counter_reset_val());
-  }
-};
-static SetHotnessClosure set_hotness_closure;
-
 
 int NMethodSweeper::hotness_counter_reset_val() {
   if (_hotness_counter_reset_val == 0) {
@@ -264,9 +252,6 @@ CodeBlobClosure* NMethodSweeper::prepare_mark_active_nmethods() {
     return NULL;
   }
 
-  // Increase time so that we can estimate when to invoke the sweeper again.
-  _time_counter++;
-
   // Check for restart
   assert(_current.method() == NULL, "should only happen between sweeper cycles");
   assert(wait_for_stack_scanning(), "should only happen between sweeper cycles");
@@ -282,32 +267,6 @@ CodeBlobClosure* NMethodSweeper::prepare_mark_active_nmethods() {
     tty->print_cr("### Sweep: stack traversal %ld", _traversals);
   }
   return &mark_activation_closure;
-}
-
-CodeBlobClosure* NMethodSweeper::prepare_reset_hotness_counters() {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be executed at a safepoint");
-
-  // If we do not want to reclaim not-entrant or zombie methods there is no need
-  // to scan stacks
-  if (!MethodFlushing) {
-    return NULL;
-  }
-
-  // Increase time so that we can estimate when to invoke the sweeper again.
-  _time_counter++;
-
-  // Check for restart
-  if (_current.method() != NULL) {
-    if (_current.method()->is_nmethod()) {
-      assert(CodeCache::find_blob_unsafe(_current.method()) == _current.method(), "Sweeper nmethod cached state invalid");
-    } else if (_current.method()->is_aot()) {
-      assert(CodeCache::find_blob_unsafe(_current.method()->code_begin()) == _current.method(), "Sweeper AOT method cached state invalid");
-    } else {
-      ShouldNotReachHere();
-    }
-  }
-
-  return &set_hotness_closure;
 }
 
 /**
@@ -423,7 +382,7 @@ void NMethodSweeper::possibly_sweep() {
   // Large ReservedCodeCacheSize:   (e.g., 256M + code Cache is 90% full). The formula
   //                                              computes: (256 / 16) - 10 = 6.
   if (!_should_sweep) {
-    const int time_since_last_sweep = _time_counter - _last_sweep;
+    const int time_since_last_sweep = int(SafepointSynchronize::safepoint_id() - _last_sweep);
     // ReservedCodeCacheSize has an 'unsigned' type. We need a 'signed' type for max_wait_time,
     // since 'time_since_last_sweep' can be larger than 'max_wait_time'. If that happens using
     // an unsigned type would cause an underflow (wait_until_next_sweep becomes a large positive
@@ -458,7 +417,7 @@ void NMethodSweeper::possibly_sweep() {
 
   // We are done with sweeping the code cache once.
   _total_nof_code_cache_sweeps++;
-  _last_sweep = _time_counter;
+  _last_sweep = SafepointSynchronize::safepoint_id();
   // Reset flag; temporarily disables sweeper
   _should_sweep = false;
   // If there was enough state change, 'possibly_enable_sweeper()'
