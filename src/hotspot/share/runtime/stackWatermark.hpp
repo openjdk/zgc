@@ -89,6 +89,8 @@ public:
   StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind);
   virtual ~StackWatermark();
 
+  static bool has_barrier(frame& f);
+
   // API for consumers of the stack watermark barrier.
   // The rule for consumers is: do not perform thread transitions
   // or take locks of rank >= special. This is all very special code.
@@ -102,6 +104,7 @@ public:
   uintptr_t watermark();
   StackWatermarkSet::StackWatermarkKind kind() const { return _kind; }
   StackWatermark* next() const { return _next; }
+  uintptr_t last_processed();
 };
 
 #endif // SHARE_RUNTIME_STACKWATERMARK_HPP

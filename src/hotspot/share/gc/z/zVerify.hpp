@@ -30,14 +30,14 @@ class ZPageAllocator;
 
 class ZVerify : public AllStatic {
 private:
-  template <typename RootsIterator> static void roots();
+  template <typename RootsIterator> static void roots(bool verify_all);
 
   static void roots_strong();
   static void roots_weak();
-  static void roots_concurrent_strong();
+  static void roots_concurrent_strong(bool verify_all);
   static void roots_concurrent_weak();
 
-  static void roots(bool verify_weaks);
+  static void roots(bool verify_all_strong, bool verify_weaks);
   static void objects(bool verify_weaks);
   static void roots_and_objects(bool verify_weaks);
 

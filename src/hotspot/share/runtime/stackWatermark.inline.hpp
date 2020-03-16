@@ -28,14 +28,20 @@
 #include "runtime/stackWatermark.hpp"
 #include "runtime/thread.hpp"
 
-template <typename T>
-T* StackWatermark::get(StackWatermarkKind kind) {
-  for (StackWatermark* stack_watermark = _head; stack_watermark != NULL; stack_watermark = stack_watermark->next()) {
-    if (stack_watermark->kind() == kind) {
-      return static_cast<T*>(stack_watermark);
+inline bool StackWatermark::has_barrier(frame& f) {
+  if (f.is_interpreted_frame()) {
+    return true;
+  }
+  if (f.is_compiled_frame()) {
+    nmethod* nm = f.cb()->as_nmethod();
+    if (nm->is_compiled_by_c1() || nm->is_compiled_by_c2()) {
+      return true;
+    }
+    if (nm->is_native_method() && !nm->method()->is_method_handle_intrinsic()) {
+      return true;
     }
   }
-  return NULL;
+  return false;
 }
 
 #endif // SHARE_RUNTIME_STACKWATERMARK_INLINE_HPP

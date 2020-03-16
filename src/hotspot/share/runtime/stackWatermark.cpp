@@ -27,7 +27,7 @@
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepoint.hpp"
-#include "runtime/stackWatermark.hpp"
+#include "runtime/stackWatermark.inline.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -36,22 +36,6 @@
 static const uintptr_t _frame_padding = 8;
 static const uintptr_t _frames_per_poll_gc = 5;
 static const uintptr_t _frames_per_poll_mutator = 1;
-
-static inline bool has_barrier(frame& f) {
-  if (f.is_interpreted_frame()) {
-    return true;
-  }
-  if (f.is_compiled_frame()) {
-    nmethod* nm = f.cb()->as_nmethod();
-    if (nm->is_compiled_by_c1() || nm->is_compiled_by_c2()) {
-      return true;
-    }
-    if (nm->is_native_method() && !nm->method()->is_method_handle_intrinsic()) {
-      return true;
-    }
-  }
-  return false;
-}
 
 void StackWatermarkIterator::set_watermark(uintptr_t sp) {
   if (!has_next()) {
@@ -76,7 +60,7 @@ void StackWatermarkIterator::process_one(void* context, bool for_iterator) {
   while (has_next()) {
     frame f = current();
     sp = reinterpret_cast<uintptr_t>(f.sp());
-    bool frame_has_barrier = has_barrier(f);
+    bool frame_has_barrier = StackWatermark::has_barrier(f);
     _owner.process(f, register_map(), for_iterator, context);
     next();
     if (frame_has_barrier) {
@@ -95,7 +79,7 @@ void StackWatermarkIterator::process_all(void* context) {
     frame f = current();
     assert(reinterpret_cast<uintptr_t>(f.sp()) >= _caller, "invariant");
     uintptr_t sp = reinterpret_cast<uintptr_t>(f.sp());
-    bool frame_has_barrier = has_barrier(f);
+    bool frame_has_barrier = StackWatermark::has_barrier(f);
     _owner.process(f, register_map(), false /* for_iterator */, context);
     next();
     if (frame_has_barrier) {
@@ -209,4 +193,19 @@ void StackWatermark::process_one(JavaThread* jt, bool for_iterator) {
 
 uintptr_t StackWatermark::watermark() {
   return Atomic::load_acquire(&_watermark);
+}
+
+uintptr_t StackWatermark::last_processed() {
+  if (watermark() == 0) {
+    return 0;
+  }
+  MutexLocker ml(lock(), Mutex::_no_safepoint_check_flag);
+  if (should_start_iteration()) {
+    return 0;
+  }
+  StackWatermarkIterator* it = iterator();
+  if (it == NULL) {
+    return 0;
+  }
+  return it->caller();
 }
