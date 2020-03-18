@@ -35,7 +35,6 @@
 
 static const uintptr_t _frame_padding = 8;
 static const uintptr_t _frames_per_poll_gc = 5;
-static const uintptr_t _frames_per_poll_mutator = 1;
 
 void StackWatermarkIterator::set_watermark(uintptr_t sp) {
   if (!has_next()) {
@@ -185,9 +184,7 @@ void StackWatermark::process_one(JavaThread* jt, bool for_iterator) {
   if (it == NULL) {
     return;
   }
-  for (uint i = 0; i < _frames_per_poll_mutator; ++i) {
-    it->process_one(NULL /* context */, for_iterator);
-  }
+  it->process_one(NULL /* context */, for_iterator);
   update_watermark();
 }
 
