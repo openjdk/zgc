@@ -45,7 +45,7 @@
 //
 class AdaptiveWeightedAverage : public CHeapObj<mtGC> {
  private:
-  float            _average;        // The last computed average
+  volatile float   _average;        // The last computed average
   unsigned         _sample_count;   // How often we've sampled this average
   unsigned         _weight;         // The weight used to smooth the averages
                                     //   A higher weight favors the most
@@ -64,7 +64,7 @@ class AdaptiveWeightedAverage : public CHeapObj<mtGC> {
     }
   }
 
-  void  set_average(float avg)  { _average = avg;        }
+  void  set_average_relaxed(float avg);
 
   // Helper function, computes an adaptive weighted average
   // given a sample and the last average
@@ -98,7 +98,11 @@ class AdaptiveWeightedAverage : public CHeapObj<mtGC> {
   float    last_sample() const   { return _last_sample;   }
   bool     is_old()  const       { return _is_old;        }
 
-  // Update data with a new sample.
+  // Relaxed accessor: value is approximative and potentially due to concurrent
+  // updating of the average.
+  float    average_relaxed() const;
+
+  // Update data with a new sample. The produced average may be read concurrently.
   void sample(float new_sample);
 
   static inline float exp_avg(float avg, float sample,

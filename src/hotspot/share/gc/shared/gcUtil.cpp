@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcUtil.hpp"
+#include "runtime/atomic.hpp"
 
 // Catch-all file for utility classes
 
@@ -47,12 +48,20 @@ float AdaptiveWeightedAverage::compute_adaptive_average(float new_sample,
   return new_avg;
 }
 
+void AdaptiveWeightedAverage::set_average_relaxed(float avg) {
+  Atomic::store(&_average, avg);
+}
+
+float AdaptiveWeightedAverage::average_relaxed() const {
+  return Atomic::load(&_average);
+}
+
 void AdaptiveWeightedAverage::sample(float new_sample) {
   increment_count();
 
   // Compute the new weighted average
   float new_avg = compute_adaptive_average(new_sample, average());
-  set_average(new_avg);
+  set_average_relaxed(new_avg);
   _last_sample = new_sample;
 }
 
