@@ -130,7 +130,7 @@ void ZStackWatermark::start_iteration(void* context) {
   }
 }
 
-void ZStackWatermark::process(frame frame, RegisterMap& register_map, bool for_iterator, void* context) {
+void ZStackWatermark::process(frame frame, RegisterMap& register_map, void* context) {
   OopClosure* cl = context == NULL ? &_jt_cl : reinterpret_cast<OopClosure*>(context);
 #ifdef ASSERT
   ZVerifyBadOopClosure verify_cl;

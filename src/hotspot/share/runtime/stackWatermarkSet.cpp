@@ -105,7 +105,7 @@ void StackWatermarkSet::on_unwind(JavaThread* jt) {
       continue;
     }
 
-    current->process_one(jt, false /* for_iterator */);
+    current->process_one(jt);
   }
 
   SafepointMechanism::update_poll_values(jt);
@@ -127,7 +127,7 @@ void StackWatermarkSet::on_unwind(JavaThread* jt, uintptr_t sp) {
       continue;
     }
 
-    current->process_one(jt, false /* for_iterator */);
+    current->process_one(jt);
   }
 
   SafepointMechanism::update_poll_values(jt);
@@ -137,17 +137,20 @@ void StackWatermarkSet::on_vm_operation(JavaThread* jt) {
   verify_poll_context();
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
     uint32_t state = Atomic::load_acquire(&current->_state);
-    current->process_one(jt, false /* for_iterator */);
+    current->process_one(jt);
   }
 }
 
 void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
-  verify_poll_context();
   if (VMError::is_error_reported()) {
     // Don't perform barrier when error reporting walks the stack.
     return;
   }
+  verify_poll_context();
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
+    if (!current->process_for_iterator()) {
+      continue;
+    }
     uint32_t state = Atomic::load_acquire(&current->_state);
     if (StackWatermarkState::epoch(state) == current->epoch_id()) {
       if (StackWatermarkState::is_done(state)) {
@@ -156,7 +159,7 @@ void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
         continue;
       }
     }
-    current->process_one(jt, true /* for_iterator */);
+    current->process_one(jt);
   }
 }
 
@@ -174,7 +177,7 @@ void StackWatermarkSet::start_iteration(JavaThread* jt, StackWatermarkKind kind)
     if (StackWatermarkState::epoch(state) == current->epoch_id()) {
       continue;
     }
-    current->process_one(jt, false /* for_iterator */);
+    current->process_one(jt);
   }
 }
 

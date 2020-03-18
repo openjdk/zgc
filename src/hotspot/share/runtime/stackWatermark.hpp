@@ -59,7 +59,7 @@ public:
   StackWatermarkIterator(StackWatermark& owner);
   uintptr_t caller() const { return _caller; }
   uintptr_t callee() const { return _callee; }
-  void process_one(void* context, bool for_iterator);
+  void process_one(void* context);
   void process_all(void* context);
   void set_watermark(uintptr_t sp);
   RegisterMap& register_map();
@@ -79,7 +79,7 @@ protected:
   Mutex _lock;
   StackWatermarkSet::StackWatermarkKind _kind;
 
-  void process_one(JavaThread* jt, bool for_iterator);
+  void process_one(JavaThread* jt);
 
 public:
   bool should_start_iteration() const;
@@ -95,7 +95,8 @@ public:
   // The rule for consumers is: do not perform thread transitions
   // or take locks of rank >= special. This is all very special code.
   virtual uint32_t epoch_id() const = 0;
-  virtual void process(frame frame, RegisterMap& register_map, bool for_iterator, void* context) = 0;
+  virtual void process(frame frame, RegisterMap& register_map, void* context) = 0;
+  virtual bool process_for_iterator() { return true; }
 
   void update_watermark();
   Mutex* lock() { return &_lock; }

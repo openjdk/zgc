@@ -49,7 +49,7 @@ void StackWatermarkIterator::set_watermark(uintptr_t sp) {
   }
 }
 
-void StackWatermarkIterator::process_one(void* context, bool for_iterator) {
+void StackWatermarkIterator::process_one(void* context) {
   uintptr_t sp = 0;
   Thread* thread = Thread::current();
   ResetNoHandleMark rnhm;
@@ -60,7 +60,7 @@ void StackWatermarkIterator::process_one(void* context, bool for_iterator) {
     frame f = current();
     sp = reinterpret_cast<uintptr_t>(f.sp());
     bool frame_has_barrier = StackWatermark::has_barrier(f);
-    _owner.process(f, register_map(), for_iterator, context);
+    _owner.process(f, register_map(), context);
     next();
     if (frame_has_barrier) {
       break;
@@ -79,7 +79,7 @@ void StackWatermarkIterator::process_all(void* context) {
     assert(reinterpret_cast<uintptr_t>(f.sp()) >= _caller, "invariant");
     uintptr_t sp = reinterpret_cast<uintptr_t>(f.sp());
     bool frame_has_barrier = StackWatermark::has_barrier(f);
-    _owner.process(f, register_map(), false /* for_iterator */, context);
+    _owner.process(f, register_map(), context);
     next();
     if (frame_has_barrier) {
       set_watermark(sp);
@@ -143,8 +143,8 @@ void StackWatermark::start_iteration(void* context) {
   delete _iterator;
   if (_jt->has_last_Java_frame()) {
     _iterator = new StackWatermarkIterator(*this);
-    _iterator->process_one(context, false /* for_iterator */); // process callee
-    _iterator->process_one(context, false /* for_iterator */); // process caller
+    _iterator->process_one(context); // process callee
+    _iterator->process_one(context); // process caller
   } else {
     _iterator = NULL;
   }
@@ -171,7 +171,7 @@ void StackWatermark::update_watermark() {
   }
 }
 
-void StackWatermark::process_one(JavaThread* jt, bool for_iterator) {
+void StackWatermark::process_one(JavaThread* jt) {
   MutexLocker ml(lock(), Mutex::_no_safepoint_check_flag);
   if (should_start_iteration()) {
     start_iteration(NULL /*context */);
@@ -184,7 +184,7 @@ void StackWatermark::process_one(JavaThread* jt, bool for_iterator) {
   if (it == NULL) {
     return;
   }
-  it->process_one(NULL /* context */, for_iterator);
+  it->process_one(NULL /* context */);
   update_watermark();
 }
 

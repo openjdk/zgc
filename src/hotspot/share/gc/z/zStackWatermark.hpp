@@ -65,7 +65,7 @@ public:
 
   virtual uint32_t epoch_id() const;
   virtual void start_iteration(void* context);
-  virtual void process(frame frame, RegisterMap& register_map, bool for_iterator, void* context);
+  virtual void process(frame frame, RegisterMap& register_map, void* context);
 };
 
 #endif // SHARE_GC_Z_ZSTACKWATERMARK_HPP
