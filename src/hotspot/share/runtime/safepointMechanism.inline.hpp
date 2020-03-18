@@ -25,12 +25,35 @@
 #ifndef SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
 #define SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP
 
+#include "runtime/atomic.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.inline.hpp"
 
+// Caller is responsible for using a memory barrier if needed.
+inline void SafepointMechanism::ThreadData::set_polling_page(uintptr_t poll_value) {
+  Atomic::store(&_polling_page, poll_value);
+}
+
+// The aqcquire make sure reading of polling page is done before
+// the reading the handshake operation or the global state
+inline uintptr_t SafepointMechanism::ThreadData::get_polling_page() {
+  return Atomic::load_acquire(&_polling_page);
+}
+
+// Caller is responsible for using a memory barrier if needed.
+inline void SafepointMechanism::ThreadData::set_polling_word(uintptr_t poll_value) {
+  Atomic::store(&_polling_word, poll_value);
+}
+
+// The aqcquire make sure reading of polling page is done before
+// the reading the handshake operation or the global state
+inline uintptr_t SafepointMechanism::ThreadData::get_polling_word() {
+  return Atomic::load_acquire(&_polling_word);
+}
+
 bool SafepointMechanism::local_poll_armed(JavaThread* thread) {
-  return thread->get_polling_word() & poll_bit();
+  return thread->poll_data()->get_polling_word() & poll_bit();
 }
 
 bool SafepointMechanism::global_poll() {
@@ -62,19 +85,19 @@ void SafepointMechanism::process_operation_if_requested(JavaThread *thread) {
 }
 
 void SafepointMechanism::arm_local_poll(JavaThread* thread) {
-  thread->set_polling_word(poll_word_armed_value());
-  thread->set_polling_page(poll_page_armed_value());
+  thread->poll_data()->set_polling_word(poll_word_armed_value());
+  thread->poll_data()->set_polling_page(poll_page_armed_value());
 }
 
 void SafepointMechanism::disarm_local_poll(JavaThread* thread) {
-  thread->set_polling_word(poll_word_disarmed_value());
-  thread->set_polling_page(poll_page_disarmed_value());
+  thread->poll_data()->set_polling_word(poll_word_disarmed_value());
+  thread->poll_data()->set_polling_page(poll_page_disarmed_value());
 }
 
 void SafepointMechanism::arm_local_poll_release(JavaThread* thread) {
   OrderAccess::release();
-  thread->set_polling_word(poll_word_armed_value());
-  thread->set_polling_page(poll_page_armed_value());
+  thread->poll_data()->set_polling_word(poll_word_armed_value());
+  thread->poll_data()->set_polling_page(poll_page_armed_value());
 }
 
 #endif // SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP

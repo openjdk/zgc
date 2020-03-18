@@ -41,6 +41,7 @@
 #include "runtime/os.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/park.hpp"
+#include "runtime/safepointMechanism.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/threadHeapSampler.hpp"
@@ -396,9 +397,10 @@ class Thread: public ThreadShadow {
   friend class NoSafepointVerifier;
   friend class PauseNoSafepointVerifier;
 
-  volatile uintptr_t _polling_word;             // Thread local polling word
-  volatile uintptr_t _polling_page;             // Thread local polling word
+ protected:
+  SafepointMechanism::ThreadData _poll_data;
 
+ private:
   ThreadLocalAllocBuffer _tlab;                 // Thread-local eden
   jlong _allocated_bytes;                       // Cumulative number of bytes allocated on
                                                 // the Java heap
@@ -752,9 +754,6 @@ protected:
   size_t           _stack_size;
   int              _lgrp_id;
 
-  volatile uintptr_t* polling_word_addr() { return &_polling_word; }
-  volatile uintptr_t* polling_page_addr() { return &_polling_page; }
-
  public:
   // Stack overflow support
   address stack_base() const           { assert(_stack_base != NULL,"Sanity check"); return _stack_base; }
@@ -817,8 +816,8 @@ protected:
   static ByteSize stack_base_offset()            { return byte_offset_of(Thread, _stack_base); }
   static ByteSize stack_size_offset()            { return byte_offset_of(Thread, _stack_size); }
 
-  static ByteSize polling_word_offset()          { return byte_offset_of(Thread, _polling_word); }
-  static ByteSize polling_page_offset()          { return byte_offset_of(Thread, _polling_page); }
+  static ByteSize polling_word_offset()          { return byte_offset_of(Thread, _poll_data) + byte_offset_of(SafepointMechanism::ThreadData, _polling_word);}
+  static ByteSize polling_page_offset()          { return byte_offset_of(Thread, _poll_data) + byte_offset_of(SafepointMechanism::ThreadData, _polling_page);}
 
   static ByteSize tlab_start_offset()            { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::start_offset(); }
   static ByteSize tlab_end_offset()              { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::end_offset(); }
@@ -1341,11 +1340,7 @@ class JavaThread: public Thread {
   bool do_not_unlock_if_synchronized()             { return _do_not_unlock_if_synchronized; }
   void set_do_not_unlock_if_synchronized(bool val) { _do_not_unlock_if_synchronized = val; }
 
-  inline void set_polling_word(uintptr_t poll_value);
-  inline uintptr_t get_polling_word();
-
-  inline void set_polling_page(uintptr_t poll_value);
-  inline uintptr_t get_polling_page();
+  SafepointMechanism::ThreadData* poll_data() { return &_poll_data; }
 
  private:
   // Support for thread handshake operations

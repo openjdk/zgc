@@ -96,4 +96,7 @@ final class GraalHotSpotVMConfigVersioned extends HotSpotVMConfigAccess {
     // JDK-8236224
     boolean compactFields = true;
     int fieldsAllocationStyle = 1;
+
+    // JDK-8241146
+    int threadPollingPageOffset = getFieldOffset("Thread::_poll_data", Integer.class, "SafepointMechanism::ThreadData") + getFieldOffset("SafepointMechanism::ThreadData::_polling_page", Integer.class, "uintptr_t");
 }

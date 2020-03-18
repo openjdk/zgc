@@ -204,28 +204,6 @@ inline bool JavaThread::stack_guards_enabled() {
   return _stack_guard_state == stack_guard_enabled;
 }
 
-// Caller is responsible for using a memory barrier if needed.
-inline void JavaThread::set_polling_page(uintptr_t poll_value) {
-  *polling_page_addr() = poll_value;
-}
-
-// The aqcquire make sure reading of polling page is done before
-// the reading the handshake operation or the global state
-inline uintptr_t JavaThread::get_polling_page() {
-  return Atomic::load_acquire(polling_page_addr());
-}
-
-// Caller is responsible for using a memory barrier if needed.
-inline void JavaThread::set_polling_word(uintptr_t poll_value) {
-  *polling_word_addr() = poll_value;
-}
-
-// The aqcquire make sure reading of polling page is done before
-// the reading the handshake operation or the global state
-inline uintptr_t JavaThread::get_polling_word() {
-  return Atomic::load_acquire(polling_word_addr());
-}
-
 inline bool JavaThread::is_exiting() const {
   // Use load-acquire so that setting of _terminated by
   // JavaThread::exit() is seen more quickly.

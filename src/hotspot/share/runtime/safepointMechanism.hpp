@@ -30,6 +30,9 @@
 #include "utilities/macros.hpp"
 #include "utilities/sizes.hpp"
 
+class Thread;
+class JavaThread;
+
 // This is the abstracted interface for the safepoint implementation
 class SafepointMechanism : public AllStatic {
   friend class StackWatermark;
@@ -63,6 +66,17 @@ class SafepointMechanism : public AllStatic {
   const static intptr_t _poll_bit = 1;
 public:
   static intptr_t poll_bit() { return _poll_bit; }
+
+  struct ThreadData {
+    volatile uintptr_t _polling_word;
+    volatile uintptr_t _polling_page;
+
+    inline void set_polling_word(uintptr_t poll_value);
+    inline uintptr_t get_polling_word();
+
+    inline void set_polling_page(uintptr_t poll_value);
+    inline uintptr_t get_polling_page();
+  };
 
   static bool uses_global_page_poll() { return !uses_thread_local_poll(); }
   static bool uses_thread_local_poll() {

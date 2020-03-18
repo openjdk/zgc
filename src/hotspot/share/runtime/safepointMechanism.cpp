@@ -118,8 +118,8 @@ void SafepointMechanism::update_poll_values(JavaThread* thread) {
     uintptr_t poll_page = armed ? SafepointMechanism::poll_page_armed_value()
                                 : SafepointMechanism::poll_page_disarmed_value();
     uintptr_t poll_word = compute_poll_word(armed, stack_watermark);
-    thread->set_polling_page(poll_page);
-    thread->set_polling_word(poll_word);
+    thread->poll_data()->set_polling_page(poll_page);
+    thread->poll_data()->set_polling_word(poll_word);
     OrderAccess::fence();
     if (!armed && (global_poll() || thread->has_handshake())) {
       // We disarmed an old safepoint, but a new one is synchronizing.
