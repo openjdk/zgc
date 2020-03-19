@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,11 +19,26 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-#include "precompiled.hpp"
-#include "gc/z/zArguments.hpp"
+package gc.stress.gcbasher;
 
-void ZArguments::initialize_platform() {
-    // Does nothing
+import java.io.IOException;
+
+/*
+ * @test TestGCBasherDeoptWithZ
+ * @key gc stress
+ * @library /
+ * @requires vm.gc.Z
+ * @requires vm.flavor == "server" & !vm.emulatedClient & !vm.graal.enabled & vm.opt.ClassUnloading != false
+ * @summary Stress ZGC with nmethod barrier forced deoptimization enabled.
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx384m -server -XX:+UnlockExperimentalVMOptions -XX:+UseZGC
+ *   -XX:+DeoptNMethodBarrierALot -XX:-Inline
+ *   gc.stress.gcbasher.TestGCBasherWithZ 120000
+ */
+public class TestGCBasherDeoptWithZ {
+    public static void main(String[] args) throws IOException {
+        TestGCBasher.main(args);
+    }
 }

@@ -32,6 +32,7 @@
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInstance.hpp"
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "runtime/os.hpp"
 
 void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_code, Register obj, CodeEmitInfo* info) {
@@ -632,6 +633,11 @@ void LIR_Assembler::emit_op0(LIR_Op0* op) {
         clinit_barrier(compilation()->method());
       }
       build_frame();
+      {
+        // Insert nmethod entry barrier into frame.
+        BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+        bs->nmethod_entry_barrier(_masm);
+      }
       offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());
       break;
 

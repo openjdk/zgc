@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,8 @@ bool BarrierSetNMethod::supports_entry_barrier(nmethod* nm) {
 int BarrierSetNMethod::nmethod_stub_entry_barrier(address* return_address_ptr) {
   address return_address = *return_address_ptr;
   CodeBlob* cb = CodeCache::find_blob(return_address);
+  static volatile int counter=0;
+
   assert(cb != NULL, "invariant");
 
   nmethod* nm = cb->as_nmethod();
@@ -62,6 +64,15 @@ int BarrierSetNMethod::nmethod_stub_entry_barrier(address* return_address_ptr) {
   assert(!nm->is_osr_method(), "Should not reach here");
   // Called upon first entry after being armed
   bool may_enter = bs_nm->nmethod_entry_barrier(nm);
+
+  // Diagnostic option to force deoptimization 1 in 3 times. It is otherwise
+  // a very rare event.
+  if (DeoptNMethodBarrierALot) {
+    if (Atomic::add(&counter, 1) % 3 == 0) {
+      may_enter = false;
+    }
+  }
+
   if (!may_enter) {
     log_trace(nmethod, barrier)("Deoptimizing nmethod: " PTR_FORMAT, p2i(nm));
     bs_nm->deoptimize(nm, return_address_ptr);

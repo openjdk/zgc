@@ -36,6 +36,7 @@
 #include "ci/ciInstance.hpp"
 #include "code/compiledIC.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/frame.inline.hpp"
@@ -318,7 +319,14 @@ void LIR_Assembler::jobject2reg(jobject o, Register reg) {
   if (o == NULL) {
     __ mov(reg, zr);
   } else {
-    __ movoop(reg, o, /*immediate*/true);
+    // Avoid immediates with concurrent class unloading.
+    // This allows ordering against the nmethod guard to be enforced without
+    // using ISB to update literals in the instruction stream.
+    if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
+      __ movoop(reg, o, /*immediate*/false);
+    } else {
+      __ movoop(reg, o, /*immediate*/true);
+    }
   }
 }
 
