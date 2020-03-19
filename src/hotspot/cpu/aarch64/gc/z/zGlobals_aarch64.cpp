@@ -24,6 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
 
@@ -136,8 +137,29 @@
 //
 
 size_t ZPlatformAddressOffsetBits() {
-  const size_t min_address_offset_bits = 42; // 4TB
-  const size_t max_address_offset_bits = 44; // 16TB
+  // 42 VA_BITS uses 64K pages
+  // 47 VA_BITS uses 16K pages - default mode
+  const bool is_using_42_va_bits = os::vm_page_size() == (64 * 1024);
+  const bool is_using_47_va_bits = os::vm_page_size() == (16 * 1024);
+
+  assert(is_using_42_va_bits ^ is_using_47_va_bits, "One mode should be set");
+
+  const int va_bits = is_using_42_va_bits ? 42 : 47;
+
+  // The max_address_offset_bits need to contain 5 full offsets:
+  //
+  //  Remapped
+  //  Gap
+  //  Marked1
+  //  Marked0
+  //  Base
+  //
+  // Which uses 3 of the available bits
+  const size_t max_address_offset_bits = va_bits - 3;
+
+  // Don't unnecessarily overuse the virtual address space
+  const size_t min_address_offset_bits = max_address_offset_bits - 2;
+
   const size_t address_offset = round_up_power_of_2(MaxHeapSize * ZVirtualToPhysicalRatio);
   const size_t address_offset_bits = log2_intptr(address_offset);
   return clamp(address_offset_bits, min_address_offset_bits, max_address_offset_bits);
