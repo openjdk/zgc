@@ -126,13 +126,13 @@ void ZMark::prepare_mark() {
 class ZMarkRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
   ZMarkRootsIteratorClosure() {
-    if (!ZConcStack) {
+    if (!ClassUnloading) {
       ZThreadLocalAllocBuffer::reset_statistics();
     }
   }
 
   ~ZMarkRootsIteratorClosure() {
-    if (!ZConcStack) {
+    if (!ClassUnloading) {
       ZThreadLocalAllocBuffer::publish_statistics();
     }
   }
@@ -646,13 +646,13 @@ void ZMark::work(uint64_t timeout_in_millis) {
 class ZMarkConcurrentRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
   ZMarkConcurrentRootsIteratorClosure() {
-    if (ZConcStack) {
+    if (ClassUnloading) {
       ZThreadLocalAllocBuffer::reset_statistics();
     }
   }
 
   ~ZMarkConcurrentRootsIteratorClosure() {
-    if (ZConcStack) {
+    if (ClassUnloading) {
       ZThreadLocalAllocBuffer::publish_statistics();
     }
   }

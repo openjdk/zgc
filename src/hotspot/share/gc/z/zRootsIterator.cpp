@@ -287,10 +287,8 @@ void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   _jvmti_export.oops_do(cl);
   _system_dictionary.oops_do(cl);
   _vm_thread.oops_do(cl);
-  if (!ZConcStack) {
-    _java_threads.oops_do(cl);
-  }
   if (!ClassUnloading) {
+    _java_threads.oops_do(cl);
     _code_cache.oops_do(cl);
   }
   if (_visit_jvmti_weak_export) {
@@ -356,7 +354,7 @@ void ZConcurrentRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   _jni_handles.oops_do(cl);
   _vm_handles.oops_do(cl),
   _class_loader_data_graph.oops_do(cl);
-  if (ZConcStack) {
+  if (ClassUnloading) {
     _java_threads.oops_do(cl);
   }
 }

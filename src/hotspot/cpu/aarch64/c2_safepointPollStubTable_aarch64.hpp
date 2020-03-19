@@ -26,11 +26,29 @@
 #define CPU_AARCH64_C2_SAFEPOINTPOLLSTUBTABLE_AARCH64_HPP
 
 #include "asm/macroAssembler.hpp"
+#include "utilities/growableArray.hpp"
+#include "utilities/macros.hpp"
 
 class C2SafepointPollStubTable {
+private:
+  struct C2SafepointPollStub: public ResourceObj {
+    InternalAddress _safepoint_addr;
+    Label _stub_label;
+    Label _trampoline_label;
+    C2SafepointPollStub(InternalAddress safepoint_addr) :
+      _safepoint_addr(safepoint_addr),
+      _stub_label(),
+      _trampoline_label() {}
+  };
+  GrowableArray<C2SafepointPollStub*> _safepoints;
+
+  void emit_stub(MacroAssembler& _masm, C2SafepointPollStub* entry) const;
+
 public:
-  int estimate_stub_size() { return 0; }
-  void emit(CodeBuffer &cb, bool has_wide_vectors) {}
+  Label& add_safepoint(InternalAddress safepoint_addr);
+
+  int estimate_stub_size() const;
+  void emit(CodeBuffer& cb);
 };
 
 #endif /* CPU_AARCH64_C2_SAFEPOINTPOLLSTUBTABLE_AARCH64_HPP */

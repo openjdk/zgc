@@ -1714,9 +1714,16 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
   }
 
   if (do_polling() && C->is_method_compilation()) {
-    st->print("# touch polling page\n\t");
-    st->print("mov  rscratch1, #0x%lx\n\t", p2i(os::get_polling_page()));
-    st->print("ldr zr, [rscratch1]");
+    if (SafepointMechanism::uses_thread_local_poll()) {
+      st->print("# test polling word\n\t");
+      st->print("ldr  rscratch1, [rthread],#%d\n\t", in_bytes(JavaThread::polling_word_offset()));
+      st->print("cmp  rfp, rscratch1\n\t");
+      st->print("bhi #slow_path");
+    } else {
+      st->print("# touch polling page\n\t");
+      st->print("mov  rscratch1, #0x%lx\n\t", p2i(os::get_polling_page()));
+      st->print("ldr zr, [rscratch1]");
+    }
   }
 }
 #endif
@@ -1733,7 +1740,18 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   }
 
   if (do_polling() && C->is_method_compilation()) {
-    __ read_polling_page(rscratch1, os::get_polling_page(), relocInfo::poll_return_type);
+    if (SafepointMechanism::uses_thread_local_poll()) {
+      InternalAddress safepoint_pc(__ pc());
+      Label dummy_label;
+      Label* code_stub = &dummy_label;
+      if (!C->in_scratch_emit_size()) {
+        code_stub = &C->safepoint_poll_table()->add_safepoint(safepoint_pc);
+      }
+      __ relocate(relocInfo::poll_return_type);
+      __ safepoint_poll(*code_stub, true /* at_return */, false /* acquire */, true /* in_nmethod */);
+    } else {
+      __ read_polling_page(rscratch1, os::get_polling_page(), relocInfo::poll_return_type);
+    }
   }
 }
 

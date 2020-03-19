@@ -90,7 +90,7 @@ void ZBarrierSet::on_thread_destroy(Thread* thread) {
 void ZBarrierSet::on_thread_attach(Thread* thread) {
   // Set thread local address bad mask
   ZThreadLocalData::set_address_bad_mask(thread, ZAddressBadMask);
-  if (ZConcStack && thread->is_Java_thread()) {
+  if (ClassUnloading && thread->is_Java_thread()) {
     JavaThread* jt = static_cast<JavaThread*>(thread);
     StackWatermark* watermark = new ZStackWatermark(jt);
     watermark->init_epoch();

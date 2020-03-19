@@ -512,8 +512,14 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
     __ reserved_stack_check();
   }
 
-  address polling_page(os::get_polling_page());
-  __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
+  if (SafepointMechanism::uses_thread_local_poll()) {
+    code_stub->set_safepoint_pc(__ pc());
+    __ relocate(relocInfo::poll_return_type);
+    __ safepoint_poll(*code_stub->entry(), true /* at_return */, false /* acquire */, true /* in_nmethod */);
+  } else {
+    address polling_page(os::get_polling_page());
+    __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
+  }
   __ ret(lr);
 }
 

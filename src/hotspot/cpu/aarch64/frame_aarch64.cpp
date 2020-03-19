@@ -37,6 +37,7 @@
 #include "runtime/monitorChunk.hpp"
 #include "runtime/os.inline.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "vmreg_aarch64.inline.hpp"
@@ -480,23 +481,32 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 frame frame::sender(RegisterMap* map) const {
   // Default is we done have to follow them. The sender_for_xxx will
   // update it accordingly
-   map->set_include_argument_oops(false);
+  map->set_include_argument_oops(false);
+  frame result;
 
-  if (is_entry_frame())
-    return sender_for_entry_frame(map);
-  if (is_interpreted_frame())
-    return sender_for_interpreter_frame(map);
-  assert(_cb == CodeCache::find_blob(pc()),"Must be the same");
+  if (is_entry_frame()) {
+    result = sender_for_entry_frame(map);
+  } else if (is_interpreted_frame()) {
+    result = sender_for_interpreter_frame(map);
+  } else {
+    assert(_cb == CodeCache::find_blob(pc()),"Must be the same");
 
-  // This test looks odd: why is it not is_compiled_frame() ?  That's
-  // because stubs also have OOP maps.
-  if (_cb != NULL) {
-    return sender_for_compiled_frame(map);
+    // This test looks odd: why is it not is_compiled_frame() ?  That's
+    // because stubs also have OOP maps.
+    if (_cb != NULL) {
+      result = sender_for_compiled_frame(map);
+    } else {
+      result = frame(sender_sp(), link(), sender_pc());
+    }
+  }
+
+  if (map->process_frames()) {
+    StackWatermarkSet::on_iteration(map->thread(), result);
   }
 
   // Must be native-compiled frame, i.e. the marshaling code for native
   // methods that exists in the core system.
-  return frame(sender_sp(), link(), sender_pc());
+  return result;
 }
 
 bool frame::is_interpreted_frame_valid(JavaThread* thread) const {

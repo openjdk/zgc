@@ -290,38 +290,26 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
   return address(((uint64_t)insn_addr + (offset << 2)));
 }
 
-void MacroAssembler::safepoint_poll(Label& slow_path) {
+void MacroAssembler::safepoint_poll(Label& slow_path, bool at_return, bool acquire, bool in_nmethod) {
   if (SafepointMechanism::uses_thread_local_poll()) {
-    ldr(rscratch1, Address(rthread, Thread::polling_word_offset()));
-    tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
+    if (acquire) {
+      lea(rscratch1, Address(rthread, Thread::polling_word_offset()));
+      ldar(rscratch1, rscratch1);
+    } else {
+      ldr(rscratch1, Address(rthread, Thread::polling_word_offset()));
+    }
+    if (at_return) {
+      cmp(in_nmethod ? sp : rfp, rscratch1);
+      br(Assembler::HI, slow_path);
+    } else {
+      tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
+    }
   } else {
     unsigned long offset;
     adrp(rscratch1, ExternalAddress(SafepointSynchronize::address_of_state()), offset);
     ldrw(rscratch1, Address(rscratch1, offset));
     assert(SafepointSynchronize::_not_synchronized == 0, "rewrite this code");
     cbnz(rscratch1, slow_path);
-  }
-}
-
-// Just like safepoint_poll, but use an acquiring load for thread-
-// local polling.
-//
-// We need an acquire here to ensure that any subsequent load of the
-// global SafepointSynchronize::_state flag is ordered after this load
-// of the local Thread::_polling page.  We don't want this poll to
-// return false (i.e. not safepointing) and a later poll of the global
-// SafepointSynchronize::_state spuriously to return true.
-//
-// This is to avoid a race when we're in a native->Java transition
-// racing the code which wakes up from a safepoint.
-//
-void MacroAssembler::safepoint_poll_acquire(Label& slow_path) {
-  if (SafepointMechanism::uses_thread_local_poll()) {
-    lea(rscratch1, Address(rthread, Thread::polling_word_offset()));
-    ldar(rscratch1, rscratch1);
-    tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
-  } else {
-    safepoint_poll(slow_path);
   }
 }
 
