@@ -30,7 +30,7 @@
 class C2SafepointPollStubTable {
 public:
   int estimate_stub_size() { return 0; }
-  void emit(CodeBuffer &cb, bool has_wide_vectors) {}
+  void emit(CodeBuffer &cb) {}
 };
 
 #endif /* CPU_S390_C2_SAFEPOINTPOLLSTUBTABLE_S390_HPP */

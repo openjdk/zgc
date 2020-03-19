@@ -36,6 +36,10 @@
 
 #define __ ce->masm()->
 
+void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
+  ShouldNotReachHere();
+}
+
 RangeCheckStub::RangeCheckStub(CodeEmitInfo* info, LIR_Opr index, LIR_Opr array)
   : _throw_index_out_of_bounds_exception(false), _index(index), _array(array) {
   assert(info != NULL, "must have info");

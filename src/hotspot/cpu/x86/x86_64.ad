@@ -463,8 +463,7 @@ int MachCallRuntimeNode::ret_addr_offset() {
 // it does if the polling page is more than disp32 away.
 bool SafePointNode::needs_polling_address_input()
 {
-  return (SafepointMechanism::uses_global_page_poll() && Assembler::is_polling_page_far()) ||
-          SafepointMechanism::uses_thread_local_poll();
+  return SafepointMechanism::uses_thread_local_poll() || Assembler::is_polling_page_far();
 }
 
 //
@@ -1005,8 +1004,7 @@ void MachEpilogNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
         code_stub = &C->safepoint_poll_table()->add_safepoint(safepoint_pc);
       }
       __ relocate(relocInfo::poll_return_type);
-      __ cmpq(Address(r15_thread, Thread::polling_word_offset()), rsp);
-      __ jcc(Assembler::above, *code_stub);
+      __ safepoint_poll(*code_stub, r15_thread, true /* at_return */, true /* in_nmethod */);
     } else {
       AddressLiteral polling_page(os::get_polling_page(), relocInfo::poll_return_type);
       if (Assembler::is_polling_page_far()) {
@@ -12545,7 +12543,7 @@ instruct cmpFastUnlock(rFlagsReg cr, rRegP object, rax_RegP box, rRegP tmp) %{
 // Safepoint Instructions
 instruct safePoint_poll(rFlagsReg cr)
 %{
-  predicate(SafepointMechanism::uses_global_page_poll() && !Assembler::is_polling_page_far());
+  predicate(!Assembler::is_polling_page_far() && SafepointMechanism::uses_global_page_poll());
   match(SafePoint);
   effect(KILL cr);
 
@@ -12561,7 +12559,7 @@ instruct safePoint_poll(rFlagsReg cr)
 
 instruct safePoint_poll_far(rFlagsReg cr, rRegP poll)
 %{
-  predicate(SafepointMechanism::uses_global_page_poll() && Assembler::is_polling_page_far());
+  predicate(Assembler::is_polling_page_far() && SafepointMechanism::uses_global_page_poll());
   match(SafePoint poll);
   effect(KILL cr, USE poll);
 

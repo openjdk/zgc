@@ -990,7 +990,7 @@ void InterpreterMacroAssembler::remove_activation(
 
   Label slow_path;
   Label fast_path;
-  safepoint_poll_return(slow_path, rthread, rbp);
+  safepoint_poll(slow_path, rthread, true /* at_return */, false /* in_nmethod */);
   jmp(fast_path);
   bind(slow_path);
   push(state);

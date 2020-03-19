@@ -43,7 +43,7 @@ int C2SafepointPollStubTable::estimate_stub_size() const {
     CodeBuffer cb(blob->content_begin(), (address)C->scratch_locs_memory() - blob->content_begin());
     MacroAssembler masm(&cb);
     C2SafepointPollStub* entry = _safepoints.at(i);
-    emit_stub(masm, entry, false /* has_wide_vectors */);
+    emit_stub(masm, entry);
     size += cb.insts_size();
   }
 
@@ -51,7 +51,7 @@ int C2SafepointPollStubTable::estimate_stub_size() const {
 }
 
 #define __ _masm.
-void C2SafepointPollStubTable::emit(CodeBuffer& cb, bool has_wide_vectors) {
+void C2SafepointPollStubTable::emit(CodeBuffer& cb) {
   MacroAssembler _masm(&cb);
   for (int i = _safepoints.length() - 1; i >= 0; i--) {
     // Make sure there is enough space in the code buffer
@@ -61,11 +61,11 @@ void C2SafepointPollStubTable::emit(CodeBuffer& cb, bool has_wide_vectors) {
     }
 
     C2SafepointPollStub* entry = _safepoints.at(i);
-    emit_stub(_masm, entry, has_wide_vectors);
+    emit_stub(_masm, entry);
   }
 }
 
-void C2SafepointPollStubTable::emit_stub(MacroAssembler& _masm, C2SafepointPollStub* entry, bool has_wide_vectors) const {
+void C2SafepointPollStubTable::emit_stub(MacroAssembler& _masm, C2SafepointPollStub* entry) const {
   address stub;
 
   assert(SharedRuntime::polling_page_return_handler_blob() != NULL,
@@ -75,10 +75,8 @@ void C2SafepointPollStubTable::emit_stub(MacroAssembler& _masm, C2SafepointPollS
   RuntimeAddress callback_addr(stub);
 
   __ bind(entry->_stub_label);
-  __ push(rax);
-  __ lea(rax, entry->_safepoint_addr);
-  __ movptr(Address(r15_thread, JavaThread::saved_exception_pc_offset()), rax);
-  __ pop(rax);
+  __ lea(rscratch1, entry->_safepoint_addr);
+  __ movptr(Address(r15_thread, JavaThread::saved_exception_pc_offset()), rscratch1);
   __ jump(callback_addr);
 }
 #undef __

@@ -85,15 +85,10 @@ void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
   __ lea(rscratch1, pc_addr);
   __ movptr(Address(r15_thread, JavaThread::saved_exception_pc_offset()), rscratch1);
 
-  address stub;
-
   assert(SharedRuntime::polling_page_return_handler_blob() != NULL,
          "polling page return stub not created yet");
-  stub = SharedRuntime::polling_page_return_handler_blob()->entry_point();
-
-  RuntimeAddress callback_addr(stub);
-
-  __ jump(callback_addr);
+  address stub = SharedRuntime::polling_page_return_handler_blob()->entry_point();
+  __ jump(RuntimeAddress(stub));
 #else
   ShouldNotReachHere();
 #endif /* _LP64 */

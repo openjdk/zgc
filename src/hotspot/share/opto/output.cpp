@@ -1553,7 +1553,7 @@ void Compile::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
   if (failing())  return;
 
   // Fill in stubs for calling the runtime from safepoint polls.
-  safepoint_poll_table()->emit(*cb, SharedRuntime::is_wide_vector(max_vector_size()));
+  safepoint_poll_table()->emit(*cb);
   if (failing())  return;
 
 #ifndef PRODUCT

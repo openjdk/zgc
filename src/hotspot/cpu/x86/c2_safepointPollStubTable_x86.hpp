@@ -43,19 +43,19 @@ private:
   };
   GrowableArray<C2SafepointPollStub*> _safepoints;
 
-  void emit_stub(MacroAssembler& _masm, C2SafepointPollStub* entry, bool has_wide_vectors) const;
+  void emit_stub(MacroAssembler& _masm, C2SafepointPollStub* entry) const;
 
 public:
   Label& add_safepoint(InternalAddress safepoint_addr);
 
   int estimate_stub_size() const;
-  void emit(CodeBuffer& cb, bool has_wide_vectors);
+  void emit(CodeBuffer& cb);
 };
 #else
 class C2SafepointPollStubTable {
 public:
   int estimate_stub_size() { return 0; }
-  void emit(CodeBuffer &cb, bool has_wide_vectors) {}
+  void emit(CodeBuffer &cb) {}
 };
 #endif
 
