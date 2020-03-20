@@ -43,7 +43,6 @@ private:
 public:
   // Called when a thread is about to unwind a frame
   static void on_unwind(JavaThread* jt);
-  static void on_unwind(JavaThread* jt, uintptr_t sp);
 
   // Called when a VM operation is processed
   static void on_vm_operation(JavaThread* jt);

@@ -111,28 +111,6 @@ void StackWatermarkSet::on_unwind(JavaThread* jt) {
   SafepointMechanism::update_poll_values(jt);
 }
 
-void StackWatermarkSet::on_unwind(JavaThread* jt, uintptr_t sp) {
-  verify_poll_context();
-  StackWatermark* current = jt->stack_watermark_set()->_head;
-  if (current == NULL) {
-    return;
-  }
-  for (; current != NULL; current = current->next()) {
-    uint32_t state = Atomic::load_acquire(&current->_state);
-    assert(StackWatermarkState::epoch(state) == current->epoch_id(),
-           "Starting new stack snapshots is done explicitly or when waking up from safepoints");
-    if (StackWatermarkState::is_done(state)) {
-      continue;
-    } else if (!is_above_watermark(jt, sp, current->watermark())) {
-      continue;
-    }
-
-    current->process_one(jt);
-  }
-
-  SafepointMechanism::update_poll_values(jt);
-}
-
 void StackWatermarkSet::on_vm_operation(JavaThread* jt) {
   verify_poll_context();
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {

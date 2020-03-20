@@ -1471,8 +1471,8 @@ address OptoRuntime::rethrow_C(oopDesc* exception, JavaThread* thread, address r
   // The frame we rethrow the exception to might not have been processed by the GC yet.
   // The stack watermark barrier takes care of detecting that and ensuring the frame
   // has updated oops.
-  uintptr_t sp = reinterpret_cast<uintptr_t>(os::current_stack_pointer());
-  StackWatermarkSet::on_unwind(thread, sp);
+  StackWatermarkSet::on_unwind(thread);
+
 #ifndef PRODUCT
   SharedRuntime::_rethrow_ctr++;               // count rethrows
 #endif
