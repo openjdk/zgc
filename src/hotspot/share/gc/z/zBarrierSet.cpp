@@ -41,20 +41,11 @@
 class ZBarrierSetC1;
 class ZBarrierSetC2;
 
-static BarrierSetNMethod* make_barrier_set_nmethod() {
-  // NMethod barriers are only used when class unloading is enabled
-  if (!ClassUnloading) {
-    return NULL;
-  }
-
-  return new ZBarrierSetNMethod();
-}
-
 ZBarrierSet::ZBarrierSet() :
     BarrierSet(make_barrier_set_assembler<ZBarrierSetAssembler>(),
                make_barrier_set_c1<ZBarrierSetC1>(),
                make_barrier_set_c2<ZBarrierSetC2>(),
-               make_barrier_set_nmethod(),
+               new ZBarrierSetNMethod(),
                BarrierSet::FakeRtti(BarrierSet::ZBarrierSet)) {}
 
 ZBarrierSetAssembler* ZBarrierSet::assembler() {
@@ -90,7 +81,7 @@ void ZBarrierSet::on_thread_destroy(Thread* thread) {
 void ZBarrierSet::on_thread_attach(Thread* thread) {
   // Set thread local address bad mask
   ZThreadLocalData::set_address_bad_mask(thread, ZAddressBadMask);
-  if (ClassUnloading && thread->is_Java_thread()) {
+  if (thread->is_Java_thread()) {
     JavaThread* jt = static_cast<JavaThread*>(thread);
     StackWatermark* watermark = new ZStackWatermark(jt);
     watermark->init_epoch();

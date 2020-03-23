@@ -97,9 +97,6 @@ private:
         _last_good(0) {
       _cl->_verify_all = true;
       ZStackWatermark* stack_watermark = jt->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
-      if (stack_watermark == NULL) {
-        return;
-      }
       if (stack_watermark->should_start_iteration()) {
         _cl->_verify_all = false;
         _cl->_expect_bad = true;

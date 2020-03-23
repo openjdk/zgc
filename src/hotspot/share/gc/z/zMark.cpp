@@ -126,32 +126,9 @@ void ZMark::prepare_mark() {
 class ZMarkRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
   ZMarkRootsIteratorClosure() {
-    if (!ClassUnloading) {
-      ZThreadLocalAllocBuffer::reset_statistics();
-    }
   }
 
   ~ZMarkRootsIteratorClosure() {
-    if (!ClassUnloading) {
-      ZThreadLocalAllocBuffer::publish_statistics();
-    }
-  }
-
-  virtual void do_thread(Thread* thread) {
-    // Update thread local address bad mask
-    ZThreadLocalData::set_address_bad_mask(thread, ZAddressBadMask);
-
-    // Mark invisible root
-    ZThreadLocalData::do_invisible_root(thread, ZBarrier::mark_barrier_on_invisible_root_oop_field);
-
-    // Retire TLAB
-    if (UseTLAB && thread->is_Java_thread()) {
-      ZThreadLocalAllocBuffer::retire(thread, ZThreadLocalAllocBuffer::get_stats());
-    }
-  }
-
-  virtual bool should_disarm_nmethods() const {
-    return true;
   }
 
   virtual void do_oop(oop* p) {
@@ -646,17 +623,16 @@ void ZMark::work(uint64_t timeout_in_millis) {
 class ZMarkConcurrentRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
   ZMarkConcurrentRootsIteratorClosure() {
-    if (ClassUnloading) {
-      ZThreadLocalAllocBuffer::reset_statistics();
-    }
+    ZThreadLocalAllocBuffer::reset_statistics();
   }
 
   ~ZMarkConcurrentRootsIteratorClosure() {
-    if (ClassUnloading) {
-      ZThreadLocalAllocBuffer::publish_statistics();
-    }
+    ZThreadLocalAllocBuffer::publish_statistics();
   }
 
+  virtual bool should_disarm_nmethods() const {
+    return true;
+  }
 
   virtual void do_thread(Thread* thread) {
     JavaThread* jt = static_cast<JavaThread*>(thread);

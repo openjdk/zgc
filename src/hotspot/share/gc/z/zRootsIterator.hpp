@@ -104,8 +104,7 @@ public:
 
 class ZRootsIterator {
 private:
-  const bool           _visit_jvmti_weak_export;
-  ZJavaThreadsIterator _java_threads_iter;
+  const bool _visit_jvmti_weak_export;
 
   void do_universe(ZRootsIteratorClosure* cl);
   void do_object_synchronizer(ZRootsIteratorClosure* cl);
@@ -114,8 +113,6 @@ private:
   void do_jvmti_weak_export(ZRootsIteratorClosure* cl);
   void do_system_dictionary(ZRootsIteratorClosure* cl);
   void do_vm_thread(ZRootsIteratorClosure* cl);
-  void do_java_threads(ZRootsIteratorClosure* cl);
-  void do_code_cache(ZRootsIteratorClosure* cl);
 
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_universe>            _universe;
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_object_synchronizer> _object_synchronizer;
@@ -124,8 +121,6 @@ private:
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_jvmti_weak_export>   _jvmti_weak_export;
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_system_dictionary>   _system_dictionary;
   ZSerialOopsDo<ZRootsIterator, &ZRootsIterator::do_vm_thread>           _vm_thread;
-  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_java_threads>      _java_threads;
-  ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_code_cache>        _code_cache;
 
 public:
   ZRootsIterator(bool visit_jvmti_weak_export = false);
@@ -145,11 +140,13 @@ private:
   void do_java_threads(ZRootsIteratorClosure* cl);
   void do_vm_handles(ZRootsIteratorClosure* cl);
   void do_class_loader_data_graph(ZRootsIteratorClosure* cl);
+  void do_code_cache(ZRootsIteratorClosure* cl);
 
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_jni_handles>             _jni_handles;
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_java_threads>            _java_threads;
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_vm_handles>              _vm_handles;
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_class_loader_data_graph> _class_loader_data_graph;
+  ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_code_cache>              _code_cache;
 
 public:
   ZConcurrentRootsIterator(int cld_claim);
