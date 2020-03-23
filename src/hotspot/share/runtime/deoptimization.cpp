@@ -1457,7 +1457,7 @@ static void get_monitors_from_stack(GrowableArray<Handle>* objects_to_revoke, Ja
   // the places we want to call this routine so we need to walk the
   // stack again to update the register map.
   if (map == NULL || !map->update_map()) {
-    StackFrameStream sfs(thread, true);
+    StackFrameStream sfs(thread, true /* update */, true /* process_frames */);
     bool found = false;
     while (!found && !sfs.is_done()) {
       frame* cur = sfs.current();

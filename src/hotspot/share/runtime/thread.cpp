@@ -2847,7 +2847,7 @@ void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
   // ignore is there is no stack
   if (!has_last_Java_frame()) return;
   // traverse the stack frames. Starts from top frame.
-  for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     frame* fr = fst.current();
     f(fr, fst.register_map());
   }
@@ -2858,7 +2858,7 @@ void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
 // Deoptimization
 // Function for testing deoptimization
 void JavaThread::deoptimize() {
-  StackFrameStream fst(this, false);
+  StackFrameStream fst(this, false /* update */, true /* process_frames */);
   bool deopt = false;           // Dump stack only if a deopt actually happens.
   bool only_at = strlen(DeoptimizeOnlyAt) > 0;
   // Iterate over all frames in the thread and deoptimize
@@ -2908,7 +2908,7 @@ void JavaThread::deoptimize() {
 
 // Make zombies
 void JavaThread::make_zombies() {
-  for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     if (fst.current()->can_be_deoptimized()) {
       // it is a Java nmethod
       nmethod* nm = CodeCache::find_nmethod(fst.current()->pc());
@@ -2921,7 +2921,7 @@ void JavaThread::make_zombies() {
 
 void JavaThread::deoptimize_marked_methods() {
   if (!has_last_Java_frame()) return;
-  StackFrameStream fst(this, false);
+  StackFrameStream fst(this, false /* update */, true /* process_frames */);
   for (; !fst.is_done(); fst.next()) {
     if (fst.current()->should_be_deoptimized()) {
       Deoptimization::deoptimize(this, *fst.current());
@@ -3025,7 +3025,7 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
 
   if (has_last_Java_frame()) {
     // Traverse the execution stack
-    for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+    for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
       fst.current()->nmethods_do(cf);
     }
   }
@@ -3038,7 +3038,7 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
 void JavaThread::metadata_do(MetadataClosure* f) {
   if (has_last_Java_frame()) {
     // Traverse the execution stack to call f() on the methods in the stack
-    for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+    for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
       fst.current()->metadata_do(f);
     }
   } else if (is_Compiler_thread()) {
@@ -3310,7 +3310,7 @@ void JavaThread::popframe_free_preserved_args() {
 void JavaThread::trace_frames() {
   tty->print_cr("[Describe stack]");
   int frame_no = 1;
-  for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     tty->print("  %d. ", frame_no++);
     fst.current()->print_value_on(tty, this);
     tty->cr();
@@ -3346,7 +3346,7 @@ void JavaThread::print_frame_layout(int depth, bool validate_only) {
   PRESERVE_EXCEPTION_MARK;
   FrameValues values;
   int frame_no = 0;
-  for (StackFrameStream fst(this, false); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, false /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     fst.current()->describe(values, ++frame_no);
     if (depth == frame_no) break;
   }

@@ -348,10 +348,10 @@ class vframeStreamCommon : StackObj {
 class vframeStream : public vframeStreamCommon {
  public:
   // Constructors
-  vframeStream(JavaThread* thread, bool stop_at_java_call_stub = false, bool process_frames = true);
+  vframeStream(JavaThread* thread, bool stop_at_java_call_stub = false);
 
   // top_frame may not be at safepoint, start with sender
-  vframeStream(JavaThread* thread, frame top_frame, bool stop_at_java_call_stub = false, bool process_frames = true);
+  vframeStream(JavaThread* thread, frame top_frame, bool stop_at_java_call_stub = false);
 };
 
 #endif // SHARE_RUNTIME_VFRAME_HPP
