@@ -667,7 +667,7 @@ class Thread: public ThreadShadow {
   // Apply "f->do_oop" to all root oops in "this".
   //   Used by JavaThread::oops_do.
   // Apply "cf->do_code_blob" (if !NULL) to all code blobs active in frames
-  virtual void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames = true);
+  virtual void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames);
 
   // Handles the parallel case for claim_threads_do.
  private:
@@ -1882,7 +1882,7 @@ class JavaThread: public Thread {
   void frames_do(void f(frame*, const RegisterMap*));
 
   // Memory operations
-  void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames = true);
+  void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames);
 
   // Sweeper operations
   virtual void nmethods_do(CodeBlobClosure* cf);
@@ -2146,7 +2146,7 @@ class CodeCacheSweeperThread : public JavaThread {
   bool is_Code_cache_sweeper_thread() const { return true; }
 
   // Prevent GC from unloading _scanned_compiled_method
-  void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames = true);
+  void oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames);
   void nmethods_do(CodeBlobClosure* cf);
 };
 

@@ -3143,7 +3143,7 @@ static void frame_verify(frame* f, const RegisterMap *map) { f->verify(map); }
 
 void JavaThread::verify() {
   // Verify oops in the thread.
-  oops_do(&VerifyOopClosure::verify_oop, NULL);
+  oops_do(&VerifyOopClosure::verify_oop, NULL, true /* do_frames */);
 
   // Verify the stack frames.
   frames_do(frame_verify);
@@ -4591,9 +4591,9 @@ void Threads::remove(JavaThread* p, bool is_daemon) {
 
 void Threads::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   ALL_JAVA_THREADS(p) {
-    p->oops_do(f, cf);
+    p->oops_do(f, cf, true /* do_frames */);
   }
-  VMThread::vm_thread()->oops_do(f, cf);
+  VMThread::vm_thread()->oops_do(f, cf, true /* do_frames */);
 }
 
 void Threads::change_thread_claim_token() {
@@ -4639,7 +4639,7 @@ private:
 public:
   ParallelOopsDoThreadClosure(OopClosure* f, CodeBlobClosure* cf) : _f(f), _cf(cf) {}
   void do_thread(Thread* t) {
-    t->oops_do(_f, _cf);
+    t->oops_do(_f, _cf, true /* do_frames */);
   }
 };
 

@@ -90,7 +90,7 @@ public:
       StackWatermarkSet::finish_iteration(static_cast<JavaThread*>(thread), NULL /* context */, StackWatermarkSet::gc);
     }
     CodeBlobToOopClosure code_cl(this, false /* fix_oop_relocations */);
-    thread->oops_do(this, &code_cl);
+    thread->oops_do(this, &code_cl, true /* do_frames */);
   }
 };
 

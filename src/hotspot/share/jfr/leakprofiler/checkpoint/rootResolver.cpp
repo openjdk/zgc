@@ -369,7 +369,7 @@ bool ReferenceToThreadRootClosure::do_java_threads_oops(JavaThread* jt) {
   assert(!complete(), "invariant");
 
   ReferenceLocateClosure rcl(_callback, OldObjectRoot::_threads, OldObjectRoot::_global_jni_handle, jt);
-  jt->oops_do(&rcl, NULL);
+  jt->oops_do(&rcl, NULL, true /* do_frames */);
   return rcl.complete();
 }
 
