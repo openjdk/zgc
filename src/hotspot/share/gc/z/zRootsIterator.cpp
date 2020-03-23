@@ -67,7 +67,6 @@ static const ZStatSubPhase ZSubPhasePauseRootsManagement("Pause Roots Management
 static const ZStatSubPhase ZSubPhasePauseRootsJVMTIExport("Pause Roots JVMTIExport");
 static const ZStatSubPhase ZSubPhasePauseRootsJVMTIWeakExport("Pause Roots JVMTIWeakExport");
 static const ZStatSubPhase ZSubPhasePauseRootsSystemDictionary("Pause Roots SystemDictionary");
-static const ZStatSubPhase ZSubPhasePauseRootsVMThread("Pause Roots VM Thread");
 
 static const ZStatSubPhase ZSubPhaseConcurrentRootsSetup("Concurrent Roots Setup");
 static const ZStatSubPhase ZSubPhaseConcurrentRoots("Concurrent Roots");
@@ -165,8 +164,7 @@ ZRootsIterator::ZRootsIterator(bool visit_jvmti_weak_export) :
     _management(this),
     _jvmti_export(this),
     _jvmti_weak_export(this),
-    _system_dictionary(this),
-    _vm_thread(this) {
+    _system_dictionary(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   ZStatTimer timer(ZSubPhasePauseRootsSetup);
 }
@@ -207,11 +205,6 @@ void ZRootsIterator::do_system_dictionary(ZRootsIteratorClosure* cl) {
   SystemDictionary::oops_do(cl, false /* include_handles */);
 }
 
-void ZRootsIterator::do_vm_thread(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhasePauseRootsVMThread);
-  VMThread::vm_thread()->oops_do(cl, NULL);
-}
-
 void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseRoots);
   _universe.oops_do(cl);
@@ -219,7 +212,6 @@ void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   _management.oops_do(cl);
   _jvmti_export.oops_do(cl);
   _system_dictionary.oops_do(cl);
-  _vm_thread.oops_do(cl);
   if (_visit_jvmti_weak_export) {
     _jvmti_weak_export.oops_do(cl);
   }
