@@ -94,6 +94,11 @@ inline void Thread::set_threads_hazard_ptr(ThreadsList* new_list) {
   Atomic::release_store_fence(&_threads_hazard_ptr, new_list);
 }
 
+inline oop JavaThread::threadObj() const {
+  oop obj = _threadObj;
+  return NativeAccess<AS_NO_KEEPALIVE>::oop_load(&obj);
+}
+
 inline void JavaThread::set_ext_suspended() {
   set_suspend_flag (_ext_suspended);
 }
@@ -197,23 +202,6 @@ inline bool JavaThread::stack_guards_enabled() {
   }
 #endif
   return _stack_guard_state == stack_guard_enabled;
-}
-
-// The release make sure this store is done after storing the handshake
-// operation or global state
-inline void JavaThread::set_polling_page_release(void* poll_value) {
-  Atomic::release_store(polling_page_addr(), poll_value);
-}
-
-// Caller is responsible for using a memory barrier if needed.
-inline void JavaThread::set_polling_page(void* poll_value) {
-  *polling_page_addr() = poll_value;
-}
-
-// The aqcquire make sure reading of polling page is done before
-// the reading the handshake operation or the global state
-inline volatile void* JavaThread::get_polling_page() {
-  return Atomic::load_acquire(polling_page_addr());
 }
 
 inline bool JavaThread::is_exiting() const {

@@ -29,10 +29,14 @@
 #include "gc/z/zPageAllocator.hpp"
 #include "gc/z/zResurrection.hpp"
 #include "gc/z/zRootsIterator.hpp"
+#include "gc/z/zStackWatermark.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zVerify.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/oop.hpp"
+#include "runtime/frame.inline.hpp"
+#include "runtime/stackWatermark.inline.hpp"
+#include "runtime/stackWatermarkSet.inline.hpp"
 
 #define BAD_OOP_ARG(o, p)   "Bad oop " PTR_FORMAT " found at " PTR_FORMAT, p2i(o), p2i(p)
 
@@ -55,13 +59,114 @@ static void z_verify_possibly_weak_oop(oop* p) {
 }
 
 class ZVerifyRootClosure : public ZRootsIteratorClosure {
+private:
+  bool _verify_all;
+  bool _expect_bad;
+
+  class ZVerifyCodeBlobClosure : public CodeBlobToOopClosure {
+  private:
+    ZVerifyRootClosure* _cl;
+
+  public:
+    ZVerifyCodeBlobClosure(ZVerifyRootClosure* cl) :
+      CodeBlobToOopClosure(cl, false /* fix_relocations */),
+      _cl(cl) {
+    }
+    virtual void do_code_blob(CodeBlob* cb) {
+      bool expect_bad = _cl->_expect_bad;
+      // We can never expect oops in a code blob are bad, because they are not only
+      // members of this stack.
+      _cl->_expect_bad = false;
+      CodeBlobToOopClosure::do_code_blob(cb);
+      _cl->_expect_bad = expect_bad;
+    }
+  };
+
+  class ZVerifyStack {
+  private:
+    ZVerifyRootClosure* _cl;
+    JavaThread*         _jt;
+    bool                _verify_all;
+    uint64_t            _last_good;
+
+  public:
+    ZVerifyStack(ZVerifyRootClosure* cl, JavaThread* jt) :
+        _cl(cl),
+        _jt(jt),
+        _verify_all(cl->_verify_all),
+        _last_good(0) {
+      _cl->_verify_all = true;
+      ZStackWatermark* stack_watermark = jt->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
+      if (stack_watermark->should_start_iteration()) {
+        _cl->_verify_all = false;
+        _cl->_expect_bad = true;
+      } else {
+        _last_good = stack_watermark->last_processed();
+      }
+    }
+
+    ~ZVerifyStack() {
+      _cl->_verify_all = _verify_all;
+      _cl->_expect_bad = false;
+    }
+
+    void prepare_next_frame(frame& frame) {
+      uintptr_t sp = reinterpret_cast<uintptr_t>(frame.sp());
+      if (!_cl->_expect_bad && sp == _last_good) {
+        _cl->_verify_all = false;
+        _cl->_expect_bad = true;
+      }
+    }
+
+    void verify_frames() {
+      ZVerifyCodeBlobClosure cb_cl(_cl);
+      for (StackFrameStream frames(_jt, true /* update */, false /* process_frames */);
+           !frames.is_done();
+           frames.next()) {
+        frame& frame = *frames.current();
+        frame.oops_do(_cl, &cb_cl, frames.register_map());
+        prepare_next_frame(frame);
+      }
+    }
+  };
+
 public:
+  ZVerifyRootClosure(bool verify_all) :
+      _verify_all(verify_all),
+      _expect_bad(false)
+  { }
+
   virtual void do_oop(oop* p) {
-    z_verify_oop(p);
+    if (!_verify_all) {
+      oop obj = *p;
+      if (_expect_bad) {
+        guarantee(!ZAddress::is_good(ZOop::to_address(obj)), BAD_OOP_ARG(obj, p));
+      }
+      obj = NativeAccess<AS_NO_KEEPALIVE>::oop_load(&obj);
+      z_verify_oop(&obj);
+    } else {
+      z_verify_oop(p);
+    }
   }
 
   virtual void do_oop(narrowOop*) {
     ShouldNotReachHere();
+  }
+
+  virtual void do_thread(Thread* thread) {
+    thread->oops_do(this, NULL, false /* process_frames */);
+
+    if (!thread->is_Java_thread()) {
+      return;
+    }
+
+    JavaThread* jt = static_cast<JavaThread*>(thread);
+    if (!jt->has_last_Java_frame()) {
+      return;
+    }
+
+    ZVerifyStack verify_stack(this, jt);
+    verify_stack.verify_frames();
   }
 };
 
@@ -101,36 +206,36 @@ public:
 };
 
 template <typename RootsIterator>
-void ZVerify::roots() {
+void ZVerify::roots(bool verify_all) {
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at a safepoint");
   assert(!ZResurrection::is_blocked(), "Invalid phase");
 
   if (ZVerifyRoots) {
-    ZVerifyRootClosure cl;
+    ZVerifyRootClosure cl(verify_all);
     RootsIterator iter;
     iter.oops_do(&cl);
   }
 }
 
 void ZVerify::roots_strong() {
-  roots<ZRootsIterator>();
+  roots<ZRootsIterator>(true /* verify_all */);
 }
 
 void ZVerify::roots_weak() {
-  roots<ZWeakRootsIterator>();
+  roots<ZWeakRootsIterator>(true /* verify_all */);
 }
 
-void ZVerify::roots_concurrent_strong() {
-  roots<ZConcurrentRootsIteratorClaimNone>();
+void ZVerify::roots_concurrent_strong(bool verify_all) {
+  roots<ZConcurrentRootsIteratorClaimNone>(verify_all);
 }
 
 void ZVerify::roots_concurrent_weak() {
-  roots<ZConcurrentWeakRootsIterator>();
+  roots<ZConcurrentWeakRootsIterator>(true /* verify_all */);
 }
 
-void ZVerify::roots(bool verify_weaks) {
+void ZVerify::roots(bool verify_all_strong, bool verify_weaks) {
   roots_strong();
-  roots_concurrent_strong();
+  roots_concurrent_strong(verify_all_strong);
   if (verify_weaks) {
     roots_weak();
     roots_concurrent_weak();
@@ -150,14 +255,14 @@ void ZVerify::objects(bool verify_weaks) {
 }
 
 void ZVerify::roots_and_objects(bool verify_weaks) {
-  roots(verify_weaks);
+  roots(true /* verify_all_strong */, verify_weaks);
   objects(verify_weaks);
 }
 
 void ZVerify::before_zoperation() {
   // Verify strong roots
   ZStatTimerDisable disable;
-  roots_strong();
+  roots(false /* verify_all_strong */, false /* verify_weaks */);
 }
 
 void ZVerify::after_mark() {

@@ -58,6 +58,7 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/stackWatermarkSet.inline.hpp"
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/sweeper.hpp"
@@ -514,6 +515,11 @@ public:
     // there is a special cleanup request, deflation is handled now.
     // Otherwise, async deflation is requested via a flag.
     ObjectSynchronizer::deflate_thread_local_monitors(thread, _counters);
+    if (thread->stack_watermark_set()->has_watermark(StackWatermarkSet::gc) &&
+        VMThread::vm_operation()->requires_sane_thread_oops() &&
+        thread->is_Java_thread()) {
+      StackWatermarkSet::start_iteration(static_cast<JavaThread*>(thread), StackWatermarkSet::gc);
+    }
   }
 };
 
@@ -722,7 +728,7 @@ static void check_for_lazy_critical_native(JavaThread *thread, JavaThreadState s
     // This thread might be in a critical native nmethod so look at
     // the top of the stack and increment the critical count if it
     // is.
-    frame wrapper_frame = thread->last_frame();
+    frame wrapper_frame = thread->last_frame_raw();
     CodeBlob* stub_cb = wrapper_frame.cb();
     if (stub_cb != NULL &&
         stub_cb->is_nmethod() &&
@@ -831,7 +837,7 @@ void SafepointSynchronize::block(JavaThread *thread) {
       !thread->is_at_poll_safepoint() && (state != _thread_in_native_trans));
   }
 
-  // cross_modify_fence is done by SafepointMechanism::block_if_requested_slow
+  // cross_modify_fence is done by SafepointMechanism::process_operation_if_requested_slow
   // which is the only caller here.
 }
 
@@ -1018,10 +1024,10 @@ void ThreadSafepointState::handle_polling_page_exception() {
   CompiledMethod* nm = (CompiledMethod*)cb;
 
   // Find frame of caller
-  frame stub_fr = thread()->last_frame();
+  frame stub_fr = thread()->last_frame_raw();
   CodeBlob* stub_cb = stub_fr.cb();
   assert(stub_cb->is_safepoint_stub(), "must be a safepoint stub");
-  RegisterMap map(thread(), true);
+  RegisterMap map(thread(), true, false);
   frame caller_fr = stub_fr.sender(&map);
 
   // Should only be poll_return or poll
@@ -1047,7 +1053,12 @@ void ThreadSafepointState::handle_polling_page_exception() {
     }
 
     // Block the thread
-    SafepointMechanism::block_if_requested(thread());
+    SafepointMechanism::process_operation_if_requested_slow(thread());
+
+    // We get here if compiled return polls found a reason to call into the VM.
+    // One condition for that is that a frame above is not yet safe to use.
+    // The following stack watermark barrier poll will catch such situations.
+    StackWatermarkSet::on_unwind(thread());
 
     // restore oop result, if any
     if (return_oop) {
@@ -1063,7 +1074,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
     assert(real_return_addr == caller_fr.pc(), "must match");
 
     // Block the thread
-    SafepointMechanism::block_if_requested(thread());
+    SafepointMechanism::process_operation_if_requested_slow(thread());
     set_at_poll_safepoint(false);
 
     // If we have a pending async exception deoptimize the frame
@@ -1077,7 +1088,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
     // Deoptimize frame if exception has been thrown.
 
     if (thread()->has_pending_exception() ) {
-      RegisterMap map(thread(), true);
+      RegisterMap map(thread(), true, false);
       frame caller_fr = stub_fr.sender(&map);
       if (caller_fr.is_deoptimized_frame()) {
         // The exception patch will destroy registers that are still

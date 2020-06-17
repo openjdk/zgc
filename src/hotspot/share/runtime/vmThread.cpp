@@ -677,5 +677,5 @@ void VMThread::execute(VM_Operation* op) {
 }
 
 void VMThread::verify() {
-  oops_do(&VerifyOopClosure::verify_oop, NULL);
+  oops_do(&VerifyOopClosure::verify_oop, NULL, true /* do_frames */);
 }

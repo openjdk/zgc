@@ -50,10 +50,6 @@ public:
 
   static void nmethod_oops_do(nmethod* nm, OopClosure* cl);
 
-  static void oops_do_begin();
-  static void oops_do_end();
-  static void oops_do(OopClosure* cl);
-
   static ZReentrantLock* lock_for_nmethod(nmethod* nm);
 
   static void unlink(ZWorkers* workers, bool unloading_occurred);

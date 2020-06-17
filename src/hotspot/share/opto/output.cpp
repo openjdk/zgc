@@ -1235,6 +1235,7 @@ CodeBuffer* PhaseOutput::init_buffer() {
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   stub_req += bs->estimate_stub_size();
+  stub_req += safepoint_poll_table()->estimate_stub_size();
 
   // nmethod and CodeBuffer count stubs & constants as part of method's code.
   // class HandlerImpl is platform-specific and defined in the *.ad files.
@@ -1735,6 +1736,10 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bs->emit_stubs(*cb);
+  if (C->failing())  return;
+
+  // Fill in stubs for calling the runtime from safepoint polls.
+  safepoint_poll_table()->emit(*cb);
   if (C->failing())  return;
 
 #ifndef PRODUCT

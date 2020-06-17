@@ -33,6 +33,7 @@
 #include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zStat.hpp"
 #include "memory/iterator.inline.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/stack.inline.hpp"
 
@@ -55,7 +56,7 @@ public:
 };
 
 template <bool Concurrent, bool Weak>
-class ZHeapIteratorRootOopClosure : public ZRootsIteratorClosure {
+class ZHeapIteratorRootIteratorClosure : public ZRootsIteratorClosure {
 private:
   ZHeapIterator* const _iter;
 
@@ -72,7 +73,7 @@ private:
   }
 
 public:
-  ZHeapIteratorRootOopClosure(ZHeapIterator* iter) :
+  ZHeapIteratorRootIteratorClosure(ZHeapIterator* iter) :
       _iter(iter) {}
 
   virtual void do_oop(oop* p) {
@@ -82,6 +83,14 @@ public:
 
   virtual void do_oop(narrowOop* p) {
     ShouldNotReachHere();
+  }
+
+  virtual void do_thread(Thread* thread) {
+    if (thread->is_Java_thread()) {
+      StackWatermarkSet::finish_iteration(static_cast<JavaThread*>(thread), NULL /* context */, StackWatermarkSet::gc);
+    }
+    CodeBlobToOopClosure code_cl(this, false /* fix_oop_relocations */);
+    thread->oops_do(this, &code_cl, true /* do_frames */);
   }
 };
 
@@ -178,7 +187,7 @@ void ZHeapIterator::push(oop obj) {
 
 template <typename RootsIterator, bool Concurrent, bool Weak>
 void ZHeapIterator::push_roots() {
-  ZHeapIteratorRootOopClosure<Concurrent, Weak> cl(this);
+  ZHeapIteratorRootIteratorClosure<Concurrent, Weak> cl(this);
   RootsIterator roots;
   roots.oops_do(&cl);
 }

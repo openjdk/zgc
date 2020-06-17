@@ -171,6 +171,7 @@ class VM_Operation : public StackObj {
   virtual VMOp_Type type() const = 0;
   virtual bool allow_nested_vm_operations() const { return false; }
   virtual bool allow_coalesced_vm_operations() const { return true; }
+  virtual bool requires_sane_thread_oops() const { return true; }
 
   // An operation can either be done inside a safepoint
   // or concurrently with Java threads running.

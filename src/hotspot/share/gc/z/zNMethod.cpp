@@ -189,27 +189,17 @@ void ZNMethod::flush_nmethod(nmethod* nm) {
 
 bool ZNMethod::supports_entry_barrier(nmethod* nm) {
   BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs != NULL) {
-    return bs->supports_entry_barrier(nm);
-  }
-
-  return false;
+  return bs->supports_entry_barrier(nm);
 }
 
 bool ZNMethod::is_armed(nmethod* nm) {
   BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs != NULL) {
-    return bs->is_armed(nm);
-  }
-
-  return false;
+  return bs->is_armed(nm);
 }
 
 void ZNMethod::disarm(nmethod* nm) {
   BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  if (bs != NULL) {
-    bs->disarm(nm);
-  }
+  bs->disarm(nm);
 }
 
 void ZNMethod::nmethod_oops_do(nmethod* nm, OopClosure* cl) {
@@ -241,32 +231,6 @@ void ZNMethod::nmethod_oops_do(nmethod* nm, OopClosure* cl) {
   if (oops->has_non_immediates()) {
     nm->fix_oop_relocations();
   }
-}
-
-class ZNMethodToOopsDoClosure : public NMethodClosure {
-private:
-  OopClosure* _cl;
-
-public:
-  ZNMethodToOopsDoClosure(OopClosure* cl) :
-      _cl(cl) {}
-
-  virtual void do_nmethod(nmethod* nm) {
-    ZNMethod::nmethod_oops_do(nm, _cl);
-  }
-};
-
-void ZNMethod::oops_do_begin() {
-  ZNMethodTable::nmethods_do_begin();
-}
-
-void ZNMethod::oops_do_end() {
-  ZNMethodTable::nmethods_do_end();
-}
-
-void ZNMethod::oops_do(OopClosure* cl) {
-  ZNMethodToOopsDoClosure nmethod_cl(cl);
-  ZNMethodTable::nmethods_do(&nmethod_cl);
 }
 
 class ZNMethodUnlinkClosure : public NMethodClosure {
