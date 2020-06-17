@@ -33,6 +33,7 @@
 #include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zStat.hpp"
 #include "memory/iterator.inline.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/stack.inline.hpp"
 
@@ -82,6 +83,14 @@ public:
 
   virtual void do_oop(narrowOop* p) {
     ShouldNotReachHere();
+  }
+
+  virtual void do_thread(Thread* thread) {
+    if (thread->is_Java_thread()) {
+      StackWatermarkSet::finish_iteration(static_cast<JavaThread*>(thread), NULL /* context */, StackWatermarkSet::gc);
+    }
+    CodeBlobToOopClosure code_cl(this, false /* fix_oop_relocations */);
+    thread->oops_do(this, &code_cl);
   }
 };
 

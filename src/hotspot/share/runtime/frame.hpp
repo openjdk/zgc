@@ -145,6 +145,9 @@ class frame {
   // returns the frame size in stack slots
   int frame_size(RegisterMap* map) const;
 
+  // returns the sending frame, without applying any barriers
+  frame sender_raw(RegisterMap* map) const;
+
   // returns the sending frame
   frame sender(RegisterMap* map) const;
 
@@ -454,7 +457,7 @@ class StackFrameStream : public StackObj {
   RegisterMap _reg_map;
   bool        _is_done;
  public:
-   StackFrameStream(JavaThread *thread, bool update = true);
+  StackFrameStream(JavaThread *thread, bool update, bool process_frames);
 
   // Iteration
   inline bool is_done();

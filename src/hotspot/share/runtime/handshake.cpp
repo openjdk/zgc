@@ -31,6 +31,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/semaphore.inline.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/task.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"
@@ -307,6 +308,7 @@ void HandshakeOperation::do_handshake(JavaThread* thread) {
 
   // Only actually execute the operation for non terminated threads.
   if (!thread->is_terminated()) {
+    StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
     _handshake_cl->do_thread(thread);
     _executed = true;
   }

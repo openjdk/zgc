@@ -26,7 +26,9 @@
 #define SHARE_RUNTIME_OBJECTMONITOR_INLINE_HPP
 
 #include "logging/log.hpp"
+#include "oops/access.inline.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/synchronizer.hpp"
 
 inline intptr_t ObjectMonitor::is_entered(TRAPS) const {
   if (THREAD == _owner || THREAD->is_lock_owned((address) _owner)) {
@@ -99,7 +101,13 @@ inline void ObjectMonitor::clear_common() {
 }
 
 inline void* ObjectMonitor::object() const {
-  return _object;
+  void* obj = _object;
+  if (obj == CHAINMARKER) {
+    // This is the sentinel chainmarker object.
+    return obj;
+  }
+  oop result = NativeAccess<>::oop_load((oop*)&obj);
+  return cast_from_oop<void*>(result);
 }
 
 inline void* ObjectMonitor::object_addr() {

@@ -23,9 +23,11 @@
 
 #include "precompiled.hpp"
 #include "gc/z/zAddress.inline.hpp"
+#include "gc/z/zStackWatermark.hpp"
 #include "gc/z/zThreadLocalAllocBuffer.hpp"
 #include "gc/z/zValue.inline.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/stackWatermarkSet.inline.hpp"
 #include "runtime/thread.hpp"
 
 ZPerWorker<ThreadLocalAllocStats>* ZThreadLocalAllocBuffer::_stats = NULL;
@@ -64,9 +66,9 @@ static void fixup_address(HeapWord** p) {
   *p = (HeapWord*)ZAddress::good_or_null((uintptr_t)*p);
 }
 
-void ZThreadLocalAllocBuffer::retire(Thread* thread) {
-  if (UseTLAB && thread->is_Java_thread()) {
-    ThreadLocalAllocStats* const stats = _stats->addr();
+void ZThreadLocalAllocBuffer::retire(JavaThread* thread, ThreadLocalAllocStats* stats) {
+  if (UseTLAB) {
+    stats->reset();
     thread->tlab().addresses_do(fixup_address);
     thread->tlab().retire(stats);
     if (ResizeTLAB) {
@@ -75,8 +77,15 @@ void ZThreadLocalAllocBuffer::retire(Thread* thread) {
   }
 }
 
-void ZThreadLocalAllocBuffer::remap(Thread* thread) {
-  if (UseTLAB && thread->is_Java_thread()) {
+void ZThreadLocalAllocBuffer::remap(JavaThread* thread) {
+  if (UseTLAB) {
     thread->tlab().addresses_do(fixup_address);
+  }
+}
+
+void ZThreadLocalAllocBuffer::update_stats(JavaThread* thread) {
+  if (UseTLAB) {
+    ZStackWatermark* watermark = thread->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
+    _stats->addr()->update(watermark->stats());
   }
 }

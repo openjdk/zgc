@@ -26,18 +26,19 @@
 
 #include "memory/allocation.hpp"
 
+class frame;
 class ZPageAllocator;
 
 class ZVerify : public AllStatic {
 private:
-  template <typename RootsIterator> static void roots();
+  template <typename RootsIterator> static void roots(bool verify_potentially_unfixed);
 
   static void roots_strong();
   static void roots_weak();
-  static void roots_concurrent_strong();
+  static void roots_concurrent_strong(bool verify_potentially_unfixed);
   static void roots_concurrent_weak();
 
-  static void roots(bool verify_weaks);
+  static void roots(bool verify_potentially_unfixed_strong, bool verify_weaks);
   static void objects(bool verify_weaks);
   static void roots_and_objects(bool verify_weaks);
 
@@ -45,6 +46,10 @@ public:
   static void before_zoperation();
   static void after_mark();
   static void after_weak_processing();
+
+  static void verify_thread_no_frames_bad(JavaThread* thread) NOT_DEBUG_RETURN;
+  static void verify_thread_frames_bad(JavaThread* thread) NOT_DEBUG_RETURN;
+  static void verify_frame_bad(frame& fr, RegisterMap& register_map) NOT_DEBUG_RETURN;
 };
 
 class ZVerifyViewsFlip {

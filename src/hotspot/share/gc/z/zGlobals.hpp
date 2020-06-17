@@ -94,6 +94,13 @@ extern uintptr_t  ZAddressGoodMask;
 extern uintptr_t  ZAddressBadMask;
 extern uintptr_t  ZAddressWeakBadMask;
 
+// The good mask is 64 bit. Its high order 32 bits contain all possible value combinations
+// that this mask will have. Therefore, the memory where the 32 high order bits are stored,
+// can be used as a 32 bit GC epoch counter, that has a different bit pattern every time
+// the good mask is flipped. This provides a pointer to said 32 bits.
+extern uint32_t*  ZAddressGoodMaskHighOrderBitsPtr;
+const int         ZAddressGoodMaskHighOrderBitsOffset = LITTLE_ENDIAN_ONLY(4) BIG_ENDIAN_ONLY(0);
+
 // Pointer part of address
 extern size_t     ZAddressOffsetBits;
 const  size_t     ZAddressOffsetShift           = 0;
@@ -111,9 +118,6 @@ extern uintptr_t  ZAddressMetadataMarked0;
 extern uintptr_t  ZAddressMetadataMarked1;
 extern uintptr_t  ZAddressMetadataRemapped;
 extern uintptr_t  ZAddressMetadataFinalizable;
-
-// NMethod entry barrier
-const size_t      ZNMethodDisarmedOffset        = ZPlatformNMethodDisarmedOffset;
 
 // Cache line size
 const size_t      ZCacheLineSize                = ZPlatformCacheLineSize;

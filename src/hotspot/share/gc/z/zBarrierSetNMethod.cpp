@@ -62,9 +62,7 @@ bool ZBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
 }
 
 int* ZBarrierSetNMethod::disarmed_value_address() const {
-  const uintptr_t mask_addr = reinterpret_cast<uintptr_t>(&ZAddressBadMask);
-  const uintptr_t disarmed_addr = mask_addr + ZNMethodDisarmedOffset;
-  return reinterpret_cast<int*>(disarmed_addr);
+  return (int*)ZAddressGoodMaskHighOrderBitsPtr;
 }
 
 ByteSize ZBarrierSetNMethod::thread_disarmed_offset() const {

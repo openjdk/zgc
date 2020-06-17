@@ -52,7 +52,7 @@ public:
 
   static void oops_do_begin();
   static void oops_do_end();
-  static void oops_do(OopClosure* cl);
+  static void oops_do(OopClosure* cl, bool should_disarm_nmethods);
 
   static ZReentrantLock* lock_for_nmethod(nmethod* nm);
 
