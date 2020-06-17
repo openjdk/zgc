@@ -91,6 +91,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/serviceThread.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/statSampler.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/sweeper.hpp"
@@ -882,7 +883,7 @@ bool Thread::claim_par_threads_do(uintx claim_token) {
   return false;
 }
 
-void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
+void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
   if (active_handles() != NULL) {
     active_handles()->oops_do(f);
   }
@@ -2654,6 +2655,11 @@ void JavaThread::check_safepoint_and_suspend_for_native_trans(JavaThread *thread
     SafepointMechanism::block_if_requested(thread);
   }
 
+  // After returning from native, it could be that the stack frames are not
+  // yet safe to use. We catch such situations in the subsequent stack watermark
+  // barrier, which will trap unsafe stack frames.
+  StackWatermarkSet::on_unwind(thread);
+
   JFR_ONLY(SUSPEND_THREAD_CONDITIONAL(thread);)
 }
 
@@ -2888,11 +2894,18 @@ void JavaThread::disable_stack_red_zone() {
   }
 }
 
+frame JavaThread::last_frame() {
+  _anchor.make_walkable(this);
+  frame result = pd_last_frame();
+  StackWatermarkSet::on_iteration(this, result);
+  return result;
+}
+
 void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
   // ignore is there is no stack
   if (!has_last_Java_frame()) return;
   // traverse the stack frames. Starts from top frame.
-  for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     frame* fr = fst.current();
     f(fr, fst.register_map());
   }
@@ -2903,7 +2916,7 @@ void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
 // Deoptimization
 // Function for testing deoptimization
 void JavaThread::deoptimize() {
-  StackFrameStream fst(this, false);
+  StackFrameStream fst(this, false /* update */, true /* process_frames */);
   bool deopt = false;           // Dump stack only if a deopt actually happens.
   bool only_at = strlen(DeoptimizeOnlyAt) > 0;
   // Iterate over all frames in the thread and deoptimize
@@ -2953,7 +2966,7 @@ void JavaThread::deoptimize() {
 
 // Make zombies
 void JavaThread::make_zombies() {
-  for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     if (fst.current()->can_be_deoptimized()) {
       // it is a Java nmethod
       nmethod* nm = CodeCache::find_nmethod(fst.current()->pc());
@@ -2966,7 +2979,7 @@ void JavaThread::make_zombies() {
 
 void JavaThread::deoptimize_marked_methods() {
   if (!has_last_Java_frame()) return;
-  StackFrameStream fst(this, false);
+  StackFrameStream fst(this, false /* update */, true /* process_frames */);
   for (; !fst.is_done(); fst.next()) {
     if (fst.current()->should_be_deoptimized()) {
       Deoptimization::deoptimize(this, *fst.current());
@@ -2996,12 +3009,12 @@ class RememberProcessedThread: public StackObj {
   }
 };
 
-void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
+void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
   // Verify that the deferred card marks have been flushed.
   assert(deferred_card_mark().is_empty(), "Should be empty during GC");
 
   // Traverse the GCHandles
-  Thread::oops_do(f, cf);
+  Thread::oops_do(f, cf, do_frames);
 
   assert((!has_last_Java_frame() && java_call_counter() == 0) ||
          (has_last_Java_frame() && java_call_counter() > 0), "wrong java_sp info!");
@@ -3022,9 +3035,11 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
       chunk->oops_do(f);
     }
 
-    // Traverse the execution stack
-    for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
-      fst.current()->oops_do(f, cf, fst.register_map());
+    if (do_frames) {
+      // Traverse the execution stack
+      for (StackFrameStream fst(this, true /* update */, false /* process_frames */); !fst.is_done(); fst.next()) {
+        fst.current()->oops_do(f, cf, fst.register_map());
+      }
     }
   }
 
@@ -3067,7 +3082,7 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
 
   if (has_last_Java_frame()) {
     // Traverse the execution stack
-    for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+    for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
       fst.current()->nmethods_do(cf);
     }
   }
@@ -3080,7 +3095,7 @@ void JavaThread::nmethods_do(CodeBlobClosure* cf) {
 void JavaThread::metadata_do(MetadataClosure* f) {
   if (has_last_Java_frame()) {
     // Traverse the execution stack to call f() on the methods in the stack
-    for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+    for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
       fst.current()->metadata_do(f);
     }
   } else if (is_Compiler_thread()) {
@@ -3185,7 +3200,7 @@ static void frame_verify(frame* f, const RegisterMap *map) { f->verify(map); }
 
 void JavaThread::verify() {
   // Verify oops in the thread.
-  oops_do(&VerifyOopClosure::verify_oop, NULL);
+  oops_do(&VerifyOopClosure::verify_oop, NULL, true /* do_frames */);
 
   // Verify the stack frames.
   frames_do(frame_verify);
@@ -3354,7 +3369,7 @@ void JavaThread::popframe_free_preserved_args() {
 void JavaThread::trace_frames() {
   tty->print_cr("[Describe stack]");
   int frame_no = 1;
-  for (StackFrameStream fst(this); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     tty->print("  %d. ", frame_no++);
     fst.current()->print_value_on(tty, this);
     tty->cr();
@@ -3390,7 +3405,7 @@ void JavaThread::print_frame_layout(int depth, bool validate_only) {
   PRESERVE_EXCEPTION_MARK;
   FrameValues values;
   int frame_no = 0;
-  for (StackFrameStream fst(this, false); !fst.is_done(); fst.next()) {
+  for (StackFrameStream fst(this, false /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
     fst.current()->describe(values, ++frame_no);
     if (depth == frame_no) break;
   }
@@ -3552,8 +3567,8 @@ CodeCacheSweeperThread::CodeCacheSweeperThread()
   _scanned_compiled_method = NULL;
 }
 
-void CodeCacheSweeperThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
-  JavaThread::oops_do(f, cf);
+void CodeCacheSweeperThread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
+  JavaThread::oops_do(f, cf, do_frames);
   if (_scanned_compiled_method != NULL && cf != NULL) {
     // Safepoints can occur when the sweeper is scanning an nmethod so
     // process it here to make sure it isn't unloaded in the middle of
@@ -4639,9 +4654,9 @@ void Threads::remove(JavaThread* p, bool is_daemon) {
 
 void Threads::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   ALL_JAVA_THREADS(p) {
-    p->oops_do(f, cf);
+    p->oops_do(f, cf, true /* do_frames */);
   }
-  VMThread::vm_thread()->oops_do(f, cf);
+  VMThread::vm_thread()->oops_do(f, cf, true /* do_frames */);
 }
 
 void Threads::change_thread_claim_token() {
@@ -4687,7 +4702,7 @@ private:
 public:
   ParallelOopsDoThreadClosure(OopClosure* f, CodeBlobClosure* cf) : _f(f), _cf(cf) {}
   void do_thread(Thread* t) {
-    t->oops_do(_f, _cf);
+    t->oops_do(_f, _cf, true /* do_frames */);
   }
 };
 

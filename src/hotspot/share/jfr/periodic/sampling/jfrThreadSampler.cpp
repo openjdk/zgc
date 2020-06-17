@@ -36,6 +36,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/semaphore.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 
@@ -228,7 +229,7 @@ void JfrNativeSamplerCallback::call() {
     return;
   }
 
-  frame topframe = _jt->last_frame();
+  frame topframe = _jt->last_frame_raw();
   frame first_java_frame;
   Method* method = NULL;
   JfrGetCallTrace gct(false, _jt);
@@ -364,6 +365,9 @@ bool JfrThreadSampleClosure::do_sample_thread(JavaThread* thread, JfrStackFrame*
   if (is_excluded(thread)) {
     return false;
   }
+
+  // Make sure threadObj is processed before the thread gets suspended.
+  StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
 
   bool ret = false;
   thread->set_trace_flag();  // Provides StoreLoad, needed to keep read of thread state from floating up.

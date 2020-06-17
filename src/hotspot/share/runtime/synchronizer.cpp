@@ -1360,12 +1360,10 @@ void ObjectSynchronizer::global_used_oops_do(OopClosure* f) {
 }
 
 void ObjectSynchronizer::thread_local_used_oops_do(Thread* thread, OopClosure* f) {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   list_oops_do(thread->om_in_use_list, f);
 }
 
 void ObjectSynchronizer::list_oops_do(ObjectMonitor* list, OopClosure* f) {
-  assert(SafepointSynchronize::is_at_safepoint(), "must be at safepoint");
   // The oops_do() phase does not overlap with monitor deflation
   // so no need to lock ObjectMonitors for the list traversal.
   for (ObjectMonitor* mid = list; mid != NULL; mid = unmarked_next(mid)) {

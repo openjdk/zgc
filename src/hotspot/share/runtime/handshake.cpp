@@ -31,6 +31,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/semaphore.inline.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/task.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"

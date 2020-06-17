@@ -37,6 +37,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/stackWatermarkSet.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/lockFreeStack.hpp"
 #ifdef COMPILER1
@@ -189,13 +190,15 @@ void OopMapSet::add_gc_map(int pc_offset, OopMap *map ) {
   add(map);
 }
 
-static void add_derived_oop(oop* base, oop* derived) {
-#if !defined(TIERED) && !INCLUDE_JVMCI
-  COMPILER1_PRESENT(ShouldNotReachHere();)
-#endif // !defined(TIERED) && !INCLUDE_JVMCI
-#if COMPILER2_OR_JVMCI
+static void add_derived_oop(oop* base, oop* derived, OopClosure* oop_fn) {
   DerivedPointerTable::add(derived, base);
-#endif // COMPILER2_OR_JVMCI
+}
+
+static void process_derived_oop(oop* base, oop* derived, OopClosure* oop_fn) {
+  uintptr_t offset = cast_from_oop<uintptr_t>(*derived) - cast_from_oop<uintptr_t>(*base);
+  *derived = *base;
+  oop_fn->do_oop(derived);
+  *derived = cast_to_oop(cast_from_oop<uintptr_t>(*derived) + offset);
 }
 
 
@@ -229,12 +232,17 @@ static void trace_codeblob_maps(const frame *fr, const RegisterMap *reg_map) {
 
 void OopMapSet::oops_do(const frame *fr, const RegisterMap* reg_map, OopClosure* f) {
   // add derived oops to a table
-  all_do(fr, reg_map, f, add_derived_oop, &do_nothing_cl);
+  if (!reg_map->thread()->stack_watermark_set()->has_watermark(StackWatermarkSet::gc) ||
+      DerivedPointerTable::is_active()) {
+    all_do(fr, reg_map, f, add_derived_oop, &do_nothing_cl);
+  } else {
+    all_do(fr, reg_map, f, process_derived_oop, &do_nothing_cl);
+  }
 }
 
 
 void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
-                       OopClosure* oop_fn, void derived_oop_fn(oop*, oop*),
+                       OopClosure* oop_fn, void derived_oop_fn(oop*, oop*, OopClosure*),
                        OopClosure* value_fn) {
   CodeBlob* cb = fr->cb();
   assert(cb != NULL, "no codeblob");
@@ -271,7 +279,7 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
       // The narrow_oop_base could be NULL or be the address
       // of the page below heap depending on compressed oops mode.
       if (base_loc != NULL && *base_loc != NULL && !CompressedOops::is_base(*base_loc)) {
-        derived_oop_fn(base_loc, derived_loc);
+        derived_oop_fn(base_loc, derived_loc, oop_fn);
       }
     }
   }
@@ -297,8 +305,8 @@ void OopMapSet::all_do(const frame *fr, const RegisterMap *reg_map,
           continue;
         }
 #ifdef ASSERT
-        if ((((uintptr_t)loc & (sizeof(*loc)-1)) != 0) ||
-            !Universe::heap()->is_in_or_null(*loc)) {
+        if ((((uintptr_t)loc & (sizeof(oop)-1)) != 0) ||
+            !Universe::heap()->is_in_or_null((oop)NativeAccess<AS_NO_KEEPALIVE>::oop_load(&val))) {
           tty->print_cr("# Found non oop pointer.  Dumping state at failure");
           // try to dump out some helpful debugging information
           trace_codeblob_maps(fr, reg_map);

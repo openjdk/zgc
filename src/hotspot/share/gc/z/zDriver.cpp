@@ -98,6 +98,14 @@ public:
     ZStatSample(ZSamplerJavaThreads, Threads::number_of_threads());
   }
 
+  virtual bool allow_coalesced_vm_operations() const {
+    return false;
+  }
+
+  virtual bool requires_sane_thread_oops() const {
+    return false;
+  }
+
   virtual void doit_epilogue() {
     Heap_lock->unlock();
   }

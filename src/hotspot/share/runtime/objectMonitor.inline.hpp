@@ -27,6 +27,7 @@
 
 #include "logging/log.hpp"
 #include "runtime/atomic.hpp"
+#include "oops/access.inline.hpp"
 
 inline intptr_t ObjectMonitor::is_entered(TRAPS) const {
   if (THREAD == _owner || THREAD->is_lock_owned((address) _owner)) {
@@ -99,7 +100,13 @@ inline void ObjectMonitor::clear_common() {
 }
 
 inline void* ObjectMonitor::object() const {
-  return _object;
+  void* obj = _object;
+  if (obj == reinterpret_cast<void*>(-1)) {
+    // This is the sentinel chainmarker object.
+    return obj;
+  }
+  oop result = NativeAccess<>::oop_load((oop*)&obj);
+  return cast_from_oop<void*>(result);
 }
 
 inline void* ObjectMonitor::object_addr() {

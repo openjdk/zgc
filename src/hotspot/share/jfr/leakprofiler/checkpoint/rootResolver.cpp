@@ -285,7 +285,7 @@ bool ReferenceToThreadRootClosure::do_thread_stack_detailed(JavaThread* jt) {
     }
 
     // Traverse the execution stack
-    for (StackFrameStream fst(jt); !fst.is_done(); fst.next()) {
+    for (StackFrameStream fst(jt, true /* update */, true /* process_frames */); !fst.is_done(); fst.next()) {
       fst.current()->oops_do(&rcl, NULL, fst.register_map());
     }
 
@@ -329,7 +329,7 @@ bool ReferenceToThreadRootClosure::do_java_threads_oops(JavaThread* jt) {
   assert(!complete(), "invariant");
 
   ReferenceLocateClosure rcl(_callback, OldObjectRoot::_threads, OldObjectRoot::_global_jni_handle, jt);
-  jt->oops_do(&rcl, NULL);
+  jt->oops_do(&rcl, NULL, true /* do_frames */);
   return rcl.complete();
 }
 

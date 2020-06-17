@@ -283,7 +283,7 @@ public:
     PSScavengeRootsClosure roots_closure(pm);
     MarkingCodeBlobClosure roots_in_blobs(&roots_closure, CodeBlobToOopClosure::FixRelocations);
 
-    thread->oops_do(&roots_closure, &roots_in_blobs);
+    thread->oops_do(&roots_closure, &roots_in_blobs, true /* do_frames */);
 
     // Do the real work
     pm->drain_stacks(false);
