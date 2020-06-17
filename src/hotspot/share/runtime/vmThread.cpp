@@ -435,7 +435,6 @@ void VMThread::loop() {
   SafepointSynchronize::init(_vm_thread);
 
   while(true) {
-    VM_Operation* safepoint_ops = NULL;
     //
     // Wait for VM operation
     //
@@ -487,13 +486,6 @@ void VMThread::loop() {
           }
         }
         _cur_vm_operation = _vm_queue->remove_next();
-
-        // If we are at a safepoint we will evaluate all the operations that
-        // follow that also require a safepoint
-        if (_cur_vm_operation != NULL &&
-            _cur_vm_operation->evaluate_at_safepoint()) {
-          safepoint_ops = _vm_queue->drain_at_safepoint_priority();
-        }
       }
 
       if (should_terminate()) break;
@@ -518,42 +510,38 @@ void VMThread::loop() {
           _timeout_task->arm();
         }
 
-        evaluate_operation(_cur_vm_operation);
-        // now process all queued safepoint ops, iteratively draining
-        // the queue until there are none left
+        VM_Operation* safepoint_ops = NULL;
+        if (_vm_queue->peek_at_safepoint_priority()) {
+          // must hold lock while draining queue
+          MutexLocker mu_queue(VMOperationQueue_lock,
+                               Mutex::_no_safepoint_check_flag);
+          safepoint_ops = _vm_queue->drain_at_safepoint_priority();
+        }
+        VM_Operation* next = safepoint_ops;
         do {
-          _cur_vm_operation = safepoint_ops;
-          if (_cur_vm_operation != NULL) {
-            do {
-              EventMark em("Executing coalesced safepoint VM operation: %s", _cur_vm_operation->name());
-              log_debug(vmthread)("Evaluating coalesced safepoint VM operation: %s", _cur_vm_operation->name());
-              // evaluate_operation deletes the op object so we have
-              // to grab the next op now
-              VM_Operation* next = _cur_vm_operation->next();
-              evaluate_operation(_cur_vm_operation);
-              _cur_vm_operation = next;
-              _coalesced_count++;
-            } while (_cur_vm_operation != NULL);
+          evaluate_operation(_cur_vm_operation);
+          bool next_cant_coalesce = next != NULL && (!next->allow_coalesced_vm_operations() ||
+                                                     !_cur_vm_operation->allow_coalesced_vm_operations());
+          _cur_vm_operation = next;
+          if (next_cant_coalesce) {
+            // Safepoint coalescing fence for operations that may not be
+            // coalesced with other safepoint operations.
+            if (_timeout_task != NULL) {
+              _timeout_task->disarm();
+            }
+            SafepointSynchronize::end();
+            SafepointSynchronize::begin();
+            if (_timeout_task != NULL) {
+              _timeout_task->arm();
+            }
+            next = _cur_vm_operation->next();
+          } else if (_cur_vm_operation != NULL) {
+            EventMark em("Executing coalesced safepoint VM operation: %s", _cur_vm_operation->name());
+            log_debug(vmthread)("Evaluating coalesced safepoint VM operation: %s", _cur_vm_operation->name());
+            _coalesced_count++;
+            next = _cur_vm_operation->next();
           }
-          // There is a chance that a thread enqueued a safepoint op
-          // since we released the op-queue lock and initiated the safepoint.
-          // So we drain the queue again if there is anything there, as an
-          // optimization to try and reduce the number of safepoints.
-          // As the safepoint synchronizes us with JavaThreads we will see
-          // any enqueue made by a JavaThread, but the peek will not
-          // necessarily detect a concurrent enqueue by a GC thread, but
-          // that simply means the op will wait for the next major cycle of the
-          // VMThread - just as it would if the GC thread lost the race for
-          // the lock.
-          if (_vm_queue->peek_at_safepoint_priority()) {
-            // must hold lock while draining queue
-            MutexLocker mu_queue(VMOperationQueue_lock,
-                                 Mutex::_no_safepoint_check_flag);
-            safepoint_ops = _vm_queue->drain_at_safepoint_priority();
-          } else {
-            safepoint_ops = NULL;
-          }
-        } while(safepoint_ops != NULL);
+        } while (_cur_vm_operation != NULL);
 
         if (_timeout_task != NULL) {
           _timeout_task->disarm();

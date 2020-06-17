@@ -170,6 +170,7 @@ class VM_Operation : public StackObj {
   // Configuration. Override these appropriately in subclasses.
   virtual VMOp_Type type() const = 0;
   virtual bool allow_nested_vm_operations() const { return false; }
+  virtual bool allow_coalesced_vm_operations() const { return true; }
 
   // An operation can either be done inside a safepoint
   // or concurrently with Java threads running.
