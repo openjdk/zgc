@@ -33,13 +33,12 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/preserveException.hpp"
 
-static const uintptr_t _frame_padding = 8;
-static const uintptr_t _frames_per_poll_gc = 5;
-
 void StackWatermarkIterator::set_watermark(uintptr_t sp) {
   if (!has_next()) {
     return;
-  } else if (_callee == 0) {
+  }
+
+  if (_callee == 0) {
     _callee = sp;
   } else if (_caller == 0) {
     _caller = sp;
@@ -49,13 +48,28 @@ void StackWatermarkIterator::set_watermark(uintptr_t sp) {
   }
 }
 
+// This class encapsulates various marks we need to deal with calling the
+// frame iteration code from arbitrary points in the runtime. It is mostly
+// due to problems that we might want to eventually clean up inside of the
+// frame iteration code, such as creating random handles even though there
+// is no safepoint to protect against, and fiddling around with exceptions.
+class StackWatermarkProcessingMark {
+  ResetNoHandleMark _rnhm;
+  HandleMark _hm;
+  PreserveExceptionMark _pem;
+  ResourceMark _rm;
+
+public:
+  StackWatermarkProcessingMark(Thread* thread) :
+      _rnhm(),
+      _hm(thread),
+      _pem(thread),
+      _rm(thread) { }
+};
+
 void StackWatermarkIterator::process_one(void* context) {
   uintptr_t sp = 0;
-  Thread* thread = Thread::current();
-  ResetNoHandleMark rnhm;
-  HandleMark hm(thread);
-  PreserveExceptionMark pem(thread);
-  ResourceMark rm(thread);
+  StackWatermarkProcessingMark swpm(Thread::current());
   while (has_next()) {
     frame f = current();
     sp = reinterpret_cast<uintptr_t>(f.sp());
@@ -70,8 +84,10 @@ void StackWatermarkIterator::process_one(void* context) {
 }
 
 void StackWatermarkIterator::process_all(void* context) {
+  const uintptr_t frames_per_poll_gc = 5;
+
   ResourceMark rm;
-  log_info(stackbarrier)("Sampling whole stack for tid %d",
+  log_info(stackbarrier)("Processing whole stack for tid %d",
                          _jt->osthread()->thread_id());
   uint i = 0;
   while (has_next()) {
@@ -83,21 +99,21 @@ void StackWatermarkIterator::process_all(void* context) {
     next();
     if (frame_has_barrier) {
       set_watermark(sp);
-      if (++i == _frames_per_poll_gc) {
+      if (++i == frames_per_poll_gc) {
         // Yield every N frames so mutator can progress faster.
         i = 0;
         _owner.update_watermark();
-        MutexUnlocker mul(_owner.lock(), Mutex::_no_safepoint_check_flag);
+        MutexUnlocker mul(&_owner._lock, Mutex::_no_safepoint_check_flag);
       }
     }
   }
 }
 
 StackWatermarkIterator::StackWatermarkIterator(StackWatermark& owner) :
-    _jt(owner.thread()),
+    _jt(owner._jt),
     _caller(0),
     _callee(0),
-    _frame_stream(owner.thread(), true /* update_registers */, false /* process_frames */),
+    _frame_stream(owner._jt, true /* update_registers */, false /* process_frames */),
     _owner(owner),
     _is_done(_frame_stream.is_done()) {
 }
@@ -119,8 +135,8 @@ void StackWatermarkIterator::next() {
   _is_done = _frame_stream.is_done();
 }
 
-StackWatermark::StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind) :
-    _state(0),
+StackWatermark::StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind, uint32_t epoch) :
+  _state(StackWatermarkState::create(epoch, true /* is_done */)),
     _watermark(0),
     _next(NULL),
     _jt(jt),
@@ -133,59 +149,80 @@ StackWatermark::~StackWatermark() {
   delete _iterator;
 }
 
+bool StackWatermark::is_frame_safe(frame fr) {
+  MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
+  uint32_t state = Atomic::load(&_state);
+  if (StackWatermarkState::epoch(state) != epoch_id()) {
+    return false;
+  }
+  if (StackWatermarkState::is_done(state)) {
+    return true;
+  }
+  if (_iterator != NULL) {
+    if (fr.is_safepoint_blob_frame()) {
+      RegisterMap reg_map(_jt, false /* update_map */, false /* process_frames */);
+      fr = fr.sender(&reg_map);
+    }
+    return reinterpret_cast<uintptr_t>(fr.sp()) < _iterator->caller();
+  }
+  return true;
+}
+
 bool StackWatermark::should_start_iteration() const {
   return StackWatermarkState::epoch(_state) != epoch_id();
 }
 
-void StackWatermark::start_iteration(void* context) {
-  log_info(stackbarrier)("Starting stack scanning iteration for tid %d",
+bool StackWatermark::should_start_iteration_acquire() const {
+  uint32_t state = Atomic::load_acquire(&_state);
+  return StackWatermarkState::epoch(state) != epoch_id();
+}
+
+void StackWatermark::start_iteration_impl(void* context) {
+  log_info(stackbarrier)("Starting stack processing iteration for tid %d",
                          _jt->osthread()->thread_id());
   delete _iterator;
   if (_jt->has_last_Java_frame()) {
     _iterator = new StackWatermarkIterator(*this);
-    _iterator->process_one(context); // process callee
-    _iterator->process_one(context); // process caller
+    // Always process three frames when starting an iteration.
+    // The three frames corresponds to:
+    // 1) The callee frame
+    // 2) The caller frame
+    // This allows a callee to always be able to read state from its caller
+    // without needing any special barriers.
+    // Sometimes, we also call into the runtime to on_unwind(), but then
+    // hit a safepoint poll on the way out from the runtime. This requires
+    // 3) An extra frame to deal with unwinding safepointing on the way out.
+    _iterator->process_one(context);
+    _iterator->process_one(context);
+    _iterator->process_one(context);
   } else {
     _iterator = NULL;
   }
   update_watermark();
-  uint32_t state = StackWatermarkState::create(epoch_id(), false /* is_done */);
-  Atomic::release_store(&_state, state);
-}
-
-void StackWatermark::init_epoch() {
-  // Disarm when thread is created
-  _state = StackWatermarkState::create(epoch_id(), true /* is_done */);
 }
 
 void StackWatermark::update_watermark() {
-  assert(lock()->owned_by_self(), "invariant");
+  assert(_lock.owned_by_self(), "invariant");
   if (_iterator != NULL && _iterator->has_next()) {
     assert(_iterator->callee() != 0, "sanity");
     Atomic::release_store(&_watermark, _iterator->callee());
+    Atomic::release_store(&_state, StackWatermarkState::create(epoch_id(), false /* is_done */)); // release watermark w.r.t. epoch
   } else {
     Atomic::release_store(&_watermark, uintptr_t(0)); // Release stack data modifications w.r.t. watermark
     Atomic::release_store(&_state, StackWatermarkState::create(epoch_id(), true /* is_done */)); // release watermark w.r.t. epoch
-    log_info(stackbarrier)("Finished stack scanning iteration for tid %d",
+    log_info(stackbarrier)("Finished stack processing iteration for tid %d",
                            _jt->osthread()->thread_id());
   }
 }
 
-void StackWatermark::process_one(JavaThread* jt) {
-  MutexLocker ml(lock(), Mutex::_no_safepoint_check_flag);
+void StackWatermark::process_one() {
+  MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
   if (should_start_iteration()) {
-    start_iteration(NULL /*context */);
-    if (iterator() == NULL) {
-      update_watermark();
-      return;
-    }
+    start_iteration_impl(NULL /* context */);
+  } else if (_iterator != NULL) {
+    _iterator->process_one(NULL /* context */);
+    update_watermark();
   }
-  StackWatermarkIterator* it = iterator();
-  if (it == NULL) {
-    return;
-  }
-  it->process_one(NULL /* context */);
-  update_watermark();
 }
 
 uintptr_t StackWatermark::watermark() {
@@ -193,16 +230,38 @@ uintptr_t StackWatermark::watermark() {
 }
 
 uintptr_t StackWatermark::last_processed() {
-  if (watermark() == 0) {
-    return 0;
-  }
-  MutexLocker ml(lock(), Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
   if (should_start_iteration()) {
+    // Stale state; no last processed
     return 0;
   }
-  StackWatermarkIterator* it = iterator();
-  if (it == NULL) {
+  if (watermark() == 0) {
+    // Already processed all; no last processed
     return 0;
   }
-  return it->caller();
+  if (_iterator == NULL) {
+    // No frames to processed; no last processed
+    return 0;
+  }
+  return _iterator->caller();
+}
+
+void StackWatermark::start_iteration() {
+  if (should_start_iteration_acquire()) {
+    MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
+    if (should_start_iteration()) {
+      start_iteration_impl(NULL /* context */);
+    }
+  }
+}
+
+void StackWatermark::finish_iteration(void* context) {
+  MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
+  if (should_start_iteration()) {
+    start_iteration_impl(context);
+  }
+  if (_iterator != NULL) {
+    _iterator->process_all(context);
+  }
+  update_watermark();
 }

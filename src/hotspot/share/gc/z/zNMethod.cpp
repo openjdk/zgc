@@ -233,6 +233,46 @@ void ZNMethod::nmethod_oops_do(nmethod* nm, OopClosure* cl) {
   }
 }
 
+class ZNMethodToOopsDoClosure : public NMethodClosure {
+private:
+  OopClosure* const _cl;
+  const bool        _should_disarm_nmethods;
+
+public:
+  ZNMethodToOopsDoClosure(OopClosure* cl, bool should_disarm_nmethods) :
+    _cl(cl),
+    _should_disarm_nmethods(should_disarm_nmethods) {}
+
+  virtual void do_nmethod(nmethod* nm) {
+    ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
+    if (!nm->is_alive()) {
+      return;
+    }
+
+    if (_should_disarm_nmethods) {
+      if (ZNMethod::is_armed(nm)) {
+        ZNMethod::nmethod_oops_do(nm, _cl);
+        ZNMethod::disarm(nm);
+      }
+    } else {
+      ZNMethod::nmethod_oops_do(nm, _cl);
+    }
+  }
+};
+
+void ZNMethod::oops_do_begin() {
+  ZNMethodTable::nmethods_do_begin();
+}
+
+void ZNMethod::oops_do_end() {
+  ZNMethodTable::nmethods_do_end();
+}
+
+void ZNMethod::oops_do(OopClosure* cl, bool should_disarm_nmethods) {
+  ZNMethodToOopsDoClosure nmethod_cl(cl, should_disarm_nmethods);
+  ZNMethodTable::nmethods_do(&nmethod_cl);
+}
+
 class ZNMethodUnlinkClosure : public NMethodClosure {
 private:
   bool          _unloading_occurred;

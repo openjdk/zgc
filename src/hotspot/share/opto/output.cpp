@@ -224,6 +224,41 @@ public:
 
 };
 
+Label& C2SafepointPollStubTable::add_safepoint(uintptr_t safepoint_offset) {
+  C2SafepointPollStub* entry = new (Compile::current()->comp_arena()) C2SafepointPollStub(safepoint_offset);
+  _safepoints.append(entry);
+  return entry->_stub_label;
+}
+
+void C2SafepointPollStubTable::emit(CodeBuffer& cb) {
+  MacroAssembler masm(&cb);
+  for (int i = _safepoints.length() - 1; i >= 0; i--) {
+    // Make sure there is enough space in the code buffer
+    if (cb.insts()->maybe_expand_to_ensure_remaining(PhaseOutput::MAX_inst_size) && cb.blob() == NULL) {
+      ciEnv::current()->record_failure("CodeCache is full");
+      return;
+    }
+
+    C2SafepointPollStub* entry = _safepoints.at(i);
+    emit_stub(masm, entry);
+  }
+}
+
+int C2SafepointPollStubTable::estimate_stub_size() const {
+  Compile* const C = Compile::current();
+  BufferBlob* const blob = C->output()->scratch_buffer_blob();
+  int size = 0;
+
+  for (int i = _safepoints.length() - 1; i >= 0; i--) {
+    CodeBuffer cb(blob->content_begin(), C->output()->scratch_buffer_code_size());
+    MacroAssembler masm(&cb);
+    C2SafepointPollStub* entry = _safepoints.at(i);
+    emit_stub(masm, entry);
+    size += cb.insts_size();
+  }
+
+  return size;
+}
 
 PhaseOutput::PhaseOutput()
   : Phase(Phase::Output),

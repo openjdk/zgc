@@ -19,31 +19,23 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
 #include "precompiled.hpp"
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zOopClosures.inline.hpp"
 #include "gc/z/zStackWatermark.hpp"
+#include "gc/z/zThread.inline.hpp"
 #include "gc/z/zThreadLocalAllocBuffer.hpp"
 #include "gc/z/zThreadLocalData.hpp"
-#include "gc/z/zAddress.hpp"
+#include "gc/z/zVerify.hpp"
 #include "memory/resourceArea.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "utilities/preserveException.hpp"
 
-void ZMarkConcurrentStackRootsClosure::do_oop(oop* p) {
-  ZBarrier::mark_barrier_on_oop_field(p, false /* finalizable */);
-}
-
-void ZMarkConcurrentStackRootsClosure::do_oop(narrowOop* p) {
-  ShouldNotReachHere();
-}
-
 ZOnStackCodeBlobClosure::ZOnStackCodeBlobClosure() :
-  _bs_nm(BarrierSet::barrier_set()->barrier_set_nmethod()) {
-}
+    _bs_nm(BarrierSet::barrier_set()->barrier_set_nmethod()) {}
 
 void ZOnStackCodeBlobClosure::do_code_blob(CodeBlob* cb) {
   nmethod* nm = cb->as_nmethod_or_null();
@@ -53,88 +45,53 @@ void ZOnStackCodeBlobClosure::do_code_blob(CodeBlob* cb) {
   }
 }
 
+ThreadLocalAllocStats& ZStackWatermark::stats() {
+  return _stats;
+}
+
 uint32_t ZStackWatermark::epoch_id() const {
-  const uintptr_t mask_addr = reinterpret_cast<uintptr_t>(&ZAddressGoodMask);
-  const uintptr_t epoch_addr = mask_addr + ZNMethodDisarmedOffset;
-  return *reinterpret_cast<uint32_t*>(epoch_addr);
+  return *ZAddressGoodMaskHighOrderBitsPtr;
 }
 
 ZStackWatermark::ZStackWatermark(JavaThread* jt) :
-  StackWatermark(jt, StackWatermarkSet::gc),
-  _jt_cl(),
-  _cb_cl() {
+    StackWatermark(jt, StackWatermarkSet::gc, *ZAddressGoodMaskHighOrderBitsPtr),
+    _jt_cl(),
+    _cb_cl(),
+    _stats() {}
+
+OopClosure* ZStackWatermark::closure_from_context(void* context) {
+  if (context != NULL) {
+    assert(ZThread::is_worker(), "unexpected thread passing in context: " PTR_FORMAT, p2i(context));
+    return reinterpret_cast<OopClosure*>(context);
+  } else {
+    return &_jt_cl;
+  }
 }
 
-class ZVerifyBadOopClosure : public OopClosure {
-public:
-  virtual void do_oop(oop* p) {
-    oop o = *p;
-    vmassert(o == NULL || ZAddress::is_bad(ZOop::to_address(o)),
-             "this oop is too good to be true");
-  }
+void ZStackWatermark::start_iteration_impl(void* context) {
+  ZVerify::verify_thread_no_frames_bad(_jt);
 
-  virtual void do_oop(narrowOop* p) {
-    ShouldNotReachHere();
-  }
-};
+  // Process the non-frame part of the thread
+  _jt->oops_do_no_frames(closure_from_context(context), &_cb_cl);
+  ZThreadLocalData::do_invisible_root(_jt, ZBarrier::load_barrier_on_invisible_root_oop_field);
 
-void ZStackWatermark::start_iteration(void* context) {
-  OopClosure* gc_cl = reinterpret_cast<OopClosure*>(context);
-#ifdef ASSERT
-  {
-    ZVerifyBadOopClosure verify_cl;
-    _jt->oops_do(&verify_cl, NULL, false /* do_frames */);
-  }
-#endif
-
-  if (Thread::current()->is_ConcurrentGC_thread()) {
-    _jt->oops_do(gc_cl, &_cb_cl, false /* do_frames */);
-  } else {
-    _jt->oops_do(&_jt_cl, &_cb_cl, false /* do_frames */);
-  }
-
-#ifdef ASSERT
-  {
-    Thread* thread = Thread::current();
-    ResetNoHandleMark rnhm;
-    HandleMark hm(thread);
-    PreserveExceptionMark pem(thread);
-    ResourceMark rm(thread);
-    ZVerifyBadOopClosure verify_cl;
-
-    if (_jt->has_last_Java_frame()) {
-      // Traverse the execution stack
-      for (StackFrameStream fst(_jt, true /* update */, false /* process_frames */); !fst.is_done(); fst.next()) {
-        fst.current()->oops_do(&verify_cl, NULL /* code_cl */, fst.register_map());
-      }
-    }
-  }
-#endif
-
-  StackWatermark::start_iteration(gc_cl);
+  ZVerify::verify_thread_frames_bad(_jt);
 
   // Update thread local address bad mask
   ZThreadLocalData::set_address_bad_mask(_jt, ZAddressBadMask);
 
-  // Mark invisible root
-  ZThreadLocalData::do_invisible_root(_jt, ZBarrier::load_barrier_on_invisible_root_oop_field);
-
   // Retire TLAB
-  if (UseTLAB) {
-    if(ZGlobalPhase == ZPhaseMark) {
-      _stats.reset();
-      ZThreadLocalAllocBuffer::retire(_jt, &_stats);
-    } else {
-      ZThreadLocalAllocBuffer::remap(_jt);
-    }
+  if (ZGlobalPhase == ZPhaseMark) {
+    ZThreadLocalAllocBuffer::retire(_jt, &_stats);
+  } else {
+    ZThreadLocalAllocBuffer::remap(_jt);
   }
+
+  // Publishes the iteration to concurrent threads
+  StackWatermark::start_iteration_impl(context);
 }
 
 void ZStackWatermark::process(frame frame, RegisterMap& register_map, void* context) {
-  OopClosure* cl = context == NULL ? &_jt_cl : reinterpret_cast<OopClosure*>(context);
-#ifdef ASSERT
-  ZVerifyBadOopClosure verify_cl;
-  frame.oops_do(&verify_cl, NULL, &register_map);
-#endif
-  frame.oops_do(cl, &_cb_cl, &register_map);
+  ZVerify::verify_frame_bad(frame, register_map);
+  frame.oops_do(closure_from_context(context), &_cb_cl, &register_map);
 }

@@ -28,6 +28,8 @@
 #include "gc/z/zValue.hpp"
 #include "memory/allocation.hpp"
 
+class JavaThread;
+
 class ZThreadLocalAllocBuffer : public AllStatic {
 private:
   static ZPerWorker<ThreadLocalAllocStats>* _stats;
@@ -38,9 +40,9 @@ public:
   static void reset_statistics();
   static void publish_statistics();
 
-  static void retire(Thread* thread, ThreadLocalAllocStats* stats);
-  static void remap(Thread* thread);
-  static ThreadLocalAllocStats* get_stats();
+  static void retire(JavaThread* thread, ThreadLocalAllocStats* stats);
+  static void remap(JavaThread* thread);
+  static void update_stats(JavaThread* thread);
 };
 
 #endif // SHARE_GC_Z_ZTHREADLOCALALLOCBUFFER_HPP

@@ -117,7 +117,6 @@ private:
 
 public:
   ZRootsIterator(bool visit_jvmti_weak_export = false);
-  ~ZRootsIterator();
 
   void oops_do(ZRootsIteratorClosure* cl);
 };

@@ -1222,7 +1222,7 @@ C2V_VMENTRY_NULL(jobject, iterateFrames, (JNIEnv* env, jobject compilerToVM, job
   HotSpotJVMCI::HotSpotStackFrameReference::klass()->initialize(CHECK_NULL);
   Handle frame_reference = HotSpotJVMCI::HotSpotStackFrameReference::klass()->allocate_instance_handle(CHECK_NULL);
 
-  StackFrameStream fst(thread, true /* update */, true /* do_frames */);
+  StackFrameStream fst(thread, true /* update */, true /* process_frames */);
   jobjectArray methods = initial_methods;
 
   int frame_number = 0;

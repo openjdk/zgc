@@ -82,10 +82,10 @@ void SafepointMechanism::block_or_handshake(JavaThread *thread) {
     OrderAccess::loadload();
     SafepointSynchronize::block(thread);
   }
-  StackWatermarkSet::on_vm_operation(thread);
   if (thread->has_handshake()) {
     thread->handshake_process_by_self();
   }
+  StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
 }
 
 uintptr_t SafepointMechanism::compute_poll_word(bool armed, uintptr_t stack_watermark) {
@@ -98,7 +98,7 @@ uintptr_t SafepointMechanism::compute_poll_word(bool armed, uintptr_t stack_wate
     return SafepointMechanism::poll_word_disarmed_value();
   }
   log_debug(stackbarrier)("Computed watermark at %d", Thread::current()->osthread()->thread_id());
-  return stack_watermark + sizeof(void*);
+  return stack_watermark;
 }
 
 void SafepointMechanism::update_poll_values(JavaThread* thread) {

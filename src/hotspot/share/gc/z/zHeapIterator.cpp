@@ -56,7 +56,7 @@ public:
 };
 
 template <bool Concurrent, bool Weak>
-class ZHeapIteratorRootIteratorClosure : public ZRootsIteratorClosure {
+class ZHeapIteratorRootOopClosure : public ZRootsIteratorClosure {
 private:
   ZHeapIterator* const _iter;
 
@@ -73,7 +73,7 @@ private:
   }
 
 public:
-  ZHeapIteratorRootIteratorClosure(ZHeapIterator* iter) :
+  ZHeapIteratorRootOopClosure(ZHeapIterator* iter) :
       _iter(iter) {}
 
   virtual void do_oop(oop* p) {
@@ -90,7 +90,7 @@ public:
       StackWatermarkSet::finish_iteration(static_cast<JavaThread*>(thread), NULL /* context */, StackWatermarkSet::gc);
     }
     CodeBlobToOopClosure code_cl(this, false /* fix_oop_relocations */);
-    thread->oops_do(this, &code_cl, true /* do_frames */);
+    thread->oops_do(this, &code_cl);
   }
 };
 
@@ -187,7 +187,7 @@ void ZHeapIterator::push(oop obj) {
 
 template <typename RootsIterator, bool Concurrent, bool Weak>
 void ZHeapIterator::push_roots() {
-  ZHeapIteratorRootIteratorClosure<Concurrent, Weak> cl(this);
+  ZHeapIteratorRootOopClosure<Concurrent, Weak> cl(this);
   RootsIterator roots;
   roots.oops_do(&cl);
 }

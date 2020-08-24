@@ -984,7 +984,7 @@ public:
     return LP64_ONLY(true) NOT_LP64(false); // not implemented on x86_32
   }
 
-  static bool supports_stack_watermark_barrier() {
+  constexpr static bool supports_stack_watermark_barrier() {
     return LP64_ONLY(true) NOT_LP64(false);
   }
 

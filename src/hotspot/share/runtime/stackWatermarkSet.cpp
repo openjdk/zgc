@@ -28,7 +28,7 @@
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
-#include "runtime/stackWatermark.hpp"
+#include "runtime/stackWatermark.inline.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
@@ -37,8 +37,7 @@
 #include "utilities/vmError.hpp"
 
 StackWatermarkSet::StackWatermarkSet() :
-    _head(NULL) {
-}
+    _head(NULL) {}
 
 StackWatermarkSet::~StackWatermarkSet() {
   StackWatermark* current = _head;
@@ -49,74 +48,32 @@ StackWatermarkSet::~StackWatermarkSet() {
   }
 }
 
-static bool is_above_watermark(JavaThread* jt, uintptr_t sp, uintptr_t watermark) {
-  if (watermark == 0) {
-    return false;
-  }
-  bool result = sp > watermark;
-  return result;
-}
-
-static bool is_above_watermark(JavaThread* jt, frame last_frame, uintptr_t watermark) {
-  RegisterMap map(jt, false /* update_map */, false /* process_frames */);
-  if (last_frame.is_safepoint_blob_frame()) {
-    // The return barrier of compiled methods might get to the runtime through a
-    // safepoint blob. Skip it to the frame that triggered the barrier.
-    last_frame = last_frame.sender(&map);
-  }
-  if (!last_frame.is_first_frame()) {
-    last_frame = last_frame.sender(&map);
-  }
-  return is_above_watermark(jt, reinterpret_cast<uintptr_t>(last_frame.sp()), watermark);
-}
-
-static bool is_above_watermark(JavaThread* jt, uintptr_t watermark) {
-  return is_above_watermark(jt, jt->last_frame_raw(), watermark);
-}
-
 static void verify_poll_context() {
 #ifdef ASSERT
   Thread* thread = Thread::current();
   if (thread->is_Java_thread()) {
     JavaThread* jt = static_cast<JavaThread*>(thread);
     JavaThreadState state = jt->thread_state();
-    assert(state != _thread_in_native && state != _thread_blocked, "unsafe thread state");
+    assert(state != _thread_in_native, "unsafe thread state");
+    assert(state != _thread_blocked, "unsafe thread state");
   } else if (thread->is_VM_thread()) {
   } else {
-    assert(SafepointSynchronize::is_at_safepoint() || Threads_lock->owned_by_self(),
-           "non-java threads must block out safepoints with Threads_lock");
+    assert_locked_or_safepoint(Threads_lock);
   }
 #endif
 }
 
 void StackWatermarkSet::on_unwind(JavaThread* jt) {
   verify_poll_context();
-  StackWatermark* current = jt->stack_watermark_set()->_head;
-  if (current == NULL) {
+  if (!jt->has_last_Java_frame()) {
+    // Sometimes we throw exceptions and use native transitions on threads that
+    // do not have any Java threads. Skip those callsites.
     return;
   }
-  for (; current != NULL; current = current->next()) {
-    uint32_t state = Atomic::load_acquire(&current->_state);
-    assert(StackWatermarkState::epoch(state) == current->epoch_id(),
-           "Starting new stack snapshots is done explicitly or when waking up from safepoints");
-    if (StackWatermarkState::is_done(state)) {
-      continue;
-    } else if (jt->has_last_Java_frame() && !is_above_watermark(jt, current->watermark())) {
-      continue;
-    }
-
-    current->process_one(jt);
-  }
-
-  SafepointMechanism::update_poll_values(jt);
-}
-
-void StackWatermarkSet::on_vm_operation(JavaThread* jt) {
-  verify_poll_context();
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
-    uint32_t state = Atomic::load_acquire(&current->_state);
-    current->process_one(jt);
+    current->on_unwind();
   }
+  SafepointMechanism::update_poll_values(jt);
 }
 
 void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
@@ -126,36 +83,17 @@ void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
   }
   verify_poll_context();
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
-    if (!current->process_for_iterator()) {
-      continue;
-    }
-    uint32_t state = Atomic::load_acquire(&current->_state);
-    if (StackWatermarkState::epoch(state) == current->epoch_id()) {
-      if (StackWatermarkState::is_done(state)) {
-        continue;
-      } else if (!is_above_watermark(jt, fr, current->watermark())) {
-        continue;
-      }
-    }
-    current->process_one(jt);
+    current->on_iteration(fr);
   }
 }
 
 void StackWatermarkSet::start_iteration(JavaThread* jt, StackWatermarkKind kind) {
   verify_poll_context();
-  StackWatermark* current = jt->stack_watermark_set()->_head;
-  if (current == NULL) {
-    return;
-  }
-  for (; current != NULL; current = current->next()) {
+  for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
     if (current->kind() != kind) {
       continue;
     }
-    uint32_t state = Atomic::load_acquire(&current->_state);
-    if (StackWatermarkState::epoch(state) == current->epoch_id()) {
-      continue;
-    }
-    current->process_one(jt);
+    current->start_iteration();
   }
 }
 
@@ -164,15 +102,7 @@ void StackWatermarkSet::finish_iteration(JavaThread* jt, void* context, StackWat
     if (current->kind() != kind) {
       continue;
     }
-    MutexLocker ml(current->lock(), Mutex::_no_safepoint_check_flag);
-    if (current->should_start_iteration()) {
-      current->start_iteration(context);
-    }
-    StackWatermarkIterator* iterator = current->iterator();
-    if (iterator != NULL) {
-      iterator->process_all(context);
-    }
-    current->update_watermark();
+    current->finish_iteration(context);
   }
 }
 
@@ -182,7 +112,7 @@ uintptr_t StackWatermarkSet::lowest_watermark() {
   StackWatermark* current = _head;
   while (current != NULL) {
     watermark = MIN2(watermark, current->watermark());
-    current = current->_next;
+    current = current->next();
   }
   if (watermark == max_watermark) {
     return 0;
@@ -193,6 +123,6 @@ uintptr_t StackWatermarkSet::lowest_watermark() {
 
 void StackWatermarkSet::add_watermark(StackWatermark* watermark) {
   StackWatermark* prev = _head;
-  watermark->_next = prev;
+  watermark->set_next(prev);
   _head = watermark;
 }

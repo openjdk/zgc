@@ -528,8 +528,8 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
       if (ret_op->stub() != NULL) {
         append_code_stub(ret_op->stub());
       }
+      break;
     }
-    break;
 
     case lir_safepoint:
       if (compilation()->debug_info_recorder()->last_pc_offset() == code_offset()) {

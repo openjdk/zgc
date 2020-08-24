@@ -159,7 +159,7 @@ class VM_Operation : public StackObj {
   // Configuration. Override these appropriately in subclasses.
   virtual VMOp_Type type() const = 0;
   virtual bool allow_nested_vm_operations() const { return false; }
-  virtual bool requires_sane_thread_oops() const { return true; }
+  virtual bool skip_thread_oop_barriers() const { return false; }
 
   // An operation can either be done inside a safepoint
   // or concurrently with Java threads running.
@@ -224,6 +224,7 @@ class VM_ThreadsSuspendJVMTI: public VM_ForceSafepoint {
 class VM_ICBufferFull: public VM_ForceSafepoint {
  public:
   VMOp_Type type() const { return VMOp_ICBufferFull; }
+  virtual bool skip_thread_oop_barriers() const { return true; }
 };
 
 // Base class for invoking parts of a gtest in a safepoint.

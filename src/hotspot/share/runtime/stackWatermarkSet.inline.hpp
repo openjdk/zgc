@@ -42,16 +42,4 @@ inline bool StackWatermarkSet::has_watermark(StackWatermarkKind kind) {
   return get<StackWatermark>(kind) != NULL;
 }
 
-inline static bool state_is_done(uint32_t state) {
-  return state & 1;
-}
-
-inline static uint32_t state_epoch(uint32_t state) {
-  return state >> 1;
-}
-
-inline static uint32_t create_state(uint32_t epoch, bool is_done) {
-  return (epoch << 1) | (is_done ? 1u : 0u);
-}
-
 #endif // SHARE_RUNTIME_STACKWATERMARKSET_INLINE_HPP

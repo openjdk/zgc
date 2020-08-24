@@ -980,11 +980,10 @@ void MachEpilogNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 
   if (do_polling() && C->is_method_compilation()) {
     MacroAssembler _masm(&cbuf);
-    InternalAddress safepoint_pc(__ pc());
     Label dummy_label;
     Label* code_stub = &dummy_label;
     if (!C->output()->in_scratch_emit_size()) {
-      code_stub = &C->output()->safepoint_poll_table()->add_safepoint(safepoint_pc);
+      code_stub = &C->output()->safepoint_poll_table()->add_safepoint(__ offset());
     }
     __ relocate(relocInfo::poll_return_type);
     __ safepoint_poll(*code_stub, r15_thread, true /* at_return */, true /* in_nmethod */);

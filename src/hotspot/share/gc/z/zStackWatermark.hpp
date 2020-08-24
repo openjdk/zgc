@@ -19,7 +19,6 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
 #ifndef SHARE_GC_Z_ZSTACKWATERMARK_HPP
@@ -37,34 +36,31 @@
 class frame;
 class JavaThread;
 
-class ZMarkConcurrentStackRootsClosure : public OopClosure {
-public:
-  virtual void do_oop(oop* p);
-  virtual void do_oop(narrowOop* p);
-};
-
 class ZOnStackCodeBlobClosure : public CodeBlobClosure {
 private:
   BarrierSetNMethod* _bs_nm;
 
 public:
   ZOnStackCodeBlobClosure();
+
   virtual void do_code_blob(CodeBlob* cb);
 };
 
-
 class ZStackWatermark : public StackWatermark {
 private:
-  ZLoadBarrierOopClosure _jt_cl;
+  ZLoadBarrierOopClosure  _jt_cl;
   ZOnStackCodeBlobClosure _cb_cl;
-  ThreadLocalAllocStats _stats;
+  ThreadLocalAllocStats   _stats;
+
+  OopClosure* closure_from_context(void* context);
 
 public:
   ZStackWatermark(JavaThread* jt);
-  ThreadLocalAllocStats& stats() { return _stats; }
+
+  ThreadLocalAllocStats& stats();
 
   virtual uint32_t epoch_id() const;
-  virtual void start_iteration(void* context);
+  virtual void start_iteration_impl(void* context);
   virtual void process(frame frame, RegisterMap& register_map, void* context);
 };
 

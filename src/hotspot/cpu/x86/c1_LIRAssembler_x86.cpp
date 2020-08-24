@@ -535,16 +535,16 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   // the poll sets the condition code, but no data registers
 
 #ifdef _LP64
-    code_stub->set_safepoint_pc(__ pc());
-    __ relocate(relocInfo::poll_return_type);
-    __ safepoint_poll(*code_stub->entry(), r15_thread, true /* at_return */, true /* in_nmethod */);
+  code_stub->set_safepoint_offset(__ offset());
+  __ relocate(relocInfo::poll_return_type);
+  __ safepoint_poll(*code_stub->entry(), r15_thread, true /* at_return */, true /* in_nmethod */);
 #else
-     const Register poll_addr = rbx;
-     assert(FrameMap::is_caller_save_register(poll_addr), "will overwrite");
-     __ get_thread(poll_addr);
-     __ movptr(poll_addr, Address(poll_addr, Thread::polling_page_offset()));
-     __ relocate(relocInfo::poll_return_type);
-     __ testl(rax, Address(poll_addr, 0));
+  const Register poll_addr = rbx;
+  assert(FrameMap::is_caller_save_register(poll_addr), "will overwrite");
+  __ get_thread(poll_addr);
+  __ movptr(poll_addr, Address(poll_addr, Thread::polling_page_offset()));
+  __ relocate(relocInfo::poll_return_type);
+  __ testl(rax, Address(poll_addr, 0));
 #endif
   __ ret(0);
 }

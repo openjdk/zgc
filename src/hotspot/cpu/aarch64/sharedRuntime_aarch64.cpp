@@ -1847,7 +1847,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   {
     // We need an acquire here to ensure that any subsequent load of the
     // global SafepointSynchronize::_state flag is ordered after this load
-    // of the local Thread::_polling page.  We don't want this poll to
+    // of the thread-local polling word.  We don't want this poll to
     // return false (i.e. not safepointing) and a later poll of the global
     // SafepointSynchronize::_state spuriously to return true.
     //

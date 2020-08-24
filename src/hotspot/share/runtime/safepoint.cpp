@@ -501,9 +501,10 @@ bool SafepointSynchronize::is_cleanup_needed() {
 class ParallelSPCleanupThreadClosure : public ThreadClosure {
 public:
   void do_thread(Thread* thread) {
-    if (thread->stack_watermark_set()->has_watermark(StackWatermarkSet::gc)) {
-      StackWatermarkSet::start_iteration(static_cast<JavaThread*>(thread), StackWatermarkSet::gc);
+    if (!thread->is_Java_thread()) {
+      return;
     }
+    StackWatermarkSet::start_iteration(static_cast<JavaThread*>(thread), StackWatermarkSet::gc);
   }
 };
 
@@ -519,9 +520,16 @@ public:
 
   void work(uint worker_id) {
     uint64_t safepoint_id = SafepointSynchronize::safepoint_id();
-    if (VMThread::vm_operation()->requires_sane_thread_oops()) {
+    if (!VMThread::vm_operation()->skip_thread_oop_barriers() &&
+        Universe::heap()->uses_stack_watermark_barrier() &&
+        _subtasks.try_claim_task(SafepointSynchronize::SAFEPOINT_CLEANUP_LAZY_ROOT_PROCESSING)) {
+      const char* name = "lazy partial thread root processing";
+      EventSafepointCleanupTask event;
+      TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
       ParallelSPCleanupThreadClosure cl;
-      Threads::possibly_parallel_threads_do(true /* is_par */, &cl);
+      Threads::threads_do(&cl);
+
+      post_safepoint_cleanup_task_event(event, safepoint_id, name);
     }
 
     if (_subtasks.try_claim_task(SafepointSynchronize::SAFEPOINT_CLEANUP_DEFLATE_MONITORS)) {
@@ -1021,13 +1029,13 @@ void ThreadSafepointState::handle_polling_page_exception() {
       assert(Universe::heap()->is_in_or_null(result), "must be heap pointer");
     }
 
-    // Block the thread
-    SafepointMechanism::block_if_requested_slow(thread());
-
     // We get here if compiled return polls found a reason to call into the VM.
     // One condition for that is that a frame above is not yet safe to use.
     // The following stack watermark barrier poll will catch such situations.
     StackWatermarkSet::on_unwind(thread());
+
+    // Block the thread
+    SafepointMechanism::block_if_requested_slow(thread());
 
     // restore oop result, if any
     if (return_oop) {

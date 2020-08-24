@@ -91,15 +91,15 @@ class CodeStubList: public GrowableArray<CodeStub*> {
 
 class C1SafepointPollStub: public CodeStub {
  private:
-  address _safepoint_pc;
+  uintptr_t _safepoint_offset;
 
  public:
   C1SafepointPollStub() :
-      _safepoint_pc(NULL) {
+      _safepoint_offset(0) {
   }
 
-  address safepoint_pc() { return _safepoint_pc; }
-  void set_safepoint_pc(address pc) { _safepoint_pc = pc; }
+  uintptr_t safepoint_offset() { return _safepoint_offset; }
+  void set_safepoint_offset(uintptr_t safepoint_offset) { _safepoint_offset = safepoint_offset; }
 
   virtual void emit_code(LIR_Assembler* e);
   virtual void visit(LIR_OpVisitState* visitor) {

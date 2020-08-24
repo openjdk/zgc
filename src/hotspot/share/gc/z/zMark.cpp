@@ -125,12 +125,6 @@ void ZMark::prepare_mark() {
 
 class ZMarkRootsIteratorClosure : public ZRootsIteratorClosure {
 public:
-  ZMarkRootsIteratorClosure() {
-  }
-
-  ~ZMarkRootsIteratorClosure() {
-  }
-
   virtual void do_oop(oop* p) {
     ZBarrier::mark_barrier_on_root_oop_field(p);
   }
@@ -632,11 +626,7 @@ public:
   virtual void do_thread(Thread* thread) {
     JavaThread* jt = static_cast<JavaThread*>(thread);
     StackWatermarkSet::finish_iteration(jt, this, StackWatermarkSet::gc);
-    ZStackWatermark* watermark = jt->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
-
-    if (UseTLAB && thread->is_Java_thread()) {
-      ZThreadLocalAllocBuffer::get_stats()->update(watermark->stats());
-    }
+    ZThreadLocalAllocBuffer::update_stats(jt);
   }
 
   virtual void do_oop(oop* p) {

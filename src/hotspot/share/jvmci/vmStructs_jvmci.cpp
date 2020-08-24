@@ -344,8 +344,8 @@
   nonstatic_field(ThreadLocalAllocBuffer,   _fast_refill_waste,                               unsigned)                              \
   nonstatic_field(ThreadLocalAllocBuffer,   _slow_allocations,                                unsigned)                              \
                                                                                                                                      \
-  nonstatic_field(SafepointMechanism::ThreadData, _polling_word,                              volatile uintptr_t)                             \
-  nonstatic_field(SafepointMechanism::ThreadData, _polling_page,                              volatile uintptr_t)                             \
+  nonstatic_field(SafepointMechanism::ThreadData, _polling_word,                              volatile uintptr_t)                    \
+  nonstatic_field(SafepointMechanism::ThreadData, _polling_page,                              volatile uintptr_t)                    \
                                                                                                                                      \
   nonstatic_field(ThreadShadow,             _pending_exception,                               oop)                                   \
                                                                                                                                      \

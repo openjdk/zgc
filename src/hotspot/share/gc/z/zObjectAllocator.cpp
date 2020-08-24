@@ -146,7 +146,7 @@ uintptr_t ZObjectAllocator::alloc_medium_object(size_t size, ZAllocationFlags fl
 }
 
 uintptr_t ZObjectAllocator::alloc_small_object_from_nonworker(size_t size, ZAllocationFlags flags) {
-  assert(!ZThread::is_worker(), "Should be a worker thread");
+  assert(!ZThread::is_worker(), "Should not be a worker thread");
 
   // Non-worker small page allocation can never use the reserve
   flags.set_no_reserve();

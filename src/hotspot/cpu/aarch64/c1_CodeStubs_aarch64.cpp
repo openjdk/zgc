@@ -40,8 +40,8 @@
 
 void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
-  InternalAddress pc_addr(safepoint_pc());
-  __ lea(rscratch1, pc_addr);
+  InternalAddress safepoint_pc(ce->masm()->pc() - ce->masm()->offset() + safepoint_offset());
+  __ lea(rscratch1, safepoint_pc);
   __ str(rscratch1, Address(rthread, JavaThread::saved_exception_pc_offset()));
 
   assert(SharedRuntime::polling_page_return_handler_blob() != NULL,

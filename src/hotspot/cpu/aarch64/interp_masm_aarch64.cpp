@@ -521,6 +521,7 @@ void InterpreterMacroAssembler::dispatch_via(TosState state, address* table) {
 
 // remove activation
 //
+// Apply stack watermark barrier.
 // Unlock the receiver if this is a synchronized method.
 // Unlock any Java monitors from syncronized blocks.
 // Remove the activation from the stack.
@@ -541,6 +542,9 @@ void InterpreterMacroAssembler::remove_activation(
   // result check if synchronized method
   Label unlocked, unlock, no_unlock;
 
+  // The below poll is for the stack watermark barrier. It allows fixing up frames lazily,
+  // that would normally not be safe to use. Such bad returns into unsafe territory of
+  // the stack, will call InterpreterRuntime::at_unwind.
   Label slow_path;
   Label fast_path;
   safepoint_poll(slow_path, true /* at_return */, false /* acquire */, false /* in_nmethod */);

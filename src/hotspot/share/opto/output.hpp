@@ -25,12 +25,13 @@
 #ifndef SHARE_OPTO_OUTPUT_HPP
 #define SHARE_OPTO_OUTPUT_HPP
 
+#include "metaprogramming/enableIf.hpp"
 #include "opto/ad.hpp"
 #include "opto/constantTable.hpp"
 #include "opto/phase.hpp"
-#include "opto/safepointPollStubTable.hpp"
 #include "code/debugInfo.hpp"
 #include "code/exceptionHandlerTable.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
@@ -69,6 +70,43 @@ public:
     _const(0),
     _reloc(0)
   { };
+};
+
+class C2SafepointPollStubTable {
+private:
+  struct C2SafepointPollStub: public ResourceObj {
+    uintptr_t _safepoint_offset;
+    Label     _stub_label;
+    Label     _trampoline_label;
+    C2SafepointPollStub(uintptr_t safepoint_offset) :
+      _safepoint_offset(safepoint_offset),
+      _stub_label(),
+      _trampoline_label() {}
+  };
+
+  GrowableArray<C2SafepointPollStub*> _safepoints;
+
+  void emit_stub_impl(MacroAssembler& masm, C2SafepointPollStub* entry) const;
+
+  // The selection logic below relieves the need to add dummy files to unsupported platforms.
+  template <bool enabled>
+  typename EnableIf<enabled>::type
+  select_emit_stub(MacroAssembler& masm, C2SafepointPollStub* entry) const {
+    emit_stub_impl(masm, entry);
+  }
+
+  template <bool enabled>
+  typename EnableIf<!enabled>::type
+  select_emit_stub(MacroAssembler& masm, C2SafepointPollStub* entry) const {}
+
+  void emit_stub(MacroAssembler& masm, C2SafepointPollStub* entry) const {
+    select_emit_stub<VM_Version::supports_stack_watermark_barrier()>(masm, entry);
+  }
+
+public:
+  Label& add_safepoint(uintptr_t safepoint_offset);
+  int estimate_stub_size() const;
+  void emit(CodeBuffer& cb);
 };
 
 class PhaseOutput : public Phase {
@@ -178,6 +216,7 @@ public:
   void          set_scratch_buffer_blob(BufferBlob* b) { _scratch_buffer_blob = b; }
   relocInfo*        scratch_locs_memory()       { return _scratch_locs_memory; }
   void          set_scratch_locs_memory(relocInfo* b)  { _scratch_locs_memory = b; }
+  size_t            scratch_buffer_code_size()  { return (address)scratch_locs_memory() - _scratch_buffer_blob->content_begin(); }
 
   // emit to scratch blob, report resulting size
   uint              scratch_emit_size(const Node* n);

@@ -127,7 +127,6 @@ uintptr_t ZBarrier::load_barrier_on_oop_slow_path(uintptr_t addr) {
 
 uintptr_t ZBarrier::load_barrier_on_invisible_root_oop_slow_path(uintptr_t addr) {
   if (during_mark()) {
-    // Mark
     return mark<DontFollow, Strong, Publish>(addr);
   } else {
     return relocate_or_remap(addr);
@@ -205,13 +204,6 @@ uintptr_t ZBarrier::mark_barrier_on_root_oop_slow_path(uintptr_t addr) {
 
   // Mark
   return mark<Follow, Strong, Publish>(addr);
-}
-
-uintptr_t ZBarrier::mark_barrier_on_invisible_root_oop_slow_path(uintptr_t addr) {
-  assert(during_mark(), "Invalid phase");
-
-  // Mark
-  return mark<DontFollow, Strong, Publish>(addr);
 }
 
 //

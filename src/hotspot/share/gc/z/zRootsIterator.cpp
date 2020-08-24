@@ -54,9 +54,7 @@
 #include "runtime/vmThread.hpp"
 #include "utilities/debug.hpp"
 
-static const ZStatSubPhase ZSubPhasePauseRootsSetup("Pause Roots Setup");
 static const ZStatSubPhase ZSubPhasePauseRoots("Pause Roots");
-static const ZStatSubPhase ZSubPhasePauseRootsTeardown("Pause Roots Teardown");
 static const ZStatSubPhase ZSubPhasePauseRootsObjectSynchronizer("Pause Roots ObjectSynchronizer");
 static const ZStatSubPhase ZSubPhasePauseRootsJVMTIWeakExport("Pause Roots JVMTIWeakExport");
 
@@ -65,8 +63,8 @@ static const ZStatSubPhase ZSubPhaseConcurrentRoots("Concurrent Roots");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsTeardown("Concurrent Roots Teardown");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsOopStorageSet("Concurrent Roots OopStorageSet");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsClassLoaderDataGraph("Concurrent Roots ClassLoaderDataGraph");
-static const ZStatSubPhase ZSubPhaseConcurrentRootsJavaThreads("Pause Roots Java Threads");
-static const ZStatSubPhase ZSubPhaseConcurrentRootsCodeCache("Pause Roots CodeCache");
+static const ZStatSubPhase ZSubPhaseConcurrentRootsJavaThreads("Concurrent Roots Java Threads");
+static const ZStatSubPhase ZSubPhaseConcurrentRootsCodeCache("Concurrent Roots CodeCache");
 
 static const ZStatSubPhase ZSubPhasePauseWeakRootsSetup("Pause Weak Roots Setup");
 static const ZStatSubPhase ZSubPhasePauseWeakRoots("Pause Weak Roots");
@@ -149,11 +147,6 @@ ZRootsIterator::ZRootsIterator(bool visit_jvmti_weak_export) :
     _object_synchronizer(this),
     _jvmti_weak_export(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
-  ZStatTimer timer(ZSubPhasePauseRootsSetup);
-}
-
-ZRootsIterator::~ZRootsIterator() {
-  ZStatTimer timer(ZSubPhasePauseRootsTeardown);
 }
 
 void ZRootsIterator::do_object_synchronizer(ZRootsIteratorClosure* cl) {
@@ -222,36 +215,9 @@ public:
   }
 };
 
-class ZNMethodToOopsDoClosure : public NMethodClosure {
-private:
-  ZRootsIteratorClosure* const _cl;
-  const bool                   _should_disarm_nmethods;
-
-public:
-  ZNMethodToOopsDoClosure(ZRootsIteratorClosure* cl) :
-      _cl(cl),
-      _should_disarm_nmethods(cl->should_disarm_nmethods()) {}
-
-  virtual void do_nmethod(nmethod* nm) {
-    ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
-    if (!nm->is_alive()) {
-      return;
-    }
-    if (_should_disarm_nmethods) {
-      if (ZNMethod::is_armed(nm)) {
-        ZNMethod::nmethod_oops_do(nm, _cl);
-        ZNMethod::disarm(nm);
-      }
-    } else {
-      ZNMethod::nmethod_oops_do(nm, _cl);
-    }
-  }
-};
-
 void ZConcurrentRootsIterator::do_code_cache(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhaseConcurrentRootsCodeCache);
-  ZNMethodToOopsDoClosure cb_cl(cl);
-  ZNMethodTable::nmethods_do(&cb_cl);
+  ZNMethod::oops_do(cl, cl->should_disarm_nmethods());
 }
 
 void ZConcurrentRootsIterator::do_java_threads(ZRootsIteratorClosure* cl) {

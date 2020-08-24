@@ -32,7 +32,7 @@ class ObjectClosure;
 class ZHeapIteratorBitMap;
 
 class ZHeapIterator : public StackObj {
-  template<bool Concurrent, bool Weak> friend class ZHeapIteratorRootIteratorClosure;
+  template<bool Concurrent, bool Weak> friend class ZHeapIteratorRootOopClosure;
   template<bool VisitReferents> friend class ZHeapIteratorOopClosure;
 
 private:

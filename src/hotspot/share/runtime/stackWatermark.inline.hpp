@@ -28,6 +28,26 @@
 #include "runtime/stackWatermark.hpp"
 #include "runtime/thread.hpp"
 
+static inline bool is_above_watermark(JavaThread* jt, uintptr_t sp, uintptr_t watermark) {
+  if (watermark == 0) {
+    return false;
+  }
+  return sp > watermark;
+}
+
+static inline bool is_above_watermark(JavaThread* jt, frame last_frame, uintptr_t watermark) {
+  RegisterMap map(jt, false /* update_map */, false /* process_frames */);
+  if (last_frame.is_safepoint_blob_frame()) {
+    // The return barrier of compiled methods might get to the runtime through a
+    // safepoint blob. Skip it to the frame that triggered the barrier.
+    last_frame = last_frame.sender(&map);
+  }
+  if (!last_frame.is_first_frame()) {
+    last_frame = last_frame.sender(&map);
+  }
+  return is_above_watermark(jt, reinterpret_cast<uintptr_t>(last_frame.sp()), watermark);
+}
+
 inline bool StackWatermark::has_barrier(frame& f) {
   if (f.is_interpreted_frame()) {
     return true;
@@ -37,11 +57,39 @@ inline bool StackWatermark::has_barrier(frame& f) {
     if (nm->is_compiled_by_c1() || nm->is_compiled_by_c2()) {
       return true;
     }
-    if (nm->is_native_method() && !nm->method()->is_method_handle_intrinsic()) {
+    if (nm->is_native_method()) {
       return true;
     }
   }
   return false;
+}
+
+inline bool StackWatermark::needs_processing(frame fr) {
+  uint32_t state = Atomic::load_acquire(&_state);
+  if (StackWatermarkState::is_done(state)) {
+    return false;
+  }
+  return is_above_watermark(_jt, fr, watermark());
+}
+
+inline void StackWatermark::on_unwind() {
+  assert(StackWatermarkState::epoch(Atomic::load(&_state)) == epoch_id(),
+         "Starting new stack snapshots is done explicitly or when waking up from safepoints");
+  if (!needs_processing(_jt->last_frame_raw())) {
+    return;
+  }
+  process_one();
+  assert(is_frame_safe(_jt->last_frame_raw()), "frame should be safe after processing");
+}
+
+inline void StackWatermark::on_iteration(frame fr) {
+  assert(StackWatermarkState::epoch(Atomic::load(&_state)) == epoch_id(),
+         "Iteration should already have stearted");
+  if (!process_on_iteration() || !needs_processing(fr)) {
+    return;
+  }
+  process_one();
+  assert(is_frame_safe(fr), "frame should be safe after processing");
 }
 
 #endif // SHARE_RUNTIME_STACKWATERMARK_INLINE_HPP

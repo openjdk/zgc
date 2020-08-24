@@ -44,9 +44,6 @@ public:
   // Called when a thread is about to unwind a frame
   static void on_unwind(JavaThread* jt);
 
-  // Called when a VM operation is processed
-  static void on_vm_operation(JavaThread* jt);
-
   // Called bt stack walkers when walking into a frame
   static void on_iteration(JavaThread* jt, frame fr);
 

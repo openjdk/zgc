@@ -198,7 +198,7 @@ public:
       if (thread->is_Java_thread()) {
         if (_cl != NULL) {
           ResourceMark rm;
-          thread->oops_do(_cl, _code_cl, true /* do_frames */);
+          thread->oops_do(_cl, _code_cl);
         } else if (_code_cl != NULL) {
           // In theory it should not be neccessary to explicitly walk the nmethods to find roots for concurrent marking
           // however the liveness of oops reachable from nmethods have very complex lifecycles:

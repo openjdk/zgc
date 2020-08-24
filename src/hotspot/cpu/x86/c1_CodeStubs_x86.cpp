@@ -82,8 +82,8 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
 void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
 #ifdef _LP64
   __ bind(_entry);
-  InternalAddress pc_addr(safepoint_pc());
-  __ lea(rscratch1, pc_addr);
+  InternalAddress safepoint_pc(ce->masm()->pc() - ce->masm()->offset() + safepoint_offset());
+  __ lea(rscratch1, safepoint_pc);
   __ movptr(Address(r15_thread, JavaThread::saved_exception_pc_offset()), rscratch1);
 
   assert(SharedRuntime::polling_page_return_handler_blob() != NULL,

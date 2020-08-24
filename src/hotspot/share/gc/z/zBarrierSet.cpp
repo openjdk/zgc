@@ -84,7 +84,6 @@ void ZBarrierSet::on_thread_attach(Thread* thread) {
   if (thread->is_Java_thread()) {
     JavaThread* jt = static_cast<JavaThread*>(thread);
     StackWatermark* watermark = new ZStackWatermark(jt);
-    watermark->init_epoch();
     jt->stack_watermark_set()->add_watermark(watermark);
   }
 }

@@ -195,6 +195,9 @@ static void add_derived_oop(oop* base, oop* derived, OopClosure* oop_fn) {
 }
 
 static void process_derived_oop(oop* base, oop* derived, OopClosure* oop_fn) {
+  // All derived pointers must be processed before the base pointer of any derived pointer is processed.
+  // Otherwise, if two derived pointers use the same base, the second derived pointer will get an obscured
+  // offset, if the base pointer is processed in the first derived pointer.
   uintptr_t offset = cast_from_oop<uintptr_t>(*derived) - cast_from_oop<uintptr_t>(*base);
   *derived = *base;
   oop_fn->do_oop(derived);

@@ -308,6 +308,7 @@ void HandshakeOperation::do_handshake(JavaThread* thread) {
 
   // Only actually execute the operation for non terminated threads.
   if (!thread->is_terminated()) {
+    StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
     _handshake_cl->do_thread(thread);
     _executed = true;
   }

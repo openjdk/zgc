@@ -73,7 +73,6 @@ private:
   static uintptr_t mark_barrier_on_oop_slow_path(uintptr_t addr);
   static uintptr_t mark_barrier_on_finalizable_oop_slow_path(uintptr_t addr);
   static uintptr_t mark_barrier_on_root_oop_slow_path(uintptr_t addr);
-  static uintptr_t mark_barrier_on_invisible_root_oop_slow_path(uintptr_t addr);
 
   static uintptr_t relocate_barrier_on_root_oop_slow_path(uintptr_t addr);
 

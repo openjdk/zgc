@@ -366,9 +366,6 @@ bool JfrThreadSampleClosure::do_sample_thread(JavaThread* thread, JfrStackFrame*
     return false;
   }
 
-  // Make sure threadObj is processed before the thread gets suspended.
-  StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
-
   bool ret = false;
   thread->set_trace_flag();  // Provides StoreLoad, needed to keep read of thread state from floating up.
   if (JAVA_SAMPLE == type) {

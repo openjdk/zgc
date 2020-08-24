@@ -136,7 +136,7 @@ public:
     if (_thread_cl != NULL) {
       _thread_cl->do_thread(t);
     }
-    t->oops_do(_f, _cf, true /* do_frames */);
+    t->oops_do(_f, _cf);
   }
 };
 

@@ -883,7 +883,7 @@ bool Thread::claim_par_threads_do(uintx claim_token) {
   return false;
 }
 
-void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
+void Thread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
   if (active_handles() != NULL) {
     active_handles()->oops_do(f);
   }
@@ -894,6 +894,11 @@ void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
   // We scan thread local monitor lists here, and the remaining global
   // monitors in ObjectSynchronizer::oops_do().
   ObjectSynchronizer::thread_local_used_oops_do(this, f);
+}
+
+void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
+  oops_do_no_frames(f, cf);
+  oops_do_frames(f, cf);
 }
 
 void Thread::metadata_handles_do(void f(Metadata*)) {
@@ -3009,12 +3014,12 @@ class RememberProcessedThread: public StackObj {
   }
 };
 
-void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
+void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
   // Verify that the deferred card marks have been flushed.
   assert(deferred_card_mark().is_empty(), "Should be empty during GC");
 
   // Traverse the GCHandles
-  Thread::oops_do(f, cf, do_frames);
+  Thread::oops_do_no_frames(f, cf);
 
   assert((!has_last_Java_frame() && java_call_counter() == 0) ||
          (has_last_Java_frame() && java_call_counter() > 0), "wrong java_sp info!");
@@ -3033,13 +3038,6 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
     // Traverse the monitor chunks
     for (MonitorChunk* chunk = monitor_chunks(); chunk != NULL; chunk = chunk->next()) {
       chunk->oops_do(f);
-    }
-
-    if (do_frames) {
-      // Traverse the execution stack
-      for (StackFrameStream fst(this, true /* update */, false /* process_frames */); !fst.is_done(); fst.next()) {
-        fst.current()->oops_do(f, cf, fst.register_map());
-      }
     }
   }
 
@@ -3061,6 +3059,16 @@ void JavaThread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
 
   if (jvmti_thread_state() != NULL) {
     jvmti_thread_state()->oops_do(f, cf);
+  }
+}
+
+void JavaThread::oops_do_frames(OopClosure* f, CodeBlobClosure* cf) {
+  if (!has_last_Java_frame()) {
+    return;
+  }
+  // Traverse the execution stack
+  for (StackFrameStream fst(this, true /* update */, false /* process_frames */); !fst.is_done(); fst.next()) {
+    fst.current()->oops_do(f, cf, fst.register_map());
   }
 }
 
@@ -3200,7 +3208,7 @@ static void frame_verify(frame* f, const RegisterMap *map) { f->verify(map); }
 
 void JavaThread::verify() {
   // Verify oops in the thread.
-  oops_do(&VerifyOopClosure::verify_oop, NULL, true /* do_frames */);
+  oops_do(&VerifyOopClosure::verify_oop, NULL);
 
   // Verify the stack frames.
   frames_do(frame_verify);
@@ -3567,8 +3575,8 @@ CodeCacheSweeperThread::CodeCacheSweeperThread()
   _scanned_compiled_method = NULL;
 }
 
-void CodeCacheSweeperThread::oops_do(OopClosure* f, CodeBlobClosure* cf, bool do_frames) {
-  JavaThread::oops_do(f, cf, do_frames);
+void CodeCacheSweeperThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
+  JavaThread::oops_do_no_frames(f, cf);
   if (_scanned_compiled_method != NULL && cf != NULL) {
     // Safepoints can occur when the sweeper is scanning an nmethod so
     // process it here to make sure it isn't unloaded in the middle of
@@ -4654,9 +4662,9 @@ void Threads::remove(JavaThread* p, bool is_daemon) {
 
 void Threads::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   ALL_JAVA_THREADS(p) {
-    p->oops_do(f, cf, true /* do_frames */);
+    p->oops_do(f, cf);
   }
-  VMThread::vm_thread()->oops_do(f, cf, true /* do_frames */);
+  VMThread::vm_thread()->oops_do(f, cf);
 }
 
 void Threads::change_thread_claim_token() {
@@ -4702,7 +4710,7 @@ private:
 public:
   ParallelOopsDoThreadClosure(OopClosure* f, CodeBlobClosure* cf) : _f(f), _cf(cf) {}
   void do_thread(Thread* t) {
-    t->oops_do(_f, _cf, true /* do_frames */);
+    t->oops_do(_f, _cf);
   }
 };
 

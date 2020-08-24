@@ -47,7 +47,7 @@ public:
   }
 };
 
-class StackWatermarkIterator : public CHeapObj<mtGC> {
+class StackWatermarkIterator : public CHeapObj<mtInternal> {
   JavaThread* _jt;
   uintptr_t _caller;
   uintptr_t _callee;
@@ -68,8 +68,8 @@ public:
   void next();
 };
 
-class StackWatermark : public CHeapObj<mtGC> {
-  friend class StackWatermarkSet;
+class StackWatermark : public CHeapObj<mtInternal> {
+  friend class StackWatermarkIterator;
 protected:
   volatile uint32_t _state;
   volatile uintptr_t _watermark;
@@ -79,33 +79,40 @@ protected:
   Mutex _lock;
   StackWatermarkSet::StackWatermarkKind _kind;
 
-  void process_one(JavaThread* jt);
+  void process_one();
+
+  void update_watermark();
+  static bool has_barrier(frame& f);
+  bool needs_processing(frame f);
+  bool is_frame_safe(frame fr);
 
 public:
   bool should_start_iteration() const;
-  virtual void start_iteration(void* context);
+  bool should_start_iteration_acquire() const;
+  virtual void start_iteration_impl(void* context);
   void init_epoch();
 
-  StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind);
+  StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind, uint32_t epoch);
   virtual ~StackWatermark();
 
-  static bool has_barrier(frame& f);
+  uintptr_t watermark();
 
   // API for consumers of the stack watermark barrier.
   // The rule for consumers is: do not perform thread transitions
   // or take locks of rank >= special. This is all very special code.
   virtual uint32_t epoch_id() const = 0;
   virtual void process(frame frame, RegisterMap& register_map, void* context) = 0;
-  virtual bool process_for_iterator() { return true; }
+  virtual bool process_on_iteration() { return true; }
 
-  void update_watermark();
-  Mutex* lock() { return &_lock; }
-  JavaThread* thread() const { return _jt; }
-  StackWatermarkIterator* iterator() const { return _iterator; }
-  uintptr_t watermark();
   StackWatermarkSet::StackWatermarkKind kind() const { return _kind; }
   StackWatermark* next() const { return _next; }
+  void set_next(StackWatermark* n) { _next = n; }
   uintptr_t last_processed();
+
+  void on_unwind();
+  void on_iteration(frame fr);
+  void start_iteration();
+  void finish_iteration(void* context);
 };
 
 #endif // SHARE_RUNTIME_STACKWATERMARK_HPP
