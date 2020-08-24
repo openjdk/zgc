@@ -363,7 +363,7 @@ bool Handshake::execute_direct(HandshakeClosure* thread_cl, JavaThread* target) 
     hsy.add_result(pr);
     // Check for pending handshakes to avoid possible deadlocks where our
     // target is trying to handshake us.
-    if (SafepointMechanism::should_block(self)) {
+    if (SafepointMechanism::should_process_operation(self)) {
       ThreadBlockInVM tbivm(self);
     }
     hsy.process();

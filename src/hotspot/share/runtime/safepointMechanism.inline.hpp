@@ -69,15 +69,15 @@ bool SafepointMechanism::local_poll(Thread* thread) {
   }
 }
 
-bool SafepointMechanism::should_block(Thread* thread) {
+bool SafepointMechanism::should_process_operation(Thread* thread) {
   return local_poll(thread);
 }
 
-void SafepointMechanism::block_if_requested(JavaThread *thread) {
+void SafepointMechanism::process_operation_if_requested(JavaThread *thread) {
   if (!local_poll_armed(thread)) {
     return;
   }
-  block_if_requested_slow(thread);
+  process_operation_if_requested_slow(thread);
 }
 
 void SafepointMechanism::arm_local_poll(JavaThread* thread) {
