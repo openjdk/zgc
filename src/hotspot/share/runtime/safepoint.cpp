@@ -783,7 +783,7 @@ void SafepointSynchronize::block(JavaThread *thread) {
       !thread->is_at_poll_safepoint() && (state != _thread_in_native_trans));
   }
 
-  // cross_modify_fence is done by SafepointMechanism::block_if_requested_slow
+  // cross_modify_fence is done by SafepointMechanism::process_operation_if_requested_slow
   // which is the only caller here.
 }
 
@@ -933,7 +933,7 @@ void ThreadSafepointState::print_on(outputStream *st) const {
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// Block the thread at poll or poll return for safepoint/handshake.
+// Process pending operation.
 void ThreadSafepointState::handle_polling_page_exception() {
 
   // Step 1: Find the nmethod from the return address
@@ -972,8 +972,8 @@ void ThreadSafepointState::handle_polling_page_exception() {
       assert(Universe::heap()->is_in_or_null(result), "must be heap pointer");
     }
 
-    // Block the thread
-    SafepointMechanism::block_if_requested(thread());
+    // Process pending operation
+    SafepointMechanism::process_operation_if_requested(thread());
 
     // restore oop result, if any
     if (return_oop) {
@@ -988,8 +988,8 @@ void ThreadSafepointState::handle_polling_page_exception() {
     // verify the blob built the "return address" correctly
     assert(real_return_addr == caller_fr.pc(), "must match");
 
-    // Block the thread
-    SafepointMechanism::block_if_requested(thread());
+    // Process pending operation
+    SafepointMechanism::process_operation_if_requested(thread());
     set_at_poll_safepoint(false);
 
     // If we have a pending async exception deoptimize the frame
