@@ -129,7 +129,8 @@ void ThreadLocalAllocBuffer::retire_before_allocation() {
 void ThreadLocalAllocBuffer::resize() {
   // Compute the next tlab size using expected allocation amount
   assert(ResizeTLAB, "Should not call this otherwise");
-  size_t alloc = (size_t)(_allocation_fraction.average() *
+  float alloc_fraction_average = _allocation_fraction.average_relaxed();
+  size_t alloc = (size_t)(alloc_fraction_average *
                           (Universe::heap()->tlab_capacity(thread()) / HeapWordSize));
   size_t new_size = alloc / _target_refills;
 
@@ -140,7 +141,7 @@ void ThreadLocalAllocBuffer::resize() {
   log_trace(gc, tlab)("TLAB new size: thread: " INTPTR_FORMAT " [id: %2d]"
                       " refills %d  alloc: %8.6f desired_size: " SIZE_FORMAT " -> " SIZE_FORMAT,
                       p2i(thread()), thread()->osthread()->thread_id(),
-                      _target_refills, _allocation_fraction.average(), desired_size(), aligned_new_size);
+                      _target_refills, alloc_fraction_average, desired_size(), aligned_new_size);
 
   set_desired_size(aligned_new_size);
   set_refill_waste_limit(initial_refill_waste_limit());
@@ -271,6 +272,7 @@ void ThreadLocalAllocBuffer::print_stats(const char* tag) {
   size_t waste = _gc_waste + _slow_refill_waste + _fast_refill_waste;
   double waste_percent = percent_of(waste, _allocated_size);
   size_t tlab_used  = Universe::heap()->tlab_used(thrd);
+  float alloc_fraction_average = _allocation_fraction.average_relaxed();
   log.trace("TLAB: %s thread: " INTPTR_FORMAT " [id: %2d]"
             " desired_size: " SIZE_FORMAT "KB"
             " slow allocs: %d  refill waste: " SIZE_FORMAT "B"
@@ -279,8 +281,8 @@ void ThreadLocalAllocBuffer::print_stats(const char* tag) {
             tag, p2i(thrd), thrd->osthread()->thread_id(),
             _desired_size / (K / HeapWordSize),
             _slow_allocations, _refill_waste_limit * HeapWordSize,
-            _allocation_fraction.average(),
-            _allocation_fraction.average() * tlab_used / K,
+            alloc_fraction_average,
+            alloc_fraction_average * tlab_used / K,
             _number_of_refills, waste_percent,
             _gc_waste * HeapWordSize,
             _slow_refill_waste * HeapWordSize,
