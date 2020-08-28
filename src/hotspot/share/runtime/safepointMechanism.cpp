@@ -82,10 +82,10 @@ void SafepointMechanism::process_operation(JavaThread *thread) {
     OrderAccess::loadload();
     SafepointSynchronize::block(thread);
   }
+  StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
   if (thread->has_handshake()) {
     thread->handshake_process_by_self();
   }
-  StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
 }
 
 uintptr_t SafepointMechanism::compute_poll_word(bool armed, uintptr_t stack_watermark) {
