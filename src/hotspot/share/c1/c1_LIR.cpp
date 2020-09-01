@@ -468,10 +468,12 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     {
       assert(op->as_OpReturn() != NULL, "must be");
       LIR_OpReturn* op_ret = (LIR_OpReturn*)op;
+
       if (op_ret->_info)               do_info(op_ret->_info);
       if (op_ret->_opr->is_valid())    do_input(op_ret->_opr);
       if (op_ret->_result->is_valid()) do_output(op_ret->_result);
       if (op_ret->stub() != NULL)      do_stub(op_ret->stub());
+
       break;
     }
 
@@ -479,9 +481,11 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     {
       assert(op->as_Op1() != NULL, "must be");
       LIR_Op1* op1 = (LIR_Op1*)op;
+
       assert(op1->_info != NULL, "");  do_info(op1->_info);
       if (op1->_opr->is_valid())       do_temp(op1->_opr); // safepoints on SPARC need temporary register
       assert(op1->_result->is_illegal(), "safepoint does not produce value");
+
       break;
     }
 

@@ -1224,11 +1224,7 @@ void frame::describe(FrameValues& values, int frame_no) {
 
 StackFrameStream::StackFrameStream(JavaThread *thread, bool update, bool process_frames) : _reg_map(thread, update, process_frames) {
   assert(thread->has_last_Java_frame(), "sanity check");
-  if (process_frames) {
-    _fr = thread->last_frame();
-  } else {
-    _fr = thread->last_frame_raw();
-  }
+  _fr = thread->last_frame();
   _is_done = false;
 }
 

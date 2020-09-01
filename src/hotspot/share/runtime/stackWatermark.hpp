@@ -30,7 +30,7 @@
 #include "runtime/stackWatermarkSet.hpp"
 
 class JavaThread;
-class StackWatermark;
+class StackWatermarkIterator;
 
 class StackWatermarkState : public AllStatic {
 public:
@@ -45,27 +45,6 @@ public:
   inline static uint32_t create(uint32_t epoch, bool is_done) {
     return (epoch << 1) | (is_done ? 1u : 0u);
   }
-};
-
-class StackWatermarkIterator : public CHeapObj<mtInternal> {
-  JavaThread* _jt;
-  uintptr_t _caller;
-  uintptr_t _callee;
-  StackFrameStream _frame_stream;
-  StackWatermark& _owner;
-  bool _is_done;
-
-public:
-  StackWatermarkIterator(StackWatermark& owner);
-  uintptr_t caller() const { return _caller; }
-  uintptr_t callee() const { return _callee; }
-  void process_one(void* context);
-  void process_all(void* context);
-  void set_watermark(uintptr_t sp);
-  RegisterMap& register_map();
-  frame& current();
-  bool has_next() const;
-  void next();
 };
 
 class StackWatermark : public CHeapObj<mtInternal> {
@@ -84,29 +63,34 @@ protected:
   void update_watermark();
   static bool has_barrier(frame& f);
   bool needs_processing(frame f);
+  void ensure_processed(frame fr);
   bool is_frame_safe(frame fr);
-
-public:
-  bool should_start_iteration() const;
-  bool should_start_iteration_acquire() const;
-  virtual void start_iteration_impl(void* context);
-  void init_epoch();
-
-  StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind, uint32_t epoch);
-  virtual ~StackWatermark();
-
-  uintptr_t watermark();
 
   // API for consumers of the stack watermark barrier.
   // The rule for consumers is: do not perform thread transitions
   // or take locks of rank >= special. This is all very special code.
   virtual uint32_t epoch_id() const = 0;
   virtual void process(frame frame, RegisterMap& register_map, void* context) = 0;
+  virtual void start_iteration_impl(void* context);
+
+  // Set process_on_iteration to false if you don't want to move the
+  // watermark when new frames are discovered from stack walkers, as
+  // opposed to due to frames being unwinded by the owning thread.
   virtual bool process_on_iteration() { return true; }
+
+public:
+  StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind, uint32_t epoch);
+  virtual ~StackWatermark();
+
+  uintptr_t watermark();
 
   StackWatermarkSet::StackWatermarkKind kind() const { return _kind; }
   StackWatermark* next() const { return _next; }
   void set_next(StackWatermark* n) { _next = n; }
+
+  bool should_start_iteration() const;
+  bool should_start_iteration_acquire() const;
+
   uintptr_t last_processed();
 
   void on_unwind();

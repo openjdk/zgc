@@ -896,7 +896,31 @@ void Thread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
   ObjectSynchronizer::thread_local_used_oops_do(this, f);
 }
 
+// If the caller is a NamedThread, then remember, in the current scope,
+// the given JavaThread in its _processed_thread field.
+class RememberProcessedThread: public StackObj {
+  NamedThread* _cur_thr;
+public:
+  RememberProcessedThread(Thread* thread) {
+    Thread* self = Thread::current();
+    if (self->is_Named_thread()) {
+      _cur_thr = (NamedThread *)self;
+      _cur_thr->set_processed_thread(thread);
+    } else {
+      _cur_thr = NULL;
+    }
+  }
+
+  ~RememberProcessedThread() {
+    if (_cur_thr) {
+      _cur_thr->set_processed_thread(NULL);
+    }
+  }
+};
+
 void Thread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
+  // Record JavaThread to GC thread
+  RememberProcessedThread rpt(this);
   oops_do_no_frames(f, cf);
   oops_do_frames(f, cf);
 }
@@ -2899,13 +2923,6 @@ void JavaThread::disable_stack_red_zone() {
   }
 }
 
-frame JavaThread::last_frame() {
-  _anchor.make_walkable(this);
-  frame result = pd_last_frame();
-  StackWatermarkSet::on_iteration(this, result);
-  return result;
-}
-
 void JavaThread::frames_do(void f(frame*, const RegisterMap* map)) {
   // ignore is there is no stack
   if (!has_last_Java_frame()) return;
@@ -2992,28 +3009,6 @@ void JavaThread::deoptimize_marked_methods() {
   }
 }
 
-// If the caller is a NamedThread, then remember, in the current scope,
-// the given JavaThread in its _processed_thread field.
-class RememberProcessedThread: public StackObj {
-  NamedThread* _cur_thr;
- public:
-  RememberProcessedThread(JavaThread* jthr) {
-    Thread* thread = Thread::current();
-    if (thread->is_Named_thread()) {
-      _cur_thr = (NamedThread *)thread;
-      _cur_thr->set_processed_thread(jthr);
-    } else {
-      _cur_thr = NULL;
-    }
-  }
-
-  ~RememberProcessedThread() {
-    if (_cur_thr) {
-      _cur_thr->set_processed_thread(NULL);
-    }
-  }
-};
-
 void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
   // Verify that the deferred card marks have been flushed.
   assert(deferred_card_mark().is_empty(), "Should be empty during GC");
@@ -3025,9 +3020,6 @@ void JavaThread::oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf) {
          (has_last_Java_frame() && java_call_counter() > 0), "wrong java_sp info!");
 
   if (has_last_Java_frame()) {
-    // Record JavaThread to GC thread
-    RememberProcessedThread rpt(this);
-
     // traverse the registered growable array
     if (_array_for_gc != NULL) {
       for (int index = 0; index < _array_for_gc->length(); index++) {

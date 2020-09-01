@@ -33,6 +33,27 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/preserveException.hpp"
 
+class StackWatermarkIterator : public CHeapObj<mtInternal> {
+  JavaThread* _jt;
+  uintptr_t _caller;
+  uintptr_t _callee;
+  StackFrameStream _frame_stream;
+  StackWatermark& _owner;
+  bool _is_done;
+
+public:
+  StackWatermarkIterator(StackWatermark& owner);
+  uintptr_t caller() const { return _caller; }
+  uintptr_t callee() const { return _callee; }
+  void process_one(void* context);
+  void process_all(void* context);
+  void set_watermark(uintptr_t sp);
+  RegisterMap& register_map();
+  frame& current();
+  bool has_next() const;
+  void next();
+};
+
 void StackWatermarkIterator::set_watermark(uintptr_t sp) {
   if (!has_next()) {
     return;
@@ -68,19 +89,18 @@ public:
 };
 
 void StackWatermarkIterator::process_one(void* context) {
-  uintptr_t sp = 0;
   StackWatermarkProcessingMark swpm(Thread::current());
   while (has_next()) {
     frame f = current();
-    sp = reinterpret_cast<uintptr_t>(f.sp());
+    uintptr_t sp = reinterpret_cast<uintptr_t>(f.sp());
     bool frame_has_barrier = StackWatermark::has_barrier(f);
     _owner.process(f, register_map(), context);
     next();
     if (frame_has_barrier) {
+      set_watermark(sp);
       break;
     }
   }
-  set_watermark(sp);
 }
 
 void StackWatermarkIterator::process_all(void* context) {
@@ -92,8 +112,8 @@ void StackWatermarkIterator::process_all(void* context) {
   uint i = 0;
   while (has_next()) {
     frame f = current();
-    assert(reinterpret_cast<uintptr_t>(f.sp()) >= _caller, "invariant");
     uintptr_t sp = reinterpret_cast<uintptr_t>(f.sp());
+    assert(sp >= _caller, "invariant");
     bool frame_has_barrier = StackWatermark::has_barrier(f);
     _owner.process(f, register_map(), context);
     next();
@@ -136,7 +156,7 @@ void StackWatermarkIterator::next() {
 }
 
 StackWatermark::StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind, uint32_t epoch) :
-  _state(StackWatermarkState::create(epoch, true /* is_done */)),
+    _state(StackWatermarkState::create(epoch, true /* is_done */)),
     _watermark(0),
     _next(NULL),
     _jt(jt),
@@ -262,6 +282,6 @@ void StackWatermark::finish_iteration(void* context) {
   }
   if (_iterator != NULL) {
     _iterator->process_all(context);
+    update_watermark();
   }
-  update_watermark();
 }

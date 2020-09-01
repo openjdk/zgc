@@ -41,8 +41,8 @@
 #include "runtime/osThread.hpp"
 #include "runtime/park.hpp"
 #include "runtime/safepointMechanism.hpp"
-#include "runtime/stubRoutines.hpp"
 #include "runtime/stackWatermarkSet.hpp"
+#include "runtime/stubRoutines.hpp"
 #include "runtime/threadHeapSampler.hpp"
 #include "runtime/threadLocalStorage.hpp"
 #include "runtime/threadStatisticalInfo.hpp"
@@ -936,8 +936,8 @@ class NamedThread: public NonJavaThread {
   };
  private:
   char* _name;
-  // log JavaThread being processed by oops_do
-  JavaThread* _processed_thread;
+  // log Thread being processed by oops_do
+  Thread* _processed_thread;
   uint _gc_id; // The current GC id when a thread takes part in GC
 
  public:
@@ -947,8 +947,8 @@ class NamedThread: public NonJavaThread {
   void set_name(const char* format, ...)  ATTRIBUTE_PRINTF(2, 3);
   virtual bool is_Named_thread() const { return true; }
   virtual char* name() const { return _name == NULL ? (char*)"Unknown Thread" : _name; }
-  JavaThread *processed_thread() { return _processed_thread; }
-  void set_processed_thread(JavaThread *thread) { _processed_thread = thread; }
+  Thread *processed_thread() { return _processed_thread; }
+  void set_processed_thread(Thread *thread) { _processed_thread = thread; }
   virtual void print_on(outputStream* st) const;
 
   void set_gc_id(uint gc_id) { _gc_id = gc_id; }
@@ -1921,9 +1921,7 @@ class JavaThread: public Thread {
   virtual const char* get_thread_name_string(char* buf = NULL, int buflen = 0) const;
  public:
   // Accessing frames
-  frame last_frame();
-
-  frame last_frame_raw() {
+  frame last_frame() {
     _anchor.make_walkable(this);
     return pd_last_frame();
   }

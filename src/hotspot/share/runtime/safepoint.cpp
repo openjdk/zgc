@@ -705,7 +705,7 @@ static void check_for_lazy_critical_native(JavaThread *thread, JavaThreadState s
     // This thread might be in a critical native nmethod so look at
     // the top of the stack and increment the critical count if it
     // is.
-    frame wrapper_frame = thread->last_frame_raw();
+    frame wrapper_frame = thread->last_frame();
     CodeBlob* stub_cb = wrapper_frame.cb();
     if (stub_cb != NULL &&
         stub_cb->is_nmethod() &&
@@ -1001,7 +1001,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
   CompiledMethod* nm = (CompiledMethod*)cb;
 
   // Find frame of caller
-  frame stub_fr = thread()->last_frame_raw();
+  frame stub_fr = thread()->last_frame();
   CodeBlob* stub_cb = stub_fr.cb();
   assert(stub_cb->is_safepoint_stub(), "must be a safepoint stub");
   RegisterMap map(thread(), true, false);

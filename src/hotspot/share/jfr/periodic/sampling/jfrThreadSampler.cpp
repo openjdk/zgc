@@ -229,7 +229,7 @@ void JfrNativeSamplerCallback::call() {
     return;
   }
 
-  frame topframe = _jt->last_frame_raw();
+  frame topframe = _jt->last_frame();
   frame first_java_frame;
   Method* method = NULL;
   JfrGetCallTrace gct(false, _jt);

@@ -44,7 +44,7 @@ public:
   // Called when a thread is about to unwind a frame
   static void on_unwind(JavaThread* jt);
 
-  // Called bt stack walkers when walking into a frame
+  // Called by stack walkers when walking into a frame
   static void on_iteration(JavaThread* jt, frame fr);
 
   // Called to ensure iterations are initialized

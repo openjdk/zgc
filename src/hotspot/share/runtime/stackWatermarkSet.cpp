@@ -90,27 +90,24 @@ void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
 void StackWatermarkSet::start_iteration(JavaThread* jt, StackWatermarkKind kind) {
   verify_poll_context();
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
-    if (current->kind() != kind) {
-      continue;
+    if (current->kind() == kind) {
+      current->start_iteration();
     }
-    current->start_iteration();
   }
 }
 
 void StackWatermarkSet::finish_iteration(JavaThread* jt, void* context, StackWatermarkKind kind) {
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
-    if (current->kind() != kind) {
-      continue;
+    if (current->kind() == kind) {
+      current->finish_iteration(context);
     }
-    current->finish_iteration(context);
   }
 }
 
 uintptr_t StackWatermarkSet::lowest_watermark() {
   uintptr_t max_watermark = uintptr_t(0) - 1;
   uintptr_t watermark = max_watermark;
-  StackWatermark* current = _head;
-  while (current != NULL) {
+  for (StackWatermark* current = _head; current != NULL; current = current->next()) {
     watermark = MIN2(watermark, current->watermark());
     current = current->next();
   }

@@ -159,8 +159,6 @@ struct ObjectMonitorListGlobals {
 };
 static ObjectMonitorListGlobals om_list_globals;
 
-#define CHAINMARKER (cast_to_oop<intptr_t>(-1))
-
 
 // =====================> Spin-lock functions
 

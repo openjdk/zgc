@@ -30,8 +30,8 @@
 #include "utilities/macros.hpp"
 #include "utilities/sizes.hpp"
 
-class Thread;
 class JavaThread;
+class Thread;
 
 // This is the abstracted interface for the safepoint implementation
 class SafepointMechanism : public AllStatic {
@@ -43,12 +43,6 @@ class SafepointMechanism : public AllStatic {
   static uintptr_t _poll_word_disarmed_value;
 
   static address _polling_page;
-
-  static uintptr_t poll_page_armed_value()    { return _poll_page_armed_value; }
-  static uintptr_t poll_page_disarmed_value() { return _poll_page_disarmed_value; }
-
-  static uintptr_t poll_word_armed_value()    { return _poll_word_armed_value; }
-  static uintptr_t poll_word_disarmed_value() { return _poll_word_disarmed_value; }
 
   static inline bool local_poll_armed(JavaThread* thread);
 

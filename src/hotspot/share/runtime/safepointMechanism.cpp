@@ -91,11 +91,11 @@ void SafepointMechanism::process_operation(JavaThread *thread) {
 uintptr_t SafepointMechanism::compute_poll_word(bool armed, uintptr_t stack_watermark) {
   if (armed) {
     log_debug(stackbarrier)("Computed armed at %d", Thread::current()->osthread()->thread_id());
-    return SafepointMechanism::poll_word_armed_value();
+    return _poll_word_armed_value;
   }
   if (stack_watermark == 0) {
     log_debug(stackbarrier)("Computed disarmed at %d", Thread::current()->osthread()->thread_id());
-    return SafepointMechanism::poll_word_disarmed_value();
+    return _poll_word_disarmed_value;
   }
   log_debug(stackbarrier)("Computed watermark at %d", Thread::current()->osthread()->thread_id());
   return stack_watermark;
@@ -105,8 +105,8 @@ void SafepointMechanism::update_poll_values(JavaThread* thread) {
   for (;;) {
     bool armed = global_poll() || thread->has_handshake();
     uintptr_t stack_watermark = thread->stack_watermark_set()->lowest_watermark();
-    uintptr_t poll_page = armed ? SafepointMechanism::poll_page_armed_value()
-                                : SafepointMechanism::poll_page_disarmed_value();
+    uintptr_t poll_page = armed ? _poll_page_armed_value
+                                : _poll_page_disarmed_value;
     uintptr_t poll_word = compute_poll_word(armed, stack_watermark);
     thread->poll_data()->set_polling_page(poll_page);
     thread->poll_data()->set_polling_word(poll_word);

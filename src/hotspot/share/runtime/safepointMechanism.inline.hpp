@@ -81,19 +81,19 @@ void SafepointMechanism::process_operation_if_requested(JavaThread *thread) {
 }
 
 void SafepointMechanism::arm_local_poll(JavaThread* thread) {
-  thread->poll_data()->set_polling_word(poll_word_armed_value());
-  thread->poll_data()->set_polling_page(poll_page_armed_value());
+  thread->poll_data()->set_polling_word(_poll_word_armed_value);
+  thread->poll_data()->set_polling_page(_poll_page_armed_value);
 }
 
 void SafepointMechanism::disarm_local_poll(JavaThread* thread) {
-  thread->poll_data()->set_polling_word(poll_word_disarmed_value());
-  thread->poll_data()->set_polling_page(poll_page_disarmed_value());
+  thread->poll_data()->set_polling_word(_poll_word_disarmed_value);
+  thread->poll_data()->set_polling_page(_poll_page_disarmed_value);
 }
 
 void SafepointMechanism::arm_local_poll_release(JavaThread* thread) {
   OrderAccess::release();
-  thread->poll_data()->set_polling_word(poll_word_armed_value());
-  thread->poll_data()->set_polling_page(poll_page_armed_value());
+  thread->poll_data()->set_polling_word(_poll_word_armed_value);
+  thread->poll_data()->set_polling_page(_poll_page_armed_value);
 }
 
 #endif // SHARE_RUNTIME_SAFEPOINTMECHANISM_INLINE_HPP

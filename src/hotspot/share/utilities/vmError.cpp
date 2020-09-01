@@ -750,8 +750,9 @@ void VMError::report(outputStream* st, bool _verbose) {
 
      // printing Java thread stack trace if it is involved in GC crash
      if (_verbose && _thread && (_thread->is_Named_thread())) {
-       JavaThread*  jt = ((NamedThread *)_thread)->processed_thread();
-       if (jt != NULL) {
+       Thread* thread = ((NamedThread *)_thread)->processed_thread();
+       if (thread != NULL && thread->is_Java_thread()) {
+         JavaThread* jt = static_cast<JavaThread*>(thread);
          st->print_cr("JavaThread " PTR_FORMAT " (nid = %d) was being processed", p2i(jt), jt->osthread()->thread_id());
          print_stack_trace(st, jt, buf, sizeof(buf), true);
        }

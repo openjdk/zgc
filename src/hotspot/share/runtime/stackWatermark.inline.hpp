@@ -72,24 +72,24 @@ inline bool StackWatermark::needs_processing(frame fr) {
   return is_above_watermark(_jt, fr, watermark());
 }
 
-inline void StackWatermark::on_unwind() {
-  assert(StackWatermarkState::epoch(Atomic::load(&_state)) == epoch_id(),
-         "Starting new stack snapshots is done explicitly or when waking up from safepoints");
-  if (!needs_processing(_jt->last_frame_raw())) {
-    return;
-  }
-  process_one();
-  assert(is_frame_safe(_jt->last_frame_raw()), "frame should be safe after processing");
-}
-
-inline void StackWatermark::on_iteration(frame fr) {
-  assert(StackWatermarkState::epoch(Atomic::load(&_state)) == epoch_id(),
-         "Iteration should already have stearted");
-  if (!process_on_iteration() || !needs_processing(fr)) {
+inline void StackWatermark::ensure_processed(frame fr) {
+  assert(!should_start_iteration(),
+         "Iteration should already have started");
+  if (!needs_processing(fr)) {
     return;
   }
   process_one();
   assert(is_frame_safe(fr), "frame should be safe after processing");
+}
+
+inline void StackWatermark::on_unwind() {
+  ensure_processed(_jt->last_frame());
+}
+
+inline void StackWatermark::on_iteration(frame fr) {
+  if (process_on_iteration()) {
+    ensure_processed(fr);
+  }
 }
 
 #endif // SHARE_RUNTIME_STACKWATERMARK_INLINE_HPP

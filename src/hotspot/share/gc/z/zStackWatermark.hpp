@@ -54,14 +54,15 @@ private:
 
   OopClosure* closure_from_context(void* context);
 
+protected:
+  virtual uint32_t epoch_id() const;
+  virtual void start_iteration_impl(void* context);
+  virtual void process(frame frame, RegisterMap& register_map, void* context);
+
 public:
   ZStackWatermark(JavaThread* jt);
 
   ThreadLocalAllocStats& stats();
-
-  virtual uint32_t epoch_id() const;
-  virtual void start_iteration_impl(void* context);
-  virtual void process(frame frame, RegisterMap& register_map, void* context);
 };
 
 #endif // SHARE_GC_Z_ZSTACKWATERMARK_HPP
