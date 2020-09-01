@@ -1,2 +1,4 @@
 project=jdk
-bugids=dup
+bugids=lax
+tags=lax
+comments=lax
