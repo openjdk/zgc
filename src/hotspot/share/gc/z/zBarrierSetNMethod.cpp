@@ -62,7 +62,7 @@ bool ZBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
 }
 
 int* ZBarrierSetNMethod::disarmed_value_address() const {
-  return (int*)ZAddressGoodMaskHighOrderBitsPtr;
+  return (int*)ZAddressBadMaskHighOrderBitsPtr;
 }
 
 ByteSize ZBarrierSetNMethod::thread_disarmed_offset() const {

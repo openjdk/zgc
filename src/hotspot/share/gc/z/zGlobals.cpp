@@ -24,7 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/z/zGlobals.hpp"
 
-uint32_t* calculate_good_mask_high_order_bits_ptr();
+uint32_t* calculate_bad_mask_high_order_bits_ptr();
 
 uint32_t   ZGlobalPhase                = ZPhaseRelocate;
 uint32_t   ZGlobalSeqNum               = 1;
@@ -57,7 +57,7 @@ uintptr_t  ZAddressMetadataMarked1;
 uintptr_t  ZAddressMetadataRemapped;
 uintptr_t  ZAddressMetadataFinalizable;
 
-uint32_t*  ZAddressGoodMaskHighOrderBitsPtr = calculate_good_mask_high_order_bits_ptr();
+uint32_t*  ZAddressBadMaskHighOrderBitsPtr = calculate_bad_mask_high_order_bits_ptr();
 
 const char* ZGlobalPhaseToString() {
   switch (ZGlobalPhase) {
@@ -75,8 +75,8 @@ const char* ZGlobalPhaseToString() {
   }
 }
 
-uint32_t* calculate_good_mask_high_order_bits_ptr() {
+uint32_t* calculate_bad_mask_high_order_bits_ptr() {
   const uintptr_t mask_addr = reinterpret_cast<uintptr_t>(&ZAddressGoodMask);
-  const uintptr_t epoch_addr = mask_addr + ZAddressGoodMaskHighOrderBitsOffset;
+  const uintptr_t epoch_addr = mask_addr + ZAddressBadMaskHighOrderBitsOffset;
   return reinterpret_cast<uint32_t*>(epoch_addr);
 }

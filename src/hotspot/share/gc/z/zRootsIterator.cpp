@@ -204,6 +204,8 @@ void ZConcurrentRootsIterator::do_class_loader_data_graph(ZRootsIteratorClosure*
 class ZConcurrentRootsIteratorThreadClosure : public ThreadClosure {
 private:
   ZRootsIteratorClosure* const _cl;
+  // The resource mark is needed because interpreter oop maps are not reused in concurrent mode.
+  // Instead, they are temporary, and resource allocated.
   ResourceMark                 _rm;
 
 public:

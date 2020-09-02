@@ -964,7 +964,7 @@ bool LIR_OpVisitState::no_operands(LIR_Op* op) {
 
 // LIR_OpReturn
 LIR_OpReturn::LIR_OpReturn(LIR_Opr opr) :
-  LIR_Op1(lir_return, opr, (CodeEmitInfo*)NULL /* info */),
+    LIR_Op1(lir_return, opr, (CodeEmitInfo*)NULL /* info */),
     _stub(NULL) {
   if (VM_Version::supports_stack_watermark_barrier()) {
     _stub = new C1SafepointPollStub();

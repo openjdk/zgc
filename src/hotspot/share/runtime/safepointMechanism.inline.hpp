@@ -35,7 +35,7 @@ inline void SafepointMechanism::ThreadData::set_polling_page(uintptr_t poll_valu
   Atomic::store(&_polling_page, poll_value);
 }
 
-// The aqcquire make sure reading of polling page is done before
+// The acquire makes sure reading of polling page is done before
 // the reading the handshake operation or the global state
 inline uintptr_t SafepointMechanism::ThreadData::get_polling_page() {
   return Atomic::load_acquire(&_polling_page);
@@ -46,7 +46,7 @@ inline void SafepointMechanism::ThreadData::set_polling_word(uintptr_t poll_valu
   Atomic::store(&_polling_word, poll_value);
 }
 
-// The aqcquire make sure reading of polling page is done before
+// The acquire makes sure reading of polling page is done before
 // the reading the handshake operation or the global state
 inline uintptr_t SafepointMechanism::ThreadData::get_polling_word() {
   return Atomic::load_acquire(&_polling_word);

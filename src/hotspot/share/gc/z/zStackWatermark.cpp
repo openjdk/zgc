@@ -50,11 +50,11 @@ ThreadLocalAllocStats& ZStackWatermark::stats() {
 }
 
 uint32_t ZStackWatermark::epoch_id() const {
-  return *ZAddressGoodMaskHighOrderBitsPtr;
+  return *ZAddressBadMaskHighOrderBitsPtr;
 }
 
 ZStackWatermark::ZStackWatermark(JavaThread* jt) :
-    StackWatermark(jt, StackWatermarkSet::gc, *ZAddressGoodMaskHighOrderBitsPtr),
+    StackWatermark(jt, StackWatermarkSet::gc, *ZAddressBadMaskHighOrderBitsPtr),
     _jt_cl(),
     _cb_cl(),
     _stats() {}

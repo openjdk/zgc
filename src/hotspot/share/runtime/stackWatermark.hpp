@@ -61,10 +61,11 @@ protected:
   void process_one();
 
   void update_watermark();
+  void yield_processing();
   static bool has_barrier(frame& f);
-  bool needs_processing(frame f);
-  void ensure_processed(frame fr);
-  bool is_frame_safe(frame fr);
+  void ensure_safe(frame f);
+  bool is_frame_processed(frame f);
+  bool is_frame_safe(frame f);
 
   // API for consumers of the stack watermark barrier.
   // The rule for consumers is: do not perform thread transitions

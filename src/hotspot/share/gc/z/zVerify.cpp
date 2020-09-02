@@ -62,94 +62,20 @@ static void z_verify_possibly_weak_oop(oop* p) {
 
 class ZVerifyRootClosure : public ZRootsIteratorClosure {
 private:
-  bool _verify_fixed;
-  bool _verify_unfixed;
-
-  class ZVerifyCodeBlobClosure : public CodeBlobToOopClosure {
-  private:
-    ZVerifyRootClosure* _cl;
-
-  public:
-    ZVerifyCodeBlobClosure(ZVerifyRootClosure* cl) :
-        CodeBlobToOopClosure(cl, false /* fix_relocations */),
-        _cl(cl) {}
-
-    virtual void do_code_blob(CodeBlob* cb) {
-      bool verify_unfixed = _cl->_verify_unfixed;
-      // We can never expect oops in a code blob are bad, because they are not only
-      // members of this stack.
-      _cl->_verify_unfixed = false;
-      CodeBlobToOopClosure::do_code_blob(cb);
-      _cl->_verify_unfixed = verify_unfixed;
-    }
-  };
-
-  class ZVerifyStack {
-  private:
-    ZVerifyRootClosure* _cl;
-    JavaThread*         _jt;
-    bool                _verify_fixed;
-    uint64_t            _last_good;
-
-  public:
-    ZVerifyStack(ZVerifyRootClosure* cl, JavaThread* jt) :
-        _cl(cl),
-        _jt(jt),
-        _verify_fixed(cl->_verify_fixed),
-        _last_good(0) {
-      _cl->_verify_fixed = true;
-      ZStackWatermark* stack_watermark = jt->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
-      if (stack_watermark->should_start_iteration()) {
-        _cl->_verify_fixed = false;
-        _cl->_verify_unfixed = true;
-      } else {
-        _last_good = stack_watermark->last_processed();
-      }
-    }
-
-    ~ZVerifyStack() {
-      _cl->_verify_fixed = _verify_fixed;
-      _cl->_verify_unfixed = false;
-    }
-
-    void prepare_next_frame(frame& frame) {
-      // The verification has two modes, depending on whether we have reached the
-      // last processed frame or not. Before it is reached, we expect everything to
-      // be good. After reaching it, we expect everything to be bad.
-      uintptr_t sp = reinterpret_cast<uintptr_t>(frame.sp());
-      if (!_cl->_verify_unfixed && sp == _last_good) {
-        _cl->_verify_fixed = false;
-        _cl->_verify_unfixed = true;
-      }
-    }
-
-    void verify_frames() {
-      ZVerifyCodeBlobClosure cb_cl(_cl);
-      for (StackFrameStream frames(_jt, true /* update */, false /* process_frames */);
-           !frames.is_done();
-           frames.next()) {
-        frame& frame = *frames.current();
-        frame.oops_do(_cl, &cb_cl, frames.register_map());
-        prepare_next_frame(frame);
-      }
-    }
-  };
+  const bool _verify_fixed;
 
 public:
   ZVerifyRootClosure(bool verify_fixed) :
-      _verify_fixed(verify_fixed),
-      _verify_unfixed(false) {}
+      _verify_fixed(verify_fixed) {}
 
   virtual void do_oop(oop* p) {
-    if (!_verify_fixed) {
+    if (_verify_fixed) {
+      z_verify_oop(p);
+    } else {
+      // Don't know the state of the oop.
       oop obj = *p;
-      if (_verify_unfixed) {
-        guarantee(!ZAddress::is_good(ZOop::to_address(obj)), BAD_OOP_ARG(obj, p));
-      }
       obj = NativeAccess<AS_NO_KEEPALIVE>::oop_load(&obj);
       z_verify_oop(&obj);
-    } else {
-      z_verify_oop(p);
     }
   }
 
@@ -157,18 +83,98 @@ public:
     ShouldNotReachHere();
   }
 
-  virtual void do_thread(Thread* thread) {
-    thread->oops_do_no_frames(this, NULL);
+  virtual void do_thread(Thread* thread);
 
-    JavaThread* jt = static_cast<JavaThread*>(thread);
-    if (!jt->has_last_Java_frame()) {
+  bool verify_fixed() const { return _verify_fixed; }
+};
+
+class ZVerifyCodeBlobClosure : public CodeBlobToOopClosure {
+public:
+  ZVerifyCodeBlobClosure(ZVerifyRootClosure* _cl) :
+      CodeBlobToOopClosure(_cl, false /* fix_relocations */) {}
+
+  virtual void do_code_blob(CodeBlob* cb) {
+    CodeBlobToOopClosure::do_code_blob(cb);
+  }
+};
+
+class ZVerifyStack : public OopClosure {
+private:
+  ZVerifyRootClosure* _cl;
+  JavaThread*         _jt;
+  uint64_t            _last_good;
+  bool                _verifying_bad_frames;
+
+public:
+  ZVerifyStack(ZVerifyRootClosure* cl, JavaThread* jt) :
+      _cl(cl),
+      _jt(jt),
+      _last_good(0),
+      _verifying_bad_frames(false) {
+    ZStackWatermark* stack_watermark = jt->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
+
+    if (_cl->verify_fixed()) {
+      assert(!stack_watermark->should_start_iteration(), "Should already have been fixed");
+    } else {
+      // We don't really know the state of the stack, verify watermark.
+      if (stack_watermark->should_start_iteration()) {
+        _verifying_bad_frames = true;
+      } else {
+        // Not time yet to verify bad frames
+        _last_good = stack_watermark->last_processed();
+      }
+    }
+  }
+
+  void do_oop(oop* p) {
+    if (_verifying_bad_frames) {
+      oop obj = *p;
+      guarantee(!ZAddress::is_good(ZOop::to_address(obj)), BAD_OOP_ARG(obj, p));
+    }
+    _cl->do_oop(p);
+  }
+  void do_oop(narrowOop* p) { ShouldNotReachHere(); }
+
+  void prepare_next_frame(frame& frame) {
+    if (_cl->verify_fixed()) {
+      // All frames need to be good
       return;
     }
 
-    ZVerifyStack verify_stack(this, jt);
-    verify_stack.verify_frames();
+    // The verification has two modes, depending on whether we have reached the
+    // last processed frame or not. Before it is reached, we expect everything to
+    // be good. After reaching it, we expect everything to be bad.
+    uintptr_t sp = reinterpret_cast<uintptr_t>(frame.sp());
+
+    if (!_verifying_bad_frames && sp == _last_good) {
+      // Found the last good frame, now verify the bad ones
+      _verifying_bad_frames = true;
+    }
+  }
+
+  void verify_frames() {
+    ZVerifyCodeBlobClosure cb_cl(_cl);
+    for (StackFrameStream frames(_jt, true /* update */, false /* process_frames */);
+         !frames.is_done();
+         frames.next()) {
+      frame& frame = *frames.current();
+      frame.oops_do(this, &cb_cl, frames.register_map());
+      prepare_next_frame(frame);
+    }
   }
 };
+
+void ZVerifyRootClosure::do_thread(Thread* thread) {
+  thread->oops_do_no_frames(this, NULL);
+
+  JavaThread* jt = static_cast<JavaThread*>(thread);
+  if (!jt->has_last_Java_frame()) {
+    return;
+  }
+
+  ZVerifyStack verify_stack(this, jt);
+  verify_stack.verify_frames();
+}
 
 class ZVerifyOopClosure : public ClaimMetadataVisitingOopIterateClosure, public ZRootsIteratorClosure  {
 private:
@@ -233,9 +239,9 @@ void ZVerify::roots_concurrent_weak() {
   roots<ZConcurrentWeakRootsIterator>(true /* verify_fixed */);
 }
 
-void ZVerify::roots(bool verify_fixed_strong, bool verify_weaks) {
+void ZVerify::roots(bool verify_concurrent_strong, bool verify_weaks) {
   roots_strong();
-  roots_concurrent_strong(verify_fixed_strong);
+  roots_concurrent_strong(verify_concurrent_strong);
   if (verify_weaks) {
     roots_weak();
     roots_concurrent_weak();
@@ -254,27 +260,27 @@ void ZVerify::objects(bool verify_weaks) {
   }
 }
 
-void ZVerify::roots_and_objects(bool verify_weaks) {
-  roots(true /* verify_fixed_strong */, verify_weaks);
+void ZVerify::roots_and_objects(bool verify_concurrent_strong, bool verify_weaks) {
+  roots(verify_concurrent_strong, verify_weaks);
   objects(verify_weaks);
 }
 
 void ZVerify::before_zoperation() {
   // Verify strong roots
   ZStatTimerDisable disable;
-  roots(false /* verify_fixed_strong */, false /* verify_weaks */);
+  roots(false /* verify_concurrent_strong */, false /* verify_weaks */);
 }
 
 void ZVerify::after_mark() {
   // Verify all strong roots and strong references
   ZStatTimerDisable disable;
-  roots_and_objects(false /* verify_weaks */);
+  roots_and_objects(false /* verify_concurrent_strong*/, false /* verify_weaks */);
 }
 
 void ZVerify::after_weak_processing() {
   // Verify all roots and all references
   ZStatTimerDisable disable;
-  roots_and_objects(true /* verify_weaks */);
+  roots_and_objects(true /* verify_concurrent_strong*/, true /* verify_weaks */);
 }
 
 template <bool Map>

@@ -28,24 +28,11 @@
 #include "runtime/stackWatermark.hpp"
 #include "runtime/thread.hpp"
 
-static inline bool is_above_watermark(JavaThread* jt, uintptr_t sp, uintptr_t watermark) {
+static inline bool is_above_watermark(uintptr_t sp, uintptr_t watermark) {
   if (watermark == 0) {
     return false;
   }
   return sp > watermark;
-}
-
-static inline bool is_above_watermark(JavaThread* jt, frame last_frame, uintptr_t watermark) {
-  RegisterMap map(jt, false /* update_map */, false /* process_frames */);
-  if (last_frame.is_safepoint_blob_frame()) {
-    // The return barrier of compiled methods might get to the runtime through a
-    // safepoint blob. Skip it to the frame that triggered the barrier.
-    last_frame = last_frame.sender(&map);
-  }
-  if (!last_frame.is_first_frame()) {
-    last_frame = last_frame.sender(&map);
-  }
-  return is_above_watermark(jt, reinterpret_cast<uintptr_t>(last_frame.sp()), watermark);
 }
 
 inline bool StackWatermark::has_barrier(frame& f) {
@@ -64,31 +51,53 @@ inline bool StackWatermark::has_barrier(frame& f) {
   return false;
 }
 
-inline bool StackWatermark::needs_processing(frame fr) {
+inline void StackWatermark::ensure_safe(frame f) {
+  assert(!should_start_iteration(), "Iteration should already have started");
+
   uint32_t state = Atomic::load_acquire(&_state);
   if (StackWatermarkState::is_done(state)) {
-    return false;
-  }
-  return is_above_watermark(_jt, fr, watermark());
-}
-
-inline void StackWatermark::ensure_processed(frame fr) {
-  assert(!should_start_iteration(),
-         "Iteration should already have started");
-  if (!needs_processing(fr)) {
     return;
   }
-  process_one();
-  assert(is_frame_safe(fr), "frame should be safe after processing");
+
+  assert(is_frame_processed(f), "frame should be safe before processing");
+
+  if (is_above_watermark(reinterpret_cast<uintptr_t>(f.sp()), watermark())) {
+    process_one();
+  }
+
+  assert(is_frame_safe(f), "frame should be safe after processing");
+  assert(!is_above_watermark(reinterpret_cast<uintptr_t>(f.sp()), watermark()), "");
 }
 
 inline void StackWatermark::on_unwind() {
-  ensure_processed(_jt->last_frame());
+  const frame& f = _jt->last_frame();
+  assert(is_frame_safe(f), "frame should be safe after processing");
+
+  if (f.is_first_frame()) {
+    return;
+  }
+
+  // on_unwind() potentially exposes a new frame. The new exposed frame is
+  // always the caller of the top frame, but for two different reasons.
+  //
+  // 1) Return sites in nmethods unwind the frame *before* polling. In other
+  //    words, the frame of the nmethod performing the poll, will not be
+  //    on-stack when it gets to the runtime. However, it trampolines into the
+  //    runtime with a safepoint blob, which will be the top frame. Therefore,
+  //    the caller of the safepoint blob, will be the new exposed frame.
+  //
+  // 2) All other calls to on_unwind() perform the unwinding *after* polling.
+  //    Therefore, the caller of the top frame will be the new exposed frame.
+
+  RegisterMap map(_jt, false /* update_map */, false /* process_frames */);
+  const frame& caller = f.sender(&map);
+
+  ensure_safe(caller);
 }
 
-inline void StackWatermark::on_iteration(frame fr) {
+inline void StackWatermark::on_iteration(frame f) {
   if (process_on_iteration()) {
-    ensure_processed(fr);
+    ensure_safe(f);
   }
 }
 

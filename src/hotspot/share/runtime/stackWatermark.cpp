@@ -41,17 +41,18 @@ class StackWatermarkIterator : public CHeapObj<mtInternal> {
   StackWatermark& _owner;
   bool _is_done;
 
+  void set_watermark(uintptr_t sp);
+  RegisterMap& register_map();
+  frame& current();
+  void next();
+
 public:
   StackWatermarkIterator(StackWatermark& owner);
   uintptr_t caller() const { return _caller; }
   uintptr_t callee() const { return _callee; }
   void process_one(void* context);
   void process_all(void* context);
-  void set_watermark(uintptr_t sp);
-  RegisterMap& register_map();
-  frame& current();
   bool has_next() const;
-  void next();
 };
 
 void StackWatermarkIterator::set_watermark(uintptr_t sp) {
@@ -122,8 +123,7 @@ void StackWatermarkIterator::process_all(void* context) {
       if (++i == frames_per_poll_gc) {
         // Yield every N frames so mutator can progress faster.
         i = 0;
-        _owner.update_watermark();
-        MutexUnlocker mul(&_owner._lock, Mutex::_no_safepoint_check_flag);
+        _owner.yield_processing();
       }
     }
   }
@@ -169,7 +169,7 @@ StackWatermark::~StackWatermark() {
   delete _iterator;
 }
 
-bool StackWatermark::is_frame_safe(frame fr) {
+bool StackWatermark::is_frame_processed(frame fr) {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
   uint32_t state = Atomic::load(&_state);
   if (StackWatermarkState::epoch(state) != epoch_id()) {
@@ -179,11 +179,25 @@ bool StackWatermark::is_frame_safe(frame fr) {
     return true;
   }
   if (_iterator != NULL) {
-    if (fr.is_safepoint_blob_frame()) {
-      RegisterMap reg_map(_jt, false /* update_map */, false /* process_frames */);
-      fr = fr.sender(&reg_map);
-    }
-    return reinterpret_cast<uintptr_t>(fr.sp()) < _iterator->caller();
+    return reinterpret_cast<uintptr_t>(fr.sp()) <= _iterator->caller();
+  }
+  return true;
+}
+
+// A frame is "safe" it it *and* its caller has been processed. This is the invariant
+// that allows exposing a frame, and for that frame to directly access its caller frame
+// without going through any hooks. This is a stricter guarantee than is_frame_processed().
+bool StackWatermark::is_frame_safe(frame f) {
+  MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
+  uint32_t state = Atomic::load(&_state);
+  if (StackWatermarkState::epoch(state) != epoch_id()) {
+    return false;
+  }
+  if (StackWatermarkState::is_done(state)) {
+    return true;
+  }
+  if (_iterator != NULL) {
+    return reinterpret_cast<uintptr_t>(f.sp()) < _iterator->caller();
   }
   return true;
 }
@@ -219,6 +233,11 @@ void StackWatermark::start_iteration_impl(void* context) {
     _iterator = NULL;
   }
   update_watermark();
+}
+
+void StackWatermark::yield_processing() {
+  update_watermark();
+  MutexUnlocker mul(&_lock, Mutex::_no_safepoint_check_flag);
 }
 
 void StackWatermark::update_watermark() {

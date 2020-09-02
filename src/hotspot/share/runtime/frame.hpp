@@ -145,9 +145,6 @@ class frame {
   // returns the frame size in stack slots
   int frame_size(RegisterMap* map) const;
 
-  // returns the sending frame, without applying any barriers
-  frame sender_raw(RegisterMap* map) const;
-
   // returns the sending frame
   frame sender(RegisterMap* map) const;
 

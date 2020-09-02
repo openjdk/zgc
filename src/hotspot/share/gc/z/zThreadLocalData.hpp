@@ -84,7 +84,7 @@ public:
   }
 
   static ByteSize nmethod_disarmed_offset() {
-    return address_bad_mask_offset() + in_ByteSize(ZAddressGoodMaskHighOrderBitsOffset);
+    return address_bad_mask_offset() + in_ByteSize(ZAddressBadMaskHighOrderBitsOffset);
   }
 };
 

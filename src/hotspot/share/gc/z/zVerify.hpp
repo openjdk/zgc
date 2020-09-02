@@ -38,9 +38,9 @@ private:
   static void roots_concurrent_strong(bool verify_potentially_unfixed);
   static void roots_concurrent_weak();
 
-  static void roots(bool verify_potentially_unfixed_strong, bool verify_weaks);
+  static void roots(bool verify_concurrent_strong, bool verify_weaks);
   static void objects(bool verify_weaks);
-  static void roots_and_objects(bool verify_weaks);
+  static void roots_and_objects(bool verify_concurrent_strong, bool verify_weaks);
 
 public:
   static void before_zoperation();

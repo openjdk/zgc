@@ -59,7 +59,7 @@ inline vframeStream::vframeStream(JavaThread* thread, bool stop_at_java_call_stu
     return;
   }
 
-  _frame = process_frame ? _thread->last_frame() : _thread->last_frame();
+  _frame = _thread->last_frame();
   while (!fill_from_frame()) {
     _prev_frame = _frame;
     _frame = _frame.sender(&_reg_map);
