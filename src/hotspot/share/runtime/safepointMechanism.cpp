@@ -71,7 +71,7 @@ void SafepointMechanism::default_initialize() {
     // Poll address values
     _poll_page_armed_value    = reinterpret_cast<uintptr_t>(bad_page);
     _poll_page_disarmed_value = reinterpret_cast<uintptr_t>(good_page);
-    _polling_page = (address)(bad_page);
+    _polling_page = (address)bad_page;
   }
 }
 

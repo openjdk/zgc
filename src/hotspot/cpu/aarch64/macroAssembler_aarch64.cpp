@@ -296,6 +296,8 @@ void MacroAssembler::safepoint_poll(Label& slow_path, bool at_return, bool acqui
     ldr(rscratch1, Address(rthread, Thread::polling_word_offset()));
   }
   if (at_return) {
+    // Note that when in_nmethod is set, the stack pointer is incremented before the poll. Therefore,
+    // we may safely use the sp instead to perform the stack watermark check.
     cmp(in_nmethod ? sp : rfp, rscratch1);
     br(Assembler::HI, slow_path);
   } else {

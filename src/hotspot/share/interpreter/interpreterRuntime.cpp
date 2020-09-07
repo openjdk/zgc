@@ -1159,12 +1159,12 @@ JRT_ENTRY(void, InterpreterRuntime::at_safepoint(JavaThread* thread))
   // JRT_END does an implicit safepoint check, hence we are guaranteed to block
   // if this is called during a safepoint
 
-  // This function is called by the interpreter when single stepping. Such single
-  // stepping could unwind a frame. Then, it is important that we process any frames
-  // that we might return into.
-  StackWatermarkSet::on_unwind(thread);
-
   if (JvmtiExport::should_post_single_step()) {
+    // This function is called by the interpreter when single stepping. Such single
+    // stepping could unwind a frame. Then, it is important that we process any frames
+    // that we might return into.
+    StackWatermarkSet::on_unwind(thread);
+
     // We are called during regular safepoints and when the VM is
     // single stepping. If any thread is marked for single stepping,
     // then we may have JVMTI work to do.

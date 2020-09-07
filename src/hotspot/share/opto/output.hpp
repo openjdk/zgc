@@ -25,12 +25,12 @@
 #ifndef SHARE_OPTO_OUTPUT_HPP
 #define SHARE_OPTO_OUTPUT_HPP
 
+#include "code/debugInfo.hpp"
+#include "code/exceptionHandlerTable.hpp"
 #include "metaprogramming/enableIf.hpp"
 #include "opto/ad.hpp"
 #include "opto/constantTable.hpp"
 #include "opto/phase.hpp"
-#include "code/debugInfo.hpp"
-#include "code/exceptionHandlerTable.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"

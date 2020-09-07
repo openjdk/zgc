@@ -1703,7 +1703,7 @@ void MachEpilogNode::format(PhaseRegAlloc *ra_, outputStream *st) const {
   if (do_polling() && C->is_method_compilation()) {
     st->print("# test polling word\n\t");
     st->print("ldr  rscratch1, [rthread],#%d\n\t", in_bytes(JavaThread::polling_word_offset()));
-    st->print("cmp  rfp, rscratch1\n\t");
+    st->print("cmp  sp, rscratch1\n\t");
     st->print("bhi #slow_path");
   }
 }
