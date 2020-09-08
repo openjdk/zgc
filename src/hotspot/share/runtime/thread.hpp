@@ -1925,7 +1925,6 @@ class JavaThread: public Thread {
     _anchor.make_walkable(this);
     return pd_last_frame();
   }
-
   javaVFrame* last_java_vframe(RegisterMap* reg_map);
 
   // Returns method at 'depth' java or native frames down the stack

@@ -62,7 +62,7 @@ protected:
 
   void update_watermark();
   void yield_processing();
-  static bool has_barrier(frame& f);
+  static bool has_barrier(frame f);
   void ensure_safe(frame f);
   void assert_is_frame_safe(frame f);
   bool is_frame_safe(frame f);
@@ -71,7 +71,7 @@ protected:
   // The rule for consumers is: do not perform thread transitions
   // or take locks of rank >= special. This is all very special code.
   virtual uint32_t epoch_id() const = 0;
-  virtual void process(frame frame, RegisterMap& register_map, void* context) = 0;
+  virtual void process(frame f, RegisterMap& register_map, void* context) = 0;
   virtual void start_iteration_impl(void* context);
 
   // Set process_on_iteration to false if you don't want to move the
@@ -103,7 +103,7 @@ public:
   void before_unwind();
   void after_unwind();
 
-  void on_iteration(frame fr);
+  void on_iteration(frame f);
   void start_iteration();
   void finish_iteration(void* context);
 };

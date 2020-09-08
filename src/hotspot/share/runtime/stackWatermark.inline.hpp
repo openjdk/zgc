@@ -35,7 +35,10 @@ static inline bool is_above_watermark(uintptr_t sp, uintptr_t watermark) {
   return sp > watermark;
 }
 
-inline bool StackWatermark::has_barrier(frame& f) {
+// Returns true for frames where stack watermark barriers have been inserted.
+// This function may return false negatives, but may never return true if a
+// frame has no barrier.
+inline bool StackWatermark::has_barrier(frame f) {
   if (f.is_interpreted_frame()) {
     return true;
   }
