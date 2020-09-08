@@ -308,7 +308,6 @@ void HandshakeOperation::do_handshake(JavaThread* thread) {
 
   // Only actually execute the operation for non terminated threads.
   if (!thread->is_terminated()) {
-    StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
     _handshake_cl->do_thread(thread);
     _executed = true;
   }
@@ -513,6 +512,9 @@ HandshakeState::ProcessResult HandshakeState::try_process(HandshakeOperation* op
     guarantee(!_processing_sem.trywait(), "we should already own the semaphore");
     log_trace(handshake)("Processing handshake by %s", Thread::current()->is_VM_thread() ? "VMThread" : "Handshaker");
     DEBUG_ONLY(_active_handshaker = Thread::current();)
+
+    StackWatermarkSet::start_iteration(_handshakee, StackWatermarkSet::gc);
+
     op->do_handshake(_handshakee);
     DEBUG_ONLY(_active_handshaker = NULL;)
     // Disarm after we have executed the operation.
