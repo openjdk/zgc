@@ -51,11 +51,19 @@ inline bool StackWatermark::has_barrier(frame& f) {
   return false;
 }
 
-inline void StackWatermark::ensure_safe(frame f) {
-  assert(!should_start_iteration(), "Iteration should already have started");
+inline bool StackWatermark::iteration_started(uint32_t state) const {
+  return StackWatermarkState::epoch(state) == epoch_id();
+}
 
-  uint32_t state = Atomic::load_acquire(&_state);
-  if (StackWatermarkState::is_done(state)) {
+inline bool StackWatermark::iteration_completed(uint32_t state) const {
+  assert(iteration_started(state), "Check is only valid if iteration has been started");
+  return StackWatermarkState::is_done(state);
+}
+
+inline void StackWatermark::ensure_safe(frame f) {
+  assert(iteration_started(), "Iteration should already have started");
+
+  if (iteration_completed_acquire()) {
     return;
   }
 
