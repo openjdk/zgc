@@ -31,16 +31,36 @@
 class JavaThread;
 class StackWatermark;
 
-class StackWatermarkSet {
-public:
-  enum StackWatermarkKind {
-    gc
-  };
-
+class StackWatermarkSetInstance {
+  friend class StackWatermarkSet;
 private:
   StackWatermark* _head;
 
 public:
+  StackWatermarkSetInstance();
+  ~StackWatermarkSetInstance();
+};
+
+class StackWatermarkSet : public AllStatic {
+public:
+  enum Kind {
+    gc
+  };
+
+private:
+  static StackWatermark* head(JavaThread* jt);
+  static void set_head(JavaThread* jt, StackWatermark* watermark);
+
+public:
+  static void add_watermark(JavaThread* jt, StackWatermark* watermark);
+
+  static StackWatermark* get(JavaThread* jt, Kind kind);
+
+  template <typename T>
+  static T* get(JavaThread* jt, Kind kind);
+
+  static bool has_watermark(JavaThread* jt, Kind kind);
+
   // Called when a thread is about to unwind a frame
   static void before_unwind(JavaThread* jt);
 
@@ -51,20 +71,13 @@ public:
   static void on_iteration(JavaThread* jt, frame fr);
 
   // Called to ensure iterations are initialized
-  static void start_iteration(JavaThread* jt, StackWatermarkKind kind);
+  static void start_iteration(JavaThread* jt, Kind kind);
 
   // Called to finish an iteration
-  static void finish_iteration(JavaThread* jt, void* context, StackWatermarkKind kind);
+  static void finish_iteration(JavaThread* jt, void* context, Kind kind);
 
-  StackWatermarkSet();
-  ~StackWatermarkSet();
 
-  template <typename T>
-  T* get(StackWatermarkKind kind);
-
-  uintptr_t lowest_watermark();
-  void add_watermark(StackWatermark* watermark);
-  bool has_watermark(StackWatermarkKind kind);
+  static uintptr_t lowest_watermark(JavaThread* jt);
 };
 
 #endif // SHARE_RUNTIME_STACKWATERMARKSET_HPP

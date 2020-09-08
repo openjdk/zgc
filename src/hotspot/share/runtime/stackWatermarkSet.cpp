@@ -29,23 +29,38 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/stackWatermark.inline.hpp"
-#include "runtime/stackWatermarkSet.hpp"
+#include "runtime/stackWatermarkSet.inline.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/preserveException.hpp"
 #include "utilities/vmError.hpp"
 
-StackWatermarkSet::StackWatermarkSet() :
+StackWatermarkSetInstance::StackWatermarkSetInstance() :
     _head(NULL) {}
 
-StackWatermarkSet::~StackWatermarkSet() {
+StackWatermarkSetInstance::~StackWatermarkSetInstance() {
   StackWatermark* current = _head;
   while (current != NULL) {
     StackWatermark* next = current->next();
     delete current;
     current = next;
   }
+}
+
+StackWatermark* StackWatermarkSet::head(JavaThread* jt) {
+  return jt->stack_watermark_set()->_head;
+}
+
+void StackWatermarkSet::set_head(JavaThread* jt, StackWatermark* watermark) {
+  jt->stack_watermark_set()->_head = watermark;
+}
+
+void StackWatermarkSet::add_watermark(JavaThread* jt, StackWatermark* watermark) {
+  assert(!has_watermark(jt, watermark->kind()), "Two instances of same kind");
+  StackWatermark* prev = head(jt);
+  watermark->set_next(prev);
+  set_head(jt, watermark);
 }
 
 static void verify_poll_context() {
@@ -70,12 +85,11 @@ void StackWatermarkSet::before_unwind(JavaThread* jt) {
     // do not have any Java threads. Skip those callsites.
     return;
   }
-  for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
+  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
     current->before_unwind();
   }
   SafepointMechanism::update_poll_values(jt);
 }
-
 
 void StackWatermarkSet::after_unwind(JavaThread* jt) {
   verify_poll_context();
@@ -84,7 +98,7 @@ void StackWatermarkSet::after_unwind(JavaThread* jt) {
     // do not have any Java threads. Skip those callsites.
     return;
   }
-  for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
+  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
     current->after_unwind();
   }
   SafepointMechanism::update_poll_values(jt);
@@ -96,32 +110,28 @@ void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
     return;
   }
   verify_poll_context();
-  for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
+  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
     current->on_iteration(fr);
   }
 }
 
-void StackWatermarkSet::start_iteration(JavaThread* jt, StackWatermarkKind kind) {
+void StackWatermarkSet::start_iteration(JavaThread* jt, Kind kind) {
   verify_poll_context();
-  for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
-    if (current->kind() == kind) {
-      current->start_iteration();
-    }
+  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
+    current->start_iteration();
   }
 }
 
-void StackWatermarkSet::finish_iteration(JavaThread* jt, void* context, StackWatermarkKind kind) {
-  for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
-    if (current->kind() == kind) {
-      current->finish_iteration(context);
-    }
+void StackWatermarkSet::finish_iteration(JavaThread* jt, void* context, Kind kind) {
+  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
+    current->finish_iteration(context);
   }
 }
 
-uintptr_t StackWatermarkSet::lowest_watermark() {
+uintptr_t StackWatermarkSet::lowest_watermark(JavaThread* jt) {
   uintptr_t max_watermark = uintptr_t(0) - 1;
   uintptr_t watermark = max_watermark;
-  for (StackWatermark* current = _head; current != NULL; current = current->next()) {
+  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
     watermark = MIN2(watermark, current->watermark());
   }
   if (watermark == max_watermark) {
@@ -129,10 +139,4 @@ uintptr_t StackWatermarkSet::lowest_watermark() {
   } else {
     return watermark;
   }
-}
-
-void StackWatermarkSet::add_watermark(StackWatermark* watermark) {
-  StackWatermark* prev = _head;
-  watermark->set_next(prev);
-  _head = watermark;
 }

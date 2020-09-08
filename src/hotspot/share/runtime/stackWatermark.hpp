@@ -56,7 +56,7 @@ protected:
   JavaThread* _jt;
   StackWatermarkIterator* _iterator;
   Mutex _lock;
-  StackWatermarkSet::StackWatermarkKind _kind;
+  StackWatermarkSet::Kind _kind;
 
   void process_one();
 
@@ -79,12 +79,13 @@ protected:
   virtual bool process_on_iteration() { return true; }
 
 public:
-  StackWatermark(JavaThread* jt, StackWatermarkSet::StackWatermarkKind kind, uint32_t epoch);
+  StackWatermark(JavaThread* jt, StackWatermarkSet::Kind kind, uint32_t epoch);
   virtual ~StackWatermark();
 
   uintptr_t watermark();
 
-  StackWatermarkSet::StackWatermarkKind kind() const { return _kind; }
+  // StackWatermarkSet support
+  StackWatermarkSet::Kind kind() const { return _kind; }
   StackWatermark* next() const { return _next; }
   void set_next(StackWatermark* n) { _next = n; }
 
