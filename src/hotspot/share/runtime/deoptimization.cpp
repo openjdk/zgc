@@ -258,7 +258,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   // When we get here we are about to unwind a frame. In order to catch not yet
   // safe to use frames, the following stack watermark barrier poll will make
   // such frames safe to use.
-  StackWatermarkSet::on_unwind(thread);
+  StackWatermarkSet::before_unwind(thread);
 
   // Note: there is a safepoint safety issue here. No matter whether we enter
   // via vanilla deopt or uncommon trap we MUST NOT stop at a safepoint once

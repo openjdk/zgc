@@ -1163,7 +1163,7 @@ JRT_ENTRY(void, InterpreterRuntime::at_safepoint(JavaThread* thread))
     // This function is called by the interpreter when single stepping. Such single
     // stepping could unwind a frame. Then, it is important that we process any frames
     // that we might return into.
-    StackWatermarkSet::on_unwind(thread);
+    StackWatermarkSet::before_unwind(thread);
 
     // We are called during regular safepoints and when the VM is
     // single stepping. If any thread is marked for single stepping,
@@ -1184,7 +1184,7 @@ JRT_ENTRY(void, InterpreterRuntime::at_unwind(JavaThread* thread))
   // to single step when unwinding frames for an exception being thrown. Instead,
   // such single stepping code will use the safepoint table, which will use the
   // InterpreterRuntime::at_safepoint callback.
-  StackWatermarkSet::on_unwind(thread);
+  StackWatermarkSet::before_unwind(thread);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::post_field_access(JavaThread *thread, oopDesc* obj,

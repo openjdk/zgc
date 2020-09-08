@@ -522,7 +522,7 @@ JRT_LEAF(address, SharedRuntime::exception_handler_for_return_address(JavaThread
   // This is called when we are about to throw an exception. We must make sure the
   // frame we are unwinding to is safe to be access w.r.t. concurrent stack processing.
   // The stack watermark code will take care of ensuring that.
-  StackWatermarkSet::on_unwind(thread);
+  StackWatermarkSet::after_unwind(thread);
   return raw_exception_handler_for_return_address(thread, return_address);
 JRT_END
 
@@ -3032,7 +3032,7 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *thread) )
   // before it gets unwinded. This is helpful as the size of the compiled frame could be
   // larger than the interpreted frame, which could result in the new frame not being
   // processed correctly.
-  StackWatermarkSet::on_unwind(thread);
+  StackWatermarkSet::before_unwind(thread);
 
   //
   // This code is dependent on the memory layout of the interpreter local

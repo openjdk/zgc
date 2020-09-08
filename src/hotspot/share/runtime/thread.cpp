@@ -2687,7 +2687,7 @@ void JavaThread::check_safepoint_and_suspend_for_native_trans(JavaThread *thread
   // After returning from native, it could be that the stack frames are not
   // yet safe to use. We catch such situations in the subsequent stack watermark
   // barrier, which will trap unsafe stack frames.
-  StackWatermarkSet::on_unwind(thread);
+  StackWatermarkSet::before_unwind(thread);
 
   JFR_ONLY(SUSPEND_THREAD_CONDITIONAL(thread);)
 }

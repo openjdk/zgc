@@ -63,7 +63,7 @@ static void verify_poll_context() {
 #endif
 }
 
-void StackWatermarkSet::on_unwind(JavaThread* jt) {
+void StackWatermarkSet::before_unwind(JavaThread* jt) {
   verify_poll_context();
   if (!jt->has_last_Java_frame()) {
     // Sometimes we throw exceptions and use native transitions on threads that
@@ -71,7 +71,21 @@ void StackWatermarkSet::on_unwind(JavaThread* jt) {
     return;
   }
   for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
-    current->on_unwind();
+    current->before_unwind();
+  }
+  SafepointMechanism::update_poll_values(jt);
+}
+
+
+void StackWatermarkSet::after_unwind(JavaThread* jt) {
+  verify_poll_context();
+  if (!jt->has_last_Java_frame()) {
+    // Sometimes we throw exceptions and use native transitions on threads that
+    // do not have any Java threads. Skip those callsites.
+    return;
+  }
+  for (StackWatermark* current = jt->stack_watermark_set()->_head; current != NULL; current = current->next()) {
+    current->after_unwind();
   }
   SafepointMechanism::update_poll_values(jt);
 }

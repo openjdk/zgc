@@ -59,40 +59,51 @@ inline void StackWatermark::ensure_safe(frame f) {
     return;
   }
 
-  assert(is_frame_processed(f), "frame should be safe before processing");
+  // Get caller sp to get the callee fp.
+  RegisterMap map(_jt, false /* update_map */, false /* process_frames */);
+  frame f_caller = f.sender(&map);
+  uintptr_t f_fp = reinterpret_cast<uintptr_t>(f_caller.sp());
 
-  if (is_above_watermark(reinterpret_cast<uintptr_t>(f.sp()), watermark())) {
+  if (is_above_watermark(f_fp, watermark())) {
     process_one();
   }
 
   assert(is_frame_safe(f), "frame should be safe after processing");
-  assert(!is_above_watermark(reinterpret_cast<uintptr_t>(f.sp()), watermark()), "");
 }
 
-inline void StackWatermark::on_unwind() {
-  const frame& f = _jt->last_frame();
-  assert(is_frame_safe(f), "frame should be safe after processing");
+inline void StackWatermark::before_unwind() {
+  frame f = _jt->last_frame();
 
-  if (f.is_first_frame()) {
-    return;
+  // Skip any stub frames etc up until the frame that triggered before_unwind().
+  RegisterMap map(_jt, false /* update_map */, false /* process_frames */);
+  if (f.is_safepoint_blob_frame() || f.is_runtime_frame()) {
+    f = f.sender(&map);
   }
 
-  // on_unwind() potentially exposes a new frame. The new exposed frame is
-  // always the caller of the top frame, but for two different reasons.
-  //
-  // 1) Return sites in nmethods unwind the frame *before* polling. In other
-  //    words, the frame of the nmethod performing the poll, will not be
-  //    on-stack when it gets to the runtime. However, it trampolines into the
-  //    runtime with a safepoint blob, which will be the top frame. Therefore,
-  //    the caller of the safepoint blob, will be the new exposed frame.
-  //
-  // 2) All other calls to on_unwind() perform the unwinding *after* polling.
-  //    Therefore, the caller of the top frame will be the new exposed frame.
+  assert(is_frame_safe(f), "frame should be safe before processing");
+  assert(!f.is_runtime_frame(), "should have skipped all runtime stubs");
 
-  RegisterMap map(_jt, false /* update_map */, false /* process_frames */);
-  const frame& caller = f.sender(&map);
+  // before_unwind() potentially exposes a new frame. The new exposed frame is
+  // always the caller of the top frame.
+  if (!f.is_first_frame()) {
+    f = f.sender(&map);
+    ensure_safe(f);
+  }
+}
 
-  ensure_safe(caller);
+inline void StackWatermark::after_unwind() {
+  frame f = _jt->last_frame();
+
+  if (f.is_safepoint_blob_frame() || f.is_runtime_frame()) {
+    // Skip safepoint blob.
+    RegisterMap map(_jt, false /* update_map */, false /* process_frames */);
+    f = f.sender(&map);
+  }
+
+  assert(!f.is_runtime_frame(), "should have skipped all runtime stubs");
+
+  // after_unwind() potentially exposes the top frame.
+  ensure_safe(f);
 }
 
 inline void StackWatermark::on_iteration(frame f) {

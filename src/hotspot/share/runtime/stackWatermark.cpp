@@ -169,24 +169,9 @@ StackWatermark::~StackWatermark() {
   delete _iterator;
 }
 
-bool StackWatermark::is_frame_processed(frame fr) {
-  MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-  uint32_t state = Atomic::load(&_state);
-  if (StackWatermarkState::epoch(state) != epoch_id()) {
-    return false;
-  }
-  if (StackWatermarkState::is_done(state)) {
-    return true;
-  }
-  if (_iterator != NULL) {
-    return reinterpret_cast<uintptr_t>(fr.sp()) <= _iterator->caller();
-  }
-  return true;
-}
-
-// A frame is "safe" it it *and* its caller has been processed. This is the invariant
+// A frame is "safe" if it *and* its caller have been processed. This is the invariant
 // that allows exposing a frame, and for that frame to directly access its caller frame
-// without going through any hooks. This is a stricter guarantee than is_frame_processed().
+// without going through any hooks.
 bool StackWatermark::is_frame_safe(frame f) {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
   uint32_t state = Atomic::load(&_state);

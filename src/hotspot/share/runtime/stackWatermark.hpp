@@ -64,7 +64,6 @@ protected:
   void yield_processing();
   static bool has_barrier(frame& f);
   void ensure_safe(frame f);
-  bool is_frame_processed(frame f);
   bool is_frame_safe(frame f);
 
   // API for consumers of the stack watermark barrier.
@@ -94,7 +93,8 @@ public:
 
   uintptr_t last_processed();
 
-  void on_unwind();
+  void before_unwind();
+  void after_unwind();
   void on_iteration(frame fr);
   void start_iteration();
   void finish_iteration(void* context);

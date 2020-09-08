@@ -995,9 +995,9 @@ void ThreadSafepointState::handle_polling_page_exception() {
     }
 
     // We get here if compiled return polls found a reason to call into the VM.
-    // One condition for that is that a frame above is not yet safe to use.
+    // One condition for that is that the top frame is not yet safe to use.
     // The following stack watermark barrier poll will catch such situations.
-    StackWatermarkSet::on_unwind(thread());
+    StackWatermarkSet::after_unwind(thread());
 
     // Process pending operation
     SafepointMechanism::process_operation_if_requested_slow(thread());
