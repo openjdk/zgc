@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -82,7 +82,7 @@ void ZBarrierSet::on_thread_attach(Thread* thread) {
   // Set thread local address bad mask
   ZThreadLocalData::set_address_bad_mask(thread, ZAddressBadMask);
   if (thread->is_Java_thread()) {
-    JavaThread* jt = static_cast<JavaThread*>(thread);
+    JavaThread* const jt = static_cast<JavaThread*>(thread);
     StackWatermark* watermark = new ZStackWatermark(jt);
     jt->stack_watermark_set()->add_watermark(watermark);
   }

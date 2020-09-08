@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,6 @@
 #include "precompiled.hpp"
 #include "gc/z/zGlobals.hpp"
 
-uint32_t* calculate_bad_mask_high_order_bits_ptr();
-
 uint32_t   ZGlobalPhase                = ZPhaseRelocate;
 uint32_t   ZGlobalSeqNum               = 1;
 
@@ -44,6 +42,13 @@ uintptr_t  ZAddressGoodMask;
 uintptr_t  ZAddressBadMask;
 uintptr_t  ZAddressWeakBadMask;
 
+static uint32_t* ZAddressCalculateBadMaskHighOrderBitsAddr() {
+  const uintptr_t addr = reinterpret_cast<uintptr_t>(&ZAddressBadMask);
+  return reinterpret_cast<uint32_t*>(addr + ZAddressBadMaskHighOrderBitsOffset);
+}
+
+uint32_t*  ZAddressBadMaskHighOrderBitsAddr = ZAddressCalculateBadMaskHighOrderBitsAddr();
+
 size_t     ZAddressOffsetBits;
 uintptr_t  ZAddressOffsetMask;
 size_t     ZAddressOffsetMax;
@@ -56,8 +61,6 @@ uintptr_t  ZAddressMetadataMarked0;
 uintptr_t  ZAddressMetadataMarked1;
 uintptr_t  ZAddressMetadataRemapped;
 uintptr_t  ZAddressMetadataFinalizable;
-
-uint32_t*  ZAddressBadMaskHighOrderBitsPtr = calculate_bad_mask_high_order_bits_ptr();
 
 const char* ZGlobalPhaseToString() {
   switch (ZGlobalPhase) {
@@ -73,10 +76,4 @@ const char* ZGlobalPhaseToString() {
   default:
     return "Unknown";
   }
-}
-
-uint32_t* calculate_bad_mask_high_order_bits_ptr() {
-  const uintptr_t mask_addr = reinterpret_cast<uintptr_t>(&ZAddressGoodMask);
-  const uintptr_t epoch_addr = mask_addr + ZAddressBadMaskHighOrderBitsOffset;
-  return reinterpret_cast<uint32_t*>(epoch_addr);
 }

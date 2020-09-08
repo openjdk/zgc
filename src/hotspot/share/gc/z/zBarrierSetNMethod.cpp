@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ bool ZBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
 }
 
 int* ZBarrierSetNMethod::disarmed_value_address() const {
-  return (int*)ZAddressBadMaskHighOrderBitsPtr;
+  return (int*)ZAddressBadMaskHighOrderBitsAddr;
 }
 
 ByteSize ZBarrierSetNMethod::thread_disarmed_offset() const {

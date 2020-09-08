@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,7 +85,7 @@ void ZThreadLocalAllocBuffer::remap(JavaThread* thread) {
 
 void ZThreadLocalAllocBuffer::update_stats(JavaThread* thread) {
   if (UseTLAB) {
-    ZStackWatermark* watermark = thread->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
+    ZStackWatermark* const watermark = thread->stack_watermark_set()->get<ZStackWatermark>(StackWatermarkSet::gc);
     _stats->addr()->update(watermark->stats());
   }
 }

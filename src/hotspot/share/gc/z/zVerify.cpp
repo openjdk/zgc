@@ -100,10 +100,10 @@ public:
 
 class ZVerifyStack : public OopClosure {
 private:
-  ZVerifyRootClosure* _cl;
-  JavaThread*         _jt;
-  uint64_t            _last_good;
-  bool                _verifying_bad_frames;
+  ZVerifyRootClosure* const _cl;
+  JavaThread*         const _jt;
+  uint64_t                  _last_good;
+  bool                      _verifying_bad_frames;
 
 public:
   ZVerifyStack(ZVerifyRootClosure* cl, JavaThread* jt) :
@@ -128,12 +128,15 @@ public:
 
   void do_oop(oop* p) {
     if (_verifying_bad_frames) {
-      oop obj = *p;
+      const oop obj = *p;
       guarantee(!ZAddress::is_good(ZOop::to_address(obj)), BAD_OOP_ARG(obj, p));
     }
     _cl->do_oop(p);
   }
-  void do_oop(narrowOop* p) { ShouldNotReachHere(); }
+
+  void do_oop(narrowOop* p) {
+    ShouldNotReachHere();
+  }
 
   void prepare_next_frame(frame& frame) {
     if (_cl->verify_fixed()) {
@@ -167,7 +170,7 @@ public:
 void ZVerifyRootClosure::do_thread(Thread* thread) {
   thread->oops_do_no_frames(this, NULL);
 
-  JavaThread* jt = static_cast<JavaThread*>(thread);
+  JavaThread* const jt = static_cast<JavaThread*>(thread);
   if (!jt->has_last_Java_frame()) {
     return;
   }
@@ -319,12 +322,12 @@ ZVerifyViewsFlip::~ZVerifyViewsFlip() {
 }
 
 #ifdef ASSERT
+
 class ZVerifyBadOopClosure : public OopClosure {
 public:
   virtual void do_oop(oop* p) {
-    oop o = *p;
-    assert(!ZAddress::is_good(ZOop::to_address(o)),
-           "Should not be good: " PTR_FORMAT, p2i(o));
+    const oop o = *p;
+    assert(!ZAddress::is_good(ZOop::to_address(o)), "Should not be good: " PTR_FORMAT, p2i(o));
   }
 
   virtual void do_oop(narrowOop* p) {
@@ -343,10 +346,10 @@ void ZVerify::verify_thread_no_frames_bad(JavaThread* jt) {
 // frame iteration code, such as creating random handles even though there
 // is no safepoint to protect against, and fiddling around with exceptions.
 class StackWatermarkProcessingMark {
-  ResetNoHandleMark _rnhm;
-  HandleMark _hm;
+  ResetNoHandleMark     _rnhm;
+  HandleMark            _hm;
   PreserveExceptionMark _pem;
-  ResourceMark _rm;
+  ResourceMark          _rm;
 
 public:
   StackWatermarkProcessingMark(Thread* thread) :
@@ -372,4 +375,5 @@ void ZVerify::verify_frame_bad(frame& fr, RegisterMap& register_map) {
   ZVerifyBadOopClosure verify_cl;
   fr.oops_do(&verify_cl, NULL, &register_map);
 }
+
 #endif // ASSERT

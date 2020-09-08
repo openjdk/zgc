@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,11 +126,7 @@ uintptr_t ZBarrier::load_barrier_on_oop_slow_path(uintptr_t addr) {
 }
 
 uintptr_t ZBarrier::load_barrier_on_invisible_root_oop_slow_path(uintptr_t addr) {
-  if (during_mark()) {
-    return mark<DontFollow, Strong, Publish>(addr);
-  } else {
-    return relocate_or_remap(addr);
-  }
+  return during_relocate() ? relocate(addr) : mark<DontFollow, Strong, Publish>(addr);
 }
 
 void ZBarrier::load_barrier_on_oop_fields(oop o) {

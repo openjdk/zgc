@@ -38,10 +38,10 @@ ZOnStackCodeBlobClosure::ZOnStackCodeBlobClosure() :
     _bs_nm(BarrierSet::barrier_set()->barrier_set_nmethod()) {}
 
 void ZOnStackCodeBlobClosure::do_code_blob(CodeBlob* cb) {
-  nmethod* nm = cb->as_nmethod_or_null();
+  nmethod* const nm = cb->as_nmethod_or_null();
   if (nm != NULL) {
     bool result = _bs_nm->nmethod_entry_barrier(nm);
-    assert(result, "nmethod on-stack must be alive");
+    assert(result, "NMethod on-stack must be alive");
   }
 }
 
@@ -50,18 +50,18 @@ ThreadLocalAllocStats& ZStackWatermark::stats() {
 }
 
 uint32_t ZStackWatermark::epoch_id() const {
-  return *ZAddressBadMaskHighOrderBitsPtr;
+  return *ZAddressBadMaskHighOrderBitsAddr;
 }
 
 ZStackWatermark::ZStackWatermark(JavaThread* jt) :
-    StackWatermark(jt, StackWatermarkSet::gc, *ZAddressBadMaskHighOrderBitsPtr),
+    StackWatermark(jt, StackWatermarkSet::gc, *ZAddressBadMaskHighOrderBitsAddr),
     _jt_cl(),
     _cb_cl(),
     _stats() {}
 
 OopClosure* ZStackWatermark::closure_from_context(void* context) {
   if (context != NULL) {
-    assert(ZThread::is_worker(), "unexpected thread passing in context: " PTR_FORMAT, p2i(context));
+    assert(ZThread::is_worker(), "Unexpected thread passing in context: " PTR_FORMAT, p2i(context));
     return reinterpret_cast<OopClosure*>(context);
   } else {
     return &_jt_cl;

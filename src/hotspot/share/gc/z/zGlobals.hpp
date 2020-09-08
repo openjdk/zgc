@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -98,7 +98,7 @@ extern uintptr_t  ZAddressWeakBadMask;
 // that this mask will have. Therefore, the memory where the 32 high order bits are stored,
 // can be used as a 32 bit GC epoch counter, that has a different bit pattern every time
 // the bad mask is flipped. This provides a pointer to said 32 bits.
-extern uint32_t*  ZAddressBadMaskHighOrderBitsPtr;
+extern uint32_t*  ZAddressBadMaskHighOrderBitsAddr;
 const int         ZAddressBadMaskHighOrderBitsOffset = LITTLE_ENDIAN_ONLY(4) BIG_ENDIAN_ONLY(0);
 
 // Pointer part of address
