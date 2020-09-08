@@ -28,18 +28,22 @@
 #include "runtime/stackWatermark.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 
-template <typename T>
-T* StackWatermarkSet::get(StackWatermarkKind kind) {
-  for (StackWatermark* stack_watermark = _head; stack_watermark != NULL; stack_watermark = stack_watermark->next()) {
+inline StackWatermark* StackWatermarkSet::get(JavaThread* jt, Kind kind) {
+  for (StackWatermark* stack_watermark = head(jt); stack_watermark != NULL; stack_watermark = stack_watermark->next()) {
     if (stack_watermark->kind() == kind) {
-      return static_cast<T*>(stack_watermark);
+      return stack_watermark;
     }
   }
   return NULL;
 }
 
-inline bool StackWatermarkSet::has_watermark(StackWatermarkKind kind) {
-  return get<StackWatermark>(kind) != NULL;
+template <typename T>
+inline T* StackWatermarkSet::get(JavaThread* jt, Kind kind) {
+  return static_cast<T*>(get(jt, kind));
+}
+
+inline bool StackWatermarkSet::has_watermark(JavaThread* jt, Kind kind) {
+  return get(jt, kind) != NULL;
 }
 
 #endif // SHARE_RUNTIME_STACKWATERMARKSET_INLINE_HPP

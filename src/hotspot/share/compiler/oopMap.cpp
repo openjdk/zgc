@@ -235,7 +235,7 @@ static void trace_codeblob_maps(const frame *fr, const RegisterMap *reg_map) {
 
 void OopMapSet::oops_do(const frame *fr, const RegisterMap* reg_map, OopClosure* f) {
   // add derived oops to a table
-  if (!reg_map->thread()->stack_watermark_set()->has_watermark(StackWatermarkSet::gc) ||
+  if (!StackWatermarkSet::has_watermark(reg_map->thread(), StackWatermarkSet::gc) ||
       DerivedPointerTable::is_active()) {
     all_do(fr, reg_map, f, add_derived_oop, &do_nothing_cl);
   } else {

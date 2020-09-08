@@ -104,7 +104,7 @@ uintptr_t SafepointMechanism::compute_poll_word(bool armed, uintptr_t stack_wate
 void SafepointMechanism::update_poll_values(JavaThread* thread) {
   for (;;) {
     bool armed = global_poll() || thread->has_handshake();
-    uintptr_t stack_watermark = thread->stack_watermark_set()->lowest_watermark();
+    uintptr_t stack_watermark = StackWatermarkSet::lowest_watermark(thread);
     uintptr_t poll_page = armed ? _poll_page_armed_value
                                 : _poll_page_disarmed_value;
     uintptr_t poll_word = compute_poll_word(armed, stack_watermark);
