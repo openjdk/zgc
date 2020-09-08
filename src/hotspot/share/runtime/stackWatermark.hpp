@@ -78,24 +78,30 @@ protected:
   // opposed to due to frames being unwinded by the owning thread.
   virtual bool process_on_iteration() { return true; }
 
+  bool iteration_started(uint32_t state) const;
+  bool iteration_completed(uint32_t state) const;
+
 public:
   StackWatermark(JavaThread* jt, StackWatermarkSet::Kind kind, uint32_t epoch);
   virtual ~StackWatermark();
 
-  uintptr_t watermark();
 
   // StackWatermarkSet support
   StackWatermarkSet::Kind kind() const { return _kind; }
   StackWatermark* next() const { return _next; }
   void set_next(StackWatermark* n) { _next = n; }
 
-  bool should_start_iteration() const;
-  bool should_start_iteration_acquire() const;
-
+  uintptr_t watermark();
   uintptr_t last_processed();
+
+  bool iteration_started() const;
+  bool iteration_started_acquire() const;
+  bool iteration_completed() const;
+  bool iteration_completed_acquire() const;
 
   void before_unwind();
   void after_unwind();
+
   void on_iteration(frame fr);
   void start_iteration();
   void finish_iteration(void* context);

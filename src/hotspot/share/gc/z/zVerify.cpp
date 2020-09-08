@@ -114,10 +114,11 @@ public:
     ZStackWatermark* stack_watermark = StackWatermarkSet::get<ZStackWatermark>(jt, StackWatermarkSet::gc);
 
     if (_cl->verify_fixed()) {
-      assert(!stack_watermark->should_start_iteration(), "Should already have been fixed");
+      assert(stack_watermark->iteration_started(), "Should already have been fixed");
+      assert(stack_watermark->iteration_completed(), "Should already have been fixed");
     } else {
       // We don't really know the state of the stack, verify watermark.
-      if (stack_watermark->should_start_iteration()) {
+      if (!stack_watermark->iteration_started()) {
         _verifying_bad_frames = true;
       } else {
         // Not time yet to verify bad frames

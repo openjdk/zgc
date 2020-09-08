@@ -175,25 +175,13 @@ StackWatermark::~StackWatermark() {
 bool StackWatermark::is_frame_safe(frame f) {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
   uint32_t state = Atomic::load(&_state);
-  if (StackWatermarkState::epoch(state) != epoch_id()) {
+  if (!iteration_started(state)) {
     return false;
   }
-  if (StackWatermarkState::is_done(state)) {
+  if (iteration_completed(state)) {
     return true;
   }
-  if (_iterator != NULL) {
-    return reinterpret_cast<uintptr_t>(f.sp()) < _iterator->caller();
-  }
-  return true;
-}
-
-bool StackWatermark::should_start_iteration() const {
-  return StackWatermarkState::epoch(_state) != epoch_id();
-}
-
-bool StackWatermark::should_start_iteration_acquire() const {
-  uint32_t state = Atomic::load_acquire(&_state);
-  return StackWatermarkState::epoch(state) != epoch_id();
+  return reinterpret_cast<uintptr_t>(f.sp()) < _iterator->caller();
 }
 
 void StackWatermark::start_iteration_impl(void* context) {
@@ -241,9 +229,9 @@ void StackWatermark::update_watermark() {
 
 void StackWatermark::process_one() {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-  if (should_start_iteration()) {
+  if (!iteration_started()) {
     start_iteration_impl(NULL /* context */);
-  } else if (_iterator != NULL) {
+  } else if (!iteration_completed()) {
     _iterator->process_one(NULL /* context */);
     update_watermark();
   }
@@ -255,25 +243,37 @@ uintptr_t StackWatermark::watermark() {
 
 uintptr_t StackWatermark::last_processed() {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-  if (should_start_iteration()) {
+  if (!iteration_started()) {
     // Stale state; no last processed
     return 0;
   }
-  if (watermark() == 0) {
+  if (iteration_completed()) {
     // Already processed all; no last processed
-    return 0;
-  }
-  if (_iterator == NULL) {
-    // No frames to processed; no last processed
     return 0;
   }
   return _iterator->caller();
 }
 
+bool StackWatermark::iteration_started() const {
+  return iteration_started(Atomic::load(&_state));
+}
+
+bool StackWatermark::iteration_started_acquire() const {
+  return iteration_started(Atomic::load_acquire(&_state));
+}
+
+bool StackWatermark::iteration_completed() const {
+  return iteration_completed(Atomic::load(&_state));
+}
+
+bool StackWatermark::iteration_completed_acquire() const {
+  return iteration_completed(Atomic::load_acquire(&_state));
+}
+
 void StackWatermark::start_iteration() {
-  if (should_start_iteration_acquire()) {
+  if (!iteration_started_acquire()) {
     MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-    if (should_start_iteration()) {
+    if (!iteration_started()) {
       start_iteration_impl(NULL /* context */);
     }
   }
@@ -281,10 +281,10 @@ void StackWatermark::start_iteration() {
 
 void StackWatermark::finish_iteration(void* context) {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-  if (should_start_iteration()) {
+  if (!iteration_started()) {
     start_iteration_impl(context);
   }
-  if (_iterator != NULL) {
+  if (!iteration_completed()) {
     _iterator->process_all(context);
     update_watermark();
   }
