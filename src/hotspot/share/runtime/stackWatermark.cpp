@@ -196,14 +196,16 @@ void StackWatermark::start_iteration_impl(void* context) {
   if (_jt->has_last_Java_frame()) {
     _iterator = new StackWatermarkIterator(*this);
     // Always process three frames when starting an iteration.
+    //
     // The three frames corresponds to:
     // 1) The callee frame
     // 2) The caller frame
     // This allows a callee to always be able to read state from its caller
     // without needing any special barriers.
-    // Sometimes, we also call into the runtime to on_unwind(), but then
-    // hit a safepoint poll on the way out from the runtime. This requires
+    //
     // 3) An extra frame to deal with unwinding safepointing on the way out.
+    // Sometimes, we also call into the runtime to on_unwind(), but then
+    // hit a safepoint poll on the way out from the runtime.
     _iterator->process_one(context);
     _iterator->process_one(context);
     _iterator->process_one(context);

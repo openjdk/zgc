@@ -82,7 +82,15 @@ void SafepointMechanism::process_operation(JavaThread *thread) {
     OrderAccess::loadload();
     SafepointSynchronize::block(thread);
   }
+
+  // The call to start_iteration fixes the thread's oops and the first few frames.
+  //
+  // The call has been carefully placed here to cater for a few situations:
+  // 1) After we exit from block after a global pool
+  // 2) After a thread races with the disarming of the global poll and transitions from native/blocked
+  // 3) Before the handshake code is run
   StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
+
   if (thread->has_handshake()) {
     thread->handshake_process_by_self();
   }
