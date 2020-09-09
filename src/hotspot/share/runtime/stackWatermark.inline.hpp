@@ -76,7 +76,7 @@ inline void StackWatermark::ensure_safe(frame f) {
     process_one();
   }
 
-  assert(is_frame_safe(f), "frame should be safe after processing");
+  assert_is_frame_safe(f);
 }
 
 inline void StackWatermark::before_unwind() {
@@ -88,7 +88,7 @@ inline void StackWatermark::before_unwind() {
     f = f.sender(&map);
   }
 
-  assert(is_frame_safe(f), "frame should be safe before processing");
+  assert_is_frame_safe(f);
   assert(!f.is_runtime_frame(), "should have skipped all runtime stubs");
 
   // before_unwind() potentially exposes a new frame. The new exposed frame is
