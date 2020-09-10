@@ -224,6 +224,8 @@ public:
 
 };
 
+volatile int C2SafepointPollStubTable::_stub_size = 0;
+
 Label& C2SafepointPollStubTable::add_safepoint(uintptr_t safepoint_offset) {
   C2SafepointPollStub* entry = new (Compile::current()->comp_arena()) C2SafepointPollStub(safepoint_offset);
   _safepoints.append(entry);
@@ -244,7 +246,34 @@ void C2SafepointPollStubTable::emit(CodeBuffer& cb) {
   }
 }
 
+int C2SafepointPollStubTable::stub_size_lazy() const {
+  int size = Atomic::load(&_stub_size);
+
+  if (size != 0) {
+    return size;
+  }
+
+  Compile* const C = Compile::current();
+  BufferBlob* const blob = C->output()->scratch_buffer_blob();
+  CodeBuffer cb(blob->content_begin(), C->output()->scratch_buffer_code_size());
+  MacroAssembler masm(&cb);
+  C2SafepointPollStub* entry = _safepoints.at(0);
+  emit_stub(masm, entry);
+  size += cb.insts_size();
+
+  Atomic::store(&_stub_size, size);
+
+  return size;
+}
+
 int C2SafepointPollStubTable::estimate_stub_size() const {
+  if (_safepoints.length() == 0) {
+    return 0;
+  }
+
+  int result = stub_size_lazy() * _safepoints.length();
+
+#ifdef ASSERT
   Compile* const C = Compile::current();
   BufferBlob* const blob = C->output()->scratch_buffer_blob();
   int size = 0;
@@ -256,8 +285,10 @@ int C2SafepointPollStubTable::estimate_stub_size() const {
     emit_stub(masm, entry);
     size += cb.insts_size();
   }
+  assert(size == result, "stubs should not have variable size");
+#endif
 
-  return size;
+  return result;
 }
 
 PhaseOutput::PhaseOutput()

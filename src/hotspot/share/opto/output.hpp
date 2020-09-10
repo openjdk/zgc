@@ -86,6 +86,8 @@ private:
 
   GrowableArray<C2SafepointPollStub*> _safepoints;
 
+  static volatile int _stub_size;
+
   void emit_stub_impl(MacroAssembler& masm, C2SafepointPollStub* entry) const;
 
   // The selection logic below relieves the need to add dummy files to unsupported platforms.
@@ -102,6 +104,8 @@ private:
   void emit_stub(MacroAssembler& masm, C2SafepointPollStub* entry) const {
     select_emit_stub<VM_Version::supports_stack_watermark_barrier()>(masm, entry);
   }
+
+  int stub_size_lazy() const;
 
 public:
   Label& add_safepoint(uintptr_t safepoint_offset);
