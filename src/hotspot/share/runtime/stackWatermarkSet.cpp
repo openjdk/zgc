@@ -36,10 +36,10 @@
 #include "utilities/preserveException.hpp"
 #include "utilities/vmError.hpp"
 
-StackWatermarkSetInstance::StackWatermarkSetInstance() :
+StackWatermarks::StackWatermarks() :
     _head(NULL) {}
 
-StackWatermarkSetInstance::~StackWatermarkSetInstance() {
+StackWatermarks::~StackWatermarks() {
   StackWatermark* current = _head;
   while (current != NULL) {
     StackWatermark* next = current->next();
@@ -49,11 +49,11 @@ StackWatermarkSetInstance::~StackWatermarkSetInstance() {
 }
 
 StackWatermark* StackWatermarkSet::head(JavaThread* jt) {
-  return jt->stack_watermark_set()->_head;
+  return jt->stack_watermarks()->_head;
 }
 
 void StackWatermarkSet::set_head(JavaThread* jt, StackWatermark* watermark) {
-  jt->stack_watermark_set()->_head = watermark;
+  jt->stack_watermarks()->_head = watermark;
 }
 
 void StackWatermarkSet::add_watermark(JavaThread* jt, StackWatermark* watermark) {

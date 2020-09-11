@@ -32,14 +32,14 @@
 class JavaThread;
 class StackWatermark;
 
-class StackWatermarkSetInstance {
+class StackWatermarks {
   friend class StackWatermarkSet;
 private:
   StackWatermark* _head;
 
 public:
-  StackWatermarkSetInstance();
-  ~StackWatermarkSetInstance();
+  StackWatermarks();
+  ~StackWatermarks();
 };
 
 class StackWatermarkSet : public AllStatic {

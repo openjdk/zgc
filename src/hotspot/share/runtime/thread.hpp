@@ -284,10 +284,10 @@ class Thread: public ThreadShadow {
   Monitor* _SR_lock;
 
   // Stack watermark barriers.
-  StackWatermarkSetInstance _stack_watermark_set;
+  StackWatermarks _stack_watermarks;
 
  public:
-  inline StackWatermarkSetInstance* stack_watermark_set() { return &_stack_watermark_set; }
+  inline StackWatermarks* stack_watermarks() { return &_stack_watermarks; }
 
  protected:
   enum SuspendFlags {
