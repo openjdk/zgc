@@ -54,7 +54,7 @@ uint32_t ZStackWatermark::epoch_id() const {
 }
 
 ZStackWatermark::ZStackWatermark(JavaThread* jt) :
-    StackWatermark(jt, StackWatermarkSet::gc, *ZAddressBadMaskHighOrderBitsAddr),
+    StackWatermark(jt, StackWatermarkKind::gc, *ZAddressBadMaskHighOrderBitsAddr),
     _jt_cl(),
     _cb_cl(),
     _stats() {}

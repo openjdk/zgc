@@ -27,6 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "runtime/frame.hpp"
+#include "runtime/stackWatermarkKind.hpp"
 
 class JavaThread;
 class StackWatermark;
@@ -42,11 +43,6 @@ public:
 };
 
 class StackWatermarkSet : public AllStatic {
-public:
-  enum Kind {
-    gc
-  };
-
 private:
   static StackWatermark* head(JavaThread* jt);
   static void set_head(JavaThread* jt, StackWatermark* watermark);
@@ -54,12 +50,12 @@ private:
 public:
   static void add_watermark(JavaThread* jt, StackWatermark* watermark);
 
-  static StackWatermark* get(JavaThread* jt, Kind kind);
+  static StackWatermark* get(JavaThread* jt, StackWatermarkKind kind);
 
   template <typename T>
-  static T* get(JavaThread* jt, Kind kind);
+  static T* get(JavaThread* jt, StackWatermarkKind kind);
 
-  static bool has_watermark(JavaThread* jt, Kind kind);
+  static bool has_watermark(JavaThread* jt, StackWatermarkKind kind);
 
   // Called when a thread is about to unwind a frame
   static void before_unwind(JavaThread* jt);
@@ -71,12 +67,12 @@ public:
   static void on_iteration(JavaThread* jt, frame fr);
 
   // Called to ensure iterations are initialized
-  static void start_iteration(JavaThread* jt, Kind kind);
+  static void start_iteration(JavaThread* jt, StackWatermarkKind kind);
 
   // Called to finish an iteration
-  static void finish_iteration(JavaThread* jt, void* context, Kind kind);
+  static void finish_iteration(JavaThread* jt, void* context, StackWatermarkKind kind);
 
-
+  // The lowest watermark among the watermarks in the set
   static uintptr_t lowest_watermark(JavaThread* jt);
 };
 

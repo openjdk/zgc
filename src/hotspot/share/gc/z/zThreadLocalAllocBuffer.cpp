@@ -85,7 +85,7 @@ void ZThreadLocalAllocBuffer::remap(JavaThread* thread) {
 
 void ZThreadLocalAllocBuffer::update_stats(JavaThread* thread) {
   if (UseTLAB) {
-    ZStackWatermark* const watermark = StackWatermarkSet::get<ZStackWatermark>(thread, StackWatermarkSet::gc);
+    ZStackWatermark* const watermark = StackWatermarkSet::get<ZStackWatermark>(thread, StackWatermarkKind::gc);
     _stats->addr()->update(watermark->stats());
   }
 }

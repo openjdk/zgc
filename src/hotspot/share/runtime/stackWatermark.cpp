@@ -155,7 +155,7 @@ void StackWatermarkIterator::next() {
   _is_done = _frame_stream.is_done();
 }
 
-StackWatermark::StackWatermark(JavaThread* jt, StackWatermarkSet::Kind kind, uint32_t epoch) :
+StackWatermark::StackWatermark(JavaThread* jt, StackWatermarkKind kind, uint32_t epoch) :
     _state(StackWatermarkState::create(epoch, true /* is_done */)),
     _watermark(0),
     _next(NULL),

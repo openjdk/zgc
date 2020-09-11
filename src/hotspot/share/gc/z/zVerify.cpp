@@ -111,7 +111,7 @@ public:
       _jt(jt),
       _last_good(0),
       _verifying_bad_frames(false) {
-    ZStackWatermark* stack_watermark = StackWatermarkSet::get<ZStackWatermark>(jt, StackWatermarkSet::gc);
+    ZStackWatermark* stack_watermark = StackWatermarkSet::get<ZStackWatermark>(jt, StackWatermarkKind::gc);
 
     if (_cl->verify_fixed()) {
       assert(stack_watermark->iteration_started(), "Should already have been fixed");

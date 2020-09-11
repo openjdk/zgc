@@ -89,7 +89,7 @@ void SafepointMechanism::process_operation(JavaThread *thread) {
   // 1) After we exit from block after a global pool
   // 2) After a thread races with the disarming of the global poll and transitions from native/blocked
   // 3) Before the handshake code is run
-  StackWatermarkSet::start_iteration(thread, StackWatermarkSet::gc);
+  StackWatermarkSet::start_iteration(thread, StackWatermarkKind::gc);
 
   if (thread->has_handshake()) {
     thread->handshake_process_by_self();

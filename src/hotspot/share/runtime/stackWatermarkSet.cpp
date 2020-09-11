@@ -115,7 +115,7 @@ void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
   }
 }
 
-void StackWatermarkSet::start_iteration(JavaThread* jt, Kind kind) {
+void StackWatermarkSet::start_iteration(JavaThread* jt, StackWatermarkKind kind) {
   verify_poll_context();
   assert(!jt->is_terminated(), "Poll after termination is a bug");
   for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
@@ -123,7 +123,7 @@ void StackWatermarkSet::start_iteration(JavaThread* jt, Kind kind) {
   }
 }
 
-void StackWatermarkSet::finish_iteration(JavaThread* jt, void* context, Kind kind) {
+void StackWatermarkSet::finish_iteration(JavaThread* jt, void* context, StackWatermarkKind kind) {
   for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
     current->finish_iteration(context);
   }

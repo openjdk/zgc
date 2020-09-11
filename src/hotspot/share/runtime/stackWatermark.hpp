@@ -27,7 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "runtime/frame.hpp"
-#include "runtime/stackWatermarkSet.hpp"
+#include "runtime/stackWatermarkKind.hpp"
 
 class JavaThread;
 class StackWatermarkIterator;
@@ -56,7 +56,7 @@ protected:
   JavaThread* _jt;
   StackWatermarkIterator* _iterator;
   Mutex _lock;
-  StackWatermarkSet::Kind _kind;
+  StackWatermarkKind _kind;
 
   void process_one();
 
@@ -83,12 +83,12 @@ protected:
   bool iteration_completed(uint32_t state) const;
 
 public:
-  StackWatermark(JavaThread* jt, StackWatermarkSet::Kind kind, uint32_t epoch);
+  StackWatermark(JavaThread* jt, StackWatermarkKind kind, uint32_t epoch);
   virtual ~StackWatermark();
 
 
   // StackWatermarkSet support
-  StackWatermarkSet::Kind kind() const { return _kind; }
+  StackWatermarkKind kind() const { return _kind; }
   StackWatermark* next() const { return _next; }
   void set_next(StackWatermark* n) { _next = n; }
 

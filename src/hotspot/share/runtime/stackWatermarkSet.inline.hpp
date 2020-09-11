@@ -28,7 +28,7 @@
 #include "runtime/stackWatermark.hpp"
 #include "runtime/stackWatermarkSet.hpp"
 
-inline StackWatermark* StackWatermarkSet::get(JavaThread* jt, Kind kind) {
+inline StackWatermark* StackWatermarkSet::get(JavaThread* jt, StackWatermarkKind kind) {
   for (StackWatermark* stack_watermark = head(jt); stack_watermark != NULL; stack_watermark = stack_watermark->next()) {
     if (stack_watermark->kind() == kind) {
       return stack_watermark;
@@ -38,11 +38,11 @@ inline StackWatermark* StackWatermarkSet::get(JavaThread* jt, Kind kind) {
 }
 
 template <typename T>
-inline T* StackWatermarkSet::get(JavaThread* jt, Kind kind) {
+inline T* StackWatermarkSet::get(JavaThread* jt, StackWatermarkKind kind) {
   return static_cast<T*>(get(jt, kind));
 }
 
-inline bool StackWatermarkSet::has_watermark(JavaThread* jt, Kind kind) {
+inline bool StackWatermarkSet::has_watermark(JavaThread* jt, StackWatermarkKind kind) {
   return get(jt, kind) != NULL;
 }
 
