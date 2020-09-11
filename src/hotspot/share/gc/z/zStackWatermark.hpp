@@ -56,7 +56,7 @@ private:
 
 protected:
   virtual uint32_t epoch_id() const;
-  virtual void start_iteration_impl(void* context);
+  virtual void start_processing_impl(void* context);
   virtual void process(frame frame, RegisterMap& register_map, void* context);
 
 public:

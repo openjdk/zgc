@@ -625,7 +625,7 @@ public:
 
   virtual void do_thread(Thread* thread) {
     JavaThread* const jt = static_cast<JavaThread*>(thread);
-    StackWatermarkSet::finish_iteration(jt, this, StackWatermarkKind::gc);
+    StackWatermarkSet::finish_processing(jt, this, StackWatermarkKind::gc);
     ZThreadLocalAllocBuffer::update_stats(jt);
   }
 

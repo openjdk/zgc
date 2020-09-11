@@ -54,19 +54,19 @@ inline bool StackWatermark::has_barrier(frame f) {
   return false;
 }
 
-inline bool StackWatermark::iteration_started(uint32_t state) const {
+inline bool StackWatermark::processing_started(uint32_t state) const {
   return StackWatermarkState::epoch(state) == epoch_id();
 }
 
-inline bool StackWatermark::iteration_completed(uint32_t state) const {
-  assert(iteration_started(state), "Check is only valid if iteration has been started");
+inline bool StackWatermark::processing_completed(uint32_t state) const {
+  assert(processing_started(state), "Check is only valid if processing has been started");
   return StackWatermarkState::is_done(state);
 }
 
 inline void StackWatermark::ensure_safe(frame f) {
-  assert(iteration_started(), "Iteration should already have started");
+  assert(processing_started(), "Processing should already have started");
 
-  if (iteration_completed_acquire()) {
+  if (processing_completed_acquire()) {
     return;
   }
 

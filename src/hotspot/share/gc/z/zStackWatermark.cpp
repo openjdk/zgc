@@ -68,7 +68,7 @@ OopClosure* ZStackWatermark::closure_from_context(void* context) {
   }
 }
 
-void ZStackWatermark::start_iteration_impl(void* context) {
+void ZStackWatermark::start_processing_impl(void* context) {
   ZVerify::verify_thread_no_frames_bad(_jt);
 
   // Process the non-frame part of the thread
@@ -87,8 +87,8 @@ void ZStackWatermark::start_iteration_impl(void* context) {
     ZThreadLocalAllocBuffer::remap(_jt);
   }
 
-  // Publishes the iteration to concurrent threads
-  StackWatermark::start_iteration_impl(context);
+  // Publishes the processing start to concurrent threads
+  StackWatermark::start_processing_impl(context);
 }
 
 void ZStackWatermark::process(frame frame, RegisterMap& register_map, void* context) {

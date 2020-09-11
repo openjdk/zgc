@@ -72,15 +72,15 @@ protected:
   // or take locks of rank >= special. This is all very special code.
   virtual uint32_t epoch_id() const = 0;
   virtual void process(frame f, RegisterMap& register_map, void* context) = 0;
-  virtual void start_iteration_impl(void* context);
+  virtual void start_processing_impl(void* context);
 
   // Set process_on_iteration to false if you don't want to move the
   // watermark when new frames are discovered from stack walkers, as
   // opposed to due to frames being unwinded by the owning thread.
   virtual bool process_on_iteration() { return true; }
 
-  bool iteration_started(uint32_t state) const;
-  bool iteration_completed(uint32_t state) const;
+  bool processing_started(uint32_t state) const;
+  bool processing_completed(uint32_t state) const;
 
 public:
   StackWatermark(JavaThread* jt, StackWatermarkKind kind, uint32_t epoch);
@@ -95,17 +95,17 @@ public:
   uintptr_t watermark();
   uintptr_t last_processed();
 
-  bool iteration_started() const;
-  bool iteration_started_acquire() const;
-  bool iteration_completed() const;
-  bool iteration_completed_acquire() const;
+  bool processing_started() const;
+  bool processing_started_acquire() const;
+  bool processing_completed() const;
+  bool processing_completed_acquire() const;
 
   void before_unwind();
   void after_unwind();
 
   void on_iteration(frame f);
-  void start_iteration();
-  void finish_iteration(void* context);
+  void start_processing();
+  void finish_processing(void* context);
 };
 
 #endif // SHARE_RUNTIME_STACKWATERMARK_HPP

@@ -66,11 +66,11 @@ public:
   // Called by stack walkers when walking into a frame
   static void on_iteration(JavaThread* jt, frame fr);
 
-  // Called to ensure iterations are initialized
-  static void start_iteration(JavaThread* jt, StackWatermarkKind kind);
+  // Called to ensure that processing of the thread is started
+  static void start_processing(JavaThread* jt, StackWatermarkKind kind);
 
-  // Called to finish an iteration
-  static void finish_iteration(JavaThread* jt, void* context, StackWatermarkKind kind);
+  // Called to finish the processing of a thread
+  static void finish_processing(JavaThread* jt, void* context, StackWatermarkKind kind);
 
   // The lowest watermark among the watermarks in the set
   static uintptr_t lowest_watermark(JavaThread* jt);

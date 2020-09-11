@@ -504,7 +504,7 @@ public:
     if (!thread->is_Java_thread()) {
       return;
     }
-    StackWatermarkSet::start_iteration(static_cast<JavaThread*>(thread), StackWatermarkKind::gc);
+    StackWatermarkSet::start_processing(static_cast<JavaThread*>(thread), StackWatermarkKind::gc);
   }
 };
 

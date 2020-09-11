@@ -71,9 +71,9 @@ void StackWatermarkIterator::set_watermark(uintptr_t sp) {
 }
 
 // This class encapsulates various marks we need to deal with calling the
-// frame iteration code from arbitrary points in the runtime. It is mostly
+// frame processing code from arbitrary points in the runtime. It is mostly
 // due to problems that we might want to eventually clean up inside of the
-// frame iteration code, such as creating random handles even though there
+// frame processing code, such as creating random handles even though there
 // is no safepoint to protect against, and fiddling around with exceptions.
 class StackWatermarkProcessingMark {
   ResetNoHandleMark _rnhm;
@@ -180,17 +180,17 @@ void StackWatermark::assert_is_frame_safe(frame f) {
 bool StackWatermark::is_frame_safe(frame f) {
   assert(_lock.owned_by_self(), "Must be locked");
   uint32_t state = Atomic::load(&_state);
-  if (!iteration_started(state)) {
+  if (!processing_started(state)) {
     return false;
   }
-  if (iteration_completed(state)) {
+  if (processing_completed(state)) {
     return true;
   }
   return reinterpret_cast<uintptr_t>(f.sp()) < _iterator->caller();
 }
 
-void StackWatermark::start_iteration_impl(void* context) {
-  log_info(stackbarrier)("Starting stack processing iteration for tid %d",
+void StackWatermark::start_processing_impl(void* context) {
+  log_info(stackbarrier)("Starting stack processing for tid %d",
                          _jt->osthread()->thread_id());
   delete _iterator;
   if (_jt->has_last_Java_frame()) {
@@ -236,9 +236,9 @@ void StackWatermark::update_watermark() {
 
 void StackWatermark::process_one() {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-  if (!iteration_started()) {
-    start_iteration_impl(NULL /* context */);
-  } else if (!iteration_completed()) {
+  if (!processing_started()) {
+    start_processing_impl(NULL /* context */);
+  } else if (!processing_completed()) {
     _iterator->process_one(NULL /* context */);
     update_watermark();
   }
@@ -250,48 +250,48 @@ uintptr_t StackWatermark::watermark() {
 
 uintptr_t StackWatermark::last_processed() {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-  if (!iteration_started()) {
+  if (!processing_started()) {
     // Stale state; no last processed
     return 0;
   }
-  if (iteration_completed()) {
+  if (processing_completed()) {
     // Already processed all; no last processed
     return 0;
   }
   return _iterator->caller();
 }
 
-bool StackWatermark::iteration_started() const {
-  return iteration_started(Atomic::load(&_state));
+bool StackWatermark::processing_started() const {
+  return processing_started(Atomic::load(&_state));
 }
 
-bool StackWatermark::iteration_started_acquire() const {
-  return iteration_started(Atomic::load_acquire(&_state));
+bool StackWatermark::processing_started_acquire() const {
+  return processing_started(Atomic::load_acquire(&_state));
 }
 
-bool StackWatermark::iteration_completed() const {
-  return iteration_completed(Atomic::load(&_state));
+bool StackWatermark::processing_completed() const {
+  return processing_completed(Atomic::load(&_state));
 }
 
-bool StackWatermark::iteration_completed_acquire() const {
-  return iteration_completed(Atomic::load_acquire(&_state));
+bool StackWatermark::processing_completed_acquire() const {
+  return processing_completed(Atomic::load_acquire(&_state));
 }
 
-void StackWatermark::start_iteration() {
-  if (!iteration_started_acquire()) {
+void StackWatermark::start_processing() {
+  if (!processing_started_acquire()) {
     MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-    if (!iteration_started()) {
-      start_iteration_impl(NULL /* context */);
+    if (!processing_started()) {
+      start_processing_impl(NULL /* context */);
     }
   }
 }
 
-void StackWatermark::finish_iteration(void* context) {
+void StackWatermark::finish_processing(void* context) {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
-  if (!iteration_started()) {
-    start_iteration_impl(context);
+  if (!processing_started()) {
+    start_processing_impl(context);
   }
-  if (!iteration_completed()) {
+  if (!processing_completed()) {
     _iterator->process_all(context);
     update_watermark();
   }
