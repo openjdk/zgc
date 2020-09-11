@@ -30,7 +30,7 @@
 #include "runtime/stackWatermarkKind.hpp"
 
 class JavaThread;
-class StackWatermarkIterator;
+class StackWatermarkFramesIterator;
 
 class StackWatermarkState : public AllStatic {
 public:
@@ -48,13 +48,13 @@ public:
 };
 
 class StackWatermark : public CHeapObj<mtInternal> {
-  friend class StackWatermarkIterator;
+  friend class StackWatermarkFramesIterator;
 protected:
   volatile uint32_t _state;
   volatile uintptr_t _watermark;
   StackWatermark* _next;
   JavaThread* _jt;
-  StackWatermarkIterator* _iterator;
+  StackWatermarkFramesIterator* _iterator;
   Mutex _lock;
   StackWatermarkKind _kind;
 

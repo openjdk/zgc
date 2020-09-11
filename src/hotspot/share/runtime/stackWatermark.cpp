@@ -33,7 +33,7 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/preserveException.hpp"
 
-class StackWatermarkIterator : public CHeapObj<mtInternal> {
+class StackWatermarkFramesIterator : public CHeapObj<mtInternal> {
   JavaThread* _jt;
   uintptr_t _caller;
   uintptr_t _callee;
@@ -47,7 +47,7 @@ class StackWatermarkIterator : public CHeapObj<mtInternal> {
   void next();
 
 public:
-  StackWatermarkIterator(StackWatermark& owner);
+  StackWatermarkFramesIterator(StackWatermark& owner);
   uintptr_t caller() const { return _caller; }
   uintptr_t callee() const { return _callee; }
   void process_one(void* context);
@@ -55,7 +55,7 @@ public:
   bool has_next() const;
 };
 
-void StackWatermarkIterator::set_watermark(uintptr_t sp) {
+void StackWatermarkFramesIterator::set_watermark(uintptr_t sp) {
   if (!has_next()) {
     return;
   }
@@ -89,7 +89,7 @@ public:
       _rm(thread) { }
 };
 
-void StackWatermarkIterator::process_one(void* context) {
+void StackWatermarkFramesIterator::process_one(void* context) {
   StackWatermarkProcessingMark swpm(Thread::current());
   while (has_next()) {
     frame f = current();
@@ -104,7 +104,7 @@ void StackWatermarkIterator::process_one(void* context) {
   }
 }
 
-void StackWatermarkIterator::process_all(void* context) {
+void StackWatermarkFramesIterator::process_all(void* context) {
   const uintptr_t frames_per_poll_gc = 5;
 
   ResourceMark rm;
@@ -129,7 +129,7 @@ void StackWatermarkIterator::process_all(void* context) {
   }
 }
 
-StackWatermarkIterator::StackWatermarkIterator(StackWatermark& owner) :
+StackWatermarkFramesIterator::StackWatermarkFramesIterator(StackWatermark& owner) :
     _jt(owner._jt),
     _caller(0),
     _callee(0),
@@ -138,19 +138,19 @@ StackWatermarkIterator::StackWatermarkIterator(StackWatermark& owner) :
     _is_done(_frame_stream.is_done()) {
 }
 
-frame& StackWatermarkIterator::current() {
+frame& StackWatermarkFramesIterator::current() {
   return *_frame_stream.current();
 }
 
-RegisterMap& StackWatermarkIterator::register_map() {
+RegisterMap& StackWatermarkFramesIterator::register_map() {
   return *_frame_stream.register_map();
 }
 
-bool StackWatermarkIterator::has_next() const {
+bool StackWatermarkFramesIterator::has_next() const {
   return !_is_done;
 }
 
-void StackWatermarkIterator::next() {
+void StackWatermarkFramesIterator::next() {
   _frame_stream.next();
   _is_done = _frame_stream.is_done();
 }
@@ -194,7 +194,7 @@ void StackWatermark::start_processing_impl(void* context) {
                          _jt->osthread()->thread_id());
   delete _iterator;
   if (_jt->has_last_Java_frame()) {
-    _iterator = new StackWatermarkIterator(*this);
+    _iterator = new StackWatermarkFramesIterator(*this);
     // Always process three frames when starting an iteration.
     //
     // The three frames corresponds to:
