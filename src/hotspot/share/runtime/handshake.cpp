@@ -513,7 +513,9 @@ HandshakeState::ProcessResult HandshakeState::try_process(HandshakeOperation* op
     log_trace(handshake)("Processing handshake by %s", Thread::current()->is_VM_thread() ? "VMThread" : "Handshaker");
     DEBUG_ONLY(_active_handshaker = Thread::current();)
 
-    StackWatermarkSet::start_iteration(_handshakee, StackWatermarkSet::gc);
+    if (!_handshakee->is_terminated()) {
+      StackWatermarkSet::start_iteration(_handshakee, StackWatermarkSet::gc);
+    }
 
     op->do_handshake(_handshakee);
     DEBUG_ONLY(_active_handshaker = NULL;)

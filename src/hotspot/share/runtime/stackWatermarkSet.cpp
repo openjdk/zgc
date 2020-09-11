@@ -117,6 +117,7 @@ void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
 
 void StackWatermarkSet::start_iteration(JavaThread* jt, Kind kind) {
   verify_poll_context();
+  assert(!jt->is_terminated(), "Poll after termination is a bug");
   for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
     current->start_iteration();
   }
