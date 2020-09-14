@@ -40,8 +40,6 @@ class ThreadsList;
 #define OM_CACHE_LINE_SIZE DEFAULT_CACHE_LINE_SIZE
 #endif
 
-#define CHAINMARKER (cast_to_oop<intptr_t>(-1))
-
 typedef PaddedEnd<ObjectMonitor, OM_CACHE_LINE_SIZE> PaddedObjectMonitor;
 
 class ObjectSynchronizer : AllStatic {

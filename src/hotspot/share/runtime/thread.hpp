@@ -40,8 +40,6 @@
 #include "runtime/os.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/park.hpp"
-#include "runtime/safepointMechanism.hpp"
-#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/threadHeapSampler.hpp"
 #include "runtime/threadLocalStorage.hpp"
@@ -285,12 +283,6 @@ class Thread: public ThreadShadow {
   // suspend/resume lock: used for self-suspend
   Monitor* _SR_lock;
 
-  // Stack watermark barriers.
-  StackWatermarkSetInstance _stack_watermark_set;
-
- public:
-  inline StackWatermarkSetInstance* stack_watermark_set() { return &_stack_watermark_set; }
-
  protected:
   enum SuspendFlags {
     // NOTE: avoid using the sign-bit as cc generates different test code
@@ -398,10 +390,8 @@ class Thread: public ThreadShadow {
   friend class NoSafepointVerifier;
   friend class PauseNoSafepointVerifier;
 
- protected:
-  SafepointMechanism::ThreadData _poll_data;
+  volatile void* _polling_page;                 // Thread local polling page
 
- private:
   ThreadLocalAllocBuffer _tlab;                 // Thread-local eden
   jlong _allocated_bytes;                       // Cumulative number of bytes allocated on
                                                 // the Java heap
@@ -670,9 +660,7 @@ class Thread: public ThreadShadow {
   // Apply "f->do_oop" to all root oops in "this".
   //   Used by JavaThread::oops_do.
   // Apply "cf->do_code_blob" (if !NULL) to all code blobs active in frames
-  virtual void oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf);
-  virtual void oops_do_frames(OopClosure* f, CodeBlobClosure* cf) {}
-  void oops_do(OopClosure* f, CodeBlobClosure* cf);
+  virtual void oops_do(OopClosure* f, CodeBlobClosure* cf);
 
   // Handles the parallel case for claim_threads_do.
  private:
@@ -767,6 +755,8 @@ protected:
   size_t           _stack_size;
   int              _lgrp_id;
 
+  volatile void** polling_page_addr() { return &_polling_page; }
+
  public:
   // Stack overflow support
   address stack_base() const           { assert(_stack_base != NULL,"Sanity check"); return _stack_base; }
@@ -829,8 +819,7 @@ protected:
   static ByteSize stack_base_offset()            { return byte_offset_of(Thread, _stack_base); }
   static ByteSize stack_size_offset()            { return byte_offset_of(Thread, _stack_size); }
 
-  static ByteSize polling_word_offset()          { return byte_offset_of(Thread, _poll_data) + byte_offset_of(SafepointMechanism::ThreadData, _polling_word);}
-  static ByteSize polling_page_offset()          { return byte_offset_of(Thread, _poll_data) + byte_offset_of(SafepointMechanism::ThreadData, _polling_page);}
+  static ByteSize polling_page_offset()          { return byte_offset_of(Thread, _polling_page); }
 
   static ByteSize tlab_start_offset()            { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::start_offset(); }
   static ByteSize tlab_end_offset()              { return byte_offset_of(Thread, _tlab) + ThreadLocalAllocBuffer::end_offset(); }
@@ -940,8 +929,8 @@ class NamedThread: public NonJavaThread {
   };
  private:
   char* _name;
-  // log Thread being processed by oops_do
-  Thread* _processed_thread;
+  // log JavaThread being processed by oops_do
+  JavaThread* _processed_thread;
   uint _gc_id; // The current GC id when a thread takes part in GC
 
  public:
@@ -951,8 +940,8 @@ class NamedThread: public NonJavaThread {
   void set_name(const char* format, ...)  ATTRIBUTE_PRINTF(2, 3);
   virtual bool is_Named_thread() const { return true; }
   virtual char* name() const { return _name == NULL ? (char*)"Unknown Thread" : _name; }
-  Thread *processed_thread() { return _processed_thread; }
-  void set_processed_thread(Thread *thread) { _processed_thread = thread; }
+  JavaThread *processed_thread() { return _processed_thread; }
+  void set_processed_thread(JavaThread *thread) { _processed_thread = thread; }
   virtual void print_on(outputStream* st) const;
 
   void set_gc_id(uint gc_id) { _gc_id = gc_id; }
@@ -1356,7 +1345,9 @@ class JavaThread: public Thread {
   bool do_not_unlock_if_synchronized()             { return _do_not_unlock_if_synchronized; }
   void set_do_not_unlock_if_synchronized(bool val) { _do_not_unlock_if_synchronized = val; }
 
-  SafepointMechanism::ThreadData* poll_data() { return &_poll_data; }
+  inline void set_polling_page_release(void* poll_value);
+  inline void set_polling_page(void* poll_value);
+  inline volatile void* get_polling_page();
 
  private:
   // Support for thread handshake operations
@@ -1896,8 +1887,7 @@ class JavaThread: public Thread {
   void frames_do(void f(frame*, const RegisterMap*));
 
   // Memory operations
-  void oops_do_frames(OopClosure* f, CodeBlobClosure* cf);
-  void oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf);
+  void oops_do(OopClosure* f, CodeBlobClosure* cf);
 
   // Sweeper operations
   virtual void nmethods_do(CodeBlobClosure* cf);
@@ -2149,7 +2139,7 @@ class CodeCacheSweeperThread : public JavaThread {
   bool is_Code_cache_sweeper_thread() const { return true; }
 
   // Prevent GC from unloading _scanned_compiled_method
-  void oops_do_no_frames(OopClosure* f, CodeBlobClosure* cf);
+  void oops_do(OopClosure* f, CodeBlobClosure* cf);
   void nmethods_do(CodeBlobClosure* cf);
 };
 

@@ -28,7 +28,6 @@
 #include "memory/universe.hpp"
 #include "runtime/abstract_vm_version.hpp"
 #include "runtime/globals_extension.hpp"
-#include "utilities/macros.hpp"
 
 class VM_Version : public Abstract_VM_Version {
   friend class VMStructs;
@@ -987,10 +986,6 @@ public:
   // x86_64 supports fast class initialization checks for static methods.
   static bool supports_fast_class_init_checks() {
     return LP64_ONLY(true) NOT_LP64(false); // not implemented on x86_32
-  }
-
-  constexpr static bool supports_stack_watermark_barrier() {
-    return LP64_ONLY(true) NOT_LP64(false);
   }
 
   // there are several insns to force cache line sync to memory which

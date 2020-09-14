@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -189,17 +189,27 @@ void ZNMethod::flush_nmethod(nmethod* nm) {
 
 bool ZNMethod::supports_entry_barrier(nmethod* nm) {
   BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  return bs->supports_entry_barrier(nm);
+  if (bs != NULL) {
+    return bs->supports_entry_barrier(nm);
+  }
+
+  return false;
 }
 
 bool ZNMethod::is_armed(nmethod* nm) {
   BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  return bs->is_armed(nm);
+  if (bs != NULL) {
+    return bs->is_armed(nm);
+  }
+
+  return false;
 }
 
 void ZNMethod::disarm(nmethod* nm) {
   BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
-  bs->disarm(nm);
+  if (bs != NULL) {
+    bs->disarm(nm);
+  }
 }
 
 void ZNMethod::nmethod_oops_do(nmethod* nm, OopClosure* cl) {
@@ -235,28 +245,14 @@ void ZNMethod::nmethod_oops_do(nmethod* nm, OopClosure* cl) {
 
 class ZNMethodToOopsDoClosure : public NMethodClosure {
 private:
-  OopClosure* const _cl;
-  const bool        _should_disarm_nmethods;
+  OopClosure* _cl;
 
 public:
-  ZNMethodToOopsDoClosure(OopClosure* cl, bool should_disarm_nmethods) :
-    _cl(cl),
-    _should_disarm_nmethods(should_disarm_nmethods) {}
+  ZNMethodToOopsDoClosure(OopClosure* cl) :
+      _cl(cl) {}
 
   virtual void do_nmethod(nmethod* nm) {
-    ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
-    if (!nm->is_alive()) {
-      return;
-    }
-
-    if (_should_disarm_nmethods) {
-      if (ZNMethod::is_armed(nm)) {
-        ZNMethod::nmethod_oops_do(nm, _cl);
-        ZNMethod::disarm(nm);
-      }
-    } else {
-      ZNMethod::nmethod_oops_do(nm, _cl);
-    }
+    ZNMethod::nmethod_oops_do(nm, _cl);
   }
 };
 
@@ -268,8 +264,8 @@ void ZNMethod::oops_do_end() {
   ZNMethodTable::nmethods_do_end();
 }
 
-void ZNMethod::oops_do(OopClosure* cl, bool should_disarm_nmethods) {
-  ZNMethodToOopsDoClosure nmethod_cl(cl, should_disarm_nmethods);
+void ZNMethod::oops_do(OopClosure* cl) {
+  ZNMethodToOopsDoClosure nmethod_cl(cl);
   ZNMethodTable::nmethods_do(&nmethod_cl);
 }
 

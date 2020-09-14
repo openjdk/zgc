@@ -647,7 +647,9 @@ class MacroAssembler: public Assembler {
                                                 Register tmp,
                                                 int offset);
 
-  void safepoint_poll(Label& slow_path, Register thread_reg, bool at_return, bool in_nmethod);
+  // If thread_reg is != noreg the code assumes the register passed contains
+  // the thread (required on 64 bit).
+  void safepoint_poll(Label& slow_path, Register thread_reg, Register temp_reg);
 
   void verify_tlab();
 

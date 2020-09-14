@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,8 +28,6 @@
 #include "gc/z/zValue.hpp"
 #include "memory/allocation.hpp"
 
-class JavaThread;
-
 class ZThreadLocalAllocBuffer : public AllStatic {
 private:
   static ZPerWorker<ThreadLocalAllocStats>* _stats;
@@ -40,9 +38,8 @@ public:
   static void reset_statistics();
   static void publish_statistics();
 
-  static void retire(JavaThread* thread, ThreadLocalAllocStats* stats);
-  static void remap(JavaThread* thread);
-  static void update_stats(JavaThread* thread);
+  static void retire(Thread* thread);
+  static void remap(Thread* thread);
 };
 
 #endif // SHARE_GC_Z_ZTHREADLOCALALLOCBUFFER_HPP

@@ -2699,17 +2699,16 @@ void MacroAssembler::save_rax(Register tmp) {
   else if (tmp != rax) mov(tmp, rax);
 }
 
-void MacroAssembler::safepoint_poll(Label& slow_path, Register thread_reg, bool at_return, bool in_nmethod) {
+void MacroAssembler::safepoint_poll(Label& slow_path, Register thread_reg, Register temp_reg) {
 #ifdef _LP64
-  if (at_return) {
-    // Note that when in_nmethod is set, the stack pointer is incremented before the poll. Therefore,
-    // we may safely use rsp instead to perform the stack watermark check.
-    cmpq(Address(thread_reg, Thread::polling_word_offset()), in_nmethod ? rsp : rbp);
-    jcc(Assembler::above, slow_path);
-    return;
+  assert(thread_reg == r15_thread, "should be");
+#else
+  if (thread_reg == noreg) {
+    thread_reg = temp_reg;
+    get_thread(thread_reg);
   }
 #endif
-  testb(Address(thread_reg, Thread::polling_word_offset()), SafepointMechanism::poll_bit());
+  testb(Address(thread_reg, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
   jcc(Assembler::notZero, slow_path); // handshake bit set implies poll
 }
 

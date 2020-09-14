@@ -128,7 +128,6 @@ public:
     return (1 << ((_psr_info.ctr_el0 >> 16) & 0x0f)) * 4;
   }
   static bool supports_fast_class_init_checks() { return true; }
-  constexpr static bool supports_stack_watermark_barrier() { return true; }
 };
 
 #endif // CPU_AARCH64_VM_VERSION_AARCH64_HPP
