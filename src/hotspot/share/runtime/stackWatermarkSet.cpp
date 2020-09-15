@@ -118,14 +118,16 @@ void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
 void StackWatermarkSet::start_processing(JavaThread* jt, StackWatermarkKind kind) {
   verify_poll_context();
   assert(!jt->is_terminated(), "Poll after termination is a bug");
-  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
-    current->start_processing();
+  StackWatermark* watermark = get(jt, kind);
+  if (watermark != NULL) {
+    watermark->start_processing();
   }
 }
 
 void StackWatermarkSet::finish_processing(JavaThread* jt, void* context, StackWatermarkKind kind) {
-  for (StackWatermark* current = head(jt); current != NULL; current = current->next()) {
-    current->finish_processing(context);
+  StackWatermark* watermark = get(jt, kind);
+  if (watermark != NULL) {
+    watermark->finish_processing(context);
   }
 }
 
