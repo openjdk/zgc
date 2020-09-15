@@ -104,7 +104,7 @@ void StackWatermarkSet::after_unwind(JavaThread* jt) {
   SafepointMechanism::update_poll_values(jt);
 }
 
-void StackWatermarkSet::on_iteration(JavaThread* jt, frame fr) {
+void StackWatermarkSet::on_iteration(JavaThread* jt, const frame& fr) {
   if (VMError::is_error_reported()) {
     // Don't perform barrier when error reporting walks the stack.
     return;

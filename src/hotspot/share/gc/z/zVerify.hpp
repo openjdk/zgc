@@ -49,7 +49,7 @@ public:
 
   static void verify_thread_no_frames_bad(JavaThread* thread) NOT_DEBUG_RETURN;
   static void verify_thread_frames_bad(JavaThread* thread) NOT_DEBUG_RETURN;
-  static void verify_frame_bad(frame& fr, RegisterMap& register_map) NOT_DEBUG_RETURN;
+  static void verify_frame_bad(const frame& fr, RegisterMap& register_map) NOT_DEBUG_RETURN;
 };
 
 class ZVerifyViewsFlip {

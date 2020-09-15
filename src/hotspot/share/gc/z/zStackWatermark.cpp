@@ -91,7 +91,7 @@ void ZStackWatermark::start_processing_impl(void* context) {
   StackWatermark::start_processing_impl(context);
 }
 
-void ZStackWatermark::process(frame frame, RegisterMap& register_map, void* context) {
-  ZVerify::verify_frame_bad(frame, register_map);
-  frame.oops_do(closure_from_context(context), &_cb_cl, &register_map);
+void ZStackWatermark::process(const frame& fr, RegisterMap& register_map, void* context) {
+  ZVerify::verify_frame_bad(fr, register_map);
+  frame(fr).oops_do(closure_from_context(context), &_cb_cl, &register_map);
 }

@@ -25,10 +25,10 @@
 #ifndef SHARE_RUNTIME_STACKWATERMARKSET_HPP
 #define SHARE_RUNTIME_STACKWATERMARKSET_HPP
 
-#include "memory/allocation.hpp"
-#include "runtime/frame.hpp"
+#include "memory/allStatic.hpp"
 #include "runtime/stackWatermarkKind.hpp"
 
+class frame;
 class JavaThread;
 class StackWatermark;
 
@@ -64,7 +64,7 @@ public:
   static void after_unwind(JavaThread* jt);
 
   // Called by stack walkers when walking into a frame
-  static void on_iteration(JavaThread* jt, frame fr);
+  static void on_iteration(JavaThread* jt, const frame& fr);
 
   // Called to ensure that processing of the thread is started
   static void start_processing(JavaThread* jt, StackWatermarkKind kind);

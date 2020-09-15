@@ -169,7 +169,7 @@ StackWatermark::~StackWatermark() {
   delete _iterator;
 }
 
-void StackWatermark::assert_is_frame_safe(frame f) {
+void StackWatermark::assert_is_frame_safe(const frame& f) {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
   assert(is_frame_safe(f), "Frame must be safe");
 }
@@ -177,7 +177,7 @@ void StackWatermark::assert_is_frame_safe(frame f) {
 // A frame is "safe" if it *and* its caller have been processed. This is the invariant
 // that allows exposing a frame, and for that frame to directly access its caller frame
 // without going through any hooks.
-bool StackWatermark::is_frame_safe(frame f) {
+bool StackWatermark::is_frame_safe(const frame& f) {
   assert(_lock.owned_by_self(), "Must be locked");
   uint32_t state = Atomic::load(&_state);
   if (!processing_started(state)) {

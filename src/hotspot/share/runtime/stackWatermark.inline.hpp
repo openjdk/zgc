@@ -38,7 +38,7 @@ static inline bool is_above_watermark(uintptr_t sp, uintptr_t watermark) {
 // Returns true for frames where stack watermark barriers have been inserted.
 // This function may return false negatives, but may never return true if a
 // frame has no barrier.
-inline bool StackWatermark::has_barrier(frame f) {
+inline bool StackWatermark::has_barrier(const frame& f) {
   if (f.is_interpreted_frame()) {
     return true;
   }
@@ -63,7 +63,7 @@ inline bool StackWatermark::processing_completed(uint32_t state) const {
   return StackWatermarkState::is_done(state);
 }
 
-inline void StackWatermark::ensure_safe(frame f) {
+inline void StackWatermark::ensure_safe(const frame& f) {
   assert(processing_started(), "Processing should already have started");
 
   if (processing_completed_acquire()) {
@@ -117,7 +117,7 @@ inline void StackWatermark::after_unwind() {
   ensure_safe(f);
 }
 
-inline void StackWatermark::on_iteration(frame f) {
+inline void StackWatermark::on_iteration(const frame& f) {
   if (process_on_iteration()) {
     ensure_safe(f);
   }

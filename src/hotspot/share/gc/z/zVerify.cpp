@@ -372,9 +372,9 @@ void ZVerify::verify_thread_frames_bad(JavaThread* jt) {
   }
 }
 
-void ZVerify::verify_frame_bad(frame& fr, RegisterMap& register_map) {
+void ZVerify::verify_frame_bad(const frame& fr, RegisterMap& register_map) {
   ZVerifyBadOopClosure verify_cl;
-  fr.oops_do(&verify_cl, NULL, &register_map);
+  frame(fr).oops_do(&verify_cl, NULL, &register_map);
 }
 
 #endif // ASSERT

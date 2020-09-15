@@ -26,7 +26,6 @@
 #define SHARE_RUNTIME_STACKWATERMARK_HPP
 
 #include "memory/allocation.hpp"
-#include "runtime/frame.hpp"
 #include "runtime/stackWatermarkKind.hpp"
 
 class JavaThread;
@@ -62,16 +61,16 @@ protected:
 
   void update_watermark();
   void yield_processing();
-  static bool has_barrier(frame f);
-  void ensure_safe(frame f);
-  void assert_is_frame_safe(frame f);
-  bool is_frame_safe(frame f);
+  static bool has_barrier(const frame& f);
+  void ensure_safe(const frame& f);
+  void assert_is_frame_safe(const frame& f);
+  bool is_frame_safe(const frame& f);
 
   // API for consumers of the stack watermark barrier.
   // The rule for consumers is: do not perform thread transitions
   // or take locks of rank >= special. This is all very special code.
   virtual uint32_t epoch_id() const = 0;
-  virtual void process(frame f, RegisterMap& register_map, void* context) = 0;
+  virtual void process(const frame& f, RegisterMap& register_map, void* context) = 0;
   virtual void start_processing_impl(void* context);
 
   // Set process_on_iteration to false if you don't want to move the
@@ -103,7 +102,7 @@ public:
   void before_unwind();
   void after_unwind();
 
-  void on_iteration(frame f);
+  void on_iteration(const frame& f);
   void start_processing();
   void finish_processing(void* context);
 };

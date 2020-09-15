@@ -57,7 +57,7 @@ private:
 protected:
   virtual uint32_t epoch_id() const;
   virtual void start_processing_impl(void* context);
-  virtual void process(frame frame, RegisterMap& register_map, void* context);
+  virtual void process(const frame& fr, RegisterMap& register_map, void* context);
 
 public:
   ZStackWatermark(JavaThread* jt);
