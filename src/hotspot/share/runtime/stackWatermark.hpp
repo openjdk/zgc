@@ -63,7 +63,7 @@ protected:
   void yield_processing();
   static bool has_barrier(const frame& f);
   void ensure_safe(const frame& f);
-  void assert_is_frame_safe(const frame& f);
+  void assert_is_frame_safe(const frame& f) PRODUCT_RETURN;
   bool is_frame_safe(const frame& f);
 
   // API for consumers of the stack watermark barrier.

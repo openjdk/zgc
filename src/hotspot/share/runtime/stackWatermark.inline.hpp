@@ -70,10 +70,7 @@ inline void StackWatermark::ensure_safe(const frame& f) {
     return;
   }
 
-  // Get caller sp to get the callee fp.
-  RegisterMap map(_jt, false /* update_map */, false /* process_frames */);
-  frame f_caller = f.sender(&map);
-  uintptr_t f_fp = reinterpret_cast<uintptr_t>(f_caller.sp());
+  uintptr_t f_fp = reinterpret_cast<uintptr_t>(f.real_fp());
 
   if (is_above_watermark(f_fp, watermark())) {
     process_one();

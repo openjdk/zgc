@@ -31,6 +31,7 @@
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
 
 class StackWatermarkFramesIterator : public CHeapObj<mtInternal> {
@@ -169,10 +170,12 @@ StackWatermark::~StackWatermark() {
   delete _iterator;
 }
 
+#ifdef ASSERT
 void StackWatermark::assert_is_frame_safe(const frame& f) {
   MutexLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
   assert(is_frame_safe(f), "Frame must be safe");
 }
+#endif
 
 // A frame is "safe" if it *and* its caller have been processed. This is the invariant
 // that allows exposing a frame, and for that frame to directly access its caller frame
