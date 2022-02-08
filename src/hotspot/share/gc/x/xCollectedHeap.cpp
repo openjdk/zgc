@@ -25,22 +25,24 @@
 #include "classfile/classLoaderData.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zDirector.hpp"
-#include "gc/z/zDriver.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zObjArrayAllocator.hpp"
-#include "gc/z/zOop.inline.hpp"
-#include "gc/z/zServiceability.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zUtils.inline.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xDirector.hpp"
+#include "gc/x/xDriver.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xObjArrayAllocator.hpp"
+#include "gc/x/xOop.inline.hpp"
+#include "gc/x/xServiceability.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xUtils.inline.hpp"
 #include "memory/classLoaderMetaspace.hpp"
 #include "memory/iterator.hpp"
 #include "memory/metaspaceCriticalAllocation.hpp"
 #include "memory/universe.hpp"
 #include "utilities/align.hpp"
+
+namespace ZOriginal {
 
 ZCollectedHeap* ZCollectedHeap::heap() {
   return named_heap<ZCollectedHeap>(CollectedHeap::Z);
@@ -325,4 +327,6 @@ bool ZCollectedHeap::is_oop(oop object) const {
 
 bool ZCollectedHeap::supports_concurrent_gc_breakpoints() const {
   return true;
+}
+
 }

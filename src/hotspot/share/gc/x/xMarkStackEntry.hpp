@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKSTACKENTRY_HPP
-#define SHARE_GC_Z_ZMARKSTACKENTRY_HPP
+#ifndef SHARE_GC_X_ZMARKSTACKENTRY_HPP
+#define SHARE_GC_X_ZMARKSTACKENTRY_HPP
 
-#include "gc/z/zBitField.hpp"
+#include "gc/x/xBitField.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 //
 // Mark stack entry layout
@@ -139,4 +141,6 @@ public:
   }
 };
 
-#endif // SHARE_GC_Z_ZMARKSTACKENTRY_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKSTACKENTRY_HPP

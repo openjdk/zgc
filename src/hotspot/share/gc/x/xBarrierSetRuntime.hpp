@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBARRIERSETRUNTIME_HPP
-#define SHARE_GC_Z_ZBARRIERSETRUNTIME_HPP
+#ifndef SHARE_GC_X_ZBARRIERSETRUNTIME_HPP
+#define SHARE_GC_X_ZBARRIERSETRUNTIME_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/accessDecorators.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class oopDesc;
+
+namespace ZOriginal {
 
 class ZBarrierSetRuntime : public AllStatic {
 private:
@@ -53,4 +55,6 @@ public:
   static address clone_addr();
 };
 
-#endif // SHARE_GC_Z_ZBARRIERSETRUNTIME_HPP
+}
+
+#endif // SHARE_GC_X_ZBARRIERSETRUNTIME_HPP

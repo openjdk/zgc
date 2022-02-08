@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZARRAY_HPP
-#define SHARE_GC_Z_ZARRAY_HPP
+#ifndef SHARE_GC_X_ZARRAY_HPP
+#define SHARE_GC_X_ZARRAY_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/growableArray.hpp"
+
+namespace ZOriginal {
 
 template <typename T> using ZArray = GrowableArrayCHeap<T, mtGC>;
 
@@ -48,4 +50,6 @@ public:
 template <typename T> using ZArrayIterator = ZArrayIteratorImpl<T, false /* Parallel */>;
 template <typename T> using ZArrayParallelIterator = ZArrayIteratorImpl<T, true /* Parallel */>;
 
-#endif // SHARE_GC_Z_ZARRAY_HPP
+}
+
+#endif // SHARE_GC_X_ZARRAY_HPP

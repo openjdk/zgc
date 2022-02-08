@@ -22,12 +22,14 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zGranuleMap.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageTable.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xGranuleMap.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageTable.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 ZPageTable::ZPageTable() :
     _map(ZAddressOffsetMax) {}
@@ -50,4 +52,6 @@ void ZPageTable::remove(ZPage* page) {
 
   assert(_map.get(offset) == page, "Invalid entry");
   _map.put(offset, size, NULL);
+}
+
 }

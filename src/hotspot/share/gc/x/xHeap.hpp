@@ -21,25 +21,28 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZHEAP_HPP
-#define SHARE_GC_Z_ZHEAP_HPP
+#ifndef SHARE_GC_X_ZHEAP_HPP
+#define SHARE_GC_X_ZHEAP_HPP
 
-#include "gc/z/zAllocationFlags.hpp"
-#include "gc/z/zArray.hpp"
-#include "gc/z/zForwardingTable.hpp"
-#include "gc/z/zMark.hpp"
-#include "gc/z/zObjectAllocator.hpp"
-#include "gc/z/zPageAllocator.hpp"
-#include "gc/z/zPageTable.hpp"
-#include "gc/z/zReferenceProcessor.hpp"
-#include "gc/z/zRelocate.hpp"
-#include "gc/z/zRelocationSet.hpp"
-#include "gc/z/zWeakRootsProcessor.hpp"
-#include "gc/z/zServiceability.hpp"
-#include "gc/z/zUnload.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xAllocationFlags.hpp"
+#include "gc/x/xArray.hpp"
+#include "gc/x/xForwardingTable.hpp"
+#include "gc/x/xMark.hpp"
+#include "gc/x/xObjectAllocator.hpp"
+#include "gc/x/xPageAllocator.hpp"
+#include "gc/x/xPageTable.hpp"
+#include "gc/x/xReferenceProcessor.hpp"
+#include "gc/x/xRelocate.hpp"
+#include "gc/x/xRelocationSet.hpp"
+#include "gc/x/xWeakRootsProcessor.hpp"
+#include "gc/x/xServiceability.hpp"
+#include "gc/x/xUnload.hpp"
+#include "gc/x/xWorkers.hpp"
 
 class ThreadClosure;
+
+namespace ZOriginal {
+
 class ZPage;
 class ZRelocationSetSelector;
 
@@ -161,4 +164,6 @@ public:
   void verify();
 };
 
-#endif // SHARE_GC_Z_ZHEAP_HPP
+}
+
+#endif // SHARE_GC_X_ZHEAP_HPP

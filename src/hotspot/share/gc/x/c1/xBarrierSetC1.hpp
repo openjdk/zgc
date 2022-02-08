@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_C1_ZBARRIERSETC1_HPP
-#define SHARE_GC_Z_C1_ZBARRIERSETC1_HPP
+#ifndef SHARE_GC_X_C1_ZBARRIERSETC1_HPP
+#define SHARE_GC_X_C1_ZBARRIERSETC1_HPP
 
 #include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_IR.hpp"
 #include "c1/c1_LIR.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "oops/accessDecorators.hpp"
+
+namespace ZOriginal {
 
 class ZLoadBarrierStubC1 : public CodeStub {
 private:
@@ -75,4 +77,6 @@ public:
   virtual void generate_c1_runtime_stubs(BufferBlob* blob);
 };
 
-#endif // SHARE_GC_Z_C1_ZBARRIERSETC1_HPP
+}
+
+#endif // SHARE_GC_X_C1_ZBARRIERSETC1_HPP

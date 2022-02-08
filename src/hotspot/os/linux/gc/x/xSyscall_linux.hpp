@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef OS_LINUX_GC_Z_ZSYSCALL_LINUX_HPP
-#define OS_LINUX_GC_Z_ZSYSCALL_LINUX_HPP
+#ifndef OS_LINUX_GC_X_ZSYSCALL_LINUX_HPP
+#define OS_LINUX_GC_X_ZSYSCALL_LINUX_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 // Flags for get_mempolicy()
 #ifndef MPOL_F_NODE
@@ -41,4 +43,6 @@ public:
   static long get_mempolicy(int* mode, unsigned long* nodemask, unsigned long maxnode, void* addr, unsigned long flags);
 };
 
-#endif // OS_LINUX_GC_Z_ZSYSCALL_LINUX_HPP
+}
+
+#endif // OS_LINUX_GC_X_ZSYSCALL_LINUX_HPP

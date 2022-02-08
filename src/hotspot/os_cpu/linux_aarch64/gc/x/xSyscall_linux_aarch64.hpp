@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef OS_CPU_LINUX_AARCH64_GC_Z_ZSYSCALL_LINUX_AARCH64_HPP
-#define OS_CPU_LINUX_AARCH64_GC_Z_ZSYSCALL_LINUX_AARCH64_HPP
+#ifndef OS_CPU_LINUX_AARCH64_GC_X_ZSYSCALL_LINUX_AARCH64_HPP
+#define OS_CPU_LINUX_AARCH64_GC_X_ZSYSCALL_LINUX_AARCH64_HPP
 
 #include <sys/syscall.h>
+
+namespace ZOriginal {
 
 //
 // Support for building on older Linux systems
@@ -37,4 +39,6 @@
 #define SYS_fallocate        47
 #endif
 
-#endif // OS_CPU_LINUX_AARCH64_GC_Z_ZSYSCALL_LINUX_AARCH64_HPP
+}
+
+#endif // OS_CPU_LINUX_AARCH64_GC_X_ZSYSCALL_LINUX_AARCH64_HPP

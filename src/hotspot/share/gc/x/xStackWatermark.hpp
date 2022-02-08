@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZSTACKWATERMARK_HPP
-#define SHARE_GC_Z_ZSTACKWATERMARK_HPP
+#ifndef SHARE_GC_X_ZSTACKWATERMARK_HPP
+#define SHARE_GC_X_ZSTACKWATERMARK_HPP
 
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/threadLocalAllocBuffer.hpp"
-#include "gc/z/zBarrier.hpp"
+#include "gc/x/xBarrier.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -36,6 +36,8 @@
 
 class frame;
 class JavaThread;
+
+namespace ZOriginal {
 
 class ZOnStackCodeBlobClosure : public CodeBlobClosure {
 private:
@@ -65,4 +67,6 @@ public:
   ThreadLocalAllocStats& stats();
 };
 
-#endif // SHARE_GC_Z_ZSTACKWATERMARK_HPP
+}
+
+#endif // SHARE_GC_X_ZSTACKWATERMARK_HPP

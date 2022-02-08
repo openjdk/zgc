@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPAGECACHE_HPP
-#define SHARE_GC_Z_ZPAGECACHE_HPP
+#ifndef SHARE_GC_X_ZPAGECACHE_HPP
+#define SHARE_GC_X_ZPAGECACHE_HPP
 
-#include "gc/z/zList.hpp"
-#include "gc/z/zPage.hpp"
-#include "gc/z/zValue.hpp"
+#include "gc/x/xList.hpp"
+#include "gc/x/xPage.hpp"
+#include "gc/x/xValue.hpp"
+
+namespace ZOriginal {
 
 class ZPageCacheFlushClosure;
 
@@ -64,4 +66,6 @@ public:
   void pages_do(ZPageClosure* cl) const;
 };
 
-#endif // SHARE_GC_Z_ZPAGECACHE_HPP
+}
+
+#endif // SHARE_GC_X_ZPAGECACHE_HPP

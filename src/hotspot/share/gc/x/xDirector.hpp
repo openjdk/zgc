@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZDIRECTOR_HPP
-#define SHARE_GC_Z_ZDIRECTOR_HPP
+#ifndef SHARE_GC_X_ZDIRECTOR_HPP
+#define SHARE_GC_X_ZDIRECTOR_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
-#include "gc/z/zMetronome.hpp"
+#include "gc/x/xMetronome.hpp"
+
+namespace ZOriginal {
 
 class ZDriver;
 
@@ -42,4 +44,6 @@ public:
   ZDirector(ZDriver* driver);
 };
 
-#endif // SHARE_GC_Z_ZDIRECTOR_HPP
+}
+
+#endif // SHARE_GC_X_ZDIRECTOR_HPP

@@ -25,16 +25,18 @@
 #include "classfile/javaClasses.inline.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessorStats.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zReferenceProcessor.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zTracer.inline.hpp"
-#include "gc/z/zValue.inline.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xReferenceProcessor.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xTracer.inline.hpp"
+#include "gc/x/xValue.inline.hpp"
 #include "memory/universe.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.hpp"
+
+namespace ZOriginal {
 
 static const ZStatSubPhase ZSubPhaseConcurrentReferencesProcess("Concurrent References Process");
 static const ZStatSubPhase ZSubPhaseConcurrentReferencesEnqueue("Concurrent References Enqueue");
@@ -456,4 +458,6 @@ void ZReferenceProcessor::enqueue_references() {
   // Reset internal pending list
   _pending_list.set(NULL);
   _pending_list_tail = _pending_list.addr();
+}
+
 }

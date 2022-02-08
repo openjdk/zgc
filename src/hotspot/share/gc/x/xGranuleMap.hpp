@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZGRANULEMAP_HPP
-#define SHARE_GC_Z_ZGRANULEMAP_HPP
+#ifndef SHARE_GC_X_ZGRANULEMAP_HPP
+#define SHARE_GC_X_ZGRANULEMAP_HPP
 
-#include "gc/z/zArray.hpp"
+#include "gc/x/xArray.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 template <typename T>
 class ZGranuleMap {
@@ -56,4 +58,6 @@ public:
   ZGranuleMapIterator(const ZGranuleMap<T>* granule_map);
 };
 
-#endif // SHARE_GC_Z_ZGRANULEMAP_HPP
+}
+
+#endif // SHARE_GC_X_ZGRANULEMAP_HPP

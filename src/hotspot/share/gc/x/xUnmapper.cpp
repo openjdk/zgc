@@ -23,13 +23,15 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zList.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageAllocator.hpp"
-#include "gc/z/zUnmapper.hpp"
+#include "gc/x/xList.inline.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageAllocator.hpp"
+#include "gc/x/xUnmapper.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "runtime/globals.hpp"
+
+namespace ZOriginal {
 
 ZUnmapper::ZUnmapper(ZPageAllocator* page_allocator) :
     _page_allocator(page_allocator),
@@ -98,4 +100,6 @@ void ZUnmapper::stop_service() {
   ZLocker<ZConditionLock> locker(&_lock);
   _stop = true;
   _lock.notify_all();
+}
+
 }

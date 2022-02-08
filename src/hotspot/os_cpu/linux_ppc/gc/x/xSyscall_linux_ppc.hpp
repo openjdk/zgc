@@ -22,10 +22,12 @@
  * questions.
  */
 
-#ifndef OS_CPU_LINUX_PPC_GC_Z_ZSYSCALL_LINUX_PPC_HPP
-#define OS_CPU_LINUX_PPC_GC_Z_ZSYSCALL_LINUX_PPC_HPP
+#ifndef OS_CPU_LINUX_PPC_GC_X_ZSYSCALL_LINUX_PPC_HPP
+#define OS_CPU_LINUX_PPC_GC_X_ZSYSCALL_LINUX_PPC_HPP
 
 #include <sys/syscall.h>
+
+namespace ZOriginal {
 
 //
 // Support for building on older Linux systems
@@ -39,4 +41,6 @@
 #define SYS_fallocate        309
 #endif
 
-#endif // OS_CPU_LINUX_PPC_GC_Z_ZSYSCALL_LINUX_PPC_HPP
+}
+
+#endif // OS_CPU_LINUX_PPC_GC_X_ZSYSCALL_LINUX_PPC_HPP

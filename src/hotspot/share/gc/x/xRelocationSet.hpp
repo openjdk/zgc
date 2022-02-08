@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZRELOCATIONSET_HPP
-#define SHARE_GC_Z_ZRELOCATIONSET_HPP
+#ifndef SHARE_GC_X_ZRELOCATIONSET_HPP
+#define SHARE_GC_X_ZRELOCATIONSET_HPP
 
-#include "gc/z/zArray.hpp"
-#include "gc/z/zForwardingAllocator.hpp"
+#include "gc/x/xArray.hpp"
+#include "gc/x/xForwardingAllocator.hpp"
+
+namespace ZOriginal {
 
 class ZForwarding;
 class ZRelocationSetSelector;
@@ -56,4 +58,6 @@ public:
 using ZRelocationSetIterator = ZRelocationSetIteratorImpl<false /* Parallel */>;
 using ZRelocationSetParallelIterator = ZRelocationSetIteratorImpl<true /* Parallel */>;
 
-#endif // SHARE_GC_Z_ZRELOCATIONSET_HPP
+}
+
+#endif // SHARE_GC_X_ZRELOCATIONSET_HPP

@@ -21,16 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFORWARDINGTABLE_INLINE_HPP
-#define SHARE_GC_Z_ZFORWARDINGTABLE_INLINE_HPP
+#ifndef SHARE_GC_X_ZFORWARDINGTABLE_INLINE_HPP
+#define SHARE_GC_X_ZFORWARDINGTABLE_INLINE_HPP
 
-#include "gc/z/zForwardingTable.hpp"
+#include "gc/x/xForwardingTable.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zForwarding.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zGranuleMap.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xForwarding.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xGranuleMap.inline.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline ZForwardingTable::ZForwardingTable() :
     _map(ZAddressOffsetMax) {}
@@ -56,4 +58,6 @@ inline void ZForwardingTable::remove(ZForwarding* forwarding) {
   _map.put(offset, size, NULL);
 }
 
-#endif // SHARE_GC_Z_ZFORWARDINGTABLE_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZFORWARDINGTABLE_INLINE_HPP

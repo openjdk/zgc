@@ -23,16 +23,16 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zAbort.inline.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zCPU.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zNMethodTable.hpp"
-#include "gc/z/zPageAllocator.inline.hpp"
-#include "gc/z/zRelocationSetSelector.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zTracer.inline.hpp"
-#include "gc/z/zUtils.hpp"
+#include "gc/x/xAbort.inline.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xCPU.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xNMethodTable.hpp"
+#include "gc/x/xPageAllocator.inline.hpp"
+#include "gc/x/xRelocationSetSelector.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xTracer.inline.hpp"
+#include "gc/x/xUtils.hpp"
 #include "memory/metaspaceUtils.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/atomic.hpp"
@@ -41,6 +41,8 @@
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/ticks.hpp"
+
+namespace ZOriginal {
 
 #define ZSIZE_FMT                       SIZE_FORMAT "M(%.0f%%)"
 #define ZSIZE_ARGS_WITH_MAX(size, max)  ((size) / M), (percent_of(size, max))
@@ -1501,4 +1503,6 @@ void ZStatHeap::print() {
                      .left(ZTABLE_ARGS_NA)
                      .left(ZTABLE_ARGS_NA)
                      .end());
+}
+
 }

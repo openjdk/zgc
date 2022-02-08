@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPHYSICALMEMORY_INLINE_HPP
-#define SHARE_GC_Z_ZPHYSICALMEMORY_INLINE_HPP
+#ifndef SHARE_GC_X_ZPHYSICALMEMORY_INLINE_HPP
+#define SHARE_GC_X_ZPHYSICALMEMORY_INLINE_HPP
 
-#include "gc/z/zPhysicalMemory.hpp"
+#include "gc/x/xPhysicalMemory.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline ZPhysicalMemorySegment::ZPhysicalMemorySegment() :
     _start(UINTPTR_MAX),
@@ -71,4 +73,6 @@ inline const ZPhysicalMemorySegment& ZPhysicalMemory::segment(int index) const {
   return _segments.at(index);
 }
 
-#endif // SHARE_GC_Z_ZPHYSICALMEMORY_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZPHYSICALMEMORY_INLINE_HPP

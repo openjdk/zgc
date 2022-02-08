@@ -23,11 +23,11 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zErrno.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLargePages.inline.hpp"
-#include "gc/z/zPhysicalMemory.inline.hpp"
-#include "gc/z/zPhysicalMemoryBacking_bsd.hpp"
+#include "gc/x/xErrno.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLargePages.inline.hpp"
+#include "gc/x/xPhysicalMemory.inline.hpp"
+#include "gc/x/xPhysicalMemoryBacking_bsd.hpp"
 #include "logging/log.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
@@ -38,6 +38,8 @@
 #include <mach/mach_vm.h>
 #include <sys/mman.h>
 #include <sys/types.h>
+
+namespace ZOriginal {
 
 // The backing is represented by a reserved virtual address space, in which
 // we commit and uncommit physical memory. Multi-mapping the different heap
@@ -178,4 +180,6 @@ void ZPhysicalMemoryBacking::unmap(uintptr_t addr, size_t size) const {
     ZErrno err;
     fatal("Failed to map memory (%s)", err.to_string());
   }
+}
+
 }

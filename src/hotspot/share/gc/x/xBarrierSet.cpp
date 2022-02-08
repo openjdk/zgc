@@ -22,21 +22,23 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zBarrierSetNMethod.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zStackWatermark.hpp"
-#include "gc/z/zThreadLocalData.hpp"
+#include "gc/x/xBarrierSet.hpp"
+#include "gc/x/xBarrierSetAssembler.hpp"
+#include "gc/x/xBarrierSetNMethod.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xStackWatermark.hpp"
+#include "gc/x/xThreadLocalData.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
-#include "gc/z/c1/zBarrierSetC1.hpp"
+#include "gc/x/c1/xBarrierSetC1.hpp"
 #endif
 #ifdef COMPILER2
-#include "gc/z/c2/zBarrierSetC2.hpp"
+#include "gc/x/c2/xBarrierSetC2.hpp"
 #endif
+
+namespace ZOriginal {
 
 class ZBarrierSetC1;
 class ZBarrierSetC2;
@@ -94,4 +96,6 @@ void ZBarrierSet::on_thread_detach(Thread* thread) {
 
 void ZBarrierSet::print_on(outputStream* st) const {
   st->print_cr("ZBarrierSet");
+}
+
 }

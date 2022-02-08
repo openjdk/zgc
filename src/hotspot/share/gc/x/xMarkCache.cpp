@@ -22,9 +22,11 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zMarkCache.inline.hpp"
+#include "gc/x/xMarkCache.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 ZMarkCacheEntry::ZMarkCacheEntry() :
     _page(NULL),
@@ -39,4 +41,6 @@ ZMarkCache::~ZMarkCache() {
   for (size_t i = 0; i < ZMarkCacheSize; i++) {
     _cache[i].evict();
   }
+}
+
 }

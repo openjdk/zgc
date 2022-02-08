@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZTHREAD_INLINE_HPP
-#define SHARE_GC_Z_ZTHREAD_INLINE_HPP
+#ifndef SHARE_GC_X_ZTHREAD_INLINE_HPP
+#define SHARE_GC_X_ZTHREAD_INLINE_HPP
 
-#include "gc/z/zThread.hpp"
+#include "gc/x/xThread.hpp"
 
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline void ZThread::ensure_initialized() {
   if (!_initialized) {
@@ -59,4 +61,6 @@ inline uint ZThread::worker_id() {
   return _worker_id;
 }
 
-#endif // SHARE_GC_Z_ZTHREAD_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZTHREAD_INLINE_HPP

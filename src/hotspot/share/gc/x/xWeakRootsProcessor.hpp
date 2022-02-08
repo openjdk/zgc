@@ -21,8 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZWEAKROOTSPROCESSOR_HPP
-#define SHARE_GC_Z_ZWEAKROOTSPROCESSOR_HPP
+#ifndef SHARE_GC_X_ZWEAKROOTSPROCESSOR_HPP
+#define SHARE_GC_X_ZWEAKROOTSPROCESSOR_HPP
+
+namespace ZOriginal {
 
 class ZWorkers;
 
@@ -36,4 +38,6 @@ public:
   void process_weak_roots();
 };
 
-#endif // SHARE_GC_Z_ZWEAKROOTSPROCESSOR_HPP
+}
+
+#endif // SHARE_GC_X_ZWEAKROOTSPROCESSOR_HPP

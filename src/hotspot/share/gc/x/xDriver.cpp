@@ -26,19 +26,21 @@
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcVMOperations.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
-#include "gc/z/zAbort.inline.hpp"
-#include "gc/z/zBreakpoint.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zDriver.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zMessagePort.inline.hpp"
-#include "gc/z/zServiceability.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zVerify.hpp"
+#include "gc/x/xAbort.inline.hpp"
+#include "gc/x/xBreakpoint.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xDriver.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xMessagePort.inline.hpp"
+#include "gc/x/xServiceability.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xVerify.hpp"
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
+
+namespace ZOriginal {
 
 static const ZStatPhaseCycle      ZPhaseCycle("Garbage Collection Cycle");
 static const ZStatPhasePause      ZPhasePauseMarkStart("Pause Mark Start");
@@ -511,4 +513,6 @@ void ZDriver::run_service() {
 void ZDriver::stop_service() {
   ZAbort::abort();
   _gc_cycle_port.send_async(GCCause::_no_gc);
+}
+
 }

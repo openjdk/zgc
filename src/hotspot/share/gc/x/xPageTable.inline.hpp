@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPAGETABLE_INLINE_HPP
-#define SHARE_GC_Z_ZPAGETABLE_INLINE_HPP
+#ifndef SHARE_GC_X_ZPAGETABLE_INLINE_HPP
+#define SHARE_GC_X_ZPAGETABLE_INLINE_HPP
 
-#include "gc/z/zPageTable.hpp"
+#include "gc/x/xPageTable.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zGranuleMap.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xGranuleMap.inline.hpp"
+
+namespace ZOriginal {
 
 inline ZPage* ZPageTable::get(uintptr_t addr) const {
   assert(!ZAddress::is_null(addr), "Invalid address");
@@ -51,4 +53,6 @@ inline bool ZPageTableIterator::next(ZPage** page) {
   return false;
 }
 
-#endif // SHARE_GC_Z_ZPAGETABLE_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZPAGETABLE_INLINE_HPP

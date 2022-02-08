@@ -27,22 +27,24 @@
 #include "code/icBuffer.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHash.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zNMethodData.hpp"
-#include "gc/z/zNMethodTable.hpp"
-#include "gc/z/zNMethodTableEntry.hpp"
-#include "gc/z/zNMethodTableIteration.hpp"
-#include "gc/z/zSafeDelete.inline.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHash.inline.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xNMethodData.hpp"
+#include "gc/x/xNMethodTable.hpp"
+#include "gc/x/xNMethodTableEntry.hpp"
+#include "gc/x/xNMethodTableIteration.hpp"
+#include "gc/x/xSafeDelete.inline.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xWorkers.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 ZNMethodTableEntry* ZNMethodTable::_table = NULL;
 size_t ZNMethodTable::_size = 0;
@@ -231,4 +233,6 @@ void ZNMethodTable::nmethods_do_end() {
 
 void ZNMethodTable::nmethods_do(NMethodClosure* cl) {
   _iteration.nmethods_do(cl);
+}
+
 }

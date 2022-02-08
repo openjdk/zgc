@@ -22,11 +22,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zMarkStack.inline.hpp"
-#include "gc/z/zMarkStackAllocator.hpp"
+#include "gc/x/xMarkStack.inline.hpp"
+#include "gc/x/xMarkStackAllocator.hpp"
 #include "logging/log.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 ZMarkStripe::ZMarkStripe() :
     _published(),
@@ -223,4 +225,6 @@ void ZMarkThreadLocalStacks::free(ZMarkStackAllocator* allocator) {
     allocator->free_magazine(_magazine);
     _magazine = NULL;
   }
+}
+
 }

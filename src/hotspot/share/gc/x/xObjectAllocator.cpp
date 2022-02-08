@@ -22,20 +22,22 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zHeuristics.hpp"
-#include "gc/z/zObjectAllocator.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageTable.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zThread.inline.hpp"
-#include "gc/z/zValue.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xHeuristics.hpp"
+#include "gc/x/xObjectAllocator.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageTable.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xThread.inline.hpp"
+#include "gc/x/xValue.inline.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 static const ZStatCounter ZCounterUndoObjectAllocationSucceeded("Memory", "Undo Object Allocation Succeeded", ZStatUnitOpsPerSecond);
 static const ZStatCounter ZCounterUndoObjectAllocationFailed("Memory", "Undo Object Allocation Failed", ZStatUnitOpsPerSecond);
@@ -264,4 +266,6 @@ void ZObjectAllocator::retire_pages() {
   // Reset allocation pages
   _shared_medium_page.set(NULL);
   _shared_small_page.set_all(NULL);
+}
+
 }

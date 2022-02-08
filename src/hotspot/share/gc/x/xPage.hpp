@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPAGE_HPP
-#define SHARE_GC_Z_ZPAGE_HPP
+#ifndef SHARE_GC_X_ZPAGE_HPP
+#define SHARE_GC_X_ZPAGE_HPP
 
-#include "gc/z/zList.hpp"
-#include "gc/z/zLiveMap.hpp"
-#include "gc/z/zPhysicalMemory.hpp"
-#include "gc/z/zVirtualMemory.hpp"
+#include "gc/x/xList.hpp"
+#include "gc/x/xLiveMap.hpp"
+#include "gc/x/xPhysicalMemory.hpp"
+#include "gc/x/xVirtualMemory.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZPage : public CHeapObj<mtGC> {
   friend class VMStructs;
@@ -120,4 +122,6 @@ public:
   virtual void do_page(const ZPage* page) = 0;
 };
 
-#endif // SHARE_GC_Z_ZPAGE_HPP
+}
+
+#endif // SHARE_GC_X_ZPAGE_HPP

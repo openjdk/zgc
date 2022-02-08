@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZATTACHEDARRAY_INLINE_HPP
-#define SHARE_GC_Z_ZATTACHEDARRAY_INLINE_HPP
+#ifndef SHARE_GC_X_ZATTACHEDARRAY_INLINE_HPP
+#define SHARE_GC_X_ZATTACHEDARRAY_INLINE_HPP
 
-#include "gc/z/zAttachedArray.hpp"
+#include "gc/x/xAttachedArray.hpp"
 
 #include "memory/allocation.hpp"
 #include "utilities/align.hpp"
+
+namespace ZOriginal {
 
 template <typename ObjectT, typename ArrayT>
 inline size_t ZAttachedArray<ObjectT, ArrayT>::object_size() {
@@ -83,4 +85,6 @@ inline ArrayT* ZAttachedArray<ObjectT, ArrayT>::operator()(const ObjectT* obj) c
   return reinterpret_cast<ArrayT*>(reinterpret_cast<uintptr_t>(obj) + object_size());
 }
 
-#endif // SHARE_GC_Z_ZATTACHEDARRAY_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZATTACHEDARRAY_INLINE_HPP

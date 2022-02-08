@@ -24,13 +24,15 @@
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zMarkStack.inline.hpp"
-#include "gc/z/zMarkStackAllocator.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xMarkStack.inline.hpp"
+#include "gc/x/xMarkStackAllocator.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 uintptr_t ZMarkStackSpaceStart;
 
@@ -218,4 +220,6 @@ void ZMarkStackAllocator::free_magazine(ZMarkStackMagazine* magazine) {
 void ZMarkStackAllocator::free() {
   _freelist.clear();
   _space.free();
+}
+
 }

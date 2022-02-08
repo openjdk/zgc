@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZTHREADLOCALDATA_HPP
-#define SHARE_GC_Z_ZTHREADLOCALDATA_HPP
+#ifndef SHARE_GC_X_ZTHREADLOCALDATA_HPP
+#define SHARE_GC_X_ZTHREADLOCALDATA_HPP
 
-#include "gc/z/zMarkStack.hpp"
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xMarkStack.hpp"
+#include "gc/x/xGlobals.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/sizes.hpp"
+
+namespace ZOriginal {
 
 class ZThreadLocalData {
 private:
@@ -88,4 +90,6 @@ public:
   }
 };
 
-#endif // SHARE_GC_Z_ZTHREADLOCALDATA_HPP
+}
+
+#endif // SHARE_GC_X_ZTHREADLOCALDATA_HPP

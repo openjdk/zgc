@@ -22,12 +22,14 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zMapper_windows.hpp"
-#include "gc/z/zSyscall_windows.hpp"
+#include "gc/x/xMapper_windows.hpp"
+#include "gc/x/xSyscall_windows.hpp"
 #include "logging/log.hpp"
 #include "utilities/debug.hpp"
 
 #include <Windows.h>
+
+namespace ZOriginal {
 
 // Memory reservation, commit, views, and placeholders.
 //
@@ -307,4 +309,6 @@ void ZMapper::unmap_view_preserve_placeholder(uintptr_t addr, size_t size) {
   if (!res) {
     fatal_error("Failed to unmap memory", addr, size);
   }
+}
+
 }

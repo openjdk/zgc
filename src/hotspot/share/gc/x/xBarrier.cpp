@@ -23,14 +23,16 @@
 
 #include "precompiled.hpp"
 #include "classfile/javaClasses.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zOop.inline.hpp"
-#include "gc/z/zThread.inline.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xOop.inline.hpp"
+#include "gc/x/xThread.inline.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 template <bool finalizable>
 bool ZBarrier::should_mark_through(uintptr_t addr) {
@@ -270,4 +272,6 @@ void ZLoadBarrierOopClosure::do_oop(oop* p) {
 
 void ZLoadBarrierOopClosure::do_oop(narrowOop* p) {
   ShouldNotReachHere();
+}
+
 }

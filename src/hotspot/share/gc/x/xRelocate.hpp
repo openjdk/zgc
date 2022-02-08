@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZRELOCATE_HPP
-#define SHARE_GC_Z_ZRELOCATE_HPP
+#ifndef SHARE_GC_X_ZRELOCATE_HPP
+#define SHARE_GC_X_ZRELOCATE_HPP
 
-#include "gc/z/zRelocationSet.hpp"
+#include "gc/x/xRelocationSet.hpp"
+
+namespace ZOriginal {
 
 class ZForwarding;
 class ZWorkers;
@@ -46,4 +48,6 @@ public:
   void relocate(ZRelocationSet* relocation_set);
 };
 
-#endif // SHARE_GC_Z_ZRELOCATE_HPP
+}
+
+#endif // SHARE_GC_X_ZRELOCATE_HPP

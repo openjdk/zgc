@@ -21,15 +21,17 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZADDRESS_INLINE_HPP
-#define SHARE_GC_Z_ZADDRESS_INLINE_HPP
+#ifndef SHARE_GC_X_ZADDRESS_INLINE_HPP
+#define SHARE_GC_X_ZADDRESS_INLINE_HPP
 
-#include "gc/z/zAddress.hpp"
+#include "gc/x/xAddress.hpp"
 
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xGlobals.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 inline bool ZAddress::is_null(uintptr_t value) {
   return value == 0;
@@ -134,4 +136,6 @@ inline uintptr_t ZAddress::remapped_or_null(uintptr_t value) {
   return is_null(value) ? 0 : remapped(value);
 }
 
-#endif // SHARE_GC_Z_ZADDRESS_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZADDRESS_INLINE_HPP

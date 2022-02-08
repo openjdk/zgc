@@ -22,9 +22,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zInitialize.hpp"
-#include "gc/z/zSyscall_windows.hpp"
+#include "gc/x/xInitialize.hpp"
+#include "gc/x/xSyscall_windows.hpp"
+
+namespace ZOriginal {
 
 void ZInitialize::pd_initialize() {
   ZSyscall::initialize();
+}
+
 }

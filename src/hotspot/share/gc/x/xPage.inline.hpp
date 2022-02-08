@@ -21,21 +21,23 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPAGE_INLINE_HPP
-#define SHARE_GC_Z_ZPAGE_INLINE_HPP
+#ifndef SHARE_GC_X_ZPAGE_INLINE_HPP
+#define SHARE_GC_X_ZPAGE_INLINE_HPP
 
-#include "gc/z/zPage.hpp"
+#include "gc/x/xPage.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLiveMap.inline.hpp"
-#include "gc/z/zNUMA.hpp"
-#include "gc/z/zPhysicalMemory.inline.hpp"
-#include "gc/z/zVirtualMemory.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLiveMap.inline.hpp"
+#include "gc/x/xNUMA.hpp"
+#include "gc/x/xPhysicalMemory.inline.hpp"
+#include "gc/x/xVirtualMemory.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline uint8_t ZPage::type_from_size(size_t size) const {
   if (size == ZPageSizeSmall) {
@@ -309,4 +311,6 @@ inline bool ZPage::undo_alloc_object_atomic(uintptr_t addr, size_t size) {
   }
 }
 
-#endif // SHARE_GC_Z_ZPAGE_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZPAGE_INLINE_HPP

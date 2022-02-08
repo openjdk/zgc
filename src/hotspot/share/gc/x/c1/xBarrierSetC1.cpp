@@ -25,11 +25,13 @@
 #include "c1/c1_LIR.hpp"
 #include "c1/c1_LIRGenerator.hpp"
 #include "c1/c1_CodeStubs.hpp"
-#include "gc/z/c1/zBarrierSetC1.hpp"
-#include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zThreadLocalData.hpp"
+#include "gc/x/c1/xBarrierSetC1.hpp"
+#include "gc/x/xBarrierSet.hpp"
+#include "gc/x/xBarrierSetAssembler.hpp"
+#include "gc/x/xThreadLocalData.hpp"
 #include "utilities/macros.hpp"
+
+namespace ZOriginal {
 
 ZLoadBarrierStubC1::ZLoadBarrierStubC1(LIRAccess& access, LIR_Opr ref, address runtime_stub) :
     _decorators(access.decorators()),
@@ -231,4 +233,6 @@ void ZBarrierSetC1::generate_c1_runtime_stubs(BufferBlob* blob) {
     generate_c1_runtime_stub(blob, ON_STRONG_OOP_REF, "load_barrier_on_oop_field_preloaded_runtime_stub");
   _load_barrier_on_weak_oop_field_preloaded_runtime_stub =
     generate_c1_runtime_stub(blob, ON_WEAK_OOP_REF, "load_barrier_on_weak_oop_field_preloaded_runtime_stub");
+}
+
 }

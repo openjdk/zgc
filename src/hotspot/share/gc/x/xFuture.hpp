@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFUTURE_HPP
-#define SHARE_GC_Z_ZFUTURE_HPP
+#ifndef SHARE_GC_X_ZFUTURE_HPP
+#define SHARE_GC_X_ZFUTURE_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/semaphore.hpp"
+
+namespace ZOriginal {
 
 template <typename T>
 class ZFuture {
@@ -40,4 +42,6 @@ public:
   T get();
 };
 
-#endif // SHARE_GC_Z_ZFUTURE_HPP
+}
+
+#endif // SHARE_GC_X_ZFUTURE_HPP

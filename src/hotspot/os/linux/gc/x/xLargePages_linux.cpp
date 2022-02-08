@@ -22,8 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zLargePages.hpp"
+#include "gc/x/xLargePages.hpp"
 #include "runtime/globals.hpp"
+
+namespace ZOriginal {
 
 void ZLargePages::pd_initialize() {
   if (UseLargePages) {
@@ -35,4 +37,6 @@ void ZLargePages::pd_initialize() {
   } else {
     _state = Disabled;
   }
+}
+
 }

@@ -22,10 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zUtils.hpp"
+#include "gc/x/xUtils.hpp"
 #include "utilities/debug.hpp"
 
 #include <malloc.h>
+
+namespace ZOriginal {
 
 uintptr_t ZUtils::alloc_aligned(size_t alignment, size_t size) {
   void* const res = _aligned_malloc(size, alignment);
@@ -37,4 +39,6 @@ uintptr_t ZUtils::alloc_aligned(size_t alignment, size_t size) {
   memset(res, 0, size);
 
   return (uintptr_t)res;
+}
+
 }

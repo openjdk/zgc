@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZOBJECTALLOCATOR_HPP
-#define SHARE_GC_Z_ZOBJECTALLOCATOR_HPP
+#ifndef SHARE_GC_X_ZOBJECTALLOCATOR_HPP
+#define SHARE_GC_X_ZOBJECTALLOCATOR_HPP
 
-#include "gc/z/zAllocationFlags.hpp"
-#include "gc/z/zValue.hpp"
+#include "gc/x/xAllocationFlags.hpp"
+#include "gc/x/xValue.hpp"
+
+namespace ZOriginal {
 
 class ZPage;
 class ZPageTable;
@@ -76,4 +78,6 @@ public:
   void retire_pages();
 };
 
-#endif // SHARE_GC_Z_ZOBJECTALLOCATOR_HPP
+}
+
+#endif // SHARE_GC_X_ZOBJECTALLOCATOR_HPP

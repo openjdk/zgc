@@ -24,20 +24,20 @@
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
-#include "gc/z/zArray.inline.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zFuture.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageAllocator.inline.hpp"
-#include "gc/z/zPageCache.hpp"
-#include "gc/z/zSafeDelete.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zUncommitter.hpp"
-#include "gc/z/zUnmapper.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xArray.inline.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xFuture.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageAllocator.inline.hpp"
+#include "gc/x/xPageCache.hpp"
+#include "gc/x/xSafeDelete.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xUncommitter.hpp"
+#include "gc/x/xUnmapper.hpp"
+#include "gc/x/xWorkers.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "runtime/globals.hpp"
@@ -45,6 +45,8 @@
 #include "runtime/java.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 static const ZStatCounter       ZCounterAllocationRate("Memory", "Allocation Rate", ZStatUnitBytesPerSecond);
 static const ZStatCounter       ZCounterPageCacheFlush("Memory", "Page Cache Flush", ZStatUnitBytesPerSecond);
@@ -867,4 +869,6 @@ void ZPageAllocator::check_out_of_memory() {
 void ZPageAllocator::threads_do(ThreadClosure* tc) const {
   tc->do_thread(_unmapper);
   tc->do_thread(_uncommitter);
+}
+
 }

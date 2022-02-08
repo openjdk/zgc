@@ -22,14 +22,16 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAttachedArray.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zNMethodData.hpp"
+#include "gc/x/xAttachedArray.inline.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xNMethodData.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/growableArray.hpp"
+
+namespace ZOriginal {
 
 ZNMethodDataOops* ZNMethodDataOops::create(const GrowableArray<oop*>& immediates, bool has_non_immediates) {
   return ::new (AttachedArray::alloc(immediates.length())) ZNMethodDataOops(immediates, has_non_immediates);
@@ -85,4 +87,6 @@ ZNMethodDataOops* ZNMethodData::swap_oops(ZNMethodDataOops* new_oops) {
   ZNMethodDataOops* const old_oops = _oops;
   _oops = new_oops;
   return old_oops;
+}
+
 }

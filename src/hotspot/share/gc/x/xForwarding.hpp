@@ -21,15 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFORWARDING_HPP
-#define SHARE_GC_Z_ZFORWARDING_HPP
+#ifndef SHARE_GC_X_ZFORWARDING_HPP
+#define SHARE_GC_X_ZFORWARDING_HPP
 
-#include "gc/z/zAttachedArray.hpp"
-#include "gc/z/zForwardingEntry.hpp"
-#include "gc/z/zLock.hpp"
-#include "gc/z/zVirtualMemory.hpp"
+#include "gc/x/xAttachedArray.hpp"
+#include "gc/x/xForwardingEntry.hpp"
+#include "gc/x/xLock.hpp"
+#include "gc/x/xVirtualMemory.hpp"
 
 class ObjectClosure;
+
+namespace ZOriginal {
+
 class ZForwardingAllocator;
 class ZPage;
 
@@ -84,4 +87,6 @@ public:
   void verify() const;
 };
 
-#endif // SHARE_GC_Z_ZFORWARDING_HPP
+}
+
+#endif // SHARE_GC_X_ZFORWARDING_HPP

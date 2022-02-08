@@ -23,9 +23,11 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zSyscall_windows.hpp"
+#include "gc/x/xSyscall_windows.hpp"
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
+
+namespace ZOriginal {
 
 ZSyscall::CreateFileMappingWFn ZSyscall::CreateFileMappingW;
 ZSyscall::CreateFileMapping2Fn ZSyscall::CreateFileMapping2;
@@ -90,4 +92,6 @@ bool ZSyscall::is_supported() {
 bool ZSyscall::is_large_pages_supported() {
   // Available in Windows version 1809 and later
   return has_kernelbase_symbol("CreateFileMapping2");
+}
+
 }

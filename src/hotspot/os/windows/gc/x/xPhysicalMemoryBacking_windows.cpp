@@ -22,14 +22,16 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zGranuleMap.inline.hpp"
-#include "gc/z/zLargePages.inline.hpp"
-#include "gc/z/zMapper_windows.hpp"
-#include "gc/z/zPhysicalMemoryBacking_windows.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xGranuleMap.inline.hpp"
+#include "gc/x/xLargePages.inline.hpp"
+#include "gc/x/xMapper_windows.hpp"
+#include "gc/x/xPhysicalMemoryBacking_windows.hpp"
 #include "logging/log.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 class ZPhysicalMemoryBackingImpl : public CHeapObj<mtGC> {
 public:
@@ -249,4 +251,6 @@ void ZPhysicalMemoryBacking::unmap(uintptr_t addr, size_t size) const {
   assert(is_aligned(size, ZGranuleSize), "Misaligned");
 
   _impl->unmap(addr, size);
+}
+
 }

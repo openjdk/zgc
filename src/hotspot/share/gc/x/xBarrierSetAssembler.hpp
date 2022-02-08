@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP
-#define SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP
+#ifndef SHARE_GC_X_ZBARRIERSETASSEMBLER_HPP
+#define SHARE_GC_X_ZBARRIERSETASSEMBLER_HPP
 
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "utilities/macros.hpp"
+
+namespace ZOriginal {
 
 class ZBarrierSetAssemblerBase : public BarrierSetAssembler {
 public:
@@ -33,6 +35,8 @@ public:
   static Address address_bad_mask_from_jni_env(Register env);
 };
 
-#include CPU_HEADER(gc/z/zBarrierSetAssembler)
+}
 
-#endif // SHARE_GC_Z_ZBARRIERSETASSEMBLER_HPP
+#include CPU_HEADER(gc/x/xBarrierSetAssembler)
+
+#endif // SHARE_GC_X_ZBARRIERSETASSEMBLER_HPP

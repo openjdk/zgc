@@ -21,16 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_VMSTRUCTS_Z_HPP
-#define SHARE_GC_Z_VMSTRUCTS_Z_HPP
+#ifndef SHARE_GC_X_VMSTRUCTS_Z_HPP
+#define SHARE_GC_X_VMSTRUCTS_Z_HPP
 
-#include "gc/z/zAttachedArray.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zForwarding.hpp"
-#include "gc/z/zGranuleMap.hpp"
-#include "gc/z/zHeap.hpp"
-#include "gc/z/zPageAllocator.hpp"
+#include "gc/x/xAttachedArray.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xForwarding.hpp"
+#include "gc/x/xGranuleMap.hpp"
+#include "gc/x/xHeap.hpp"
+#include "gc/x/xPageAllocator.hpp"
 #include "utilities/macros.hpp"
+
+namespace ZOriginal {
 
 // Expose some ZGC globals to the SA agent.
 class ZGlobalsForVMStructs {
@@ -140,4 +142,6 @@ typedef ZAttachedArray<ZForwarding, ZForwardingEntry> ZAttachedArrayForForwardin
   declare_toplevel_type(ZForwardingEntry)                                                            \
   declare_toplevel_type(ZPhysicalMemoryManager)
 
-#endif // SHARE_GC_Z_VMSTRUCTS_Z_HPP
+}
+
+#endif // SHARE_GC_X_VMSTRUCTS_Z_HPP

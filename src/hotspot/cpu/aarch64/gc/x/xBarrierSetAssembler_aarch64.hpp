@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef CPU_AARCH64_GC_Z_ZBARRIERSETASSEMBLER_AARCH64_HPP
-#define CPU_AARCH64_GC_Z_ZBARRIERSETASSEMBLER_AARCH64_HPP
+#ifndef CPU_AARCH64_GC_X_ZBARRIERSETASSEMBLER_AARCH64_HPP
+#define CPU_AARCH64_GC_X_ZBARRIERSETASSEMBLER_AARCH64_HPP
 
 #include "code/vmreg.hpp"
 #include "oops/accessDecorators.hpp"
@@ -34,11 +34,19 @@
 class LIR_Assembler;
 class LIR_Opr;
 class StubAssembler;
-class ZLoadBarrierStubC1;
 #endif // COMPILER1
 
 #ifdef COMPILER2
 class Node;
+#endif // COMPILER2
+
+namespace ZOriginal {
+
+#ifdef COMPILER1
+class ZLoadBarrierStubC1;
+#endif // COMPILER1
+
+#ifdef COMPILER2
 class ZLoadBarrierStubC2;
 #endif // COMPILER2
 
@@ -96,4 +104,6 @@ public:
 #endif // COMPILER2
 };
 
-#endif // CPU_AARCH64_GC_Z_ZBARRIERSETASSEMBLER_AARCH64_HPP
+}
+
+#endif // CPU_AARCH64_GC_X_ZBARRIERSETASSEMBLER_AARCH64_HPP

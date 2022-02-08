@@ -22,16 +22,18 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zArray.inline.hpp"
-#include "gc/z/zForwarding.inline.hpp"
-#include "gc/z/zForwardingAllocator.inline.hpp"
-#include "gc/z/zRelocationSet.inline.hpp"
-#include "gc/z/zRelocationSetSelector.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xArray.inline.hpp"
+#include "gc/x/xForwarding.inline.hpp"
+#include "gc/x/xForwardingAllocator.inline.hpp"
+#include "gc/x/xRelocationSet.inline.hpp"
+#include "gc/x/xRelocationSetSelector.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xWorkers.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 class ZRelocationSetInstallTask : public ZTask {
 private:
@@ -132,4 +134,6 @@ void ZRelocationSet::reset() {
   }
 
   _nforwardings = 0;
+}
+
 }

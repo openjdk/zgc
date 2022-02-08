@@ -23,13 +23,15 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zArray.inline.hpp"
-#include "gc/z/zErrno.hpp"
-#include "gc/z/zMountPoint_linux.hpp"
+#include "gc/x/xArray.inline.hpp"
+#include "gc/x/xErrno.hpp"
+#include "gc/x/xMountPoint_linux.hpp"
 #include "runtime/globals.hpp"
 
 #include <stdio.h>
 #include <unistd.h>
+
+namespace ZOriginal {
 
 // Mount information, see proc(5) for more details.
 #define PROC_SELF_MOUNTINFO        "/proc/self/mountinfo"
@@ -147,4 +149,6 @@ char* ZMountPoint::find_mountpoint(const char* filesystem, const char** preferre
 
 const char* ZMountPoint::get() const {
   return _path;
+}
+
 }

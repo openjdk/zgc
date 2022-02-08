@@ -22,11 +22,15 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAbort.hpp"
+#include "gc/x/xAbort.hpp"
 #include "runtime/atomic.hpp"
+
+namespace ZOriginal {
 
 volatile bool ZAbort::_should_abort = false;
 
 void ZAbort::abort() {
   Atomic::release_store_fence(&_should_abort, true);
+}
+
 }

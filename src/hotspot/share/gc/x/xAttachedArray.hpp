@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZATTACHEDARRAY_HPP
-#define SHARE_GC_Z_ZATTACHEDARRAY_HPP
+#ifndef SHARE_GC_X_ZATTACHEDARRAY_HPP
+#define SHARE_GC_X_ZATTACHEDARRAY_HPP
 
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 template <typename ObjectT, typename ArrayT>
 class ZAttachedArray {
@@ -49,4 +51,6 @@ public:
   ArrayT* operator()(const ObjectT* obj) const;
 };
 
-#endif // SHARE_GC_Z_ZATTACHEDARRAY_HPP
+}
+
+#endif // SHARE_GC_X_ZATTACHEDARRAY_HPP

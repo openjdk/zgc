@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZTRACER_HPP
-#define SHARE_GC_Z_ZTRACER_HPP
+#ifndef SHARE_GC_X_ZTRACER_HPP
+#define SHARE_GC_X_ZTRACER_HPP
 
 #include "gc/shared/gcTrace.hpp"
+
+namespace ZOriginal {
 
 class ZStatCounter;
 class ZStatPhase;
@@ -59,4 +61,6 @@ public:
   ~ZTraceThreadPhase();
 };
 
-#endif // SHARE_GC_Z_ZTRACER_HPP
+}
+
+#endif // SHARE_GC_X_ZTRACER_HPP

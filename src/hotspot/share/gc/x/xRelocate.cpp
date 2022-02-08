@@ -23,21 +23,23 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zAbort.inline.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zForwarding.inline.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zRelocate.hpp"
-#include "gc/z/zRelocationSet.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zThread.inline.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xAbort.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xForwarding.inline.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xRelocate.hpp"
+#include "gc/x/xRelocationSet.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xThread.inline.hpp"
+#include "gc/x/xWorkers.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 ZRelocate::ZRelocate(ZWorkers* workers) :
     _workers(workers) {}
@@ -416,4 +418,6 @@ public:
 void ZRelocate::relocate(ZRelocationSet* relocation_set) {
   ZRelocateTask task(relocation_set);
   _workers->run(&task);
+}
+
 }

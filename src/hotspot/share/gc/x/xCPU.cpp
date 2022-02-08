@@ -23,11 +23,13 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zCPU.inline.hpp"
+#include "gc/x/xCPU.inline.hpp"
 #include "memory/padded.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 #define ZCPU_UNKNOWN_AFFINITY ((Thread*)-1)
 #define ZCPU_UNKNOWN_SELF     ((Thread*)-2)
@@ -64,4 +66,6 @@ uint32_t ZCPU::id_slow() {
   _affinity[_cpu]._thread = _self;
 
   return _cpu;
+}
+
 }

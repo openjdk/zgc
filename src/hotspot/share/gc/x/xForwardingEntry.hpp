@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFORWARDINGENTRY_HPP
-#define SHARE_GC_Z_ZFORWARDINGENTRY_HPP
+#ifndef SHARE_GC_X_ZFORWARDINGENTRY_HPP
+#define SHARE_GC_X_ZFORWARDINGENTRY_HPP
 
-#include "gc/z/zBitField.hpp"
+#include "gc/x/xBitField.hpp"
 #include "memory/allocation.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include <type_traits>
+
+namespace ZOriginal {
 
 //
 // Forwarding entry layout
@@ -79,21 +81,23 @@ public:
   }
 };
 
+} // namespace ZOriginal
+
 // Needed to allow atomic operations on ZForwardingEntry
 template <>
-struct PrimitiveConversions::Translate<ZForwardingEntry> : public std::true_type {
-  typedef ZForwardingEntry Value;
-  typedef uint64_t         Decayed;
+struct PrimitiveConversions::Translate<ZOriginal::ZForwardingEntry> : public std::true_type {
+  typedef ZOriginal::ZForwardingEntry Value;
+  typedef uint64_t                    Decayed;
 
   static Decayed decay(Value v) {
     return v._entry;
   }
 
   static Value recover(Decayed d) {
-    ZForwardingEntry entry;
+    ZOriginal::ZForwardingEntry entry;
     entry._entry = d;
     return entry;
   }
 };
 
-#endif // SHARE_GC_Z_ZFORWARDINGENTRY_HPP
+#endif // SHARE_GC_X_ZFORWARDINGENTRY_HPP

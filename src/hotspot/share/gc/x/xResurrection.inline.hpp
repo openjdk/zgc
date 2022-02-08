@@ -21,15 +21,19 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZRESURRECTION_INLINE_HPP
-#define SHARE_GC_Z_ZRESURRECTION_INLINE_HPP
+#ifndef SHARE_GC_X_ZRESURRECTION_INLINE_HPP
+#define SHARE_GC_X_ZRESURRECTION_INLINE_HPP
 
-#include "gc/z/zResurrection.hpp"
+#include "gc/x/xResurrection.hpp"
 
 #include "runtime/atomic.hpp"
+
+namespace ZOriginal {
 
 inline bool ZResurrection::is_blocked() {
   return Atomic::load(&_blocked);
 }
 
-#endif // SHARE_GC_Z_ZRESURRECTION_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZRESURRECTION_INLINE_HPP

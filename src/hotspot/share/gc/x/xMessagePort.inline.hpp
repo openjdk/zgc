@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMESSAGEPORT_INLINE_HPP
-#define SHARE_GC_Z_ZMESSAGEPORT_INLINE_HPP
+#ifndef SHARE_GC_X_ZMESSAGEPORT_INLINE_HPP
+#define SHARE_GC_X_ZMESSAGEPORT_INLINE_HPP
 
-#include "gc/z/zMessagePort.hpp"
+#include "gc/x/xMessagePort.hpp"
 
-#include "gc/z/zFuture.inline.hpp"
-#include "gc/z/zList.inline.hpp"
+#include "gc/x/xFuture.inline.hpp"
+#include "gc/x/xList.inline.hpp"
 #include "runtime/mutexLocker.hpp"
+
+namespace ZOriginal {
 
 template <typename T>
 class ZMessageRequest : public StackObj {
@@ -178,4 +180,6 @@ inline void ZRendezvousPort::ack() {
   _port.ack();
 }
 
-#endif // SHARE_GC_Z_ZMESSAGEPORT_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZMESSAGEPORT_INLINE_HPP

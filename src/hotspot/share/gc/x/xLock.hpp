@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZLOCK_HPP
-#define SHARE_GC_Z_ZLOCK_HPP
+#ifndef SHARE_GC_X_ZLOCK_HPP
+#define SHARE_GC_X_ZLOCK_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/os.hpp"
+
+namespace ZOriginal {
 
 class ZLock {
 private:
@@ -76,4 +78,6 @@ public:
   ~ZLocker();
 };
 
-#endif // SHARE_GC_Z_ZLOCK_HPP
+}
+
+#endif // SHARE_GC_X_ZLOCK_HPP

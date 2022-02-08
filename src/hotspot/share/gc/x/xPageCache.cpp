@@ -22,16 +22,18 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zList.inline.hpp"
-#include "gc/z/zNUMA.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageCache.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zValue.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xList.inline.hpp"
+#include "gc/x/xNUMA.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageCache.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xValue.inline.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
+
+namespace ZOriginal {
 
 static const ZStatCounter ZCounterPageCacheHitL1("Memory", "Page Cache Hit L1", ZStatUnitOpsPerSecond);
 static const ZStatCounter ZCounterPageCacheHitL2("Memory", "Page Cache Hit L2", ZStatUnitOpsPerSecond);
@@ -353,4 +355,6 @@ void ZPageCache::pages_do(ZPageClosure* cl) const {
   for (ZPage* page; iter_large.next(&page);) {
     cl->do_page(page);
   }
+}
+
 }

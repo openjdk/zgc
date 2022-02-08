@@ -23,10 +23,12 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xGlobals.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 //
 // The heap can have three different layouts, depending on the max heap size.
@@ -146,4 +148,6 @@ size_t ZPlatformAddressOffsetBits() {
 
 size_t ZPlatformAddressMetadataShift() {
   return ZPlatformAddressOffsetBits();
+}
+
 }

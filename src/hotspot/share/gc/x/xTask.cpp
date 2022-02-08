@@ -22,8 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zThread.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xThread.hpp"
+
+namespace ZOriginal {
 
 ZTask::Task::Task(ZTask* task, const char* name) :
     WorkerTask(name),
@@ -44,4 +46,6 @@ const char* ZTask::name() const {
 
 WorkerTask* ZTask::worker_task() {
   return &_worker_task;
+}
+
 }

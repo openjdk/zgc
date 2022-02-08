@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKSTACK_INLINE_HPP
-#define SHARE_GC_Z_ZMARKSTACK_INLINE_HPP
+#ifndef SHARE_GC_X_ZMARKSTACK_INLINE_HPP
+#define SHARE_GC_X_ZMARKSTACK_INLINE_HPP
 
-#include "gc/z/zMarkStack.hpp"
+#include "gc/x/xMarkStack.hpp"
 
 #include "utilities/debug.hpp"
 #include "runtime/atomic.hpp"
+
+namespace ZOriginal {
 
 template <typename T, size_t S>
 inline ZStack<T, S>::ZStack() :
@@ -263,4 +265,6 @@ inline bool ZMarkThreadLocalStacks::pop(ZMarkStackAllocator* allocator,
   return pop_slow(allocator, stripe, stackp, entry);
 }
 
-#endif // SHARE_GC_Z_ZMARKSTACK_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKSTACK_INLINE_HPP

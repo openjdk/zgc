@@ -24,11 +24,13 @@
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zRuntimeWorkers.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zThread.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xRuntimeWorkers.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xThread.hpp"
 #include "runtime/java.hpp"
+
+namespace ZOriginal {
 
 class ZRuntimeWorkersInitializeTask : public WorkerTask {
 private:
@@ -82,4 +84,6 @@ WorkerThreads* ZRuntimeWorkers::workers() {
 
 void ZRuntimeWorkers::threads_do(ThreadClosure* tc) const {
   _workers.threads_do(tc);
+}
+
 }

@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZROOTSITERATOR_HPP
-#define SHARE_GC_Z_ZROOTSITERATOR_HPP
+#ifndef SHARE_GC_X_ZROOTSITERATOR_HPP
+#define SHARE_GC_X_ZROOTSITERATOR_HPP
 
 #include "gc/shared/oopStorageSetParState.hpp"
 #include "logging/log.hpp"
 #include "memory/iterator.hpp"
 #include "runtime/threadSMR.hpp"
+
+namespace ZOriginal {
 
 template <typename Iterator>
 class ZParallelApply {
@@ -121,4 +123,6 @@ public:
   void report_num_dead();
 };
 
-#endif // SHARE_GC_Z_ZROOTSITERATOR_HPP
+}
+
+#endif // SHARE_GC_X_ZROOTSITERATOR_HPP

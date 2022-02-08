@@ -22,15 +22,17 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddressSpaceLimit.hpp"
-#include "gc/z/zArguments.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeuristics.hpp"
+#include "gc/x/xAddressSpaceLimit.hpp"
+#include "gc/x/xArguments.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHeuristics.hpp"
 #include "gc/shared/gcArguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
+
+namespace ZOriginal {
 
 void ZArguments::initialize_alignments() {
   SpaceAlignment = ZGranuleSize;
@@ -122,4 +124,6 @@ CollectedHeap* ZArguments::create_heap() {
 
 bool ZArguments::is_supported() const {
   return is_os_supported();
+}
+
 }

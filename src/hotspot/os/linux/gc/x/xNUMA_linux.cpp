@@ -21,13 +21,15 @@
  * questions.
  */
 
-#include "gc/z/zCPU.inline.hpp"
-#include "gc/z/zErrno.hpp"
-#include "gc/z/zNUMA.hpp"
-#include "gc/z/zSyscall_linux.hpp"
+#include "gc/x/xCPU.inline.hpp"
+#include "gc/x/xErrno.hpp"
+#include "gc/x/xNUMA.hpp"
+#include "gc/x/xSyscall_linux.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 void ZNUMA::pd_initialize() {
   _enabled = UseNUMA;
@@ -67,4 +69,6 @@ uint32_t ZNUMA::memory_id(uintptr_t addr) {
   assert(id < count(), "Invalid NUMA id");
 
   return id;
+}
+
 }

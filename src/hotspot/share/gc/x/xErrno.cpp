@@ -22,11 +22,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zErrno.hpp"
+#include "gc/x/xErrno.hpp"
 #include "runtime/os.hpp"
 
 #include <errno.h>
 #include <string.h>
+
+namespace ZOriginal {
 
 ZErrno::ZErrno() :
     _error(errno) {}
@@ -48,4 +50,6 @@ bool ZErrno::operator!=(int error) const {
 
 const char* ZErrno::to_string() const {
   return os::strerror(_error);
+}
+
 }

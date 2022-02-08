@@ -24,7 +24,7 @@
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xGlobals.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -33,6 +33,8 @@
 #ifdef LINUX
 #include <sys/mman.h>
 #endif // LINUX
+
+namespace ZOriginal {
 
 //
 // The heap can have three different layouts, depending on the max heap size.
@@ -207,4 +209,6 @@ size_t ZPlatformAddressOffsetBits() {
 
 size_t ZPlatformAddressMetadataShift() {
   return ZPlatformAddressOffsetBits();
+}
+
 }

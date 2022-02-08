@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZLIVEMAP_HPP
-#define SHARE_GC_Z_ZLIVEMAP_HPP
+#ifndef SHARE_GC_X_ZLIVEMAP_HPP
+#define SHARE_GC_X_ZLIVEMAP_HPP
 
-#include "gc/z/zBitMap.hpp"
+#include "gc/x/xBitMap.hpp"
 #include "memory/allocation.hpp"
 
 class ObjectClosure;
+
+namespace ZOriginal {
 
 class ZLiveMap {
   friend class ZLiveMapTest;
@@ -87,4 +89,6 @@ public:
   void iterate(ObjectClosure* cl, uintptr_t page_start, size_t page_object_alignment_shift);
 };
 
-#endif // SHARE_GC_Z_ZLIVEMAP_HPP
+}
+
+#endif // SHARE_GC_X_ZLIVEMAP_HPP

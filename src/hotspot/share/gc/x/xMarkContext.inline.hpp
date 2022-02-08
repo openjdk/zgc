@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKCONTEXT_INLINE_HPP
-#define SHARE_GC_Z_ZMARKCONTEXT_INLINE_HPP
+#ifndef SHARE_GC_X_ZMARKCONTEXT_INLINE_HPP
+#define SHARE_GC_X_ZMARKCONTEXT_INLINE_HPP
 
-#include "gc/z/zMarkContext.hpp"
+#include "gc/x/xMarkContext.hpp"
+
+namespace ZOriginal {
 
 inline ZMarkContext::ZMarkContext(size_t nstripes,
                                   ZMarkStripe* stripe,
@@ -50,4 +52,6 @@ inline StringDedup::Requests* ZMarkContext::string_dedup_requests() {
   return &_string_dedup_requests;
 }
 
-#endif // SHARE_GC_Z_ZMARKCACHE_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKCACHE_INLINE_HPP

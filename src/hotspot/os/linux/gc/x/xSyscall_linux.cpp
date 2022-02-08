@@ -22,10 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zSyscall_linux.hpp"
-#include OS_CPU_HEADER(gc/z/zSyscall)
+#include "gc/x/xSyscall_linux.hpp"
+#include OS_CPU_HEADER(gc/x/xSyscall)
 
 #include <unistd.h>
+
+namespace ZOriginal {
 
 int ZSyscall::memfd_create(const char *name, unsigned int flags) {
   return syscall(SYS_memfd_create, name, flags);
@@ -37,4 +39,6 @@ int ZSyscall::fallocate(int fd, int mode, size_t offset, size_t length) {
 
 long ZSyscall::get_mempolicy(int* mode, unsigned long* nodemask, unsigned long maxnode, void* addr, unsigned long flags) {
   return syscall(SYS_get_mempolicy, mode, nodemask, maxnode, addr, flags);
+}
+
 }

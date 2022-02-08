@@ -21,12 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZVERIFY_HPP
-#define SHARE_GC_Z_ZVERIFY_HPP
+#ifndef SHARE_GC_X_ZVERIFY_HPP
+#define SHARE_GC_X_ZVERIFY_HPP
 
 #include "memory/allocation.hpp"
 
 class frame;
+
+namespace ZOriginal {
+
 class ZPageAllocator;
 
 class ZVerify : public AllStatic {
@@ -55,4 +58,6 @@ public:
   ~ZVerifyViewsFlip();
 };
 
-#endif // SHARE_GC_Z_ZVERIFY_HPP
+}
+
+#endif // SHARE_GC_X_ZVERIFY_HPP

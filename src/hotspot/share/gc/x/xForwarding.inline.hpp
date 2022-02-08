@@ -21,21 +21,23 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFORWARDING_INLINE_HPP
-#define SHARE_GC_Z_ZFORWARDING_INLINE_HPP
+#ifndef SHARE_GC_X_ZFORWARDING_INLINE_HPP
+#define SHARE_GC_X_ZFORWARDING_INLINE_HPP
 
-#include "gc/z/zForwarding.hpp"
+#include "gc/x/xForwarding.hpp"
 
-#include "gc/z/zAttachedArray.inline.hpp"
-#include "gc/z/zForwardingAllocator.inline.hpp"
-#include "gc/z/zHash.inline.hpp"
-#include "gc/z/zHeap.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zVirtualMemory.inline.hpp"
+#include "gc/x/xAttachedArray.inline.hpp"
+#include "gc/x/xForwardingAllocator.inline.hpp"
+#include "gc/x/xHash.inline.hpp"
+#include "gc/x/xHeap.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xVirtualMemory.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 inline uint32_t ZForwarding::nentries(const ZPage* page) {
   // The number returned by the function is used to size the hash table of
@@ -160,4 +162,6 @@ inline uintptr_t ZForwarding::insert(uintptr_t from_index, uintptr_t to_offset, 
   }
 }
 
-#endif // SHARE_GC_Z_ZFORWARDING_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZFORWARDING_INLINE_HPP

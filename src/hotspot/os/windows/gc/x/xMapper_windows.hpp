@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef OS_WINDOWS_GC_Z_ZMAPPER_WINDOWS_HPP
-#define OS_WINDOWS_GC_Z_ZMAPPER_WINDOWS_HPP
+#ifndef OS_WINDOWS_GC_X_ZMAPPER_WINDOWS_HPP
+#define OS_WINDOWS_GC_X_ZMAPPER_WINDOWS_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 #include <Windows.h>
+
+namespace ZOriginal {
 
 class ZMapper : public AllStatic {
 private:
@@ -91,4 +93,6 @@ public:
   static void unmap_view_preserve_placeholder(uintptr_t addr, size_t size);
 };
 
-#endif // OS_WINDOWS_GC_Z_ZMAPPER_WINDOWS_HPP
+}
+
+#endif // OS_WINDOWS_GC_X_ZMAPPER_WINDOWS_HPP

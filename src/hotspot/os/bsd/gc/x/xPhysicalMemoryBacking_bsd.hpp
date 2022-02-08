@@ -21,8 +21,10 @@
  * questions.
  */
 
-#ifndef OS_BSD_GC_Z_ZPHYSICALMEMORYBACKING_BSD_HPP
-#define OS_BSD_GC_Z_ZPHYSICALMEMORYBACKING_BSD_HPP
+#ifndef OS_BSD_GC_X_ZPHYSICALMEMORYBACKING_BSD_HPP
+#define OS_BSD_GC_X_ZPHYSICALMEMORYBACKING_BSD_HPP
+
+namespace ZOriginal {
 
 class ZPhysicalMemoryBacking {
 private:
@@ -45,4 +47,6 @@ public:
   void unmap(uintptr_t addr, size_t size) const;
 };
 
-#endif // OS_BSD_GC_Z_ZPHYSICALMEMORYBACKING_BSD_HPP
+}
+
+#endif // OS_BSD_GC_X_ZPHYSICALMEMORYBACKING_BSD_HPP

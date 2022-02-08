@@ -25,22 +25,22 @@
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/locationPrinter.hpp"
 #include "gc/shared/tlab_globals.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zArray.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zHeapIterator.hpp"
-#include "gc/z/zHeuristics.hpp"
-#include "gc/z/zMark.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageTable.inline.hpp"
-#include "gc/z/zRelocationSet.inline.hpp"
-#include "gc/z/zRelocationSetSelector.inline.hpp"
-#include "gc/z/zResurrection.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zThread.inline.hpp"
-#include "gc/z/zVerify.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xArray.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xHeapIterator.hpp"
+#include "gc/x/xHeuristics.hpp"
+#include "gc/x/xMark.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageTable.inline.hpp"
+#include "gc/x/xRelocationSet.inline.hpp"
+#include "gc/x/xRelocationSetSelector.inline.hpp"
+#include "gc/x/xResurrection.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xThread.inline.hpp"
+#include "gc/x/xVerify.hpp"
+#include "gc/x/xWorkers.hpp"
 #include "logging/log.hpp"
 #include "memory/iterator.hpp"
 #include "memory/metaspaceUtils.hpp"
@@ -50,6 +50,8 @@
 #include "runtime/safepoint.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 static const ZStatCounter ZCounterUndoPageAllocation("Memory", "Undo Page Allocation", ZStatUnitOpsPerSecond);
 static const ZStatCounter ZCounterOutOfMemory("Memory", "Out Of Memory", ZStatUnitOpsPerSecond);
@@ -515,4 +517,6 @@ void ZHeap::verify() {
   guarantee(ZGlobalPhase == ZPhaseMarkCompleted, "Invalid phase");
 
   ZVerify::after_weak_processing();
+}
+
 }

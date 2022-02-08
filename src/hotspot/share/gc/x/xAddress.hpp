@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZADDRESS_HPP
-#define SHARE_GC_Z_ZADDRESS_HPP
+#ifndef SHARE_GC_X_ZADDRESS_HPP
+#define SHARE_GC_X_ZADDRESS_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZAddress : public AllStatic {
   friend class ZAddressTest;
@@ -63,4 +65,6 @@ public:
   static uintptr_t remapped_or_null(uintptr_t value);
 };
 
-#endif // SHARE_GC_Z_ZADDRESS_HPP
+}
+
+#endif // SHARE_GC_X_ZADDRESS_HPP

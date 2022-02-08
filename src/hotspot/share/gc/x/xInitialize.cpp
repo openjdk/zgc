@@ -22,19 +22,21 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddress.hpp"
-#include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zCPU.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeuristics.hpp"
-#include "gc/z/zInitialize.hpp"
-#include "gc/z/zLargePages.hpp"
-#include "gc/z/zNUMA.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zThreadLocalAllocBuffer.hpp"
-#include "gc/z/zTracer.hpp"
+#include "gc/x/xAddress.hpp"
+#include "gc/x/xBarrierSet.hpp"
+#include "gc/x/xCPU.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHeuristics.hpp"
+#include "gc/x/xInitialize.hpp"
+#include "gc/x/xLargePages.hpp"
+#include "gc/x/xNUMA.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xThreadLocalAllocBuffer.hpp"
+#include "gc/x/xTracer.hpp"
 #include "logging/log.hpp"
 #include "runtime/vm_version.hpp"
+
+namespace ZOriginal {
 
 ZInitialize::ZInitialize(ZBarrierSet* barrier_set) {
   log_info(gc, init)("Initializing %s", ZName);
@@ -54,4 +56,6 @@ ZInitialize::ZInitialize(ZBarrierSet* barrier_set) {
   ZBarrierSet::set_barrier_set(barrier_set);
 
   pd_initialize();
+}
+
 }

@@ -23,7 +23,9 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zNUMA.hpp"
+#include "gc/x/xNUMA.hpp"
+
+namespace ZOriginal {
 
 bool ZNUMA::_enabled;
 
@@ -38,4 +40,6 @@ void ZNUMA::initialize() {
 
 const char* ZNUMA::to_string() {
   return _enabled ? "Enabled" : "Disabled";
+}
+
 }

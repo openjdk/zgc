@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZALLOCATIONFLAGS_HPP
-#define SHARE_GC_Z_ZALLOCATIONFLAGS_HPP
+#ifndef SHARE_GC_X_ZALLOCATIONFLAGS_HPP
+#define SHARE_GC_X_ZALLOCATIONFLAGS_HPP
 
-#include "gc/z/zBitField.hpp"
+#include "gc/x/xBitField.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 //
 // Allocation flags layout
@@ -82,4 +84,6 @@ public:
   }
 };
 
-#endif // SHARE_GC_Z_ZALLOCATIONFLAGS_HPP
+}
+
+#endif // SHARE_GC_X_ZALLOCATIONFLAGS_HPP

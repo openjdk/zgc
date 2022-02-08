@@ -22,8 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zArguments.hpp"
+#include "gc/x/xArguments.hpp"
+
+namespace ZOriginal {
 
 bool ZArguments::is_os_supported() const {
   return true;
+}
+
 }

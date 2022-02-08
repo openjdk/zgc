@@ -21,18 +21,20 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZHEAP_INLINE_HPP
-#define SHARE_GC_Z_ZHEAP_INLINE_HPP
+#ifndef SHARE_GC_X_ZHEAP_INLINE_HPP
+#define SHARE_GC_X_ZHEAP_INLINE_HPP
 
-#include "gc/z/zHeap.hpp"
+#include "gc/x/xHeap.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zForwardingTable.inline.hpp"
-#include "gc/z/zHash.inline.hpp"
-#include "gc/z/zMark.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageTable.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xForwardingTable.inline.hpp"
+#include "gc/x/xHash.inline.hpp"
+#include "gc/x/xMark.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageTable.inline.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline ZHeap* ZHeap::heap() {
   assert(_heap != NULL, "Not initialized");
@@ -130,4 +132,6 @@ inline bool ZHeap::is_oop(uintptr_t addr) const {
   return ZAddress::is_good(addr) && is_object_aligned(addr) && is_in(addr);
 }
 
-#endif // SHARE_GC_Z_ZHEAP_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZHEAP_INLINE_HPP

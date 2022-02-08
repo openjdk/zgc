@@ -22,11 +22,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zThreadLocalData.hpp"
-#include "gc/z/zObjArrayAllocator.hpp"
-#include "gc/z/zUtils.inline.hpp"
+#include "gc/x/xThreadLocalData.hpp"
+#include "gc/x/xObjArrayAllocator.hpp"
+#include "gc/x/xUtils.inline.hpp"
 #include "oops/arrayKlass.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
+
+namespace ZOriginal {
 
 ZObjArrayAllocator::ZObjArrayAllocator(Klass* klass, size_t word_size, int length, Thread* thread) :
     ObjArrayAllocator(klass, word_size, length, false /* do_zero */, thread) {}
@@ -62,4 +64,6 @@ oop ZObjArrayAllocator::finish(HeapWord* mem) const {
   ZThreadLocalData::clear_invisible_root(_thread);
 
   return cast_to_oop(mem);
+}
+
 }

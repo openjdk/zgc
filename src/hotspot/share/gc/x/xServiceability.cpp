@@ -24,11 +24,13 @@
 #include "precompiled.hpp"
 #include "gc/shared/generationCounters.hpp"
 #include "gc/shared/hSpaceCounters.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zServiceability.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xServiceability.hpp"
 #include "memory/metaspaceCounters.hpp"
 #include "runtime/perfData.hpp"
+
+namespace ZOriginal {
 
 class ZGenerationCounters : public GenerationCounters {
 public:
@@ -173,4 +175,6 @@ ZServiceabilityPauseTracer::ZServiceabilityPauseTracer() :
 ZServiceabilityPauseTracer::~ZServiceabilityPauseTracer()  {
   ZHeap::heap()->serviceability_counters()->update_sizes();
   MemoryService::track_memory_usage();
+}
+
 }

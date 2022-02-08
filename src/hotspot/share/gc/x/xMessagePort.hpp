@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMESSAGEPORT_HPP
-#define SHARE_GC_Z_ZMESSAGEPORT_HPP
+#ifndef SHARE_GC_X_ZMESSAGEPORT_HPP
+#define SHARE_GC_X_ZMESSAGEPORT_HPP
 
-#include "gc/z/zFuture.hpp"
-#include "gc/z/zList.hpp"
+#include "gc/x/xFuture.hpp"
+#include "gc/x/xList.hpp"
 #include "runtime/mutex.hpp"
+
+namespace ZOriginal {
 
 template <typename T> class ZMessageRequest;
 
@@ -63,4 +65,6 @@ public:
   void ack();
 };
 
-#endif // SHARE_GC_Z_ZMESSAGEPORT_HPP
+}
+
+#endif // SHARE_GC_X_ZMESSAGEPORT_HPP

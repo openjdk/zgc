@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBITFIELD_HPP
-#define SHARE_GC_Z_ZBITFIELD_HPP
+#ifndef SHARE_GC_X_ZBITFIELD_HPP
+#define SHARE_GC_X_ZBITFIELD_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 //
 //  Example
@@ -77,4 +79,6 @@ public:
   }
 };
 
-#endif // SHARE_GC_Z_ZBITFIELD_HPP
+}
+
+#endif // SHARE_GC_X_ZBITFIELD_HPP

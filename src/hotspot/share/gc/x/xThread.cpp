@@ -22,10 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zThread.inline.hpp"
+#include "gc/x/xThread.inline.hpp"
 #include "runtime/nonJavaThread.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 THREAD_LOCAL bool      ZThread::_initialized;
 THREAD_LOCAL uintptr_t ZThread::_id;
@@ -77,4 +79,6 @@ void ZThread::set_worker_id(uint worker_id) {
 void ZThread::clear_worker_id() {
   assert(has_worker_id(), "Worker id not initialized");
   _worker_id = (uint)-1;
+}
+
 }

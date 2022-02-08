@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZGLOBALS_HPP
-#define SHARE_GC_Z_ZGLOBALS_HPP
+#ifndef SHARE_GC_X_ZGLOBALS_HPP
+#define SHARE_GC_X_ZGLOBALS_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#include CPU_HEADER(gc/z/zGlobals)
+#include CPU_HEADER(gc/x/xGlobals)
+
+namespace ZOriginal {
 
 // Collector name
 const char* const ZName                         = "The Z Garbage Collector";
@@ -155,4 +157,6 @@ const size_t      ZMarkTerminateFlushMax        = 3;
 // Try complete mark timeout
 const uint64_t    ZMarkCompleteTimeout          = 200; // us
 
-#endif // SHARE_GC_Z_ZGLOBALS_HPP
+}
+
+#endif // SHARE_GC_X_ZGLOBALS_HPP

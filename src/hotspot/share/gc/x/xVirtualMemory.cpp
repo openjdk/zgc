@@ -23,13 +23,15 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zAddressSpaceLimit.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zVirtualMemory.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xAddressSpaceLimit.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xVirtualMemory.inline.hpp"
 #include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 ZVirtualMemoryManager::ZVirtualMemoryManager(size_t max_capacity) :
     _manager(),
@@ -205,4 +207,6 @@ ZVirtualMemory ZVirtualMemoryManager::alloc(size_t size, bool force_low_address)
 
 void ZVirtualMemoryManager::free(const ZVirtualMemory& vmem) {
   _manager.free(vmem.start(), vmem.size());
+}
+
 }

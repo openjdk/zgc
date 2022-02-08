@@ -21,17 +21,20 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARK_HPP
-#define SHARE_GC_Z_ZMARK_HPP
+#ifndef SHARE_GC_X_ZMARK_HPP
+#define SHARE_GC_X_ZMARK_HPP
 
-#include "gc/z/zMarkStack.hpp"
-#include "gc/z/zMarkStackAllocator.hpp"
-#include "gc/z/zMarkStackEntry.hpp"
-#include "gc/z/zMarkTerminate.hpp"
+#include "gc/x/xMarkStack.hpp"
+#include "gc/x/xMarkStackAllocator.hpp"
+#include "gc/x/xMarkStackEntry.hpp"
+#include "gc/x/xMarkTerminate.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class Thread;
+
+namespace ZOriginal {
+
 class ZMarkContext;
 class ZPageTable;
 class ZWorkers;
@@ -103,4 +106,6 @@ public:
   bool flush_and_free(Thread* thread);
 };
 
-#endif // SHARE_GC_Z_ZMARK_HPP
+}
+
+#endif // SHARE_GC_X_ZMARK_HPP

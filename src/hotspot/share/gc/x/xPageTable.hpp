@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPAGETABLE_HPP
-#define SHARE_GC_Z_ZPAGETABLE_HPP
+#ifndef SHARE_GC_X_ZPAGETABLE_HPP
+#define SHARE_GC_X_ZPAGETABLE_HPP
 
-#include "gc/z/zGranuleMap.hpp"
+#include "gc/x/xGranuleMap.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZPage;
 
@@ -56,4 +58,6 @@ public:
   bool next(ZPage** page);
 };
 
-#endif // SHARE_GC_Z_ZPAGETABLE_HPP
+}
+
+#endif // SHARE_GC_X_ZPAGETABLE_HPP

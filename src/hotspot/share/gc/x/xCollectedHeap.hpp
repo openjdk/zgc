@@ -21,16 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZCOLLECTEDHEAP_HPP
-#define SHARE_GC_Z_ZCOLLECTEDHEAP_HPP
+#ifndef SHARE_GC_X_ZCOLLECTEDHEAP_HPP
+#define SHARE_GC_X_ZCOLLECTEDHEAP_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/softRefPolicy.hpp"
-#include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zHeap.hpp"
-#include "gc/z/zInitialize.hpp"
-#include "gc/z/zRuntimeWorkers.hpp"
+#include "gc/x/xBarrierSet.hpp"
+#include "gc/x/xHeap.hpp"
+#include "gc/x/xInitialize.hpp"
+#include "gc/x/xRuntimeWorkers.hpp"
 #include "memory/metaspace.hpp"
+
+namespace ZOriginal {
 
 class ZDirector;
 class ZDriver;
@@ -125,4 +127,6 @@ public:
   virtual bool supports_concurrent_gc_breakpoints() const;
 };
 
-#endif // SHARE_GC_Z_ZCOLLECTEDHEAP_HPP
+}
+
+#endif // SHARE_GC_X_ZCOLLECTEDHEAP_HPP

@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZLIST_INLINE_HPP
-#define SHARE_GC_Z_ZLIST_INLINE_HPP
+#ifndef SHARE_GC_X_ZLIST_INLINE_HPP
+#define SHARE_GC_X_ZLIST_INLINE_HPP
 
-#include "gc/z/zList.hpp"
+#include "gc/x/xList.hpp"
 
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 template <typename T>
 inline ZListNode<T>::ZListNode() :
@@ -235,4 +237,6 @@ inline bool ZListRemoveIteratorImpl<T, Forward>::next(T** elem) {
   return *elem != NULL;
 }
 
-#endif // SHARE_GC_Z_ZLIST_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZLIST_INLINE_HPP

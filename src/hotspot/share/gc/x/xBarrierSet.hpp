@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBARRIERSET_HPP
-#define SHARE_GC_Z_ZBARRIERSET_HPP
+#ifndef SHARE_GC_X_ZBARRIERSET_HPP
+#define SHARE_GC_X_ZBARRIERSET_HPP
 
 #include "gc/shared/barrierSet.hpp"
+
+namespace ZOriginal {
 
 class ZBarrierSetAssembler;
 
@@ -98,12 +100,14 @@ public:
   };
 };
 
-template<> struct BarrierSet::GetName<ZBarrierSet> {
-  static const BarrierSet::Name value = BarrierSet::ZBarrierSet;
+} // namespace ZOriginal
+
+template<> struct BarrierSet::GetName<ZOriginal::ZBarrierSet> {
+  static const BarrierSet::Name value = BarrierSet::ZOriginalBarrierSet;
 };
 
-template<> struct BarrierSet::GetType<BarrierSet::ZBarrierSet> {
-  typedef ::ZBarrierSet type;
+template<> struct BarrierSet::GetType<BarrierSet::ZOriginalBarrierSet> {
+  typedef ZOriginal::ZBarrierSet type;
 };
 
-#endif // SHARE_GC_Z_ZBARRIERSET_HPP
+#endif // SHARE_GC_X_ZBARRIERSET_HPP

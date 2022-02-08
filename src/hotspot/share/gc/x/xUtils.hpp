@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZUTILS_HPP
-#define SHARE_GC_Z_ZUTILS_HPP
+#ifndef SHARE_GC_X_ZUTILS_HPP
+#define SHARE_GC_X_ZUTILS_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZUtils : public AllStatic {
 public:
@@ -41,4 +43,6 @@ public:
   static void object_copy_conjoint(uintptr_t from, uintptr_t to, size_t size);
 };
 
-#endif // SHARE_GC_Z_ZUTILS_HPP
+}
+
+#endif // SHARE_GC_X_ZUTILS_HPP

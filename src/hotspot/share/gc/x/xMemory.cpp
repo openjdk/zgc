@@ -22,9 +22,11 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zList.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zMemory.inline.hpp"
+#include "gc/x/xList.inline.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xMemory.inline.hpp"
+
+namespace ZOriginal {
 
 ZMemory* ZMemoryManager::create(uintptr_t start, size_t size) {
   ZMemory* const area = new ZMemory(start, size);
@@ -217,4 +219,6 @@ void ZMemoryManager::free(uintptr_t start, size_t size) {
     ZMemory* const new_area = create(start, size);
     _freelist.insert_last(new_area);
   }
+}
+
 }

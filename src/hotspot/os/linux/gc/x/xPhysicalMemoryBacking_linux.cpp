@@ -23,14 +23,14 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zArray.inline.hpp"
-#include "gc/z/zErrno.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLargePages.inline.hpp"
-#include "gc/z/zMountPoint_linux.hpp"
-#include "gc/z/zNUMA.inline.hpp"
-#include "gc/z/zPhysicalMemoryBacking_linux.hpp"
-#include "gc/z/zSyscall_linux.hpp"
+#include "gc/x/xArray.inline.hpp"
+#include "gc/x/xErrno.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLargePages.inline.hpp"
+#include "gc/x/xMountPoint_linux.hpp"
+#include "gc/x/xNUMA.inline.hpp"
+#include "gc/x/xPhysicalMemoryBacking_linux.hpp"
+#include "gc/x/xSyscall_linux.hpp"
 #include "logging/log.hpp"
 #include "runtime/init.hpp"
 #include "runtime/os.hpp"
@@ -46,6 +46,8 @@
 #include <sys/statfs.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+namespace ZOriginal {
 
 //
 // Support for building on older Linux systems
@@ -720,4 +722,6 @@ void ZPhysicalMemoryBacking::unmap(uintptr_t addr, size_t size) const {
     ZErrno err;
     fatal("Failed to map memory (%s)", err.to_string());
   }
+}
+
 }

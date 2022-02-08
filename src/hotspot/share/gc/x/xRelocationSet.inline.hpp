@@ -21,15 +21,19 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZRELOCATIONSET_INLINE_HPP
-#define SHARE_GC_Z_ZRELOCATIONSET_INLINE_HPP
+#ifndef SHARE_GC_X_ZRELOCATIONSET_INLINE_HPP
+#define SHARE_GC_X_ZRELOCATIONSET_INLINE_HPP
 
-#include "gc/z/zRelocationSet.hpp"
+#include "gc/x/xRelocationSet.hpp"
 
-#include "gc/z/zArray.inline.hpp"
+#include "gc/x/xArray.inline.hpp"
+
+namespace ZOriginal {
 
 template <bool Parallel>
 inline ZRelocationSetIteratorImpl<Parallel>::ZRelocationSetIteratorImpl(ZRelocationSet* relocation_set) :
     ZArrayIteratorImpl<ZForwarding*, Parallel>(relocation_set->_forwardings, relocation_set->_nforwardings) {}
 
-#endif // SHARE_GC_Z_ZRELOCATIONSET_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZRELOCATIONSET_INLINE_HPP

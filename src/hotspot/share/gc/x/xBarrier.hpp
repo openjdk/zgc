@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBARRIER_HPP
-#define SHARE_GC_Z_ZBARRIER_HPP
+#ifndef SHARE_GC_X_ZBARRIER_HPP
+#define SHARE_GC_X_ZBARRIER_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "oops/oop.hpp"
+
+namespace ZOriginal {
 
 typedef bool (*ZBarrierFastPath)(uintptr_t);
 typedef uintptr_t (*ZBarrierSlowPath)(uintptr_t);
@@ -132,4 +134,6 @@ public:
   virtual void do_oop(narrowOop* p);
 };
 
-#endif // SHARE_GC_Z_ZBARRIER_HPP
+}
+
+#endif // SHARE_GC_X_ZBARRIER_HPP

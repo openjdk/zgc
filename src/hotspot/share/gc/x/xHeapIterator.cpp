@@ -26,16 +26,18 @@
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zCollectedHeap.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zGranuleMap.inline.hpp"
-#include "gc/z/zHeapIterator.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zOop.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xCollectedHeap.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xGranuleMap.inline.hpp"
+#include "gc/x/xHeapIterator.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xOop.inline.hpp"
 #include "memory/iterator.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
+
+namespace ZOriginal {
 
 class ZHeapIteratorBitMap : public CHeapObj<mtGC> {
 private:
@@ -429,4 +431,6 @@ void ZHeapIterator::object_iterate(ObjectClosure* cl, uint worker_id) {
   } else {
     object_iterate_inner<false /* VisitWeaks */>(context, cl);
   }
+}
+
 }

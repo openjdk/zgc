@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZTHREADLOCALALLOCBUFFER_HPP
-#define SHARE_GC_Z_ZTHREADLOCALALLOCBUFFER_HPP
+#ifndef SHARE_GC_X_ZTHREADLOCALALLOCBUFFER_HPP
+#define SHARE_GC_X_ZTHREADLOCALALLOCBUFFER_HPP
 
 #include "gc/shared/threadLocalAllocBuffer.hpp"
-#include "gc/z/zValue.hpp"
+#include "gc/x/xValue.hpp"
 #include "memory/allocation.hpp"
 
 class JavaThread;
+
+namespace ZOriginal {
 
 class ZThreadLocalAllocBuffer : public AllStatic {
 private:
@@ -45,4 +47,6 @@ public:
   static void update_stats(JavaThread* thread);
 };
 
-#endif // SHARE_GC_Z_ZTHREADLOCALALLOCBUFFER_HPP
+}
+
+#endif // SHARE_GC_X_ZTHREADLOCALALLOCBUFFER_HPP

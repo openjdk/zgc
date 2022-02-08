@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBREAKPOINT_HPP
-#define SHARE_GC_Z_ZBREAKPOINT_HPP
+#ifndef SHARE_GC_X_ZBREAKPOINT_HPP
+#define SHARE_GC_X_ZBREAKPOINT_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZBreakpoint : public AllStatic {
 private:
@@ -40,4 +42,6 @@ public:
   static void at_after_reference_processing_started();
 };
 
-#endif // SHARE_GC_Z_ZBREAKPOINT_HPP
+}
+
+#endif // SHARE_GC_X_ZBREAKPOINT_HPP

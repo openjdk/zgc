@@ -22,12 +22,14 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zNMethodTableEntry.hpp"
-#include "gc/z/zNMethodTableIteration.hpp"
+#include "gc/x/xNMethodTableEntry.hpp"
+#include "gc/x/xNMethodTableIteration.hpp"
 #include "memory/iterator.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 ZNMethodTableIteration::ZNMethodTableIteration() :
     _table(NULL),
@@ -73,4 +75,6 @@ void ZNMethodTableIteration::nmethods_do(NMethodClosure* cl) {
       }
     }
   }
+}
+
 }

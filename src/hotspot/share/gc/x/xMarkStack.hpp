@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKSTACK_HPP
-#define SHARE_GC_Z_ZMARKSTACK_HPP
+#ifndef SHARE_GC_X_ZMARKSTACK_HPP
+#define SHARE_GC_X_ZMARKSTACK_HPP
 
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zMarkStackEntry.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xMarkStackEntry.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 template <typename T, size_t S>
 class ZStack {
@@ -161,4 +163,6 @@ public:
   void free(ZMarkStackAllocator* allocator);
 };
 
-#endif // SHARE_GC_Z_ZMARKSTACK_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKSTACK_HPP

@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
-#define SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
+#ifndef SHARE_GC_X_ZBARRIERSET_INLINE_HPP
+#define SHARE_GC_X_ZBARRIERSET_INLINE_HPP
 
-#include "gc/z/zBarrierSet.hpp"
+#include "gc/x/xBarrierSet.hpp"
 
 #include "gc/shared/accessBarrierSupport.inline.hpp"
-#include "gc/z/zBarrier.inline.hpp"
+#include "gc/x/xBarrier.inline.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <DecoratorSet expected>
@@ -239,4 +241,6 @@ inline oop ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_atomic_xchg_
   return Raw::oop_atomic_xchg_not_in_heap(addr, new_value);
 }
 
-#endif // SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZBARRIERSET_INLINE_HPP

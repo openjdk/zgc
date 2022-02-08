@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZTASK_HPP
-#define SHARE_GC_Z_ZTASK_HPP
+#ifndef SHARE_GC_X_ZTASK_HPP
+#define SHARE_GC_X_ZTASK_HPP
 
 #include "gc/shared/workerThread.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZTask : public StackObj {
 private:
@@ -50,4 +52,6 @@ public:
   virtual void work() = 0;
 };
 
-#endif // SHARE_GC_Z_ZTASK_HPP
+}
+
+#endif // SHARE_GC_X_ZTASK_HPP

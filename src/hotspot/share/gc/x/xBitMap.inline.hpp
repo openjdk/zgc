@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBITMAP_INLINE_HPP
-#define SHARE_GC_Z_ZBITMAP_INLINE_HPP
+#ifndef SHARE_GC_X_ZBITMAP_INLINE_HPP
+#define SHARE_GC_X_ZBITMAP_INLINE_HPP
 
-#include "gc/z/zBitMap.hpp"
+#include "gc/x/xBitMap.hpp"
 
 #include "runtime/atomic.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline ZBitMap::ZBitMap(idx_t size_in_bits) :
     CHeapBitMap(size_in_bits, mtGC, false /* clear */) {}
@@ -77,4 +79,6 @@ inline bool ZBitMap::par_set_bit_pair(idx_t bit, bool finalizable, bool& inc_liv
   }
 }
 
-#endif // SHARE_GC_Z_ZBITMAP_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZBITMAP_INLINE_HPP

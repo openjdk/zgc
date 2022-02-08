@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMETRONOME_HPP
-#define SHARE_GC_Z_ZMETRONOME_HPP
+#ifndef SHARE_GC_X_ZMETRONOME_HPP
+#define SHARE_GC_X_ZMETRONOME_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
+
+namespace ZOriginal {
 
 class ZMetronome : public StackObj {
 private:
@@ -42,4 +44,6 @@ public:
   void stop();
 };
 
-#endif // SHARE_GC_Z_ZMETRONOME_HPP
+}
+
+#endif // SHARE_GC_X_ZMETRONOME_HPP

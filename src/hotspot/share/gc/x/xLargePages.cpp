@@ -23,8 +23,10 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zLargePages.hpp"
+#include "gc/x/xLargePages.hpp"
 #include "runtime/os.hpp"
+
+namespace ZOriginal {
 
 ZLargePages::State ZLargePages::_state;
 
@@ -46,4 +48,6 @@ const char* ZLargePages::to_string() {
   default:
     return "Disabled";
   }
+}
+
 }

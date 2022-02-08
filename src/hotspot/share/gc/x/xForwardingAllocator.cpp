@@ -22,8 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zForwardingAllocator.hpp"
+#include "gc/x/xForwardingAllocator.hpp"
 #include "memory/allocation.inline.hpp"
+
+namespace ZOriginal {
 
 ZForwardingAllocator::ZForwardingAllocator() :
     _start(NULL),
@@ -37,4 +39,6 @@ ZForwardingAllocator::~ZForwardingAllocator() {
 void ZForwardingAllocator::reset(size_t size) {
   _start = _top = REALLOC_C_HEAP_ARRAY(char, _start, size, mtGC);
   _end = _start + size;
+}
+
 }

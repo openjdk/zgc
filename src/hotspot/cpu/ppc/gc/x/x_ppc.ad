@@ -25,12 +25,14 @@
 source_hpp %{
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/c2/zBarrierSetC2.hpp"
-#include "gc/z/zThreadLocalData.hpp"
+#include "gc/x/c2/zBarrierSetC2.hpp"
+#include "gc/x/xThreadLocalData.hpp"
 
 %}
 
 source %{
+
+namespace ZOriginal {
 
 static void z_load_barrier(MacroAssembler& _masm, const MachNode* node, Address ref_addr, Register ref,
                            Register tmp, uint8_t barrier_data) {
@@ -123,6 +125,8 @@ static void z_compare_and_exchange(MacroAssembler& _masm, const MachNode* node,
   }
 }
 
+}
+
 %}
 
 instruct zLoadP(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
@@ -138,7 +142,7 @@ instruct zLoadP(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
   ins_encode %{
     assert($mem$$index == 0, "sanity");
     __ ld($dst$$Register, $mem$$disp, $mem$$base$$Register);
-    z_load_barrier(_masm, this, Address($mem$$base$$Register, $mem$$disp), $dst$$Register, $tmp$$Register, barrier_data());
+    ZOriginal::z_load_barrier(_masm, this, Address($mem$$base$$Register, $mem$$disp), $dst$$Register, $tmp$$Register, barrier_data());
   %}
   ins_pipe(pipe_class_default);
 %}
@@ -156,7 +160,7 @@ instruct zLoadP_acq(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
   format %{ "LD acq $dst, $mem" %}
   ins_encode %{
     __ ld($dst$$Register, $mem$$disp, $mem$$base$$Register);
-    z_load_barrier(_masm, this, Address($mem$$base$$Register, $mem$$disp), $dst$$Register, $tmp$$Register, barrier_data());
+    ZOriginal::z_load_barrier(_masm, this, Address($mem$$base$$Register, $mem$$disp), $dst$$Register, $tmp$$Register, barrier_data());
 
     // Uses the isync instruction as an acquire barrier.
     // This exploits the compare and the branch in the z load barrier (load, compare and branch, isync).
@@ -175,7 +179,7 @@ instruct zCompareAndSwapP(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc 
 
   format %{ "CMPXCHG $res, $mem, $oldval, $newval; as bool; ptr" %}
   ins_encode %{
-    z_compare_and_swap(_masm, this,
+    ZOriginal::z_compare_and_swap(_masm, this,
                        $res$$Register, $mem$$Register, $oldval$$Register, $newval$$Register,
                        $tmp_xchg$$Register, $tmp_mask$$Register,
                        false /* weak */, false /* acquire */);
@@ -193,7 +197,7 @@ instruct zCompareAndSwapP_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegP
 
   format %{ "CMPXCHG acq $res, $mem, $oldval, $newval; as bool; ptr" %}
   ins_encode %{
-    z_compare_and_swap(_masm, this,
+    ZOriginal::z_compare_and_swap(_masm, this,
                        $res$$Register, $mem$$Register, $oldval$$Register, $newval$$Register,
                        $tmp_xchg$$Register, $tmp_mask$$Register,
                        false /* weak */, true /* acquire */);
@@ -211,7 +215,7 @@ instruct zCompareAndSwapPWeak(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegP
 
   format %{ "weak CMPXCHG $res, $mem, $oldval, $newval; as bool; ptr" %}
   ins_encode %{
-    z_compare_and_swap(_masm, this,
+    ZOriginal::z_compare_and_swap(_masm, this,
                        $res$$Register, $mem$$Register, $oldval$$Register, $newval$$Register,
                        $tmp_xchg$$Register, $tmp_mask$$Register,
                        true /* weak */, false /* acquire */);
@@ -229,7 +233,7 @@ instruct zCompareAndSwapPWeak_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, i
 
   format %{ "weak CMPXCHG acq $res, $mem, $oldval, $newval; as bool; ptr" %}
   ins_encode %{
-    z_compare_and_swap(_masm, this,
+    ZOriginal::z_compare_and_swap(_masm, this,
                        $res$$Register, $mem$$Register, $oldval$$Register, $newval$$Register,
                        $tmp_xchg$$Register, $tmp_mask$$Register,
                        true /* weak */, true /* acquire */);
@@ -250,7 +254,7 @@ instruct zCompareAndExchangeP(iRegPdst res, iRegPdst mem, iRegPsrc oldval, iRegP
 
   format %{ "CMPXCHG $res, $mem, $oldval, $newval; as ptr; ptr" %}
   ins_encode %{
-    z_compare_and_exchange(_masm, this,
+    ZOriginal::z_compare_and_exchange(_masm, this,
                            $res$$Register, $mem$$Register, $oldval$$Register, $newval$$Register, $tmp$$Register,
                            false /* weak */, false /* acquire */);
   %}
@@ -270,7 +274,7 @@ instruct zCompareAndExchangeP_acq(iRegPdst res, iRegPdst mem, iRegPsrc oldval, i
 
   format %{ "CMPXCHG acq $res, $mem, $oldval, $newval; as ptr; ptr" %}
   ins_encode %{
-    z_compare_and_exchange(_masm, this,
+    ZOriginal::z_compare_and_exchange(_masm, this,
                            $res$$Register, $mem$$Register, $oldval$$Register, $newval$$Register, $tmp$$Register,
                            false /* weak */, true /* acquire */);
   %}
@@ -286,7 +290,7 @@ instruct zGetAndSetP(iRegPdst res, iRegPdst mem, iRegPsrc newval, iRegPdst tmp, 
   format %{ "GetAndSetP $res, $mem, $newval" %}
   ins_encode %{
     __ getandsetd($res$$Register, $newval$$Register, $mem$$Register, MacroAssembler::cmpxchgx_hint_atomic_update());
-    z_load_barrier(_masm, this, Address(noreg, (intptr_t) 0), $res$$Register, $tmp$$Register, barrier_data());
+    ZOriginal::z_load_barrier(_masm, this, Address(noreg, (intptr_t) 0), $res$$Register, $tmp$$Register, barrier_data());
 
     if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
       __ isync();

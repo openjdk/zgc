@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZHASH_HPP
-#define SHARE_GC_Z_ZHASH_HPP
+#ifndef SHARE_GC_X_ZHASH_HPP
+#define SHARE_GC_X_ZHASH_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 class ZHash : public AllStatic {
 public:
@@ -33,4 +35,6 @@ public:
   static uint32_t address_to_uint32(uintptr_t key);
 };
 
-#endif // SHARE_GC_Z_ZHASH_HPP
+}
+
+#endif // SHARE_GC_X_ZHASH_HPP

@@ -23,9 +23,11 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/concurrentGCBreakpoints.hpp"
-#include "gc/z/zBreakpoint.hpp"
+#include "gc/x/xBreakpoint.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 bool ZBreakpoint::_start_gc = false;
 
@@ -60,4 +62,6 @@ void ZBreakpoint::at_before_marking_completed() {
 
 void ZBreakpoint::at_after_reference_processing_started() {
   ConcurrentGCBreakpoints::at("AFTER CONCURRENT REFERENCE PROCESSING STARTED");
+}
+
 }

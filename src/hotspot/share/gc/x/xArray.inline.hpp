@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZARRAY_INLINE_HPP
-#define SHARE_GC_Z_ZARRAY_INLINE_HPP
+#ifndef SHARE_GC_X_ZARRAY_INLINE_HPP
+#define SHARE_GC_X_ZARRAY_INLINE_HPP
 
-#include "gc/z/zArray.hpp"
+#include "gc/x/xArray.hpp"
 
 #include "runtime/atomic.hpp"
+
+namespace ZOriginal {
 
 template <typename T, bool Parallel>
 inline bool ZArrayIteratorImpl<T, Parallel>::next_serial(T* elem) {
@@ -78,4 +80,6 @@ inline bool ZArrayIteratorImpl<T, Parallel>::next(T* elem) {
   }
 }
 
-#endif // SHARE_GC_Z_ZARRAY_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZARRAY_INLINE_HPP

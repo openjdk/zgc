@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZTHREAD_HPP
-#define SHARE_GC_Z_ZTHREAD_HPP
+#ifndef SHARE_GC_X_ZTHREAD_HPP
+#define SHARE_GC_X_ZTHREAD_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 class ZThread : public AllStatic {
   friend class ZTask;
@@ -58,4 +60,6 @@ public:
   static uint worker_id();
 };
 
-#endif // SHARE_GC_Z_ZTHREAD_HPP
+}
+
+#endif // SHARE_GC_X_ZTHREAD_HPP

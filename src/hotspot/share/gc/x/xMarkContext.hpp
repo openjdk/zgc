@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKCONTEXT_HPP
-#define SHARE_GC_Z_ZMARKCONTEXT_HPP
+#ifndef SHARE_GC_X_ZMARKCONTEXT_HPP
+#define SHARE_GC_X_ZMARKCONTEXT_HPP
 
-#include "gc/z/zMarkCache.hpp"
+#include "gc/x/xMarkCache.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZMarkStripe;
 class ZMarkThreadLocalStacks;
@@ -49,4 +51,6 @@ public:
   StringDedup::Requests* string_dedup_requests();
 };
 
-#endif // SHARE_GC_Z_ZMARKCONTEXT_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKCONTEXT_HPP

@@ -21,11 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNMETHODTABLEENTRY_HPP
-#define SHARE_GC_Z_ZNMETHODTABLEENTRY_HPP
+#ifndef SHARE_GC_X_ZNMETHODTABLEENTRY_HPP
+#define SHARE_GC_X_ZNMETHODTABLEENTRY_HPP
 
-#include "gc/z/zBitField.hpp"
+#include "gc/x/xBitField.hpp"
 #include "memory/allocation.hpp"
+
+class nmethod;
+
+namespace ZOriginal {
 
 //
 // NMethod table entry layout
@@ -43,8 +47,6 @@
 //  |
 //  * 63-2 NMethod Address (62-bits)
 //
-
-class nmethod;
 
 class ZNMethodTableEntry : public CHeapObj<mtGC> {
 private:
@@ -78,4 +80,6 @@ public:
   }
 };
 
-#endif // SHARE_GC_Z_ZNMETHODTABLEENTRY_HPP
+}
+
+#endif // SHARE_GC_X_ZNMETHODTABLEENTRY_HPP

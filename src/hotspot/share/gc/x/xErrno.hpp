@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZERRNO_HPP
-#define SHARE_GC_Z_ZERRNO_HPP
+#ifndef SHARE_GC_X_ZERRNO_HPP
+#define SHARE_GC_X_ZERRNO_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZErrno : public StackObj {
 private:
@@ -40,4 +42,6 @@ public:
   const char* to_string() const;
 };
 
-#endif // SHARE_GC_Z_ZERRNO_HPP
+}
+
+#endif // SHARE_GC_X_ZERRNO_HPP

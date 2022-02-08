@@ -21,15 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNMETHODTABLE_HPP
-#define SHARE_GC_Z_ZNMETHODTABLE_HPP
+#ifndef SHARE_GC_X_ZNMETHODTABLE_HPP
+#define SHARE_GC_X_ZNMETHODTABLE_HPP
 
-#include "gc/z/zNMethodTableIteration.hpp"
-#include "gc/z/zSafeDelete.hpp"
+#include "gc/x/xNMethodTableIteration.hpp"
+#include "gc/x/xSafeDelete.hpp"
 #include "memory/allocation.hpp"
 
 class nmethod;
 class NMethodClosure;
+
+namespace ZOriginal {
+
 class ZNMethodTableEntry;
 class ZWorkers;
 
@@ -71,4 +74,6 @@ public:
   static void purge(ZWorkers* workers);
 };
 
-#endif // SHARE_GC_Z_ZNMETHODTABLE_HPP
+}
+
+#endif // SHARE_GC_X_ZNMETHODTABLE_HPP

@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMEMORY_HPP
-#define SHARE_GC_Z_ZMEMORY_HPP
+#ifndef SHARE_GC_X_ZMEMORY_HPP
+#define SHARE_GC_X_ZMEMORY_HPP
 
-#include "gc/z/zList.hpp"
-#include "gc/z/zLock.hpp"
+#include "gc/x/xList.hpp"
+#include "gc/x/xLock.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZMemory : public CHeapObj<mtGC> {
   friend class ZList<ZMemory>;
@@ -90,4 +92,6 @@ public:
   void free(uintptr_t start, size_t size);
 };
 
-#endif // SHARE_GC_Z_ZMEMORY_HPP
+}
+
+#endif // SHARE_GC_X_ZMEMORY_HPP

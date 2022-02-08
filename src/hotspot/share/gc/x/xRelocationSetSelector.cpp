@@ -23,15 +23,17 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zArray.inline.hpp"
-#include "gc/z/zForwarding.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zRelocationSetSelector.inline.hpp"
+#include "gc/x/xArray.inline.hpp"
+#include "gc/x/xForwarding.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xRelocationSetSelector.inline.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 ZRelocationSetSelectorGroupStats::ZRelocationSetSelectorGroupStats() :
     _npages(0),
@@ -206,4 +208,6 @@ ZRelocationSetSelectorStats ZRelocationSetSelector::stats() const {
   stats._medium = _medium.stats();
   stats._large = _large.stats();
   return stats;
+}
+
 }

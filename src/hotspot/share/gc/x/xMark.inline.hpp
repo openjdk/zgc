@@ -21,18 +21,20 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARK_INLINE_HPP
-#define SHARE_GC_Z_ZMARK_INLINE_HPP
+#ifndef SHARE_GC_X_ZMARK_INLINE_HPP
+#define SHARE_GC_X_ZMARK_INLINE_HPP
 
-#include "gc/z/zMark.hpp"
+#include "gc/x/xMark.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zMarkStack.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageTable.inline.hpp"
-#include "gc/z/zThreadLocalData.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xMarkStack.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPageTable.inline.hpp"
+#include "gc/x/xThreadLocalData.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 // Marking before pushing helps reduce mark stack memory usage. However,
 // we only mark before pushing in GC threads to avoid burdening Java threads
@@ -77,4 +79,6 @@ inline void ZMark::mark_object(uintptr_t addr) {
   stacks->push(&_allocator, &_stripes, stripe, entry, publish);
 }
 
-#endif // SHARE_GC_Z_ZMARK_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZMARK_INLINE_HPP

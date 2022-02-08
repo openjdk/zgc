@@ -37,6 +37,7 @@ enum GCName {
   G1Full,
   ZMinor,
   ZMajor,
+  Z, // ZGC Original
   Shenandoah,
   NA,
   GCNameEndSentinel
@@ -55,6 +56,7 @@ class GCNameHelper {
       case G1Full: return "G1Full";
       case ZMinor: return "ZGC Minor";
       case ZMajor: return "ZGC Major";
+      case Z: return "ZGC";
       case Shenandoah: return "Shenandoah";
       case NA: return "N/A";
       default: ShouldNotReachHere(); return NULL;

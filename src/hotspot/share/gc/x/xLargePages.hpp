@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZLARGEPAGES_HPP
-#define SHARE_GC_Z_ZLARGEPAGES_HPP
+#ifndef SHARE_GC_X_ZLARGEPAGES_HPP
+#define SHARE_GC_X_ZLARGEPAGES_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZLargePages : public AllStatic {
 private:
@@ -48,4 +50,6 @@ public:
   static const char* to_string();
 };
 
-#endif // SHARE_GC_Z_ZLARGEPAGES_HPP
+}
+
+#endif // SHARE_GC_X_ZLARGEPAGES_HPP

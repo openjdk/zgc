@@ -22,16 +22,18 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddress.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zStackWatermark.hpp"
-#include "gc/z/zThread.inline.hpp"
-#include "gc/z/zThreadLocalAllocBuffer.hpp"
-#include "gc/z/zThreadLocalData.hpp"
-#include "gc/z/zVerify.hpp"
+#include "gc/x/xAddress.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xStackWatermark.hpp"
+#include "gc/x/xThread.inline.hpp"
+#include "gc/x/xThreadLocalAllocBuffer.hpp"
+#include "gc/x/xThreadLocalData.hpp"
+#include "gc/x/xVerify.hpp"
 #include "memory/resourceArea.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "utilities/preserveException.hpp"
+
+namespace ZOriginal {
 
 ZOnStackCodeBlobClosure::ZOnStackCodeBlobClosure() :
     _bs_nm(BarrierSet::barrier_set()->barrier_set_nmethod()) {}
@@ -96,4 +98,6 @@ void ZStackWatermark::start_processing_impl(void* context) {
 void ZStackWatermark::process(const frame& fr, RegisterMap& register_map, void* context) {
   ZVerify::verify_frame_bad(fr, register_map);
   fr.oops_do(closure_from_context(context), &_cb_cl, &register_map, DerivedPointerIterationMode::_directly);
+}
+
 }

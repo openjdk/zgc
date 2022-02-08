@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_C2_ZBARRIERSETC2_HPP
-#define SHARE_GC_Z_C2_ZBARRIERSETC2_HPP
+#ifndef SHARE_GC_X_C2_ZBARRIERSETC2_HPP
+#define SHARE_GC_X_C2_ZBARRIERSETC2_HPP
 
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.hpp"
 #include "opto/node.hpp"
 #include "utilities/growableArray.hpp"
+
+namespace ZOriginal {
 
 const uint8_t ZLoadBarrierElided      = 0;
 const uint8_t ZLoadBarrierStrong      = 1;
@@ -93,4 +95,6 @@ public:
   virtual void emit_stubs(CodeBuffer& cb) const;
 };
 
-#endif // SHARE_GC_Z_C2_ZBARRIERSETC2_HPP
+}
+
+#endif // SHARE_GC_X_C2_ZBARRIERSETC2_HPP

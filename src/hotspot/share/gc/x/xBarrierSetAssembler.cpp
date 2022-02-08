@@ -22,9 +22,11 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zThreadLocalData.hpp"
+#include "gc/x/xBarrierSetAssembler.hpp"
+#include "gc/x/xThreadLocalData.hpp"
 #include "runtime/thread.hpp"
+
+namespace ZOriginal {
 
 Address ZBarrierSetAssemblerBase::address_bad_mask_from_thread(Register thread) {
   return Address(thread, ZThreadLocalData::address_bad_mask_offset());
@@ -32,4 +34,6 @@ Address ZBarrierSetAssemblerBase::address_bad_mask_from_thread(Register thread) 
 
 Address ZBarrierSetAssemblerBase::address_bad_mask_from_jni_env(Register env) {
   return Address(env, ZThreadLocalData::address_bad_mask_offset() - JavaThread::jni_environment_offset());
+}
+
 }

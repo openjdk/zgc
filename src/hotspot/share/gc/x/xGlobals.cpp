@@ -22,7 +22,9 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xGlobals.hpp"
+
+namespace ZOriginal {
 
 uint32_t   ZGlobalPhase                = ZPhaseRelocate;
 uint32_t   ZGlobalSeqNum               = 1;
@@ -76,4 +78,6 @@ const char* ZGlobalPhaseToString() {
   default:
     return "Unknown";
   }
+}
+
 }

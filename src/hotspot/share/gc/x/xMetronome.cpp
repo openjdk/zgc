@@ -22,10 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zMetronome.hpp"
+#include "gc/x/xMetronome.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/timer.hpp"
 #include "utilities/ticks.hpp"
+
+namespace ZOriginal {
 
 ZMetronome::ZMetronome(uint64_t hz) :
     _monitor(Monitor::nosafepoint, "ZMetronome_lock"),
@@ -78,4 +80,6 @@ void ZMetronome::stop() {
   MonitorLocker ml(&_monitor, Monitor::_no_safepoint_check_flag);
   _stopped = true;
   ml.notify();
+}
+
 }

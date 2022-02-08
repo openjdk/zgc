@@ -21,12 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNMETHODTABLEITERATION_HPP
-#define SHARE_GC_Z_ZNMETHODTABLEITERATION_HPP
+#ifndef SHARE_GC_X_ZNMETHODTABLEITERATION_HPP
+#define SHARE_GC_X_ZNMETHODTABLEITERATION_HPP
 
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xGlobals.hpp"
 
 class NMethodClosure;
+
+namespace ZOriginal {
+
 class ZNMethodTableEntry;
 
 class ZNMethodTableIteration {
@@ -45,4 +48,6 @@ public:
   void nmethods_do(NMethodClosure* cl);
 };
 
-#endif // SHARE_GC_Z_ZNMETHODTABLEITERATION_HPP
+}
+
+#endif // SHARE_GC_X_ZNMETHODTABLEITERATION_HPP

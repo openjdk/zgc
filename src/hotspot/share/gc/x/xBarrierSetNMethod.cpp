@@ -23,13 +23,15 @@
 
 #include "precompiled.hpp"
 #include "code/nmethod.hpp"
-#include "gc/z/zBarrierSetNMethod.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zThreadLocalData.hpp"
+#include "gc/x/xBarrierSetNMethod.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xThreadLocalData.hpp"
 #include "logging/log.hpp"
 #include "runtime/threadWXSetters.inline.hpp"
+
+namespace ZOriginal {
 
 bool ZBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
   ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
@@ -70,4 +72,6 @@ int* ZBarrierSetNMethod::disarmed_value_address() const {
 
 ByteSize ZBarrierSetNMethod::thread_disarmed_offset() const {
   return ZThreadLocalData::nmethod_disarmed_offset();
+}
+
 }

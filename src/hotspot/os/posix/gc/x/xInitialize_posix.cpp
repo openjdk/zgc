@@ -22,8 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zInitialize.hpp"
+#include "gc/x/xInitialize.hpp"
+
+namespace ZOriginal {
 
 void ZInitialize::pd_initialize() {
   // Does nothing
+}
+
 }

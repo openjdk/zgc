@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZABORT_HPP
-#define SHARE_GC_Z_ZABORT_HPP
+#ifndef SHARE_GC_X_ZABORT_HPP
+#define SHARE_GC_X_ZABORT_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZAbort : public AllStatic {
 private:
@@ -35,4 +37,6 @@ public:
   static void abort();
 };
 
-#endif // SHARE_GC_Z_ZABORT_HPP
+}
+
+#endif // SHARE_GC_X_ZABORT_HPP

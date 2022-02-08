@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZRESURRECTION_HPP
-#define SHARE_GC_Z_ZRESURRECTION_HPP
+#ifndef SHARE_GC_X_ZRESURRECTION_HPP
+#define SHARE_GC_X_ZRESURRECTION_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZResurrection : public AllStatic {
 private:
@@ -36,4 +38,6 @@ public:
   static void unblock();
 };
 
-#endif // SHARE_GC_Z_ZRESURRECTION_HPP
+}
+
+#endif // SHARE_GC_X_ZRESURRECTION_HPP

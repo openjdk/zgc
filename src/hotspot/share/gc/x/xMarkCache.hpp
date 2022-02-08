@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKCACHE_HPP
-#define SHARE_GC_Z_ZMARKCACHE_HPP
+#ifndef SHARE_GC_X_ZMARKCACHE_HPP
+#define SHARE_GC_X_ZMARKCACHE_HPP
 
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xGlobals.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZPage;
 
@@ -54,4 +56,6 @@ public:
   void inc_live(ZPage* page, size_t bytes);
 };
 
-#endif // SHARE_GC_Z_ZMARKCACHE_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKCACHE_HPP

@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_Z_GLOBALS_HPP
-#define SHARE_GC_Z_Z_GLOBALS_HPP
+#ifndef SHARE_GC_X_Z_GLOBALS_HPP
+#define SHARE_GC_X_Z_GLOBALS_HPP
 
-#define GC_Z_FLAGS(develop,                                                 \
+#define GC_X_FLAGS(develop,                                                 \
                    develop_pd,                                              \
                    product,                                                 \
                    product_pd,                                              \
@@ -32,51 +32,12 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
-  product(double, ZAllocationSpikeTolerance, 2.0,                           \
-          "Allocation spike tolerance factor")                              \
-                                                                            \
-  product(double, ZFragmentationLimit, 25.0,                                \
-          "Maximum allowed heap fragmentation")                             \
-                                                                            \
-  product(size_t, ZMarkStackSpaceLimit, 8*G,                                \
-          "Maximum number of bytes allocated for mark stacks")              \
-          range(32*M, 1024*G)                                               \
-                                                                            \
   product(double, ZCollectionInterval, 0,                                   \
           "Force GC at a fixed time interval (in seconds)")                 \
                                                                             \
-  product(bool, ZProactive, true,                                           \
-          "Enable proactive GC cycles")                                     \
-                                                                            \
-  product(bool, ZUncommit, true,                                            \
-          "Uncommit unused memory")                                         \
-                                                                            \
-  product(uintx, ZUncommitDelay, 5 * 60,                                    \
-          "Uncommit memory if it has been unused for the specified "        \
-          "amount of time (in seconds)")                                    \
-                                                                            \
-  product(uint, ZStatisticsInterval, 10, DIAGNOSTIC,                        \
-          "Time between statistics print outs (in seconds)")                \
-          range(1, (uint)-1)                                                \
-                                                                            \
-  product(bool, ZStressRelocateInPlace, false, DIAGNOSTIC,                  \
-          "Always relocate pages in-place")                                 \
-                                                                            \
   product(bool, ZVerifyViews, false, DIAGNOSTIC,                            \
-          "Verify heap view accesses")                                      \
-                                                                            \
-  product(bool, ZVerifyRoots, trueInDebug, DIAGNOSTIC,                      \
-          "Verify roots")                                                   \
-                                                                            \
-  product(bool, ZVerifyObjects, false, DIAGNOSTIC,                          \
-          "Verify objects")                                                 \
-                                                                            \
-  product(bool, ZVerifyMarking, trueInDebug, DIAGNOSTIC,                    \
-          "Verify marking stacks")                                          \
-                                                                            \
-  product(bool, ZVerifyForwarding, false, DIAGNOSTIC,                       \
-          "Verify forwarding tables")
+          "Verify heap view accesses")
 
-// end of GC_Z_FLAGS
+// end of GC_X_FLAGS
 
-#endif // SHARE_GC_Z_Z_GLOBALS_HPP
+#endif // SHARE_GC_X_Z_GLOBALS_HPP

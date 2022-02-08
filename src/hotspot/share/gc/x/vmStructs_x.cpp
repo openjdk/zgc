@@ -22,7 +22,9 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/vmStructs_z.hpp"
+#include "gc/x/vmStructs_x.hpp"
+
+namespace ZOriginal {
 
 ZGlobalsForVMStructs::ZGlobalsForVMStructs() :
     _ZGlobalPhase(&ZGlobalPhase),
@@ -39,3 +41,5 @@ ZGlobalsForVMStructs::ZGlobalsForVMStructs() :
 
 ZGlobalsForVMStructs ZGlobalsForVMStructs::_instance;
 ZGlobalsForVMStructs* ZGlobalsForVMStructs::_instance_p = &ZGlobalsForVMStructs::_instance;
+
+}

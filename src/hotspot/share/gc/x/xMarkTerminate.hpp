@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKTERMINATE_HPP
-#define SHARE_GC_Z_ZMARKTERMINATE_HPP
+#ifndef SHARE_GC_X_ZMARKTERMINATE_HPP
+#define SHARE_GC_X_ZMARKTERMINATE_HPP
 
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xGlobals.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 class ZMarkTerminate {
 private:
@@ -51,4 +53,6 @@ public:
   bool try_exit_stage1();
 };
 
-#endif // SHARE_GC_Z_ZMARKTERMINATE_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKTERMINATE_HPP

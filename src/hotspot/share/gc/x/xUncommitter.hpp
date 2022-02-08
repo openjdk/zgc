@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZUNCOMMITTER_HPP
-#define SHARE_GC_Z_ZUNCOMMITTER_HPP
+#ifndef SHARE_GC_X_ZUNCOMMITTER_HPP
+#define SHARE_GC_X_ZUNCOMMITTER_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
-#include "gc/z/zLock.hpp"
+#include "gc/x/xLock.hpp"
+
+namespace ZOriginal {
 
 class ZPageAllocation;
 
@@ -46,4 +48,6 @@ public:
   ZUncommitter(ZPageAllocator* page_allocator);
 };
 
-#endif // SHARE_GC_Z_ZUNCOMMITTER_HPP
+}
+
+#endif // SHARE_GC_X_ZUNCOMMITTER_HPP

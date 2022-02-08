@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZOOP_HPP
-#define SHARE_GC_Z_ZOOP_HPP
+#ifndef SHARE_GC_X_ZOOP_HPP
+#define SHARE_GC_X_ZOOP_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
+
+namespace ZOriginal {
 
 class ZOop : public AllStatic {
 public:
@@ -33,4 +35,6 @@ public:
   static uintptr_t to_address(oop o);
 };
 
-#endif // SHARE_GC_Z_ZOOP_HPP
+}
+
+#endif // SHARE_GC_X_ZOOP_HPP

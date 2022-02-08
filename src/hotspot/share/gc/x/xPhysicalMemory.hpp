@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPHYSICALMEMORY_HPP
-#define SHARE_GC_Z_ZPHYSICALMEMORY_HPP
+#ifndef SHARE_GC_X_ZPHYSICALMEMORY_HPP
+#define SHARE_GC_X_ZPHYSICALMEMORY_HPP
 
-#include "gc/z/zArray.hpp"
-#include "gc/z/zMemory.hpp"
+#include "gc/x/xArray.hpp"
+#include "gc/x/xMemory.hpp"
 #include "memory/allocation.hpp"
-#include OS_HEADER(gc/z/zPhysicalMemoryBacking)
+#include OS_HEADER(gc/x/xPhysicalMemoryBacking)
+
+namespace ZOriginal {
 
 class ZPhysicalMemorySegment : public CHeapObj<mtGC> {
 private:
@@ -113,4 +115,6 @@ public:
   void debug_unmap(uintptr_t offset, size_t size) const;
 };
 
-#endif // SHARE_GC_Z_ZPHYSICALMEMORY_HPP
+}
+
+#endif // SHARE_GC_X_ZPHYSICALMEMORY_HPP

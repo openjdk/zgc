@@ -24,16 +24,16 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zOop.hpp"
-#include "gc/z/zPageAllocator.hpp"
-#include "gc/z/zResurrection.hpp"
-#include "gc/z/zRootsIterator.hpp"
-#include "gc/z/zStackWatermark.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zVerify.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xOop.hpp"
+#include "gc/x/xPageAllocator.hpp"
+#include "gc/x/xResurrection.hpp"
+#include "gc/x/xRootsIterator.hpp"
+#include "gc/x/xStackWatermark.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xVerify.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.hpp"
@@ -48,6 +48,8 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/preserveException.hpp"
+
+namespace ZOriginal {
 
 #define BAD_OOP_ARG(o, p)   "Bad oop " PTR_FORMAT " found at " PTR_FORMAT, p2i(o), p2i(p)
 
@@ -406,6 +408,8 @@ void ZVerify::verify_thread_frames_bad(JavaThread* jt) {
       fst.current()->oops_do(&verify_cl, NULL /* code_cl */, fst.register_map(), DerivedPointerIterationMode::_ignore);
     }
   }
+}
+
 }
 
 #endif // ASSERT

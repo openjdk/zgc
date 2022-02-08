@@ -22,8 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddress.hpp"
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xAddress.hpp"
+#include "gc/x/xGlobals.hpp"
+
+namespace ZOriginal {
 
 void ZAddress::set_good_mask(uintptr_t mask) {
   ZAddressGoodMask = mask;
@@ -55,4 +57,6 @@ void ZAddress::flip_to_marked() {
 
 void ZAddress::flip_to_remapped() {
   set_good_mask(ZAddressMetadataRemapped);
+}
+
 }

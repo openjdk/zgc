@@ -22,11 +22,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zForwarding.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zUtils.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xForwarding.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xUtils.inline.hpp"
 #include "utilities/align.hpp"
+
+namespace ZOriginal {
 
 //
 // Reference count states:
@@ -207,4 +209,6 @@ void ZForwarding::verify() const {
 
   // Verify number of live objects and bytes
   _page->verify_live(live_objects, live_bytes);
+}
+
 }

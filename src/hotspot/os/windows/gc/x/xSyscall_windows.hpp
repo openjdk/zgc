@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef OS_WINDOWS_GC_Z_ZSYSCALL_WINDOWS_HPP
-#define OS_WINDOWS_GC_Z_ZSYSCALL_WINDOWS_HPP
+#ifndef OS_WINDOWS_GC_X_ZSYSCALL_WINDOWS_HPP
+#define OS_WINDOWS_GC_X_ZSYSCALL_WINDOWS_HPP
 
 #include "utilities/globalDefinitions.hpp"
 
 #include <Windows.h>
 #include <Memoryapi.h>
+
+namespace ZOriginal {
 
 class ZSyscall {
 private:
@@ -52,4 +54,6 @@ public:
   static bool is_large_pages_supported();
 };
 
-#endif // OS_WINDOWS_GC_Z_ZSYSCALL_WINDOWS_HPP
+}
+
+#endif // OS_WINDOWS_GC_X_ZSYSCALL_WINDOWS_HPP

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
-#define CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
+#ifndef CPU_X86_GC_X_ZBARRIERSETASSEMBLER_X86_HPP
+#define CPU_X86_GC_X_ZBARRIERSETASSEMBLER_X86_HPP
 
 #include "code/vmreg.hpp"
 #include "oops/accessDecorators.hpp"
@@ -36,11 +36,19 @@ class MacroAssembler;
 class LIR_Assembler;
 class LIR_Opr;
 class StubAssembler;
-class ZLoadBarrierStubC1;
 #endif // COMPILER1
 
 #ifdef COMPILER2
 class Node;
+#endif // COMPILER2
+
+namespace ZOriginal {
+
+#ifdef COMPILER1
+class ZLoadBarrierStubC1;
+#endif // COMPILER1
+
+#ifdef COMPILER2
 class ZLoadBarrierStubC2;
 #endif // COMPILER2
 
@@ -61,7 +69,8 @@ public:
                         Address dst,
                         Register src,
                         Register tmp1,
-                        Register tmp2);
+                        Register tmp2,
+                        Register tmp3);
 #endif // ASSERT
 
   virtual void arraycopy_prologue(MacroAssembler* masm,
@@ -97,4 +106,6 @@ public:
 #endif // COMPILER2
 };
 
-#endif // CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP
+}
+
+#endif // CPU_X86_GC_X_ZBARRIERSETASSEMBLER_X86_HPP

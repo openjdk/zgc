@@ -23,12 +23,14 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zDirector.hpp"
-#include "gc/z/zDriver.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zHeuristics.hpp"
-#include "gc/z/zStat.hpp"
+#include "gc/x/xDirector.hpp"
+#include "gc/x/xDriver.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xHeuristics.hpp"
+#include "gc/x/xStat.hpp"
 #include "logging/log.hpp"
+
+namespace ZOriginal {
 
 constexpr double one_in_1000 = 3.290527;
 constexpr double sample_interval = 1.0 / ZStatAllocRate::sample_hz;
@@ -403,4 +405,6 @@ void ZDirector::run_service() {
 
 void ZDirector::stop_service() {
   _metronome.stop();
+}
+
 }

@@ -22,12 +22,14 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zVirtualMemory.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xVirtualMemory.hpp"
 #include "logging/log.hpp"
 
 #include <sys/mman.h>
 #include <sys/types.h>
+
+namespace ZOriginal {
 
 void ZVirtualMemoryManager::pd_initialize_before_reserve() {
   // Does nothing
@@ -57,4 +59,6 @@ bool ZVirtualMemoryManager::pd_reserve(uintptr_t addr, size_t size) {
 void ZVirtualMemoryManager::pd_unreserve(uintptr_t addr, size_t size) {
   const int res = munmap((void*)addr, size);
   assert(res == 0, "Failed to unmap memory");
+}
+
 }

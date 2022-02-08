@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNUMA_HPP
-#define SHARE_GC_Z_ZNUMA_HPP
+#ifndef SHARE_GC_X_ZNUMA_HPP
+#define SHARE_GC_X_ZNUMA_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZNUMA : public AllStatic {
 private:
@@ -44,4 +46,6 @@ public:
   static const char* to_string();
 };
 
-#endif // SHARE_GC_Z_ZNUMA_HPP
+}
+
+#endif // SHARE_GC_X_ZNUMA_HPP

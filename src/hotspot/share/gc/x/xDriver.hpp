@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZDRIVER_HPP
-#define SHARE_GC_Z_ZDRIVER_HPP
+#ifndef SHARE_GC_X_ZDRIVER_HPP
+#define SHARE_GC_X_ZDRIVER_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
 #include "gc/shared/gcCause.hpp"
-#include "gc/z/zMessagePort.hpp"
+#include "gc/x/xMessagePort.hpp"
+
+namespace ZOriginal {
 
 class VM_ZOperation;
 
@@ -81,4 +83,6 @@ public:
   void collect(const ZDriverRequest& request);
 };
 
-#endif // SHARE_GC_Z_ZDRIVER_HPP
+}
+
+#endif // SHARE_GC_X_ZDRIVER_HPP

@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFORWARDINGTABLE_HPP
-#define SHARE_GC_Z_ZFORWARDINGTABLE_HPP
+#ifndef SHARE_GC_X_ZFORWARDINGTABLE_HPP
+#define SHARE_GC_X_ZFORWARDINGTABLE_HPP
 
-#include "gc/z/zGranuleMap.hpp"
+#include "gc/x/xGranuleMap.hpp"
+
+namespace ZOriginal {
 
 class ZForwarding;
 
@@ -43,4 +45,6 @@ public:
   void remove(ZForwarding* forwarding);
 };
 
-#endif // SHARE_GC_Z_ZFORWARDINGTABLE_HPP
+}
+
+#endif // SHARE_GC_X_ZFORWARDINGTABLE_HPP

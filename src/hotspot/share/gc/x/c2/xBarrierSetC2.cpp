@@ -23,10 +23,10 @@
 
 #include "precompiled.hpp"
 #include "classfile/javaClasses.hpp"
-#include "gc/z/c2/zBarrierSetC2.hpp"
-#include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zBarrierSetRuntime.hpp"
+#include "gc/x/c2/xBarrierSetC2.hpp"
+#include "gc/x/xBarrierSet.hpp"
+#include "gc/x/xBarrierSetAssembler.hpp"
+#include "gc/x/xBarrierSetRuntime.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -43,6 +43,8 @@
 #include "opto/type.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
+
+namespace ZOriginal {
 
 class ZBarrierSetC2State : public ResourceObj {
 private:
@@ -561,4 +563,6 @@ void ZBarrierSetC2::compute_liveness_at_stubs() const {
       }
     }
   }
+}
+
 }

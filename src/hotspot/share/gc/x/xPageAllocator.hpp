@@ -21,19 +21,22 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZPAGEALLOCATOR_HPP
-#define SHARE_GC_Z_ZPAGEALLOCATOR_HPP
+#ifndef SHARE_GC_X_ZPAGEALLOCATOR_HPP
+#define SHARE_GC_X_ZPAGEALLOCATOR_HPP
 
-#include "gc/z/zAllocationFlags.hpp"
-#include "gc/z/zArray.hpp"
-#include "gc/z/zList.hpp"
-#include "gc/z/zLock.hpp"
-#include "gc/z/zPageCache.hpp"
-#include "gc/z/zPhysicalMemory.hpp"
-#include "gc/z/zSafeDelete.hpp"
-#include "gc/z/zVirtualMemory.hpp"
+#include "gc/x/xAllocationFlags.hpp"
+#include "gc/x/xArray.hpp"
+#include "gc/x/xList.hpp"
+#include "gc/x/xLock.hpp"
+#include "gc/x/xPageCache.hpp"
+#include "gc/x/xPhysicalMemory.hpp"
+#include "gc/x/xSafeDelete.hpp"
+#include "gc/x/xVirtualMemory.hpp"
 
 class ThreadClosure;
+
+namespace ZOriginal {
+
 class ZPageAllocation;
 class ZPageAllocatorStats;
 class ZWorkers;
@@ -170,4 +173,6 @@ public:
   size_t reclaimed() const;
 };
 
-#endif // SHARE_GC_Z_ZPAGEALLOCATOR_HPP
+}
+
+#endif // SHARE_GC_X_ZPAGEALLOCATOR_HPP

@@ -22,10 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zBarrierSetRuntime.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xBarrierSetRuntime.hpp"
 #include "oops/access.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
+
+namespace ZOriginal {
 
 JRT_LEAF(oopDesc*, ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded(oopDesc* o, oop* p))
   return ZBarrier::load_barrier_on_oop_field_preloaded(p, o);
@@ -111,4 +113,6 @@ address ZBarrierSetRuntime::load_barrier_on_oop_array_addr() {
 
 address ZBarrierSetRuntime::clone_addr() {
   return reinterpret_cast<address>(clone);
+}
+
 }

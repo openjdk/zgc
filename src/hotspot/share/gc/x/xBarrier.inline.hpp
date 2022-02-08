@@ -21,16 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBARRIER_INLINE_HPP
-#define SHARE_GC_Z_ZBARRIER_INLINE_HPP
+#ifndef SHARE_GC_X_ZBARRIER_INLINE_HPP
+#define SHARE_GC_X_ZBARRIER_INLINE_HPP
 
-#include "gc/z/zBarrier.hpp"
+#include "gc/x/xBarrier.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zOop.inline.hpp"
-#include "gc/z/zResurrection.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xOop.inline.hpp"
+#include "gc/x/xResurrection.inline.hpp"
 #include "oops/oop.hpp"
 #include "runtime/atomic.hpp"
+
+namespace ZOriginal {
 
 // A self heal must always "upgrade" the address metadata bits in
 // accordance with the metadata bits state machine, which has the
@@ -385,4 +387,6 @@ inline void ZBarrier::mark_barrier_on_oop_array(volatile oop* p, size_t length, 
   }
 }
 
-#endif // SHARE_GC_Z_ZBARRIER_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZBARRIER_INLINE_HPP

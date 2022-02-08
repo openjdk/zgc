@@ -21,18 +21,20 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZSTAT_HPP
-#define SHARE_GC_Z_ZSTAT_HPP
+#ifndef SHARE_GC_X_ZSTAT_HPP
+#define SHARE_GC_X_ZSTAT_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcTimer.hpp"
-#include "gc/z/zMetronome.hpp"
+#include "gc/x/xMetronome.hpp"
 #include "logging/logHandle.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/numberSeq.hpp"
 #include "utilities/ticks.hpp"
+
+namespace ZOriginal {
 
 class ZPage;
 class ZPageAllocatorStats;
@@ -572,4 +574,6 @@ public:
   static void print();
 };
 
-#endif // SHARE_GC_Z_ZSTAT_HPP
+}
+
+#endif // SHARE_GC_X_ZSTAT_HPP

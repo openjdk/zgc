@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMARKTERMINATE_INLINE_HPP
-#define SHARE_GC_Z_ZMARKTERMINATE_INLINE_HPP
+#ifndef SHARE_GC_X_ZMARKTERMINATE_INLINE_HPP
+#define SHARE_GC_X_ZMARKTERMINATE_INLINE_HPP
 
-#include "gc/z/zMarkTerminate.hpp"
+#include "gc/x/xMarkTerminate.hpp"
 
 #include "runtime/atomic.hpp"
+
+namespace ZOriginal {
 
 inline ZMarkTerminate::ZMarkTerminate() :
     _nworkers(0),
@@ -85,4 +87,6 @@ inline bool ZMarkTerminate::try_exit_stage1() {
   return try_exit_stage(&_nworking_stage1);
 }
 
-#endif // SHARE_GC_Z_ZMARKTERMINATE_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZMARKTERMINATE_INLINE_HPP

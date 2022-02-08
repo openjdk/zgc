@@ -21,17 +21,19 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNMETHODDATA_HPP
-#define SHARE_GC_Z_ZNMETHODDATA_HPP
+#ifndef SHARE_GC_X_ZNMETHODDATA_HPP
+#define SHARE_GC_X_ZNMETHODDATA_HPP
 
-#include "gc/z/zAttachedArray.hpp"
-#include "gc/z/zLock.hpp"
+#include "gc/x/xAttachedArray.hpp"
+#include "gc/x/xLock.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class nmethod;
 template <typename T> class GrowableArray;
+
+namespace ZOriginal {
 
 class ZNMethodDataOops {
 private:
@@ -68,4 +70,6 @@ public:
   ZNMethodDataOops* swap_oops(ZNMethodDataOops* oops);
 };
 
-#endif // SHARE_GC_Z_ZNMETHODDATA_HPP
+}
+
+#endif // SHARE_GC_X_ZNMETHODDATA_HPP

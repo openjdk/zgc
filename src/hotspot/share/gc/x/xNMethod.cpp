@@ -28,14 +28,14 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zNMethodData.hpp"
-#include "gc/z/zNMethodTable.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xNMethodData.hpp"
+#include "gc/x/xNMethodTable.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xWorkers.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/iterator.hpp"
@@ -44,6 +44,8 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 static ZNMethodData* gc_data(const nmethod* nm) {
   return nm->gc_data<ZNMethodData>();
@@ -424,4 +426,6 @@ public:
 void ZNMethod::purge(ZWorkers* workers) {
   ZNMethodPurgeTask task;
   workers->run(&task);
+}
+
 }

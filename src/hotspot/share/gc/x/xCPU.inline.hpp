@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZCPU_INLINE_HPP
-#define SHARE_GC_Z_ZCPU_INLINE_HPP
+#ifndef SHARE_GC_X_ZCPU_INLINE_HPP
+#define SHARE_GC_X_ZCPU_INLINE_HPP
 
-#include "gc/z/zCPU.hpp"
+#include "gc/x/xCPU.hpp"
 
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline uint32_t ZCPU::count() {
   return os::processor_count();
@@ -45,4 +47,6 @@ inline uint32_t ZCPU::id() {
   return id_slow();
 }
 
-#endif // SHARE_GC_Z_ZCPU_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZCPU_INLINE_HPP

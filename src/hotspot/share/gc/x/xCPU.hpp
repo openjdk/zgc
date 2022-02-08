@@ -21,14 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZCPU_HPP
-#define SHARE_GC_Z_ZCPU_HPP
+#ifndef SHARE_GC_X_ZCPU_HPP
+#define SHARE_GC_X_ZCPU_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 class Thread;
+
+namespace ZOriginal {
 
 class ZCPU : public AllStatic {
 private:
@@ -49,4 +51,6 @@ public:
   static uint32_t id();
 };
 
-#endif // SHARE_GC_Z_ZCPU_HPP
+}
+
+#endif // SHARE_GC_X_ZCPU_HPP

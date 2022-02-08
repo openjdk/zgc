@@ -21,17 +21,19 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZUTILS_INLINE_HPP
-#define SHARE_GC_Z_ZUTILS_INLINE_HPP
+#ifndef SHARE_GC_X_ZUTILS_INLINE_HPP
+#define SHARE_GC_X_ZUTILS_INLINE_HPP
 
-#include "gc/z/zUtils.hpp"
+#include "gc/x/xUtils.hpp"
 
-#include "gc/z/zOop.inline.hpp"
+#include "gc/x/xOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 inline size_t ZUtils::bytes_to_words(size_t size_in_bytes) {
   assert(is_aligned(size_in_bytes, BytesPerWord), "Size not word aligned");
@@ -56,4 +58,6 @@ inline void ZUtils::object_copy_conjoint(uintptr_t from, uintptr_t to, size_t si
   }
 }
 
-#endif // SHARE_GC_Z_ZUTILS_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZUTILS_INLINE_HPP

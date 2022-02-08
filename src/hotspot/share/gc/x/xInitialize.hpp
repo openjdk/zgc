@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZINITIALIZE_HPP
-#define SHARE_GC_Z_ZINITIALIZE_HPP
+#ifndef SHARE_GC_X_ZINITIALIZE_HPP
+#define SHARE_GC_X_ZINITIALIZE_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZBarrierSet;
 
@@ -36,4 +38,6 @@ public:
   ZInitialize(ZBarrierSet* barrier_set);
 };
 
-#endif // SHARE_GC_Z_ZINITIALIZE_HPP
+}
+
+#endif // SHARE_GC_X_ZINITIALIZE_HPP

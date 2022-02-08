@@ -21,8 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZUNLOAD_HPP
-#define SHARE_GC_Z_ZUNLOAD_HPP
+#ifndef SHARE_GC_X_ZUNLOAD_HPP
+#define SHARE_GC_X_ZUNLOAD_HPP
+
+namespace ZOriginal {
 
 class ZWorkers;
 
@@ -39,4 +41,6 @@ public:
   void finish();
 };
 
-#endif // SHARE_GC_Z_ZUNLOAD_HPP
+}
+
+#endif // SHARE_GC_X_ZUNLOAD_HPP

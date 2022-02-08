@@ -23,12 +23,14 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zUncommitter.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xUncommitter.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
+
+namespace ZOriginal {
 
 static const ZStatCounter ZCounterUncommit("Memory", "Uncommit", ZStatUnitBytesPerSecond);
 
@@ -93,4 +95,6 @@ void ZUncommitter::stop_service() {
   ZLocker<ZConditionLock> locker(&_lock);
   _stop = true;
   _lock.notify_all();
+}
+
 }

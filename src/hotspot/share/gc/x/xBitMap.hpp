@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBITMAP_HPP
-#define SHARE_GC_Z_ZBITMAP_HPP
+#ifndef SHARE_GC_X_ZBITMAP_HPP
+#define SHARE_GC_X_ZBITMAP_HPP
 
 #include "utilities/bitMap.hpp"
+
+namespace ZOriginal {
 
 class ZBitMap : public CHeapBitMap {
 private:
@@ -39,4 +41,6 @@ public:
   bool par_set_bit_pair(idx_t bit, bool finalizable, bool& inc_live);
 };
 
-#endif // SHARE_GC_Z_ZBITMAP_HPP
+}
+
+#endif // SHARE_GC_X_ZBITMAP_HPP

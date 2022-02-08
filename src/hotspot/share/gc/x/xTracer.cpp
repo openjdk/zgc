@@ -23,9 +23,9 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcId.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zTracer.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xTracer.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "utilities/debug.hpp"
@@ -33,6 +33,8 @@
 #if INCLUDE_JFR
 #include "jfr/metadata/jfrSerializer.hpp"
 #endif
+
+namespace ZOriginal {
 
 #if INCLUDE_JFR
 
@@ -130,4 +132,6 @@ void ZTracer::send_thread_phase(const char* name, const Ticks& start, const Tick
     e.set_endtime(end);
     e.commit();
   }
+}
+
 }

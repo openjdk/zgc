@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZSAFEDELETE_HPP
-#define SHARE_GC_Z_ZSAFEDELETE_HPP
+#ifndef SHARE_GC_X_ZSAFEDELETE_HPP
+#define SHARE_GC_X_ZSAFEDELETE_HPP
 
-#include "gc/z/zArray.hpp"
-#include "gc/z/zLock.hpp"
+#include "gc/x/xArray.hpp"
+#include "gc/x/xLock.hpp"
 #include "metaprogramming/removeExtent.hpp"
+
+namespace ZOriginal {
 
 template <typename T>
 class ZSafeDeleteImpl {
@@ -64,4 +66,6 @@ public:
   ZSafeDeleteNoLock();
 };
 
-#endif // SHARE_GC_Z_ZSAFEDELETE_HPP
+}
+
+#endif // SHARE_GC_X_ZSAFEDELETE_HPP

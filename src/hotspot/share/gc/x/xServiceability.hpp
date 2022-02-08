@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZSERVICEABILITY_HPP
-#define SHARE_GC_Z_ZSERVICEABILITY_HPP
+#ifndef SHARE_GC_X_ZSERVICEABILITY_HPP
+#define SHARE_GC_X_ZSERVICEABILITY_HPP
 
 #include "gc/shared/collectorCounters.hpp"
 #include "gc/shared/gcVMOperations.hpp"
@@ -30,6 +30,8 @@
 #include "services/memoryManager.hpp"
 #include "services/memoryPool.hpp"
 #include "services/memoryService.hpp"
+
+namespace ZOriginal {
 
 class ZServiceabilityCounters;
 
@@ -87,4 +89,6 @@ public:
   ~ZServiceabilityPauseTracer();
 };
 
-#endif // SHARE_GC_Z_ZSERVICEABILITY_HPP
+}
+
+#endif // SHARE_GC_X_ZSERVICEABILITY_HPP

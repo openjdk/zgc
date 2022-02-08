@@ -22,9 +22,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zArguments.hpp"
-#include "gc/z/zSyscall_windows.hpp"
+#include "gc/x/xArguments.hpp"
+#include "gc/x/xSyscall_windows.hpp"
+
+namespace ZOriginal {
 
 bool ZArguments::is_os_supported() const {
   return ZSyscall::is_supported();
+}
+
 }

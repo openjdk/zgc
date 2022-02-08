@@ -22,7 +22,9 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zNUMA.hpp"
+#include "gc/x/xNUMA.hpp"
+
+namespace ZOriginal {
 
 void ZNUMA::pd_initialize() {
   _enabled = false;
@@ -39,4 +41,6 @@ uint32_t ZNUMA::id() {
 uint32_t ZNUMA::memory_id(uintptr_t addr) {
   // NUMA support not enabled, assume everything belongs to node zero
   return 0;
+}
+
 }

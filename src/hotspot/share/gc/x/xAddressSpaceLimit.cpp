@@ -23,11 +23,13 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zAddressSpaceLimit.hpp"
-#include "gc/z/zGlobals.hpp"
+#include "gc/x/xAddressSpaceLimit.hpp"
+#include "gc/x/xGlobals.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
 #include "utilities/align.hpp"
+
+namespace ZOriginal {
 
 static size_t address_space_limit() {
   size_t limit = 0;
@@ -50,4 +52,6 @@ size_t ZAddressSpaceLimit::heap_view() {
   // Allow all heap views to occupy 50% of the address space
   const size_t limit = address_space_limit() / MaxVirtMemFraction / ZHeapViews;
   return align_up(limit, ZGranuleSize);
+}
+
 }

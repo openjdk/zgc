@@ -21,13 +21,17 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNUMA_INLINE_HPP
-#define SHARE_GC_Z_ZNUMA_INLINE_HPP
+#ifndef SHARE_GC_X_ZNUMA_INLINE_HPP
+#define SHARE_GC_X_ZNUMA_INLINE_HPP
 
-#include "gc/z/zNUMA.hpp"
+#include "gc/x/xNUMA.hpp"
+
+namespace ZOriginal {
 
 inline bool ZNUMA::is_enabled() {
   return _enabled;
 }
 
-#endif // SHARE_GC_Z_ZNUMA_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZNUMA_INLINE_HPP

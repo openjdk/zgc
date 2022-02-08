@@ -29,27 +29,27 @@
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
-#include "gc/z/zAbort.inline.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zMark.inline.hpp"
-#include "gc/z/zMarkCache.inline.hpp"
-#include "gc/z/zMarkContext.inline.hpp"
-#include "gc/z/zMarkStack.inline.hpp"
-#include "gc/z/zMarkTerminate.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zOop.inline.hpp"
-#include "gc/z/zPage.hpp"
-#include "gc/z/zPageTable.inline.hpp"
-#include "gc/z/zRootsIterator.hpp"
-#include "gc/z/zStackWatermark.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zThread.inline.hpp"
-#include "gc/z/zThreadLocalAllocBuffer.hpp"
-#include "gc/z/zUtils.inline.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xAbort.inline.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xMark.inline.hpp"
+#include "gc/x/xMarkCache.inline.hpp"
+#include "gc/x/xMarkContext.inline.hpp"
+#include "gc/x/xMarkStack.inline.hpp"
+#include "gc/x/xMarkTerminate.inline.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xOop.inline.hpp"
+#include "gc/x/xPage.hpp"
+#include "gc/x/xPageTable.inline.hpp"
+#include "gc/x/xRootsIterator.hpp"
+#include "gc/x/xStackWatermark.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xThread.inline.hpp"
+#include "gc/x/xThreadLocalAllocBuffer.hpp"
+#include "gc/x/xUtils.inline.hpp"
+#include "gc/x/xWorkers.hpp"
 #include "logging/log.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -65,6 +65,8 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/ticks.hpp"
+
+namespace ZOriginal {
 
 static const ZStatSubPhase ZSubPhaseConcurrentMark("Concurrent Mark");
 static const ZStatSubPhase ZSubPhaseConcurrentMarkTryFlush("Concurrent Mark Try Flush");
@@ -845,4 +847,6 @@ void ZMark::verify_all_stacks_empty() const {
 
   // Verify stripe stacks
   guarantee(_stripes.is_empty(), "Should be empty");
+}
+
 }

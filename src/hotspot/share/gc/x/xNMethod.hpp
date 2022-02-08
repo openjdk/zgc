@@ -21,13 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZNMETHOD_HPP
-#define SHARE_GC_Z_ZNMETHOD_HPP
+#ifndef SHARE_GC_X_ZNMETHOD_HPP
+#define SHARE_GC_X_ZNMETHOD_HPP
 
 #include "memory/allocation.hpp"
 
 class nmethod;
 class NMethodClosure;
+
+namespace ZOriginal {
+
 class ZReentrantLock;
 class ZWorkers;
 
@@ -63,4 +66,6 @@ public:
   static void purge(ZWorkers* workers);
 };
 
-#endif // SHARE_GC_Z_ZNMETHOD_HPP
+}
+
+#endif // SHARE_GC_X_ZNMETHOD_HPP

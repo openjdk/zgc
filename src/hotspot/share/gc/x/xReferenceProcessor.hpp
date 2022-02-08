@@ -21,13 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZREFERENCEPROCESSOR_HPP
-#define SHARE_GC_Z_ZREFERENCEPROCESSOR_HPP
+#ifndef SHARE_GC_X_ZREFERENCEPROCESSOR_HPP
+#define SHARE_GC_X_ZREFERENCEPROCESSOR_HPP
 
 #include "gc/shared/referenceDiscoverer.hpp"
-#include "gc/z/zValue.hpp"
+#include "gc/x/xValue.hpp"
 
 class ReferencePolicy;
+
+namespace ZOriginal {
+
 class ZWorkers;
 
 class ZReferenceProcessor : public ReferenceDiscoverer {
@@ -76,4 +79,6 @@ public:
   void enqueue_references();
 };
 
-#endif // SHARE_GC_Z_ZREFERENCEPROCESSOR_HPP
+}
+
+#endif // SHARE_GC_X_ZREFERENCEPROCESSOR_HPP

@@ -22,10 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zResurrection.hpp"
+#include "gc/x/xResurrection.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 volatile bool ZResurrection::_blocked = false;
 
@@ -39,4 +41,6 @@ void ZResurrection::unblock() {
   // The preceeding handshake makes sure that all non-strong
   // oops have already been healed at this point.
   Atomic::store(&_blocked, false);
+}
+
 }

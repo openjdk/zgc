@@ -21,16 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZHEAPITERATOR_HPP
-#define SHARE_GC_Z_ZHEAPITERATOR_HPP
+#ifndef SHARE_GC_X_ZHEAPITERATOR_HPP
+#define SHARE_GC_X_ZHEAPITERATOR_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
-#include "gc/z/zGranuleMap.hpp"
-#include "gc/z/zLock.hpp"
-#include "gc/z/zRootsIterator.hpp"
-#include "gc/z/zStat.hpp"
+#include "gc/x/xGranuleMap.hpp"
+#include "gc/x/xLock.hpp"
+#include "gc/x/xRootsIterator.hpp"
+#include "gc/x/xStat.hpp"
+
+namespace ZOriginal {
 
 class ZHeapIteratorBitMap;
 class ZHeapIteratorContext;
@@ -94,4 +96,6 @@ public:
   virtual void object_iterate(ObjectClosure* cl, uint worker_id);
 };
 
-#endif // SHARE_GC_Z_ZHEAPITERATOR_HPP
+}
+
+#endif // SHARE_GC_X_ZHEAPITERATOR_HPP

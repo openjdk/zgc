@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZADDRESSSPACELIMIT_HPP
-#define SHARE_GC_Z_ZADDRESSSPACELIMIT_HPP
+#ifndef SHARE_GC_X_ZADDRESSSPACELIMIT_HPP
+#define SHARE_GC_X_ZADDRESSSPACELIMIT_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZAddressSpaceLimit : public AllStatic {
 public:
@@ -32,4 +34,6 @@ public:
   static size_t heap_view();
 };
 
-#endif // SHARE_GC_Z_ZADDRESSSPACELIMIT_HPP
+}
+
+#endif // SHARE_GC_X_ZADDRESSSPACELIMIT_HPP

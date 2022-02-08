@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZBARRIERSETNMETHOD_HPP
-#define SHARE_GC_Z_ZBARRIERSETNMETHOD_HPP
+#ifndef SHARE_GC_X_ZBARRIERSETNMETHOD_HPP
+#define SHARE_GC_X_ZBARRIERSETNMETHOD_HPP
 
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "memory/allocation.hpp"
 
 class nmethod;
+
+namespace ZOriginal {
 
 class ZBarrierSetNMethod : public BarrierSetNMethod {
 protected:
@@ -38,4 +40,6 @@ public:
   virtual int* disarmed_value_address() const;
 };
 
-#endif // SHARE_GC_Z_ZBARRIERSETNMETHOD_HPP
+}
+
+#endif // SHARE_GC_X_ZBARRIERSETNMETHOD_HPP

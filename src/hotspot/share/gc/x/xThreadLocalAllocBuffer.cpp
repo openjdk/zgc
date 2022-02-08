@@ -23,13 +23,15 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/tlab_globals.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zStackWatermark.hpp"
-#include "gc/z/zThreadLocalAllocBuffer.hpp"
-#include "gc/z/zValue.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xStackWatermark.hpp"
+#include "gc/x/xThreadLocalAllocBuffer.hpp"
+#include "gc/x/xValue.inline.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/stackWatermarkSet.inline.hpp"
 #include "runtime/thread.hpp"
+
+namespace ZOriginal {
 
 ZPerWorker<ThreadLocalAllocStats>* ZThreadLocalAllocBuffer::_stats = NULL;
 
@@ -89,4 +91,6 @@ void ZThreadLocalAllocBuffer::update_stats(JavaThread* thread) {
     ZStackWatermark* const watermark = StackWatermarkSet::get<ZStackWatermark>(thread, StackWatermarkKind::gc);
     _stats->addr()->update(watermark->stats());
   }
+}
+
 }

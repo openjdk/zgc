@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZOOP_INLINE_HPP
-#define SHARE_GC_Z_ZOOP_INLINE_HPP
+#ifndef SHARE_GC_X_ZOOP_INLINE_HPP
+#define SHARE_GC_X_ZOOP_INLINE_HPP
 
-#include "gc/z/zOop.hpp"
+#include "gc/x/xOop.hpp"
+
+namespace ZOriginal {
 
 inline oop ZOop::from_address(uintptr_t addr) {
   return cast_to_oop(addr);
@@ -34,4 +36,6 @@ inline uintptr_t ZOop::to_address(oop o) {
   return cast_from_oop<uintptr_t>(o);
 }
 
-#endif // SHARE_GC_Z_ZOOP_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZOOP_INLINE_HPP

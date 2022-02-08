@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZHEURISTICS_HPP
-#define SHARE_GC_Z_ZHEURISTICS_HPP
+#ifndef SHARE_GC_X_ZHEURISTICS_HPP
+#define SHARE_GC_X_ZHEURISTICS_HPP
 
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZHeuristics : public AllStatic {
 public:
@@ -38,4 +40,6 @@ public:
   static uint nconcurrent_workers();
 };
 
-#endif // SHARE_GC_Z_ZHEURISTICS_HPP
+}
+
+#endif // SHARE_GC_X_ZHEURISTICS_HPP

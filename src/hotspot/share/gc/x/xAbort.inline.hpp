@@ -21,15 +21,19 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZABORT_INLINE_HPP
-#define SHARE_GC_Z_ZABORT_INLINE_HPP
+#ifndef SHARE_GC_X_ZABORT_INLINE_HPP
+#define SHARE_GC_X_ZABORT_INLINE_HPP
 
-#include "gc/z/zAbort.hpp"
+#include "gc/x/xAbort.hpp"
 
 #include "runtime/atomic.hpp"
+
+namespace ZOriginal {
 
 inline bool ZAbort::should_abort() {
   return Atomic::load_acquire(&_should_abort);
 }
 
-#endif // SHARE_GC_Z_ZABORT_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZABORT_INLINE_HPP

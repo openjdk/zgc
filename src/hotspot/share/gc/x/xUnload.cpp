@@ -29,13 +29,15 @@
 #include "code/dependencyContext.hpp"
 #include "gc/shared/gcBehaviours.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zLock.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zUnload.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xLock.inline.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xUnload.hpp"
 #include "memory/metaspaceUtils.hpp"
 #include "oops/access.inline.hpp"
+
+namespace ZOriginal {
 
 static const ZStatSubPhase ZSubPhaseConcurrentClassesUnlink("Concurrent Classes Unlink");
 static const ZStatSubPhase ZSubPhaseConcurrentClassesPurge("Concurrent Classes Purge");
@@ -173,4 +175,6 @@ void ZUnload::finish() {
   // Resize and verify metaspace
   MetaspaceGC::compute_new_size();
   DEBUG_ONLY(MetaspaceUtils::verify();)
+}
+
 }

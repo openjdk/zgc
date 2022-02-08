@@ -23,12 +23,12 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zArray.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLargePages.inline.hpp"
-#include "gc/z/zNUMA.inline.hpp"
-#include "gc/z/zPhysicalMemory.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xArray.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLargePages.inline.hpp"
+#include "gc/x/xNUMA.inline.hpp"
+#include "gc/x/xPhysicalMemory.inline.hpp"
 #include "logging/log.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
@@ -39,6 +39,8 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 ZPhysicalMemory::ZPhysicalMemory() :
     _segments() {}
@@ -432,4 +434,6 @@ void ZPhysicalMemoryManager::debug_unmap(uintptr_t offset, size_t size) const {
   // Unmap good view
   assert(ZVerifyViews, "Should be enabled");
   unmap_view(ZAddress::good(offset), size);
+}
+
 }

@@ -53,12 +53,14 @@
  * http://opensource.org/licenses/bsd-license.php
  */
 
-#ifndef SHARE_GC_Z_ZHASH_INLINE_HPP
-#define SHARE_GC_Z_ZHASH_INLINE_HPP
+#ifndef SHARE_GC_X_ZHASH_INLINE_HPP
+#define SHARE_GC_X_ZHASH_INLINE_HPP
 
-#include "gc/z/zHash.hpp"
+#include "gc/x/xHash.hpp"
 
-#include "gc/z/zAddress.inline.hpp"
+#include "gc/x/xAddress.inline.hpp"
+
+namespace ZOriginal {
 
 inline uint32_t ZHash::uint32_to_uint32(uint32_t key) {
   key = ~key + (key << 15);
@@ -74,4 +76,6 @@ inline uint32_t ZHash::address_to_uint32(uintptr_t key) {
   return uint32_to_uint32((uint32_t)(key >> 3));
 }
 
-#endif // SHARE_GC_Z_ZHASH_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZHASH_INLINE_HPP

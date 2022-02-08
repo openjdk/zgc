@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZLIST_HPP
-#define SHARE_GC_Z_ZLIST_HPP
+#ifndef SHARE_GC_X_ZLIST_HPP
+#define SHARE_GC_X_ZLIST_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 template <typename T> class ZList;
 
@@ -113,4 +115,6 @@ template <typename T> using ZListIterator = ZListIteratorImpl<T, true /* Forward
 template <typename T> using ZListReverseIterator = ZListIteratorImpl<T, false /* Forward */>;
 template <typename T> using ZListRemoveIterator = ZListRemoveIteratorImpl<T, true /* Forward */>;
 
-#endif // SHARE_GC_Z_ZLIST_HPP
+}
+
+#endif // SHARE_GC_X_ZLIST_HPP

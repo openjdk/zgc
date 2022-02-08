@@ -22,14 +22,16 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zLargePages.inline.hpp"
-#include "gc/z/zMapper_windows.hpp"
-#include "gc/z/zSyscall_windows.hpp"
-#include "gc/z/zVirtualMemory.hpp"
+#include "gc/x/xAddress.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xLargePages.inline.hpp"
+#include "gc/x/xMapper_windows.hpp"
+#include "gc/x/xSyscall_windows.hpp"
+#include "gc/x/xVirtualMemory.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 class ZVirtualMemoryManagerImpl : public CHeapObj<mtGC> {
 public:
@@ -192,4 +194,6 @@ bool ZVirtualMemoryManager::pd_reserve(uintptr_t addr, size_t size) {
 
 void ZVirtualMemoryManager::pd_unreserve(uintptr_t addr, size_t size) {
   _impl->unreserve(addr, size);
+}
+
 }

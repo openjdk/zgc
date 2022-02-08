@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZTRACER_INLINE_HPP
-#define SHARE_GC_Z_ZTRACER_INLINE_HPP
+#ifndef SHARE_GC_X_ZTRACER_INLINE_HPP
+#define SHARE_GC_X_ZTRACER_INLINE_HPP
 
-#include "gc/z/zTracer.hpp"
+#include "gc/x/xTracer.hpp"
 
 #include "jfr/jfrEvents.hpp"
+
+namespace ZOriginal {
 
 inline ZTracer* ZTracer::tracer() {
   return _tracer;
@@ -58,4 +60,6 @@ inline ZTraceThreadPhase::~ZTraceThreadPhase() {
   ZTracer::tracer()->report_thread_phase(_name, _start, Ticks::now());
 }
 
-#endif // SHARE_GC_Z_ZTRACER_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZTRACER_INLINE_HPP

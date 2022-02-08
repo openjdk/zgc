@@ -25,21 +25,23 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "code/codeBlob.hpp"
 #include "code/vmreg.inline.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zBarrierSet.hpp"
-#include "gc/z/zBarrierSetAssembler.hpp"
-#include "gc/z/zBarrierSetRuntime.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xBarrierSet.hpp"
+#include "gc/x/xBarrierSetAssembler.hpp"
+#include "gc/x/xBarrierSetRuntime.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
-#include "gc/z/c1/zBarrierSetC1.hpp"
+#include "gc/x/c1/xBarrierSetC1.hpp"
 #endif // COMPILER1
 #ifdef COMPILER2
-#include "gc/z/c2/zBarrierSetC2.hpp"
+#include "gc/x/c2/xBarrierSetC2.hpp"
 #endif // COMPILER2
+
+namespace ZOriginal {
 
 #ifdef PRODUCT
 #define BLOCK_COMMENT(str) /* nothing */
@@ -193,7 +195,8 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                     Address dst,
                                     Register src,
                                     Register tmp1,
-                                    Register tmp2) {
+                                    Register tmp2,
+                                    Register tmp3) {
   BLOCK_COMMENT("ZBarrierSetAssembler::store_at {");
 
   // Verify oop store
@@ -211,7 +214,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
   }
 
   // Store value
-  BarrierSetAssembler::store_at(masm, decorators, type, dst, src, tmp1, tmp2);
+  BarrierSetAssembler::store_at(masm, decorators, type, dst, src, tmp1, tmp2, tmp3);
 
   BLOCK_COMMENT("} ZBarrierSetAssembler::store_at");
 }
@@ -372,9 +375,13 @@ OptoReg::Name ZBarrierSetAssembler::refine_register(const Node* node, OptoReg::N
   return opto_reg;
 }
 
+} // namespace ZOriginal
+
 // We use the vec_spill_helper from the x86.ad file to avoid reinventing this wheel
 extern void vec_spill_helper(CodeBuffer *cbuf, bool is_load,
                             int stack_offset, int reg, uint ireg, outputStream* st);
+
+namespace ZOriginal {
 
 #undef __
 #define __ _masm->
@@ -704,3 +711,5 @@ void ZBarrierSetAssembler::generate_c2_load_barrier_stub(MacroAssembler* masm, Z
 #undef __
 
 #endif // COMPILER2
+
+}

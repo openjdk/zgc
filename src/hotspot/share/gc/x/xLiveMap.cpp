@@ -22,14 +22,16 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zLiveMap.inline.hpp"
-#include "gc/z/zStat.hpp"
-#include "gc/z/zThread.inline.hpp"
+#include "gc/x/xHeap.inline.hpp"
+#include "gc/x/xLiveMap.inline.hpp"
+#include "gc/x/xStat.hpp"
+#include "gc/x/xThread.inline.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 static const ZStatCounter ZCounterMarkSeqNumResetContention("Contention", "Mark SeqNum Reset Contention", ZStatUnitOpsPerSecond);
 static const ZStatCounter ZCounterMarkSegmentResetContention("Contention", "Mark Segment Reset Contention", ZStatUnitOpsPerSecond);
@@ -130,4 +132,6 @@ void ZLiveMap::resize(uint32_t size) {
     _bitmap.reinitialize(new_bitmap_size, false /* clear */);
     _segment_shift = exact_log2(segment_size());
   }
+}
+
 }

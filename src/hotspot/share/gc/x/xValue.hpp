@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZVALUE_HPP
-#define SHARE_GC_Z_ZVALUE_HPP
+#ifndef SHARE_GC_X_ZVALUE_HPP
+#define SHARE_GC_X_ZVALUE_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 //
 // Storage
@@ -137,4 +139,6 @@ template <typename T> using ZPerCPUConstIterator = ZValueConstIterator<ZPerCPUSt
 template <typename T> using ZPerNUMAConstIterator = ZValueConstIterator<ZPerNUMAStorage, T>;
 template <typename T> using ZPerWorkerConstIterator = ZValueConstIterator<ZPerWorkerStorage, T>;
 
-#endif // SHARE_GC_Z_ZVALUE_HPP
+}
+
+#endif // SHARE_GC_X_ZVALUE_HPP

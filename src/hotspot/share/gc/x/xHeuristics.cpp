@@ -24,13 +24,15 @@
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zCPU.inline.hpp"
-#include "gc/z/zGlobals.hpp"
-#include "gc/z/zHeuristics.hpp"
+#include "gc/x/xCPU.inline.hpp"
+#include "gc/x/xGlobals.hpp"
+#include "gc/x/xHeuristics.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
+
+namespace ZOriginal {
 
 void ZHeuristics::set_medium_page_size() {
   // Set ZPageSizeMedium so that a medium page occupies at most 3.125% of the
@@ -101,4 +103,6 @@ uint ZHeuristics::nconcurrent_workers() {
   // application. When in dynamic mode, use up to 25% of the active processors.
   //  When in non-dynamic mode, use 12.5% of the active processors.
   return nworkers(UseDynamicNumberOfGCThreads ? 25.0 : 12.5);
+}
+
 }

@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZVIRTUALMEMORY_HPP
-#define SHARE_GC_Z_ZVIRTUALMEMORY_HPP
+#ifndef SHARE_GC_X_ZVIRTUALMEMORY_HPP
+#define SHARE_GC_X_ZVIRTUALMEMORY_HPP
 
-#include "gc/z/zMemory.hpp"
+#include "gc/x/xMemory.hpp"
+
+namespace ZOriginal {
 
 class ZVirtualMemory {
   friend class VMStructs;
@@ -77,4 +79,6 @@ public:
   void free(const ZVirtualMemory& vmem);
 };
 
-#endif // SHARE_GC_Z_ZVIRTUALMEMORY_HPP
+}
+
+#endif // SHARE_GC_X_ZVIRTUALMEMORY_HPP

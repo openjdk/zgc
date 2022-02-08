@@ -21,13 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZMEMORY_INLINE_HPP
-#define SHARE_GC_Z_ZMEMORY_INLINE_HPP
+#ifndef SHARE_GC_X_ZMEMORY_INLINE_HPP
+#define SHARE_GC_X_ZMEMORY_INLINE_HPP
 
-#include "gc/z/zMemory.hpp"
+#include "gc/x/xMemory.hpp"
 
-#include "gc/z/zList.inline.hpp"
+#include "gc/x/xList.inline.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 inline ZMemory::ZMemory(uintptr_t start, size_t size) :
     _start(start),
@@ -64,4 +66,6 @@ inline void ZMemory::grow_from_back(size_t size) {
   _end += size;
 }
 
-#endif // SHARE_GC_Z_ZMEMORY_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZMEMORY_INLINE_HPP

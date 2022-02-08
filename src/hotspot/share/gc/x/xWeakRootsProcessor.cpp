@@ -22,11 +22,13 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zRootsIterator.hpp"
-#include "gc/z/zTask.hpp"
-#include "gc/z/zWeakRootsProcessor.hpp"
-#include "gc/z/zWorkers.hpp"
+#include "gc/x/xBarrier.inline.hpp"
+#include "gc/x/xRootsIterator.hpp"
+#include "gc/x/xTask.hpp"
+#include "gc/x/xWeakRootsProcessor.hpp"
+#include "gc/x/xWorkers.hpp"
+
+namespace ZOriginal {
 
 class ZPhantomCleanOopClosure : public OopClosure {
 public:
@@ -76,4 +78,6 @@ public:
 void ZWeakRootsProcessor::process_weak_roots() {
   ZProcessWeakRootsTask task;
   _workers->run(&task);
+}
+
 }

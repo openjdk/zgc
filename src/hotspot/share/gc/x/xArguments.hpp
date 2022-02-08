@@ -21,12 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZARGUMENTS_HPP
-#define SHARE_GC_Z_ZARGUMENTS_HPP
+#ifndef SHARE_GC_X_ZARGUMENTS_HPP
+#define SHARE_GC_X_ZARGUMENTS_HPP
 
 #include "gc/shared/gcArguments.hpp"
 
 class CollectedHeap;
+
+namespace ZOriginal {
 
 class ZArguments : public GCArguments {
 private:
@@ -42,4 +44,6 @@ private:
   bool is_os_supported() const;
 };
 
-#endif // SHARE_GC_Z_ZARGUMENTS_HPP
+}
+
+#endif // SHARE_GC_X_ZARGUMENTS_HPP

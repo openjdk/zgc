@@ -22,10 +22,13 @@
  * questions.
  */
 
-#ifndef CPU_PPC_GC_Z_ZGLOBALS_PPC_HPP
-#define CPU_PPC_GC_Z_ZGLOBALS_PPC_HPP
+#ifndef CPU_PPC_GC_X_ZGLOBALS_PPC_HPP
+#define CPU_PPC_GC_X_ZGLOBALS_PPC_HPP
 
 #include "globalDefinitions_ppc.hpp"
+
+namespace ZOriginal {
+
 const size_t ZPlatformGranuleSizeShift = 21; // 2MB
 const size_t ZPlatformHeapViews        = 3;
 const size_t ZPlatformCacheLineSize    = DEFAULT_CACHE_LINE_SIZE;
@@ -33,4 +36,6 @@ const size_t ZPlatformCacheLineSize    = DEFAULT_CACHE_LINE_SIZE;
 size_t ZPlatformAddressOffsetBits();
 size_t ZPlatformAddressMetadataShift();
 
-#endif // CPU_PPC_GC_Z_ZGLOBALS_PPC_HPP
+}
+
+#endif // CPU_PPC_GC_X_ZGLOBALS_PPC_HPP

@@ -21,11 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZRELOCATIONSETSELECTOR_HPP
-#define SHARE_GC_Z_ZRELOCATIONSETSELECTOR_HPP
+#ifndef SHARE_GC_X_ZRELOCATIONSETSELECTOR_HPP
+#define SHARE_GC_X_ZRELOCATIONSETSELECTOR_HPP
 
-#include "gc/z/zArray.hpp"
+#include "gc/x/xArray.hpp"
 #include "memory/allocation.hpp"
+
+namespace ZOriginal {
 
 class ZPage;
 
@@ -125,4 +127,6 @@ public:
   ZRelocationSetSelectorStats stats() const;
 };
 
-#endif // SHARE_GC_Z_ZRELOCATIONSETSELECTOR_HPP
+}
+
+#endif // SHARE_GC_X_ZRELOCATIONSETSELECTOR_HPP

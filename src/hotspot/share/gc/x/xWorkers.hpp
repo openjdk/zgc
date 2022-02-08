@@ -21,12 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZWORKERS_HPP
-#define SHARE_GC_Z_ZWORKERS_HPP
+#ifndef SHARE_GC_X_ZWORKERS_HPP
+#define SHARE_GC_X_ZWORKERS_HPP
 
 #include "gc/shared/workerThread.hpp"
 
 class ThreadClosure;
+
+namespace ZOriginal {
+
 class ZTask;
 
 class ZWorkers {
@@ -45,4 +48,6 @@ public:
   void threads_do(ThreadClosure* tc) const;
 };
 
-#endif // SHARE_GC_Z_ZWORKERS_HPP
+}
+
+#endif // SHARE_GC_X_ZWORKERS_HPP

@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZOBJARRAYALLOCATOR_HPP
-#define SHARE_GC_Z_ZOBJARRAYALLOCATOR_HPP
+#ifndef SHARE_GC_X_ZOBJARRAYALLOCATOR_HPP
+#define SHARE_GC_X_ZOBJARRAYALLOCATOR_HPP
 
 #include "gc/shared/memAllocator.hpp"
+
+namespace ZOriginal {
 
 class ZObjArrayAllocator : public ObjArrayAllocator {
 public:
@@ -33,4 +35,6 @@ public:
   virtual oop finish(HeapWord* mem) const;
 };
 
-#endif // SHARE_GC_Z_ZOBJARRAYALLOCATOR_HPP
+}
+
+#endif // SHARE_GC_X_ZOBJARRAYALLOCATOR_HPP

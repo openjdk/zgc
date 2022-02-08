@@ -23,9 +23,11 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/z/zLargePages.hpp"
-#include "gc/z/zSyscall_windows.hpp"
+#include "gc/x/xLargePages.hpp"
+#include "gc/x/xSyscall_windows.hpp"
 #include "runtime/globals.hpp"
+
+namespace ZOriginal {
 
 void ZLargePages::pd_initialize() {
   if (UseLargePages) {
@@ -37,4 +39,6 @@ void ZLargePages::pd_initialize() {
   }
 
   _state = Disabled;
+}
+
 }

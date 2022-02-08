@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZFORWARDINGALLOCATOR_HPP
-#define SHARE_GC_Z_ZFORWARDINGALLOCATOR_HPP
+#ifndef SHARE_GC_X_ZFORWARDINGALLOCATOR_HPP
+#define SHARE_GC_X_ZFORWARDINGALLOCATOR_HPP
 
 #include "utilities/globalDefinitions.hpp"
+
+namespace ZOriginal {
 
 class ZForwardingAllocator {
 private:
@@ -43,4 +45,6 @@ public:
   void* alloc(size_t size);
 };
 
-#endif // SHARE_GC_Z_ZFORWARDINGALLOCATOR_HPP
+}
+
+#endif // SHARE_GC_X_ZFORWARDINGALLOCATOR_HPP

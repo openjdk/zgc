@@ -24,16 +24,18 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "gc/shared/oopStorageSetParState.inline.hpp"
-#include "gc/z/zNMethod.hpp"
-#include "gc/z/zNMethodTable.hpp"
-#include "gc/z/zRootsIterator.hpp"
-#include "gc/z/zStat.hpp"
+#include "gc/x/xNMethod.hpp"
+#include "gc/x/xNMethodTable.hpp"
+#include "gc/x/xRootsIterator.hpp"
+#include "gc/x/xStat.hpp"
 #include "memory/resourceArea.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 static const ZStatSubPhase ZSubPhaseConcurrentRootsOopStorageSet("Concurrent Roots OopStorageSet");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsClassLoaderDataGraph("Concurrent Roots ClassLoaderDataGraph");
@@ -139,4 +141,6 @@ void ZWeakRootsIterator::report_num_dead() {
 
 void ZWeakRootsIterator::apply(OopClosure* cl) {
   _oop_storage_set.apply(cl);
+}
+
 }

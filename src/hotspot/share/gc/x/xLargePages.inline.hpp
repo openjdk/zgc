@@ -21,10 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZLARGEPAGES_INLINE_HPP
-#define SHARE_GC_Z_ZLARGEPAGES_INLINE_HPP
+#ifndef SHARE_GC_X_ZLARGEPAGES_INLINE_HPP
+#define SHARE_GC_X_ZLARGEPAGES_INLINE_HPP
 
-#include "gc/z/zLargePages.hpp"
+#include "gc/x/xLargePages.hpp"
+
+namespace ZOriginal {
 
 inline bool ZLargePages::is_enabled() {
   return _state != Disabled;
@@ -38,4 +40,6 @@ inline bool ZLargePages::is_transparent() {
   return _state == Transparent;
 }
 
-#endif // SHARE_GC_Z_ZLARGEPAGES_INLINE_HPP
+}
+
+#endif // SHARE_GC_X_ZLARGEPAGES_INLINE_HPP

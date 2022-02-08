@@ -43,6 +43,7 @@
 #include "gc/shenandoah/shenandoah_globals.hpp"
 #endif
 #if INCLUDE_ZGC
+#include "gc/x/x_globals.hpp"
 #include "gc/z/z_globals.hpp"
 #endif
 
@@ -100,6 +101,15 @@
     constraint))                                                            \
                                                                             \
   ZGC_ONLY(GC_Z_FLAGS(                                                      \
+    develop,                                                                \
+    develop_pd,                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    notproduct,                                                             \
+    range,                                                                  \
+    constraint))                                                            \
+                                                                            \
+  ZGC_ONLY(GC_X_FLAGS(                                                      \
     develop,                                                                \
     develop_pd,                                                             \
     product,                                                                \

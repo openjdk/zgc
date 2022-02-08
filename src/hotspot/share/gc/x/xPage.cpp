@@ -22,12 +22,14 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zList.inline.hpp"
-#include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPhysicalMemory.inline.hpp"
-#include "gc/z/zVirtualMemory.inline.hpp"
+#include "gc/x/xList.inline.hpp"
+#include "gc/x/xPage.inline.hpp"
+#include "gc/x/xPhysicalMemory.inline.hpp"
+#include "gc/x/xVirtualMemory.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+
+namespace ZOriginal {
 
 ZPage::ZPage(const ZVirtualMemory& vmem, const ZPhysicalMemory& pmem) :
     ZPage(type_from_size(vmem.size()), vmem, pmem) {}
@@ -132,4 +134,6 @@ void ZPage::print() const {
 void ZPage::verify_live(uint32_t live_objects, size_t live_bytes) const {
   guarantee(live_objects == _livemap.live_objects(), "Invalid number of live objects");
   guarantee(live_bytes == _livemap.live_bytes(), "Invalid number of live bytes");
+}
+
 }
