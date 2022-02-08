@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARKTERMINATE_HPP
-#define SHARE_GC_X_ZMARKTERMINATE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARKTERMINATE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARKTERMINATE_HPP
 
-#include "gc/x/xGlobals.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -55,4 +55,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARKTERMINATE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARKTERMINATE_HPP

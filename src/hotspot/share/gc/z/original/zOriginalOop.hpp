@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZOOP_HPP
-#define SHARE_GC_X_ZOOP_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALOOP_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALOOP_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -37,4 +37,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZOOP_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALOOP_HPP

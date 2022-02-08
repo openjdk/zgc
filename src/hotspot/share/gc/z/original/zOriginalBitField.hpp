@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBITFIELD_HPP
-#define SHARE_GC_X_ZBITFIELD_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBITFIELD_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBITFIELD_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/debug.hpp"
@@ -81,4 +81,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBITFIELD_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBITFIELD_HPP

@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xArguments.hpp"
+#include "gc/z/original/zOriginalArguments.hpp"
 
 namespace ZOriginal {
 

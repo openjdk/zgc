@@ -21,17 +21,17 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZHEAP_INLINE_HPP
-#define SHARE_GC_X_ZHEAP_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALHEAP_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALHEAP_INLINE_HPP
 
-#include "gc/x/xHeap.hpp"
+#include "gc/z/original/zOriginalHeap.hpp"
 
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xForwardingTable.inline.hpp"
-#include "gc/x/xHash.inline.hpp"
-#include "gc/x/xMark.inline.hpp"
-#include "gc/x/xPage.inline.hpp"
-#include "gc/x/xPageTable.inline.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalForwardingTable.inline.hpp"
+#include "gc/z/original/zOriginalHash.inline.hpp"
+#include "gc/z/original/zOriginalMark.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
+#include "gc/z/original/zOriginalPageTable.inline.hpp"
 #include "utilities/debug.hpp"
 
 namespace ZOriginal {
@@ -134,4 +134,4 @@ inline bool ZHeap::is_oop(uintptr_t addr) const {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZHEAP_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALHEAP_INLINE_HPP

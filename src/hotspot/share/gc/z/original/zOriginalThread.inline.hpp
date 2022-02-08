@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZTHREAD_INLINE_HPP
-#define SHARE_GC_X_ZTHREAD_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALTHREAD_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALTHREAD_INLINE_HPP
 
-#include "gc/x/xThread.hpp"
+#include "gc/z/original/zOriginalThread.hpp"
 
 #include "utilities/debug.hpp"
 
@@ -63,4 +63,4 @@ inline uint ZThread::worker_id() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZTHREAD_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALTHREAD_INLINE_HPP

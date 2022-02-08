@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZTHREAD_HPP
-#define SHARE_GC_X_ZTHREAD_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALTHREAD_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALTHREAD_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -62,4 +62,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZTHREAD_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALTHREAD_HPP

@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARKSTACK_INLINE_HPP
-#define SHARE_GC_X_ZMARKSTACK_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACK_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACK_INLINE_HPP
 
-#include "gc/x/xMarkStack.hpp"
+#include "gc/z/original/zOriginalMarkStack.hpp"
 
 #include "utilities/debug.hpp"
 #include "runtime/atomic.hpp"
@@ -267,4 +267,4 @@ inline bool ZMarkThreadLocalStacks::pop(ZMarkStackAllocator* allocator,
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARKSTACK_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACK_INLINE_HPP

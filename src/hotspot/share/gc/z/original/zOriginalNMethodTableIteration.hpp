@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZNMETHODTABLEITERATION_HPP
-#define SHARE_GC_X_ZNMETHODTABLEITERATION_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLEITERATION_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLEITERATION_HPP
 
-#include "gc/x/xGlobals.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
 
 class NMethodClosure;
 
@@ -50,4 +50,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZNMETHODTABLEITERATION_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLEITERATION_HPP

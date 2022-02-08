@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARKSTACK_HPP
-#define SHARE_GC_X_ZMARKSTACK_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACK_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACK_HPP
 
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xMarkStackEntry.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalMarkStackEntry.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 namespace ZOriginal {
@@ -165,4 +165,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARKSTACK_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACK_HPP

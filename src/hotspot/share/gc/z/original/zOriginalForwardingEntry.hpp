@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFORWARDINGENTRY_HPP
-#define SHARE_GC_X_ZFORWARDINGENTRY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGENTRY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGENTRY_HPP
 
-#include "gc/x/xBitField.hpp"
+#include "gc/z/original/zOriginalBitField.hpp"
 #include "memory/allocation.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include <type_traits>
@@ -100,4 +100,4 @@ struct PrimitiveConversions::Translate<ZOriginal::ZForwardingEntry> : public std
   }
 };
 
-#endif // SHARE_GC_X_ZFORWARDINGENTRY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGENTRY_HPP

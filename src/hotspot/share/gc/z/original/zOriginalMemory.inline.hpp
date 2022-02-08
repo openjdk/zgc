@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMEMORY_INLINE_HPP
-#define SHARE_GC_X_ZMEMORY_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMEMORY_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMEMORY_INLINE_HPP
 
-#include "gc/x/xMemory.hpp"
+#include "gc/z/original/zOriginalMemory.hpp"
 
-#include "gc/x/xList.inline.hpp"
+#include "gc/z/original/zOriginalList.inline.hpp"
 #include "utilities/debug.hpp"
 
 namespace ZOriginal {
@@ -68,4 +68,4 @@ inline void ZMemory::grow_from_back(size_t size) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMEMORY_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMEMORY_INLINE_HPP

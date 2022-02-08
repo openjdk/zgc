@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBARRIER_HPP
-#define SHARE_GC_X_ZBARRIER_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIER_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIER_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
@@ -136,4 +136,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBARRIER_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIER_HPP

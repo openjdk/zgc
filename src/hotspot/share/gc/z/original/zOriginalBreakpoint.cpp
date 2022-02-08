@@ -23,7 +23,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/concurrentGCBreakpoints.hpp"
-#include "gc/x/xBreakpoint.hpp"
+#include "gc/z/original/zOriginalBreakpoint.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/debug.hpp"
 

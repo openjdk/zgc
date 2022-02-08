@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xSyscall_linux.hpp"
-#include OS_CPU_HEADER(gc/x/xSyscall)
+#include "gc/z/original/zOriginalSyscall_linux.hpp"
+#include OS_CPU_HEADER(gc/z/original/zOriginalSyscall)
 
 #include <unistd.h>
 

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZTRACER_HPP
-#define SHARE_GC_X_ZTRACER_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALTRACER_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALTRACER_HPP
 
 #include "gc/shared/gcTrace.hpp"
 
@@ -63,4 +63,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZTRACER_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALTRACER_HPP

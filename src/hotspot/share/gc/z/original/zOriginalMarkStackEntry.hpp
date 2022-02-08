@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARKSTACKENTRY_HPP
-#define SHARE_GC_X_ZMARKSTACKENTRY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACKENTRY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACKENTRY_HPP
 
-#include "gc/x/xBitField.hpp"
+#include "gc/z/original/zOriginalBitField.hpp"
 #include "memory/allocation.hpp"
 
 namespace ZOriginal {
@@ -143,4 +143,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARKSTACKENTRY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARKSTACKENTRY_HPP

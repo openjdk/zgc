@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZUTILS_INLINE_HPP
-#define SHARE_GC_X_ZUTILS_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALUTILS_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALUTILS_INLINE_HPP
 
-#include "gc/x/xUtils.hpp"
+#include "gc/z/original/zOriginalUtils.hpp"
 
-#include "gc/x/xOop.inline.hpp"
+#include "gc/z/original/zOriginalOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -60,4 +60,4 @@ inline void ZUtils::object_copy_conjoint(uintptr_t from, uintptr_t to, size_t si
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZUTILS_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALUTILS_INLINE_HPP

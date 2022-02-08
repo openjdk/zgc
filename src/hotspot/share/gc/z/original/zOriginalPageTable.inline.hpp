@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZPAGETABLE_INLINE_HPP
-#define SHARE_GC_X_ZPAGETABLE_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALPAGETABLE_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALPAGETABLE_INLINE_HPP
 
-#include "gc/x/xPageTable.hpp"
+#include "gc/z/original/zOriginalPageTable.hpp"
 
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xGranuleMap.inline.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalGranuleMap.inline.hpp"
 
 namespace ZOriginal {
 
@@ -55,4 +55,4 @@ inline bool ZPageTableIterator::next(ZPage** page) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZPAGETABLE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALPAGETABLE_INLINE_HPP

@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xInitialize.hpp"
+#include "gc/z/original/zOriginalInitialize.hpp"
 
 namespace ZOriginal {
 

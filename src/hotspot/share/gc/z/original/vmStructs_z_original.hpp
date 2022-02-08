@@ -21,15 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_VMSTRUCTS_Z_HPP
-#define SHARE_GC_X_VMSTRUCTS_Z_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_VMSTRUCTS_Z_ORIGINAL_HPP
+#define SHARE_GC_Z_ORIGINAL_VMSTRUCTS_Z_ORIGINAL_HPP
 
-#include "gc/x/xAttachedArray.hpp"
-#include "gc/x/xCollectedHeap.hpp"
-#include "gc/x/xForwarding.hpp"
-#include "gc/x/xGranuleMap.hpp"
-#include "gc/x/xHeap.hpp"
-#include "gc/x/xPageAllocator.hpp"
+#include "gc/z/original/zOriginalAttachedArray.hpp"
+#include "gc/z/original/zOriginalCollectedHeap.hpp"
+#include "gc/z/original/zOriginalForwarding.hpp"
+#include "gc/z/original/zOriginalGranuleMap.hpp"
+#include "gc/z/original/zOriginalHeap.hpp"
+#include "gc/z/original/zOriginalPageAllocator.hpp"
 #include "utilities/macros.hpp"
 
 namespace ZOriginal {
@@ -144,4 +144,4 @@ typedef ZAttachedArray<ZForwarding, ZForwardingEntry> ZAttachedArrayForForwardin
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_VMSTRUCTS_Z_HPP
+#endif // SHARE_GC_Z_ORIGINAL_VMSTRUCTS_Z_ORIGINAL_HPP

@@ -22,11 +22,11 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xGranuleMap.inline.hpp"
-#include "gc/x/xLargePages.inline.hpp"
-#include "gc/x/xMapper_windows.hpp"
-#include "gc/x/xPhysicalMemoryBacking_windows.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalGranuleMap.inline.hpp"
+#include "gc/z/original/zOriginalLargePages.inline.hpp"
+#include "gc/z/original/zOriginalMapper_windows.hpp"
+#include "gc/z/original/zOriginalPhysicalMemoryBacking_windows.hpp"
 #include "logging/log.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/debug.hpp"

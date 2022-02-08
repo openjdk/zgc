@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZHEURISTICS_HPP
-#define SHARE_GC_X_ZHEURISTICS_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALHEURISTICS_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALHEURISTICS_HPP
 
 #include "memory/allocation.hpp"
 
@@ -42,4 +42,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZHEURISTICS_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALHEURISTICS_HPP

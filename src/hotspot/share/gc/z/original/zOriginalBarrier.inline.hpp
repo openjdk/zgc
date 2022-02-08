@@ -21,14 +21,14 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBARRIER_INLINE_HPP
-#define SHARE_GC_X_ZBARRIER_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIER_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIER_INLINE_HPP
 
-#include "gc/x/xBarrier.hpp"
+#include "gc/z/original/zOriginalBarrier.hpp"
 
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xOop.inline.hpp"
-#include "gc/x/xResurrection.inline.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalOop.inline.hpp"
+#include "gc/z/original/zOriginalResurrection.inline.hpp"
 #include "oops/oop.hpp"
 #include "runtime/atomic.hpp"
 
@@ -389,4 +389,4 @@ inline void ZBarrier::mark_barrier_on_oop_array(volatile oop* p, size_t length, 
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBARRIER_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIER_INLINE_HPP

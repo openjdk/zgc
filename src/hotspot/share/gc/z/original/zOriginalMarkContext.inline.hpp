@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARKCONTEXT_INLINE_HPP
-#define SHARE_GC_X_ZMARKCONTEXT_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCONTEXT_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCONTEXT_INLINE_HPP
 
-#include "gc/x/xMarkContext.hpp"
+#include "gc/z/original/zOriginalMarkContext.hpp"
 
 namespace ZOriginal {
 
@@ -54,4 +54,4 @@ inline StringDedup::Requests* ZMarkContext::string_dedup_requests() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARKCACHE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCACHE_INLINE_HPP

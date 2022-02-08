@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFORWARDINGALLOCATOR_INLINE_HPP
-#define SHARE_GC_X_ZFORWARDINGALLOCATOR_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGALLOCATOR_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGALLOCATOR_INLINE_HPP
 
-#include "gc/x/xForwardingAllocator.hpp"
+#include "gc/z/original/zOriginalForwardingAllocator.hpp"
 
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
@@ -47,4 +47,4 @@ inline void* ZForwardingAllocator::alloc(size_t size) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZFORWARDINGALLOCATOR_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGALLOCATOR_INLINE_HPP

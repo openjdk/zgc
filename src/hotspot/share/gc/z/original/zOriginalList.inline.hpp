@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZLIST_INLINE_HPP
-#define SHARE_GC_X_ZLIST_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALLIST_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALLIST_INLINE_HPP
 
-#include "gc/x/xList.hpp"
+#include "gc/z/original/zOriginalList.hpp"
 
 #include "utilities/debug.hpp"
 
@@ -239,4 +239,4 @@ inline bool ZListRemoveIteratorImpl<T, Forward>::next(T** elem) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZLIST_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALLIST_INLINE_HPP

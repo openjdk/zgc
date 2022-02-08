@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xErrno.hpp"
+#include "gc/z/original/zOriginalErrno.hpp"
 #include "runtime/os.hpp"
 
 #include <errno.h>

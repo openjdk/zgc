@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZARGUMENTS_HPP
-#define SHARE_GC_X_ZARGUMENTS_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALARGUMENTS_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALARGUMENTS_HPP
 
 #include "gc/shared/gcArguments.hpp"
 
@@ -43,4 +43,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZARGUMENTS_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALARGUMENTS_HPP

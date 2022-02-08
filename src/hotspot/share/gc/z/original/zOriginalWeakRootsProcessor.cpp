@@ -22,11 +22,11 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xBarrier.inline.hpp"
-#include "gc/x/xRootsIterator.hpp"
-#include "gc/x/xTask.hpp"
-#include "gc/x/xWeakRootsProcessor.hpp"
-#include "gc/x/xWorkers.hpp"
+#include "gc/z/original/zOriginalBarrier.inline.hpp"
+#include "gc/z/original/zOriginalRootsIterator.hpp"
+#include "gc/z/original/zOriginalTask.hpp"
+#include "gc/z/original/zOriginalWeakRootsProcessor.hpp"
+#include "gc/z/original/zOriginalWorkers.hpp"
 
 namespace ZOriginal {
 

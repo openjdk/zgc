@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZADDRESS_INLINE_HPP
-#define SHARE_GC_X_ZADDRESS_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALADDRESS_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALADDRESS_INLINE_HPP
 
-#include "gc/x/xAddress.hpp"
+#include "gc/z/original/zOriginalAddress.hpp"
 
-#include "gc/x/xGlobals.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -138,4 +138,4 @@ inline uintptr_t ZAddress::remapped_or_null(uintptr_t value) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZADDRESS_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALADDRESS_INLINE_HPP

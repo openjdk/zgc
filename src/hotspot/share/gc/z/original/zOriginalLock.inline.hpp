@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZLOCK_INLINE_HPP
-#define SHARE_GC_X_ZLOCK_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALLOCK_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALLOCK_INLINE_HPP
 
-#include "gc/x/xLock.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
 
 #include "runtime/atomic.hpp"
 #include "runtime/os.inline.hpp"
@@ -121,4 +121,4 @@ inline ZLocker<T>::~ZLocker() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZLOCK_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALLOCK_INLINE_HPP

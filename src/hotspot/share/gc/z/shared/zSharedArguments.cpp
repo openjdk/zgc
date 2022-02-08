@@ -23,7 +23,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcArguments.hpp"
-#include "gc/x/xArguments.hpp"
+#include "gc/z/original/zOriginalArguments.hpp"
 #include "gc/z/shared/zSharedArguments.hpp"
 #include "gc/z/zArguments.hpp"
 // FIXME: Move to shared?

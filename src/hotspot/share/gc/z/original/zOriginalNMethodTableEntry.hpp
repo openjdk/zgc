@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZNMETHODTABLEENTRY_HPP
-#define SHARE_GC_X_ZNMETHODTABLEENTRY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLEENTRY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLEENTRY_HPP
 
-#include "gc/x/xBitField.hpp"
+#include "gc/z/original/zOriginalBitField.hpp"
 #include "memory/allocation.hpp"
 
 class nmethod;
@@ -82,4 +82,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZNMETHODTABLEENTRY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLEENTRY_HPP

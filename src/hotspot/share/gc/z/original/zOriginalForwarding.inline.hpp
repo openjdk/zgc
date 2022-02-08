@@ -21,18 +21,18 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFORWARDING_INLINE_HPP
-#define SHARE_GC_X_ZFORWARDING_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDING_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDING_INLINE_HPP
 
-#include "gc/x/xForwarding.hpp"
+#include "gc/z/original/zOriginalForwarding.hpp"
 
-#include "gc/x/xAttachedArray.inline.hpp"
-#include "gc/x/xForwardingAllocator.inline.hpp"
-#include "gc/x/xHash.inline.hpp"
-#include "gc/x/xHeap.hpp"
-#include "gc/x/xLock.inline.hpp"
-#include "gc/x/xPage.inline.hpp"
-#include "gc/x/xVirtualMemory.inline.hpp"
+#include "gc/z/original/zOriginalAttachedArray.inline.hpp"
+#include "gc/z/original/zOriginalForwardingAllocator.inline.hpp"
+#include "gc/z/original/zOriginalHash.inline.hpp"
+#include "gc/z/original/zOriginalHeap.hpp"
+#include "gc/z/original/zOriginalLock.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -164,4 +164,4 @@ inline uintptr_t ZForwarding::insert(uintptr_t from_index, uintptr_t to_offset, 
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZFORWARDING_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDING_INLINE_HPP

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBREAKPOINT_HPP
-#define SHARE_GC_X_ZBREAKPOINT_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBREAKPOINT_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBREAKPOINT_HPP
 
 #include "memory/allocation.hpp"
 
@@ -44,4 +44,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBREAKPOINT_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBREAKPOINT_HPP

@@ -22,12 +22,12 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xLargePages.inline.hpp"
-#include "gc/x/xMapper_windows.hpp"
-#include "gc/x/xSyscall_windows.hpp"
-#include "gc/x/xVirtualMemory.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalLargePages.inline.hpp"
+#include "gc/z/original/zOriginalMapper_windows.hpp"
+#include "gc/z/original/zOriginalSyscall_windows.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 

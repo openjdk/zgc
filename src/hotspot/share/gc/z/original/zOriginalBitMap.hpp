@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBITMAP_HPP
-#define SHARE_GC_X_ZBITMAP_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBITMAP_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBITMAP_HPP
 
 #include "utilities/bitMap.hpp"
 
@@ -43,4 +43,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBITMAP_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBITMAP_HPP

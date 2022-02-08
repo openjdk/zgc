@@ -23,8 +23,8 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/x/xAddressSpaceLimit.hpp"
-#include "gc/x/xGlobals.hpp"
+#include "gc/z/original/zOriginalAddressSpaceLimit.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
 #include "utilities/align.hpp"

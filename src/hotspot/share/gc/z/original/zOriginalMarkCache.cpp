@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xMarkCache.inline.hpp"
+#include "gc/z/original/zOriginalMarkCache.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
 

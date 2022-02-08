@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMESSAGEPORT_HPP
-#define SHARE_GC_X_ZMESSAGEPORT_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMESSAGEPORT_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMESSAGEPORT_HPP
 
-#include "gc/x/xFuture.hpp"
-#include "gc/x/xList.hpp"
+#include "gc/z/original/zOriginalFuture.hpp"
+#include "gc/z/original/zOriginalList.hpp"
 #include "runtime/mutex.hpp"
 
 namespace ZOriginal {
@@ -67,4 +67,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMESSAGEPORT_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMESSAGEPORT_HPP

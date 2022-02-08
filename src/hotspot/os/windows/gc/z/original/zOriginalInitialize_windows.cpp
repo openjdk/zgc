@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xInitialize.hpp"
-#include "gc/x/xSyscall_windows.hpp"
+#include "gc/z/original/zOriginalInitialize.hpp"
+#include "gc/z/original/zOriginalSyscall_windows.hpp"
 
 namespace ZOriginal {
 

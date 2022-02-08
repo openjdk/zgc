@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZDIRECTOR_HPP
-#define SHARE_GC_X_ZDIRECTOR_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALDIRECTOR_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALDIRECTOR_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
-#include "gc/x/xMetronome.hpp"
+#include "gc/z/original/zOriginalMetronome.hpp"
 
 namespace ZOriginal {
 
@@ -46,4 +46,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZDIRECTOR_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALDIRECTOR_HPP

@@ -21,17 +21,17 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZPAGE_INLINE_HPP
-#define SHARE_GC_X_ZPAGE_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALPAGE_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALPAGE_INLINE_HPP
 
-#include "gc/x/xPage.hpp"
+#include "gc/z/original/zOriginalPage.hpp"
 
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xLiveMap.inline.hpp"
-#include "gc/x/xNUMA.hpp"
-#include "gc/x/xPhysicalMemory.inline.hpp"
-#include "gc/x/xVirtualMemory.inline.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalLiveMap.inline.hpp"
+#include "gc/z/original/zOriginalNUMA.hpp"
+#include "gc/z/original/zOriginalPhysicalMemory.inline.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
 #include "utilities/align.hpp"
@@ -313,4 +313,4 @@ inline bool ZPage::undo_alloc_object_atomic(uintptr_t addr, size_t size) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZPAGE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALPAGE_INLINE_HPP

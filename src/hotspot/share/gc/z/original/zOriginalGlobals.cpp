@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xGlobals.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
 
 namespace ZOriginal {
 

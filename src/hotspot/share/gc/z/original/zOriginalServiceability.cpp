@@ -24,9 +24,9 @@
 #include "precompiled.hpp"
 #include "gc/shared/generationCounters.hpp"
 #include "gc/shared/hSpaceCounters.hpp"
-#include "gc/x/xCollectedHeap.hpp"
-#include "gc/x/xHeap.inline.hpp"
-#include "gc/x/xServiceability.hpp"
+#include "gc/z/original/zOriginalCollectedHeap.hpp"
+#include "gc/z/original/zOriginalHeap.inline.hpp"
+#include "gc/z/original/zOriginalServiceability.hpp"
 #include "memory/metaspaceCounters.hpp"
 #include "runtime/perfData.hpp"
 

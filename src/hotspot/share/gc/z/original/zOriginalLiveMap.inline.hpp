@@ -21,15 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZLIVEMAP_INLINE_HPP
-#define SHARE_GC_X_ZLIVEMAP_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALLIVEMAP_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALLIVEMAP_INLINE_HPP
 
-#include "gc/x/xLiveMap.hpp"
+#include "gc/z/original/zOriginalLiveMap.hpp"
 
-#include "gc/x/xBitMap.inline.hpp"
-#include "gc/x/xMark.hpp"
-#include "gc/x/xOop.inline.hpp"
-#include "gc/x/xUtils.inline.hpp"
+#include "gc/z/original/zOriginalBitMap.inline.hpp"
+#include "gc/z/original/zOriginalMark.hpp"
+#include "gc/z/original/zOriginalOop.inline.hpp"
+#include "gc/z/original/zOriginalUtils.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/debug.hpp"
@@ -176,4 +176,4 @@ inline void ZLiveMap::iterate(ObjectClosure* cl, uintptr_t page_start, size_t pa
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZLIVEMAP_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALLIVEMAP_INLINE_HPP

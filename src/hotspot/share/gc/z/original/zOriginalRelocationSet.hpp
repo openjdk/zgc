@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZRELOCATIONSET_HPP
-#define SHARE_GC_X_ZRELOCATIONSET_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATIONSET_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATIONSET_HPP
 
-#include "gc/x/xArray.hpp"
-#include "gc/x/xForwardingAllocator.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
+#include "gc/z/original/zOriginalForwardingAllocator.hpp"
 
 namespace ZOriginal {
 
@@ -60,4 +60,4 @@ using ZRelocationSetParallelIterator = ZRelocationSetIteratorImpl<true /* Parall
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZRELOCATIONSET_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATIONSET_HPP

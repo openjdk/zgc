@@ -22,9 +22,9 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xThreadLocalData.hpp"
-#include "gc/x/xObjArrayAllocator.hpp"
-#include "gc/x/xUtils.inline.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
+#include "gc/z/original/zOriginalObjArrayAllocator.hpp"
+#include "gc/z/original/zOriginalUtils.inline.hpp"
 #include "oops/arrayKlass.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 

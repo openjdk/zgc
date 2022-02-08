@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xMetronome.hpp"
+#include "gc/z/original/zOriginalMetronome.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/timer.hpp"
 #include "utilities/ticks.hpp"

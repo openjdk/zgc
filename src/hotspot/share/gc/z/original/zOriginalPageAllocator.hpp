@@ -21,17 +21,17 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZPAGEALLOCATOR_HPP
-#define SHARE_GC_X_ZPAGEALLOCATOR_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALPAGEALLOCATOR_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALPAGEALLOCATOR_HPP
 
-#include "gc/x/xAllocationFlags.hpp"
-#include "gc/x/xArray.hpp"
-#include "gc/x/xList.hpp"
-#include "gc/x/xLock.hpp"
-#include "gc/x/xPageCache.hpp"
-#include "gc/x/xPhysicalMemory.hpp"
-#include "gc/x/xSafeDelete.hpp"
-#include "gc/x/xVirtualMemory.hpp"
+#include "gc/z/original/zOriginalAllocationFlags.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
+#include "gc/z/original/zOriginalList.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
+#include "gc/z/original/zOriginalPageCache.hpp"
+#include "gc/z/original/zOriginalPhysicalMemory.hpp"
+#include "gc/z/original/zOriginalSafeDelete.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.hpp"
 
 class ThreadClosure;
 
@@ -175,4 +175,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZPAGEALLOCATOR_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALPAGEALLOCATOR_HPP

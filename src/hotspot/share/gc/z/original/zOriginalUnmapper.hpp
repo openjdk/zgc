@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZUNMAPPER_HPP
-#define SHARE_GC_X_ZUNMAPPER_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALUNMAPPER_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALUNMAPPER_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
-#include "gc/x/xList.hpp"
-#include "gc/x/xLock.hpp"
+#include "gc/z/original/zOriginalList.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
 
 namespace ZOriginal {
 
@@ -55,4 +55,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZUNMAPPER_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALUNMAPPER_HPP

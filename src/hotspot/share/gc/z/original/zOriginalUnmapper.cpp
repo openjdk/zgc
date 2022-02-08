@@ -23,11 +23,11 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/x/xList.inline.hpp"
-#include "gc/x/xLock.inline.hpp"
-#include "gc/x/xPage.inline.hpp"
-#include "gc/x/xPageAllocator.hpp"
-#include "gc/x/xUnmapper.hpp"
+#include "gc/z/original/zOriginalList.inline.hpp"
+#include "gc/z/original/zOriginalLock.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
+#include "gc/z/original/zOriginalPageAllocator.hpp"
+#include "gc/z/original/zOriginalUnmapper.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "runtime/globals.hpp"
 

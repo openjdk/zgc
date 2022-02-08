@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xBarrierSetAssembler.hpp"
-#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/original/zOriginalBarrierSetAssembler.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
 #include "runtime/thread.hpp"
 
 namespace ZOriginal {

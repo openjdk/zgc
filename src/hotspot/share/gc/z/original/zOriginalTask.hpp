@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZTASK_HPP
-#define SHARE_GC_X_ZTASK_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALTASK_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALTASK_HPP
 
 #include "gc/shared/workerThread.hpp"
 #include "memory/allocation.hpp"
@@ -54,4 +54,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZTASK_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALTASK_HPP

@@ -22,14 +22,14 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xArray.inline.hpp"
-#include "gc/x/xForwarding.inline.hpp"
-#include "gc/x/xForwardingAllocator.inline.hpp"
-#include "gc/x/xRelocationSet.inline.hpp"
-#include "gc/x/xRelocationSetSelector.inline.hpp"
-#include "gc/x/xStat.hpp"
-#include "gc/x/xTask.hpp"
-#include "gc/x/xWorkers.hpp"
+#include "gc/z/original/zOriginalArray.inline.hpp"
+#include "gc/z/original/zOriginalForwarding.inline.hpp"
+#include "gc/z/original/zOriginalForwardingAllocator.inline.hpp"
+#include "gc/z/original/zOriginalRelocationSet.inline.hpp"
+#include "gc/z/original/zOriginalRelocationSetSelector.inline.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
+#include "gc/z/original/zOriginalTask.hpp"
+#include "gc/z/original/zOriginalWorkers.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 

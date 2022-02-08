@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZLIST_HPP
-#define SHARE_GC_X_ZLIST_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALLIST_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALLIST_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -117,4 +117,4 @@ template <typename T> using ZListRemoveIterator = ZListRemoveIteratorImpl<T, tru
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZLIST_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALLIST_HPP

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZSERVICEABILITY_HPP
-#define SHARE_GC_X_ZSERVICEABILITY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALSERVICEABILITY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALSERVICEABILITY_HPP
 
 #include "gc/shared/collectorCounters.hpp"
 #include "gc/shared/gcVMOperations.hpp"
@@ -91,4 +91,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZSERVICEABILITY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALSERVICEABILITY_HPP

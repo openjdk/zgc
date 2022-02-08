@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZATTACHEDARRAY_HPP
-#define SHARE_GC_X_ZATTACHEDARRAY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALATTACHEDARRAY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALATTACHEDARRAY_HPP
 
 #include "utilities/globalDefinitions.hpp"
 
@@ -53,4 +53,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZATTACHEDARRAY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALATTACHEDARRAY_HPP

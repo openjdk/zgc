@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARKCACHE_INLINE_HPP
-#define SHARE_GC_X_ZMARKCACHE_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCACHE_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCACHE_INLINE_HPP
 
-#include "gc/x/xMarkCache.hpp"
+#include "gc/z/original/zOriginalMarkCache.hpp"
 
-#include "gc/x/xPage.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
 
 namespace ZOriginal {
 
@@ -60,4 +60,4 @@ inline void ZMarkCache::inc_live(ZPage* page, size_t bytes) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARKCACHE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCACHE_INLINE_HPP

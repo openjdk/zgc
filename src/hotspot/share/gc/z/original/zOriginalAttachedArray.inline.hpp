@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZATTACHEDARRAY_INLINE_HPP
-#define SHARE_GC_X_ZATTACHEDARRAY_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALATTACHEDARRAY_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALATTACHEDARRAY_INLINE_HPP
 
-#include "gc/x/xAttachedArray.hpp"
+#include "gc/z/original/zOriginalAttachedArray.hpp"
 
 #include "memory/allocation.hpp"
 #include "utilities/align.hpp"
@@ -87,4 +87,4 @@ inline ArrayT* ZAttachedArray<ObjectT, ArrayT>::operator()(const ObjectT* obj) c
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZATTACHEDARRAY_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALATTACHEDARRAY_INLINE_HPP

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_C1_ZBARRIERSETC1_HPP
-#define SHARE_GC_X_C1_ZBARRIERSETC1_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_C1_ZORIGINALBARRIERSETC1_HPP
+#define SHARE_GC_Z_ORIGINAL_C1_ZORIGINALBARRIERSETC1_HPP
 
 #include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_IR.hpp"
@@ -79,4 +79,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_C1_ZBARRIERSETC1_HPP
+#endif // SHARE_GC_Z_ORIGINAL_C1_ZORIGINAL_BARRIERSETC1_HPP

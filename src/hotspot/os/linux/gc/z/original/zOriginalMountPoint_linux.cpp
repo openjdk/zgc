@@ -23,9 +23,9 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/x/xArray.inline.hpp"
-#include "gc/x/xErrno.hpp"
-#include "gc/x/xMountPoint_linux.hpp"
+#include "gc/z/original/zOriginalArray.inline.hpp"
+#include "gc/z/original/zOriginalErrno.hpp"
+#include "gc/z/original/zOriginalMountPoint_linux.hpp"
 #include "runtime/globals.hpp"
 
 #include <stdio.h>

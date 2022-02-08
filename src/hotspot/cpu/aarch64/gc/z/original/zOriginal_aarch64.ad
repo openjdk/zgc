@@ -24,8 +24,8 @@
 source_hpp %{
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/x/c2/xBarrierSetC2.hpp"
-#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/original/c2/zOriginalBarrierSetC2.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
 
 %}
 

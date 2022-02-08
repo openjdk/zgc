@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZGRANULEMAP_HPP
-#define SHARE_GC_X_ZGRANULEMAP_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALGRANULEMAP_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALGRANULEMAP_HPP
 
-#include "gc/x/xArray.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
 #include "memory/allocation.hpp"
 
 namespace ZOriginal {
@@ -60,4 +60,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZGRANULEMAP_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALGRANULEMAP_HPP

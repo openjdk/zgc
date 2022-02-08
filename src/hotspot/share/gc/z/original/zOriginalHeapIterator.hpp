@@ -21,16 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZHEAPITERATOR_HPP
-#define SHARE_GC_X_ZHEAPITERATOR_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALHEAPITERATOR_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALHEAPITERATOR_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
-#include "gc/x/xGranuleMap.hpp"
-#include "gc/x/xLock.hpp"
-#include "gc/x/xRootsIterator.hpp"
-#include "gc/x/xStat.hpp"
+#include "gc/z/original/zOriginalGranuleMap.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
+#include "gc/z/original/zOriginalRootsIterator.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
 
 namespace ZOriginal {
 
@@ -98,4 +98,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZHEAPITERATOR_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALHEAPITERATOR_HPP

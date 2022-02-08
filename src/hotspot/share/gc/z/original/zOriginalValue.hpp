@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZVALUE_HPP
-#define SHARE_GC_X_ZVALUE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALVALUE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALVALUE_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -141,4 +141,4 @@ template <typename T> using ZPerWorkerConstIterator = ZValueConstIterator<ZPerWo
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZVALUE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALVALUE_HPP

@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xMapper_windows.hpp"
-#include "gc/x/xSyscall_windows.hpp"
+#include "gc/z/original/zOriginalMapper_windows.hpp"
+#include "gc/z/original/zOriginalSyscall_windows.hpp"
 #include "logging/log.hpp"
 #include "utilities/debug.hpp"
 

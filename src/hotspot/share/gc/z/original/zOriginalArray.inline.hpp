@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZARRAY_INLINE_HPP
-#define SHARE_GC_X_ZARRAY_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALARRAY_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALARRAY_INLINE_HPP
 
-#include "gc/x/xArray.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
 
 #include "runtime/atomic.hpp"
 
@@ -82,4 +82,4 @@ inline bool ZArrayIteratorImpl<T, Parallel>::next(T* elem) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZARRAY_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALARRAY_INLINE_HPP

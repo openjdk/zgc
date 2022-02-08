@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZINITIALIZE_HPP
-#define SHARE_GC_X_ZINITIALIZE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALINITIALIZE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALINITIALIZE_HPP
 
 #include "memory/allocation.hpp"
 
@@ -40,4 +40,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZINITIALIZE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALINITIALIZE_HPP

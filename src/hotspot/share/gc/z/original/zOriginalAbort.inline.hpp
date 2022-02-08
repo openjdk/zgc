@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZABORT_INLINE_HPP
-#define SHARE_GC_X_ZABORT_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALABORT_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALABORT_INLINE_HPP
 
-#include "gc/x/xAbort.hpp"
+#include "gc/z/original/zOriginalAbort.hpp"
 
 #include "runtime/atomic.hpp"
 
@@ -36,4 +36,4 @@ inline bool ZAbort::should_abort() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZABORT_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALABORT_INLINE_HPP

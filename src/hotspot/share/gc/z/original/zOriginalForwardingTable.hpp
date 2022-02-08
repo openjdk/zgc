@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFORWARDINGTABLE_HPP
-#define SHARE_GC_X_ZFORWARDINGTABLE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGTABLE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGTABLE_HPP
 
-#include "gc/x/xGranuleMap.hpp"
+#include "gc/z/original/zOriginalGranuleMap.hpp"
 
 namespace ZOriginal {
 
@@ -47,4 +47,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZFORWARDINGTABLE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGTABLE_HPP

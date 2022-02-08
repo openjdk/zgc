@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFORWARDING_HPP
-#define SHARE_GC_X_ZFORWARDING_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDING_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDING_HPP
 
-#include "gc/x/xAttachedArray.hpp"
-#include "gc/x/xForwardingEntry.hpp"
-#include "gc/x/xLock.hpp"
-#include "gc/x/xVirtualMemory.hpp"
+#include "gc/z/original/zOriginalAttachedArray.hpp"
+#include "gc/z/original/zOriginalForwardingEntry.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.hpp"
 
 class ObjectClosure;
 
@@ -89,4 +89,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZFORWARDING_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDING_HPP

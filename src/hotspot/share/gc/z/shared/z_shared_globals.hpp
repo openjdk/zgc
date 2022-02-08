@@ -24,7 +24,7 @@
 #ifndef SHARE_GC_Z_SHARED_Z_SHARED_GLOBALS_HPP
 #define SHARE_GC_Z_SHARED_Z_SHARED_GLOBALS_HPP
 
-#include "gc/x/x_globals.hpp"
+#include "gc/z/original/zOriginal_globals.hpp"
 #include "gc/z/z_globals.hpp"
 
 #define GC_Z_FLAGS(develop,                                                 \

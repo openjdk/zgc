@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZNMETHODTABLE_HPP
-#define SHARE_GC_X_ZNMETHODTABLE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLE_HPP
 
-#include "gc/x/xNMethodTableIteration.hpp"
-#include "gc/x/xSafeDelete.hpp"
+#include "gc/z/original/zOriginalNMethodTableIteration.hpp"
+#include "gc/z/original/zOriginalSafeDelete.hpp"
 #include "memory/allocation.hpp"
 
 class nmethod;
@@ -76,4 +76,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZNMETHODTABLE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODTABLE_HPP

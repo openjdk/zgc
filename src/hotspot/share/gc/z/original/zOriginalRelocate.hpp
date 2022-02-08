@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZRELOCATE_HPP
-#define SHARE_GC_X_ZRELOCATE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATE_HPP
 
-#include "gc/x/xRelocationSet.hpp"
+#include "gc/z/original/zOriginalRelocationSet.hpp"
 
 namespace ZOriginal {
 
@@ -50,4 +50,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZRELOCATE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATE_HPP

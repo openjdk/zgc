@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBARRIERSET_HPP
-#define SHARE_GC_X_ZBARRIERSET_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSET_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSET_HPP
 
 #include "gc/shared/barrierSet.hpp"
 
@@ -110,4 +110,4 @@ template<> struct BarrierSet::GetType<BarrierSet::ZOriginalBarrierSet> {
   typedef ZOriginal::ZBarrierSet type;
 };
 
-#endif // SHARE_GC_X_ZBARRIERSET_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSET_HPP

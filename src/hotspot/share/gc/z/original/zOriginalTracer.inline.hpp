@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZTRACER_INLINE_HPP
-#define SHARE_GC_X_ZTRACER_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALTRACER_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALTRACER_INLINE_HPP
 
-#include "gc/x/xTracer.hpp"
+#include "gc/z/original/zOriginalTracer.hpp"
 
 #include "jfr/jfrEvents.hpp"
 
@@ -62,4 +62,4 @@ inline ZTraceThreadPhase::~ZTraceThreadPhase() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZTRACER_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALTRACER_INLINE_HPP

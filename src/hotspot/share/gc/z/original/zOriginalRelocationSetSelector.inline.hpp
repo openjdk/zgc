@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZRELOCATIONSETSELECTOR_INLINE_HPP
-#define SHARE_GC_X_ZRELOCATIONSETSELECTOR_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATIONSETSELECTOR_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATIONSETSELECTOR_INLINE_HPP
 
-#include "gc/x/xRelocationSetSelector.hpp"
+#include "gc/z/original/zOriginalRelocationSetSelector.hpp"
 
-#include "gc/x/xArray.inline.hpp"
-#include "gc/x/xPage.inline.hpp"
+#include "gc/z/original/zOriginalArray.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
 
 namespace ZOriginal {
 
@@ -162,4 +162,4 @@ inline size_t ZRelocationSetSelector::forwarding_entries() const {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZRELOCATIONSETSELECTOR_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALRELOCATIONSETSELECTOR_INLINE_HPP

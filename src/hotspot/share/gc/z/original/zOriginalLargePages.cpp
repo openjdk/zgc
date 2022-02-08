@@ -23,7 +23,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/x/xLargePages.hpp"
+#include "gc/z/original/zOriginalLargePages.hpp"
 #include "runtime/os.hpp"
 
 namespace ZOriginal {

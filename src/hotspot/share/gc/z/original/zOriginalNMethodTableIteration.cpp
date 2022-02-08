@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xNMethodTableEntry.hpp"
-#include "gc/x/xNMethodTableIteration.hpp"
+#include "gc/z/original/zOriginalNMethodTableEntry.hpp"
+#include "gc/z/original/zOriginalNMethodTableIteration.hpp"
 #include "memory/iterator.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"

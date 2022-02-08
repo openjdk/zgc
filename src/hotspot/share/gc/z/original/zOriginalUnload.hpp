@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZUNLOAD_HPP
-#define SHARE_GC_X_ZUNLOAD_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALUNLOAD_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALUNLOAD_HPP
 
 namespace ZOriginal {
 
@@ -43,4 +43,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZUNLOAD_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALUNLOAD_HPP

@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBITMAP_INLINE_HPP
-#define SHARE_GC_X_ZBITMAP_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBITMAP_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBITMAP_INLINE_HPP
 
-#include "gc/x/xBitMap.hpp"
+#include "gc/z/original/zOriginalBitMap.hpp"
 
 #include "runtime/atomic.hpp"
 #include "utilities/bitMap.inline.hpp"
@@ -81,4 +81,4 @@ inline bool ZBitMap::par_set_bit_pair(idx_t bit, bool finalizable, bool& inc_liv
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBITMAP_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBITMAP_INLINE_HPP

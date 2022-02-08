@@ -21,15 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZCOLLECTEDHEAP_HPP
-#define SHARE_GC_X_ZCOLLECTEDHEAP_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALCOLLECTEDHEAP_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALCOLLECTEDHEAP_HPP
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/softRefPolicy.hpp"
-#include "gc/x/xBarrierSet.hpp"
-#include "gc/x/xHeap.hpp"
-#include "gc/x/xInitialize.hpp"
-#include "gc/x/xRuntimeWorkers.hpp"
+#include "gc/z/original/zOriginalBarrierSet.hpp"
+#include "gc/z/original/zOriginalHeap.hpp"
+#include "gc/z/original/zOriginalInitialize.hpp"
+#include "gc/z/original/zOriginalRuntimeWorkers.hpp"
 #include "memory/metaspace.hpp"
 
 namespace ZOriginal {
@@ -129,4 +129,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZCOLLECTEDHEAP_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALCOLLECTEDHEAP_HPP

@@ -22,20 +22,20 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xBarrierSet.hpp"
-#include "gc/x/xBarrierSetAssembler.hpp"
-#include "gc/x/xBarrierSetNMethod.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xHeap.inline.hpp"
-#include "gc/x/xStackWatermark.hpp"
-#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/original/zOriginalBarrierSet.hpp"
+#include "gc/z/original/zOriginalBarrierSetAssembler.hpp"
+#include "gc/z/original/zOriginalBarrierSetNMethod.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalHeap.inline.hpp"
+#include "gc/z/original/zOriginalStackWatermark.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
-#include "gc/x/c1/xBarrierSetC1.hpp"
+#include "gc/z/original/c1/zOriginalBarrierSetC1.hpp"
 #endif
 #ifdef COMPILER2
-#include "gc/x/c2/xBarrierSetC2.hpp"
+#include "gc/z/original/c2/zOriginalBarrierSetC2.hpp"
 #endif
 
 namespace ZOriginal {

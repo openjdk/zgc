@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xForwardingAllocator.hpp"
+#include "gc/z/original/zOriginalForwardingAllocator.hpp"
 #include "memory/allocation.inline.hpp"
 
 namespace ZOriginal {

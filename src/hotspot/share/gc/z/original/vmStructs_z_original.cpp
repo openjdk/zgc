@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/vmStructs_x.hpp"
+#include "gc/z/original/vmStructs_z_original.hpp"
 
 namespace ZOriginal {
 

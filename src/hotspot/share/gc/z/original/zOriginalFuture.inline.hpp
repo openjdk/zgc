@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFUTURE_INLINE_HPP
-#define SHARE_GC_X_ZFUTURE_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFUTURE_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFUTURE_INLINE_HPP
 
-#include "gc/x/xFuture.hpp"
+#include "gc/z/original/zOriginalFuture.hpp"
 
 #include "runtime/semaphore.inline.hpp"
 #include "runtime/thread.hpp"
@@ -60,4 +60,4 @@ inline T ZFuture<T>::get() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZFUTURE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFUTURE_INLINE_HPP

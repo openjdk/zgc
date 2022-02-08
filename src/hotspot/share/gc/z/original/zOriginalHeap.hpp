@@ -21,23 +21,23 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZHEAP_HPP
-#define SHARE_GC_X_ZHEAP_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALHEAP_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALHEAP_HPP
 
-#include "gc/x/xAllocationFlags.hpp"
-#include "gc/x/xArray.hpp"
-#include "gc/x/xForwardingTable.hpp"
-#include "gc/x/xMark.hpp"
-#include "gc/x/xObjectAllocator.hpp"
-#include "gc/x/xPageAllocator.hpp"
-#include "gc/x/xPageTable.hpp"
-#include "gc/x/xReferenceProcessor.hpp"
-#include "gc/x/xRelocate.hpp"
-#include "gc/x/xRelocationSet.hpp"
-#include "gc/x/xWeakRootsProcessor.hpp"
-#include "gc/x/xServiceability.hpp"
-#include "gc/x/xUnload.hpp"
-#include "gc/x/xWorkers.hpp"
+#include "gc/z/original/zOriginalAllocationFlags.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
+#include "gc/z/original/zOriginalForwardingTable.hpp"
+#include "gc/z/original/zOriginalMark.hpp"
+#include "gc/z/original/zOriginalObjectAllocator.hpp"
+#include "gc/z/original/zOriginalPageAllocator.hpp"
+#include "gc/z/original/zOriginalPageTable.hpp"
+#include "gc/z/original/zOriginalReferenceProcessor.hpp"
+#include "gc/z/original/zOriginalRelocate.hpp"
+#include "gc/z/original/zOriginalRelocationSet.hpp"
+#include "gc/z/original/zOriginalWeakRootsProcessor.hpp"
+#include "gc/z/original/zOriginalServiceability.hpp"
+#include "gc/z/original/zOriginalUnload.hpp"
+#include "gc/z/original/zOriginalWorkers.hpp"
 
 class ThreadClosure;
 
@@ -166,4 +166,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZHEAP_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALHEAP_HPP

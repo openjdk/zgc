@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZABORT_HPP
-#define SHARE_GC_X_ZABORT_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALABORT_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALABORT_HPP
 
 #include "memory/allocation.hpp"
 
@@ -39,4 +39,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZABORT_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALABORT_HPP

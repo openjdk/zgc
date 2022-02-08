@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZVIRTUALMEMORY_INLINE_HPP
-#define SHARE_GC_X_ZVIRTUALMEMORY_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALVIRTUALMEMORY_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALVIRTUALMEMORY_INLINE_HPP
 
-#include "gc/x/xVirtualMemory.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.hpp"
 
-#include "gc/x/xMemory.inline.hpp"
+#include "gc/z/original/zOriginalMemory.inline.hpp"
 
 namespace ZOriginal {
 
@@ -69,4 +69,4 @@ inline uintptr_t ZVirtualMemoryManager::lowest_available_address() const {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZVIRTUALMEMORY_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALVIRTUALMEMORY_INLINE_HPP

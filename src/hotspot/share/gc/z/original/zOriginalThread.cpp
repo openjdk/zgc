@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xThread.inline.hpp"
+#include "gc/z/original/zOriginalThread.inline.hpp"
 #include "runtime/nonJavaThread.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"

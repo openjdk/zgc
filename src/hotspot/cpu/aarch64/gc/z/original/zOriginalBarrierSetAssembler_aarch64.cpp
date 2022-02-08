@@ -25,21 +25,21 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "code/codeBlob.hpp"
 #include "code/vmreg.inline.hpp"
-#include "gc/x/xBarrier.inline.hpp"
-#include "gc/x/xBarrierSet.hpp"
-#include "gc/x/xBarrierSetAssembler.hpp"
-#include "gc/x/xBarrierSetRuntime.hpp"
-#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/original/zOriginalBarrier.inline.hpp"
+#include "gc/z/original/zOriginalBarrierSet.hpp"
+#include "gc/z/original/zOriginalBarrierSetAssembler.hpp"
+#include "gc/z/original/zOriginalBarrierSetRuntime.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #ifdef COMPILER1
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
-#include "gc/x/c1/xBarrierSetC1.hpp"
+#include "gc/z/original/c1/zOriginalBarrierSetC1.hpp"
 #endif // COMPILER1
 #ifdef COMPILER2
-#include "gc/x/c2/xBarrierSetC2.hpp"
+#include "gc/z/original/c2/zOriginalBarrierSetC2.hpp"
 #endif // COMPILER2
 
 namespace ZOriginal {

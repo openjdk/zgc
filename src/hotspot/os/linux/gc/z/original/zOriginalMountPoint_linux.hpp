@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef OS_LINUX_GC_X_ZMOUNTPOINT_LINUX_HPP
-#define OS_LINUX_GC_X_ZMOUNTPOINT_LINUX_HPP
+#ifndef OS_LINUX_GC_Z_ORIGINAL_ZORIGINALMOUNTPOINT_LINUX_HPP
+#define OS_LINUX_GC_Z_ORIGINAL_ZORIGINALMOUNTPOINT_LINUX_HPP
 
-#include "gc/x/xArray.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
 #include "memory/allocation.hpp"
 
 namespace ZOriginal {
@@ -53,4 +53,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // OS_LINUX_GC_X_ZMOUNTPOINT_LINUX_HPP
+#endif // OS_LINUX_GC_Z_ORIGINAL_ZORIGINALMOUNTPOINT_LINUX_HPP

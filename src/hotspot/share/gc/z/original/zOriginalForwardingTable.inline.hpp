@@ -21,15 +21,15 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFORWARDINGTABLE_INLINE_HPP
-#define SHARE_GC_X_ZFORWARDINGTABLE_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGTABLE_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGTABLE_INLINE_HPP
 
-#include "gc/x/xForwardingTable.hpp"
+#include "gc/z/original/zOriginalForwardingTable.hpp"
 
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xForwarding.inline.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xGranuleMap.inline.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalForwarding.inline.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalGranuleMap.inline.hpp"
 #include "utilities/debug.hpp"
 
 namespace ZOriginal {
@@ -60,4 +60,4 @@ inline void ZForwardingTable::remove(ZForwarding* forwarding) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZFORWARDINGTABLE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFORWARDINGTABLE_INLINE_HPP

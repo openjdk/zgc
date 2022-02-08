@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZREFERENCEPROCESSOR_HPP
-#define SHARE_GC_X_ZREFERENCEPROCESSOR_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALREFERENCEPROCESSOR_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALREFERENCEPROCESSOR_HPP
 
 #include "gc/shared/referenceDiscoverer.hpp"
-#include "gc/x/xValue.hpp"
+#include "gc/z/original/zOriginalValue.hpp"
 
 class ReferencePolicy;
 
@@ -81,4 +81,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZREFERENCEPROCESSOR_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALREFERENCEPROCESSOR_HPP

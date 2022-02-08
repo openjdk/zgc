@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZARRAY_HPP
-#define SHARE_GC_X_ZARRAY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALARRAY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALARRAY_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/growableArray.hpp"
@@ -52,4 +52,4 @@ template <typename T> using ZArrayParallelIterator = ZArrayIteratorImpl<T, true 
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZARRAY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALARRAY_HPP

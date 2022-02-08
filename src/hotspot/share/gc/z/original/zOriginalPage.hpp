@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZPAGE_HPP
-#define SHARE_GC_X_ZPAGE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALPAGE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALPAGE_HPP
 
-#include "gc/x/xList.hpp"
-#include "gc/x/xLiveMap.hpp"
-#include "gc/x/xPhysicalMemory.hpp"
-#include "gc/x/xVirtualMemory.hpp"
+#include "gc/z/original/zOriginalList.hpp"
+#include "gc/z/original/zOriginalLiveMap.hpp"
+#include "gc/z/original/zOriginalPhysicalMemory.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.hpp"
 #include "memory/allocation.hpp"
 
 namespace ZOriginal {
@@ -124,4 +124,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZPAGE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALPAGE_HPP

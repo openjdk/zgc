@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZWORKERS_HPP
-#define SHARE_GC_X_ZWORKERS_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALWORKERS_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALWORKERS_HPP
 
 #include "gc/shared/workerThread.hpp"
 
@@ -50,4 +50,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZWORKERS_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALWORKERS_HPP

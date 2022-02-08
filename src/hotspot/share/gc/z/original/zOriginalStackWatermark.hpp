@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZSTACKWATERMARK_HPP
-#define SHARE_GC_X_ZSTACKWATERMARK_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALSTACKWATERMARK_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALSTACKWATERMARK_HPP
 
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shared/threadLocalAllocBuffer.hpp"
-#include "gc/x/xBarrier.hpp"
+#include "gc/z/original/zOriginalBarrier.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -69,4 +69,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZSTACKWATERMARK_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALSTACKWATERMARK_HPP

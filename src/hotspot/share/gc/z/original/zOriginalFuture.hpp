@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZFUTURE_HPP
-#define SHARE_GC_X_ZFUTURE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALFUTURE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALFUTURE_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/semaphore.hpp"
@@ -44,4 +44,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZFUTURE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALFUTURE_HPP

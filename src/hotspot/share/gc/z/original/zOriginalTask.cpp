@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xTask.hpp"
-#include "gc/x/xThread.hpp"
+#include "gc/z/original/zOriginalTask.hpp"
+#include "gc/z/original/zOriginalThread.hpp"
 
 namespace ZOriginal {
 

@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMETRONOME_HPP
-#define SHARE_GC_X_ZMETRONOME_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMETRONOME_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMETRONOME_HPP
 
 #include "memory/allocation.hpp"
 #include "runtime/mutex.hpp"
@@ -46,4 +46,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMETRONOME_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMETRONOME_HPP

@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBARRIERSET_INLINE_HPP
-#define SHARE_GC_X_ZBARRIERSET_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSET_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSET_INLINE_HPP
 
-#include "gc/x/xBarrierSet.hpp"
+#include "gc/z/original/zOriginalBarrierSet.hpp"
 
 #include "gc/shared/accessBarrierSupport.inline.hpp"
-#include "gc/x/xBarrier.inline.hpp"
+#include "gc/z/original/zOriginalBarrier.inline.hpp"
 #include "utilities/debug.hpp"
 
 namespace ZOriginal {
@@ -243,4 +243,4 @@ inline oop ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_atomic_xchg_
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBARRIERSET_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSET_INLINE_HPP

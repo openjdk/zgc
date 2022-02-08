@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZTHREADLOCALALLOCBUFFER_HPP
-#define SHARE_GC_X_ZTHREADLOCALALLOCBUFFER_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALTHREADLOCALALLOCBUFFER_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALTHREADLOCALALLOCBUFFER_HPP
 
 #include "gc/shared/threadLocalAllocBuffer.hpp"
-#include "gc/x/xValue.hpp"
+#include "gc/z/original/zOriginalValue.hpp"
 #include "memory/allocation.hpp"
 
 class JavaThread;
@@ -49,4 +49,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZTHREADLOCALALLOCBUFFER_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALTHREADLOCALALLOCBUFFER_HPP

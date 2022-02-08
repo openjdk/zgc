@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_Z_GLOBALS_HPP
-#define SHARE_GC_X_Z_GLOBALS_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINAL_GLOBALS_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINAL_GLOBALS_HPP
 
 #define GC_Z_ORIGINAL_FLAGS(develop,                                        \
                             develop_pd,                                     \
@@ -40,4 +40,4 @@
 
 // end of GC_Z_ORIGINAL_FLAGS
 
-#endif // SHARE_GC_X_Z_GLOBALS_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINAL_GLOBALS_HPP

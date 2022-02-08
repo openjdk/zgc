@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZLIVEMAP_HPP
-#define SHARE_GC_X_ZLIVEMAP_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALLIVEMAP_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALLIVEMAP_HPP
 
-#include "gc/x/xBitMap.hpp"
+#include "gc/z/original/zOriginalBitMap.hpp"
 #include "memory/allocation.hpp"
 
 class ObjectClosure;
@@ -91,4 +91,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZLIVEMAP_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALLIVEMAP_HPP

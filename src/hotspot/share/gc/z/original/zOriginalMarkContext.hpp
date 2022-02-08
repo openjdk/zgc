@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARKCONTEXT_HPP
-#define SHARE_GC_X_ZMARKCONTEXT_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCONTEXT_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCONTEXT_HPP
 
-#include "gc/x/xMarkCache.hpp"
+#include "gc/z/original/zOriginalMarkCache.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "memory/allocation.hpp"
 
@@ -53,4 +53,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARKCONTEXT_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARKCONTEXT_HPP

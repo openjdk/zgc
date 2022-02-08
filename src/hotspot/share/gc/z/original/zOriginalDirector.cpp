@@ -23,11 +23,11 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/x/xDirector.hpp"
-#include "gc/x/xDriver.hpp"
-#include "gc/x/xHeap.inline.hpp"
-#include "gc/x/xHeuristics.hpp"
-#include "gc/x/xStat.hpp"
+#include "gc/z/original/zOriginalDirector.hpp"
+#include "gc/z/original/zOriginalDriver.hpp"
+#include "gc/z/original/zOriginalHeap.inline.hpp"
+#include "gc/z/original/zOriginalHeuristics.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
 #include "logging/log.hpp"
 
 namespace ZOriginal {

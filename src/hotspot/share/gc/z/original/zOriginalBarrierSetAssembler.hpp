@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBARRIERSETASSEMBLER_HPP
-#define SHARE_GC_X_ZBARRIERSETASSEMBLER_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSETASSEMBLER_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSETASSEMBLER_HPP
 
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "utilities/macros.hpp"
@@ -37,6 +37,6 @@ public:
 
 } // namespace ZOriginal
 
-#include CPU_HEADER(gc/x/xBarrierSetAssembler)
+#include CPU_HEADER(gc/z/original/zOriginalBarrierSetAssembler)
 
-#endif // SHARE_GC_X_ZBARRIERSETASSEMBLER_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSETASSEMBLER_HPP

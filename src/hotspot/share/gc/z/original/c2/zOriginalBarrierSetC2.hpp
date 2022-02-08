@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_C2_ZBARRIERSETC2_HPP
-#define SHARE_GC_X_C2_ZBARRIERSETC2_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_C2_ZORIGINALBARRIERSETC2_HPP
+#define SHARE_GC_Z_ORIGINAL_C2_ZORIGINALBARRIERSETC2_HPP
 
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.hpp"
@@ -97,4 +97,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_C2_ZBARRIERSETC2_HPP
+#endif // SHARE_GC_Z_ORIGINAL_C2_ZORIGINALBARRIERSETC2_HPP

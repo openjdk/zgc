@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef OS_LINUX_GC_X_ZSYSCALL_LINUX_HPP
-#define OS_LINUX_GC_X_ZSYSCALL_LINUX_HPP
+#ifndef OS_LINUX_GC_Z_ORIGINAL_ZORIGINALSYSCALL_LINUX_HPP
+#define OS_LINUX_GC_Z_ORIGINAL_ZORIGINALSYSCALL_LINUX_HPP
 
 #include "memory/allocation.hpp"
 
@@ -45,4 +45,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // OS_LINUX_GC_X_ZSYSCALL_LINUX_HPP
+#endif // OS_LINUX_GC_Z_ORIGINAL_ZORIGINALSYSCALL_LINUX_HPP

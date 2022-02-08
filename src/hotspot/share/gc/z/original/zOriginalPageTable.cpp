@@ -22,10 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xGranuleMap.inline.hpp"
-#include "gc/x/xPage.inline.hpp"
-#include "gc/x/xPageTable.inline.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalGranuleMap.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
+#include "gc/z/original/zOriginalPageTable.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "utilities/debug.hpp"
 

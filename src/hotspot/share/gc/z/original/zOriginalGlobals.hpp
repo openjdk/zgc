@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZGLOBALS_HPP
-#define SHARE_GC_X_ZGLOBALS_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALGLOBALS_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALGLOBALS_HPP
 
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#include CPU_HEADER(gc/x/xGlobals)
+#include CPU_HEADER(gc/z/original/zOriginalGlobals)
 
 namespace ZOriginal {
 
@@ -159,4 +159,4 @@ const uint64_t    ZMarkCompleteTimeout          = 200; // us
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZGLOBALS_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALGLOBALS_HPP

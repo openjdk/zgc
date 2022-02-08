@@ -22,10 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xHeap.inline.hpp"
-#include "gc/x/xLiveMap.inline.hpp"
-#include "gc/x/xStat.hpp"
-#include "gc/x/xThread.inline.hpp"
+#include "gc/z/original/zOriginalHeap.inline.hpp"
+#include "gc/z/original/zOriginalLiveMap.inline.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
+#include "gc/z/original/zOriginalThread.inline.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"

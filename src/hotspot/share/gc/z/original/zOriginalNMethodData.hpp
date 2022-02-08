@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZNMETHODDATA_HPP
-#define SHARE_GC_X_ZNMETHODDATA_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODDATA_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODDATA_HPP
 
-#include "gc/x/xAttachedArray.hpp"
-#include "gc/x/xLock.hpp"
+#include "gc/z/original/zOriginalAttachedArray.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -72,4 +72,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZNMETHODDATA_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALNMETHODDATA_HPP

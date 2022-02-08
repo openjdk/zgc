@@ -22,10 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xList.inline.hpp"
-#include "gc/x/xPage.inline.hpp"
-#include "gc/x/xPhysicalMemory.inline.hpp"
-#include "gc/x/xVirtualMemory.inline.hpp"
+#include "gc/z/original/zOriginalList.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
+#include "gc/z/original/zOriginalPhysicalMemory.inline.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 

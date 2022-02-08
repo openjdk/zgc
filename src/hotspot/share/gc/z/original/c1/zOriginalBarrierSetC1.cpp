@@ -25,10 +25,10 @@
 #include "c1/c1_LIR.hpp"
 #include "c1/c1_LIRGenerator.hpp"
 #include "c1/c1_CodeStubs.hpp"
-#include "gc/x/c1/xBarrierSetC1.hpp"
-#include "gc/x/xBarrierSet.hpp"
-#include "gc/x/xBarrierSetAssembler.hpp"
-#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/original/c1/zOriginalBarrierSetC1.hpp"
+#include "gc/z/original/zOriginalBarrierSet.hpp"
+#include "gc/z/original/zOriginalBarrierSetAssembler.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
 #include "utilities/macros.hpp"
 
 namespace ZOriginal {

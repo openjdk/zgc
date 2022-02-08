@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZNUMA_INLINE_HPP
-#define SHARE_GC_X_ZNUMA_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALNUMA_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALNUMA_INLINE_HPP
 
-#include "gc/x/xNUMA.hpp"
+#include "gc/z/original/zOriginalNUMA.hpp"
 
 namespace ZOriginal {
 
@@ -34,4 +34,4 @@ inline bool ZNUMA::is_enabled() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZNUMA_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALNUMA_INLINE_HPP

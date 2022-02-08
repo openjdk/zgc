@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef CPU_X86_GC_X_ZGLOBALS_X86_HPP
-#define CPU_X86_GC_X_ZGLOBALS_X86_HPP
+#ifndef CPU_X86_GC_Z_ORIGINAL_ZORIGINALGLOBALS_X86_HPP
+#define CPU_X86_GC_Z_ORIGINAL_ZORIGINALGLOBALS_X86_HPP
 
 namespace ZOriginal {
 
@@ -35,4 +35,4 @@ size_t ZPlatformAddressMetadataShift();
 
 } // namespace ZOriginal
 
-#endif // CPU_X86_GC_X_ZGLOBALS_X86_HPP
+#endif // CPU_X86_GC_Z_ORIGINAL_ZORIGINALGLOBALS_X86_HPP

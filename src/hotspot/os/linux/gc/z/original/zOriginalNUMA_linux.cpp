@@ -21,10 +21,10 @@
  * questions.
  */
 
-#include "gc/x/xCPU.inline.hpp"
-#include "gc/x/xErrno.hpp"
-#include "gc/x/xNUMA.hpp"
-#include "gc/x/xSyscall_linux.hpp"
+#include "gc/z/original/zOriginalCPU.inline.hpp"
+#include "gc/z/original/zOriginalErrno.hpp"
+#include "gc/z/original/zOriginalNUMA.hpp"
+#include "gc/z/original/zOriginalSyscall_linux.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"

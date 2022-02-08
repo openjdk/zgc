@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZCPU_INLINE_HPP
-#define SHARE_GC_X_ZCPU_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALCPU_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALCPU_INLINE_HPP
 
-#include "gc/x/xCPU.hpp"
+#include "gc/z/original/zOriginalCPU.hpp"
 
 #include "runtime/os.hpp"
 #include "utilities/debug.hpp"
@@ -49,4 +49,4 @@ inline uint32_t ZCPU::id() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZCPU_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALCPU_INLINE_HPP

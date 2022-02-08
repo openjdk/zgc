@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xAbort.hpp"
+#include "gc/z/original/zOriginalAbort.hpp"
 #include "runtime/atomic.hpp"
 
 namespace ZOriginal {

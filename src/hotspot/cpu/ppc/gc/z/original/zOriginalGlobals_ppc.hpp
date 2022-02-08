@@ -22,8 +22,8 @@
  * questions.
  */
 
-#ifndef CPU_PPC_GC_X_ZGLOBALS_PPC_HPP
-#define CPU_PPC_GC_X_ZGLOBALS_PPC_HPP
+#ifndef CPU_PPC_GC_Z_ORIGINAL_ZORIGINALGLOBALS_PPC_HPP
+#define CPU_PPC_GC_Z_ORIGINAL_ZORIGINALGLOBALS_PPC_HPP
 
 #include "globalDefinitions_ppc.hpp"
 
@@ -38,4 +38,4 @@ size_t ZPlatformAddressMetadataShift();
 
 } // namespace ZOriginal
 
-#endif // CPU_PPC_GC_X_ZGLOBALS_PPC_HPP
+#endif // CPU_PPC_GC_Z_ORIGINAL_ZORIGINALGLOBALS_PPC_HPP

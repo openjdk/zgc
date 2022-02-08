@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZDRIVER_HPP
-#define SHARE_GC_X_ZDRIVER_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALDRIVER_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALDRIVER_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
 #include "gc/shared/gcCause.hpp"
-#include "gc/x/xMessagePort.hpp"
+#include "gc/z/original/zOriginalMessagePort.hpp"
 
 namespace ZOriginal {
 
@@ -85,4 +85,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZDRIVER_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALDRIVER_HPP

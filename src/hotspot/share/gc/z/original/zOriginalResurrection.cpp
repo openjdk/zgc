@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xResurrection.hpp"
+#include "gc/z/original/zOriginalResurrection.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/safepoint.hpp"
 #include "utilities/debug.hpp"

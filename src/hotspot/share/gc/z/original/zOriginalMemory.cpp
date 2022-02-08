@@ -22,9 +22,9 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xList.inline.hpp"
-#include "gc/x/xLock.inline.hpp"
-#include "gc/x/xMemory.inline.hpp"
+#include "gc/z/original/zOriginalList.inline.hpp"
+#include "gc/z/original/zOriginalLock.inline.hpp"
+#include "gc/z/original/zOriginalMemory.inline.hpp"
 
 namespace ZOriginal {
 

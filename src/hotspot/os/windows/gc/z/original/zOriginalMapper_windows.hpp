@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef OS_WINDOWS_GC_X_ZMAPPER_WINDOWS_HPP
-#define OS_WINDOWS_GC_X_ZMAPPER_WINDOWS_HPP
+#ifndef OS_WINDOWS_GC_Z_ORIGINAL_ZORIGINALMAPPER_WINDOWS_HPP
+#define OS_WINDOWS_GC_Z_ORIGINAL_ZORIGINALMAPPER_WINDOWS_HPP
 
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -95,4 +95,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // OS_WINDOWS_GC_X_ZMAPPER_WINDOWS_HPP
+#endif // OS_WINDOWS_GC_Z_ORIGINAL_ZORIGINALMAPPER_WINDOWS_HPP

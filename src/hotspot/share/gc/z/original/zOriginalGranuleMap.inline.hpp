@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZGRANULEMAP_INLINE_HPP
-#define SHARE_GC_X_ZGRANULEMAP_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALGRANULEMAP_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALGRANULEMAP_INLINE_HPP
 
-#include "gc/x/xGranuleMap.hpp"
+#include "gc/z/original/zOriginalGranuleMap.hpp"
 
-#include "gc/x/xArray.inline.hpp"
-#include "gc/x/xGlobals.hpp"
+#include "gc/z/original/zOriginalArray.inline.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
 #include "memory/allocation.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/align.hpp"
@@ -95,4 +95,4 @@ inline ZGranuleMapIterator<T>::ZGranuleMapIterator(const ZGranuleMap<T>* granule
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZGRANULEMAP_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALGRANULEMAP_INLINE_HPP

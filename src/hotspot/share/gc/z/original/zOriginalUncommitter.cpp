@@ -23,10 +23,10 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
-#include "gc/x/xHeap.inline.hpp"
-#include "gc/x/xLock.inline.hpp"
-#include "gc/x/xStat.hpp"
-#include "gc/x/xUncommitter.hpp"
+#include "gc/z/original/zOriginalHeap.inline.hpp"
+#include "gc/z/original/zOriginalLock.inline.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
+#include "gc/z/original/zOriginalUncommitter.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 

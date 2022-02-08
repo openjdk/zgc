@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZBARRIERSETRUNTIME_HPP
-#define SHARE_GC_X_ZBARRIERSETRUNTIME_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSETRUNTIME_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSETRUNTIME_HPP
 
 #include "memory/allocation.hpp"
 #include "oops/accessDecorators.hpp"
@@ -57,4 +57,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZBARRIERSETRUNTIME_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALBARRIERSETRUNTIME_HPP

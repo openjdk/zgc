@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZRESURRECTION_HPP
-#define SHARE_GC_X_ZRESURRECTION_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALRESURRECTION_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALRESURRECTION_HPP
 
 #include "memory/allocation.hpp"
 
@@ -40,4 +40,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZRESURRECTION_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALRESURRECTION_HPP

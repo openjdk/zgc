@@ -22,10 +22,10 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xForwarding.inline.hpp"
-#include "gc/x/xStat.hpp"
-#include "gc/x/xUtils.inline.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalForwarding.inline.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
+#include "gc/z/original/zOriginalUtils.inline.hpp"
 #include "utilities/align.hpp"
 
 namespace ZOriginal {

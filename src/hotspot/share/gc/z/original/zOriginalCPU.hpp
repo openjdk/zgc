@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZCPU_HPP
-#define SHARE_GC_X_ZCPU_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALCPU_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALCPU_HPP
 
 #include "memory/allocation.hpp"
 #include "memory/padded.hpp"
@@ -53,4 +53,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZCPU_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALCPU_HPP

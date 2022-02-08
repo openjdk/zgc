@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZOBJECTALLOCATOR_HPP
-#define SHARE_GC_X_ZOBJECTALLOCATOR_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALOBJECTALLOCATOR_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALOBJECTALLOCATOR_HPP
 
-#include "gc/x/xAllocationFlags.hpp"
-#include "gc/x/xValue.hpp"
+#include "gc/z/original/zOriginalAllocationFlags.hpp"
+#include "gc/z/original/zOriginalValue.hpp"
 
 namespace ZOriginal {
 
@@ -80,4 +80,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZOBJECTALLOCATOR_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALOBJECTALLOCATOR_HPP

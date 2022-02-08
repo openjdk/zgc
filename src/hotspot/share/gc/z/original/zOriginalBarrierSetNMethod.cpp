@@ -23,11 +23,11 @@
 
 #include "precompiled.hpp"
 #include "code/nmethod.hpp"
-#include "gc/x/xBarrierSetNMethod.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xLock.inline.hpp"
-#include "gc/x/xNMethod.hpp"
-#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/original/zOriginalBarrierSetNMethod.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalLock.inline.hpp"
+#include "gc/z/original/zOriginalNMethod.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
 #include "logging/log.hpp"
 #include "runtime/threadWXSetters.inline.hpp"
 

@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZPAGEALLOCATOR_INLINE_HPP
-#define SHARE_GC_X_ZPAGEALLOCATOR_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALPAGEALLOCATOR_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALPAGEALLOCATOR_INLINE_HPP
 
-#include "gc/x/xPageAllocator.hpp"
+#include "gc/z/original/zOriginalPageAllocator.hpp"
 
 namespace ZOriginal {
 
@@ -79,4 +79,4 @@ inline size_t ZPageAllocatorStats::reclaimed() const {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZPAGEALLOCATOR_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALPAGEALLOCATOR_INLINE_HPP

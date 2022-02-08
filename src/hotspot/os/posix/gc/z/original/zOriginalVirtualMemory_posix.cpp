@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xVirtualMemory.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalVirtualMemory.hpp"
 #include "logging/log.hpp"
 
 #include <sys/mman.h>

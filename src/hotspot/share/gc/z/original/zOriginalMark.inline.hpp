@@ -21,16 +21,16 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARK_INLINE_HPP
-#define SHARE_GC_X_ZMARK_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARK_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARK_INLINE_HPP
 
-#include "gc/x/xMark.hpp"
+#include "gc/z/original/zOriginalMark.hpp"
 
-#include "gc/x/xAddress.inline.hpp"
-#include "gc/x/xMarkStack.inline.hpp"
-#include "gc/x/xPage.inline.hpp"
-#include "gc/x/xPageTable.inline.hpp"
-#include "gc/x/xThreadLocalData.hpp"
+#include "gc/z/original/zOriginalAddress.inline.hpp"
+#include "gc/z/original/zOriginalMarkStack.inline.hpp"
+#include "gc/z/original/zOriginalPage.inline.hpp"
+#include "gc/z/original/zOriginalPageTable.inline.hpp"
+#include "gc/z/original/zOriginalThreadLocalData.hpp"
 #include "runtime/thread.hpp"
 #include "utilities/debug.hpp"
 
@@ -81,4 +81,4 @@ inline void ZMark::mark_object(uintptr_t addr) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARK_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARK_INLINE_HPP

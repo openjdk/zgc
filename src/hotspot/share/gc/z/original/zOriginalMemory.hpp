@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMEMORY_HPP
-#define SHARE_GC_X_ZMEMORY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMEMORY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMEMORY_HPP
 
-#include "gc/x/xList.hpp"
-#include "gc/x/xLock.hpp"
+#include "gc/z/original/zOriginalList.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
 #include "memory/allocation.hpp"
 
 namespace ZOriginal {
@@ -94,4 +94,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMEMORY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMEMORY_HPP

@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZSTAT_HPP
-#define SHARE_GC_X_ZSTAT_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALSTAT_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALSTAT_HPP
 
 #include "gc/shared/concurrentGCThread.hpp"
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcTimer.hpp"
-#include "gc/x/xMetronome.hpp"
+#include "gc/z/original/zOriginalMetronome.hpp"
 #include "logging/logHandle.hpp"
 #include "memory/allocation.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -576,4 +576,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZSTAT_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALSTAT_HPP

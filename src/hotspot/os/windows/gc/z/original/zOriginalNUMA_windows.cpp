@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xNUMA.hpp"
+#include "gc/z/original/zOriginalNUMA.hpp"
 
 namespace ZOriginal {
 

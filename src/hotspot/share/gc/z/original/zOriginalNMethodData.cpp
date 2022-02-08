@@ -22,9 +22,9 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xAttachedArray.inline.hpp"
-#include "gc/x/xLock.inline.hpp"
-#include "gc/x/xNMethodData.hpp"
+#include "gc/z/original/zOriginalAttachedArray.inline.hpp"
+#include "gc/z/original/zOriginalLock.inline.hpp"
+#include "gc/z/original/zOriginalNMethodData.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/align.hpp"

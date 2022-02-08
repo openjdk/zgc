@@ -21,17 +21,17 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZVALUE_INLINE_HPP
-#define SHARE_GC_X_ZVALUE_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALVALUE_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALVALUE_INLINE_HPP
 
-#include "gc/x/xValue.hpp"
+#include "gc/z/original/zOriginalValue.hpp"
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/x/xCPU.inline.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xNUMA.hpp"
-#include "gc/x/xThread.inline.hpp"
-#include "gc/x/xUtils.hpp"
+#include "gc/z/original/zOriginalCPU.inline.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalNUMA.hpp"
+#include "gc/z/original/zOriginalThread.inline.hpp"
+#include "gc/z/original/zOriginalUtils.hpp"
 #include "runtime/globals.hpp"
 #include "utilities/align.hpp"
 
@@ -211,4 +211,4 @@ inline bool ZValueConstIterator<S, T>::next(const T** value) {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZVALUE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALVALUE_INLINE_HPP

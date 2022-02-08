@@ -24,11 +24,11 @@
 #include "precompiled.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/x/xLock.inline.hpp"
-#include "gc/x/xStat.hpp"
-#include "gc/x/xTask.hpp"
-#include "gc/x/xThread.hpp"
-#include "gc/x/xWorkers.hpp"
+#include "gc/z/original/zOriginalLock.inline.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
+#include "gc/z/original/zOriginalTask.hpp"
+#include "gc/z/original/zOriginalThread.hpp"
+#include "gc/z/original/zOriginalWorkers.hpp"
 #include "runtime/java.hpp"
 
 namespace ZOriginal {

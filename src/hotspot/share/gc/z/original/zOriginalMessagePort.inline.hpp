@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMESSAGEPORT_INLINE_HPP
-#define SHARE_GC_X_ZMESSAGEPORT_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMESSAGEPORT_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMESSAGEPORT_INLINE_HPP
 
-#include "gc/x/xMessagePort.hpp"
+#include "gc/z/original/zOriginalMessagePort.hpp"
 
-#include "gc/x/xFuture.inline.hpp"
-#include "gc/x/xList.inline.hpp"
+#include "gc/z/original/zOriginalFuture.inline.hpp"
+#include "gc/z/original/zOriginalList.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 
 namespace ZOriginal {
@@ -182,4 +182,4 @@ inline void ZRendezvousPort::ack() {
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMESSAGEPORT_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMESSAGEPORT_INLINE_HPP

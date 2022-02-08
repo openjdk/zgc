@@ -23,9 +23,9 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcId.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xStat.hpp"
-#include "gc/x/xTracer.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalStat.hpp"
+#include "gc/z/original/zOriginalTracer.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "utilities/debug.hpp"

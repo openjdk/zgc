@@ -22,7 +22,7 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xLargePages.hpp"
+#include "gc/z/original/zOriginalLargePages.hpp"
 #include "runtime/globals.hpp"
 
 namespace ZOriginal {

@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xAddress.hpp"
-#include "gc/x/xGlobals.hpp"
+#include "gc/z/original/zOriginalAddress.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
 
 namespace ZOriginal {
 

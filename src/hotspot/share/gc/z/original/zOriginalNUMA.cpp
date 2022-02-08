@@ -23,7 +23,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/x/xNUMA.hpp"
+#include "gc/z/original/zOriginalNUMA.hpp"
 
 namespace ZOriginal {
 

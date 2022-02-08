@@ -22,11 +22,11 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xAddressSpaceLimit.hpp"
-#include "gc/x/xArguments.hpp"
-#include "gc/x/xCollectedHeap.hpp"
-#include "gc/x/xGlobals.hpp"
-#include "gc/x/xHeuristics.hpp"
+#include "gc/z/original/zOriginalAddressSpaceLimit.hpp"
+#include "gc/z/original/zOriginalArguments.hpp"
+#include "gc/z/original/zOriginalCollectedHeap.hpp"
+#include "gc/z/original/zOriginalGlobals.hpp"
+#include "gc/z/original/zOriginalHeuristics.hpp"
 #include "gc/shared/gcArguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"

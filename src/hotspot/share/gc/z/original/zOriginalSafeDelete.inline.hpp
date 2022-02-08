@@ -21,12 +21,12 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZSAFEDELETE_INLINE_HPP
-#define SHARE_GC_X_ZSAFEDELETE_INLINE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALSAFEDELETE_INLINE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALSAFEDELETE_INLINE_HPP
 
-#include "gc/x/xSafeDelete.hpp"
+#include "gc/z/original/zOriginalSafeDelete.hpp"
 
-#include "gc/x/xArray.inline.hpp"
+#include "gc/z/original/zOriginalArray.inline.hpp"
 #include "metaprogramming/isArray.hpp"
 #include "utilities/debug.hpp"
 
@@ -100,4 +100,4 @@ ZSafeDeleteNoLock<T>::ZSafeDeleteNoLock() :
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZSAFEDELETE_INLINE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALSAFEDELETE_INLINE_HPP

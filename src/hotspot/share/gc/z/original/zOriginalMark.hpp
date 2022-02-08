@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZMARK_HPP
-#define SHARE_GC_X_ZMARK_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALMARK_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALMARK_HPP
 
-#include "gc/x/xMarkStack.hpp"
-#include "gc/x/xMarkStackAllocator.hpp"
-#include "gc/x/xMarkStackEntry.hpp"
-#include "gc/x/xMarkTerminate.hpp"
+#include "gc/z/original/zOriginalMarkStack.hpp"
+#include "gc/z/original/zOriginalMarkStackAllocator.hpp"
+#include "gc/z/original/zOriginalMarkStackEntry.hpp"
+#include "gc/z/original/zOriginalMarkTerminate.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -108,4 +108,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZMARK_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALMARK_HPP

@@ -22,8 +22,8 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/x/xMarkStack.inline.hpp"
-#include "gc/x/xMarkStackAllocator.hpp"
+#include "gc/z/original/zOriginalMarkStack.inline.hpp"
+#include "gc/z/original/zOriginalMarkStackAllocator.hpp"
 #include "logging/log.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"

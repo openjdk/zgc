@@ -21,11 +21,11 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZSAFEDELETE_HPP
-#define SHARE_GC_X_ZSAFEDELETE_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALSAFEDELETE_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALSAFEDELETE_HPP
 
-#include "gc/x/xArray.hpp"
-#include "gc/x/xLock.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
+#include "gc/z/original/zOriginalLock.hpp"
 #include "metaprogramming/removeExtent.hpp"
 
 namespace ZOriginal {
@@ -68,4 +68,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZSAFEDELETE_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALSAFEDELETE_HPP

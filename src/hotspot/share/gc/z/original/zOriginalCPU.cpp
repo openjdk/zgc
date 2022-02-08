@@ -23,7 +23,7 @@
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
-#include "gc/x/xCPU.inline.hpp"
+#include "gc/z/original/zOriginalCPU.inline.hpp"
 #include "memory/padded.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/thread.inline.hpp"

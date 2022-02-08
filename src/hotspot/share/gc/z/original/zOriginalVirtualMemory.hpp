@@ -21,10 +21,10 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZVIRTUALMEMORY_HPP
-#define SHARE_GC_X_ZVIRTUALMEMORY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALVIRTUALMEMORY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALVIRTUALMEMORY_HPP
 
-#include "gc/x/xMemory.hpp"
+#include "gc/z/original/zOriginalMemory.hpp"
 
 namespace ZOriginal {
 
@@ -81,4 +81,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZVIRTUALMEMORY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALVIRTUALMEMORY_HPP

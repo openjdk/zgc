@@ -21,13 +21,13 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZPHYSICALMEMORY_HPP
-#define SHARE_GC_X_ZPHYSICALMEMORY_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALPHYSICALMEMORY_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALPHYSICALMEMORY_HPP
 
-#include "gc/x/xArray.hpp"
-#include "gc/x/xMemory.hpp"
+#include "gc/z/original/zOriginalArray.hpp"
+#include "gc/z/original/zOriginalMemory.hpp"
 #include "memory/allocation.hpp"
-#include OS_HEADER(gc/x/xPhysicalMemoryBacking)
+#include OS_HEADER(gc/z/original/zOriginalPhysicalMemoryBacking)
 
 namespace ZOriginal {
 
@@ -117,4 +117,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZPHYSICALMEMORY_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALPHYSICALMEMORY_HPP

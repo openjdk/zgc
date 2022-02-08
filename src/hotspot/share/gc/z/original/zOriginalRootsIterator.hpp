@@ -21,8 +21,8 @@
  * questions.
  */
 
-#ifndef SHARE_GC_X_ZROOTSITERATOR_HPP
-#define SHARE_GC_X_ZROOTSITERATOR_HPP
+#ifndef SHARE_GC_Z_ORIGINAL_ZORIGINALROOTSITERATOR_HPP
+#define SHARE_GC_Z_ORIGINAL_ZORIGINALROOTSITERATOR_HPP
 
 #include "gc/shared/oopStorageSetParState.hpp"
 #include "logging/log.hpp"
@@ -125,4 +125,4 @@ public:
 
 } // namespace ZOriginal
 
-#endif // SHARE_GC_X_ZROOTSITERATOR_HPP
+#endif // SHARE_GC_Z_ORIGINAL_ZORIGINALROOTSITERATOR_HPP
