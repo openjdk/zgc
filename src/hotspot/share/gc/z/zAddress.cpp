@@ -138,7 +138,7 @@ void ZGlobalsPointers::flip_old_relocate_start() {
 }
 
 void z_catch_colored_oops(oopDesc* obj) {
-  if (UseZGC && ZVerifyOops) {
+  if (UseZGC && ZGenerational && ZVerifyOops) {
     (void)to_zaddress(obj);
   }
 }

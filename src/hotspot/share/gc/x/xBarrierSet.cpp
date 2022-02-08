@@ -48,7 +48,7 @@ ZBarrierSet::ZBarrierSet() :
                make_barrier_set_c1<ZBarrierSetC1>(),
                make_barrier_set_c2<ZBarrierSetC2>(),
                new ZBarrierSetNMethod(),
-               BarrierSet::FakeRtti(BarrierSet::ZBarrierSet)) {}
+               BarrierSet::FakeRtti(BarrierSet::ZOriginalBarrierSet)) {}
 
 ZBarrierSetAssembler* ZBarrierSet::assembler() {
   BarrierSetAssembler* const bsa = BarrierSet::barrier_set()->barrier_set_assembler();

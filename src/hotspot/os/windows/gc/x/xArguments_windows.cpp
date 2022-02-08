@@ -27,7 +27,7 @@
 
 namespace ZOriginal {
 
-bool ZArguments::is_os_supported() const {
+bool ZArguments::is_os_supported() {
   return ZSyscall::is_supported();
 }
 

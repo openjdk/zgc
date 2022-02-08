@@ -24,13 +24,13 @@
 #ifndef SHARE_GC_X_Z_GLOBALS_HPP
 #define SHARE_GC_X_Z_GLOBALS_HPP
 
-#define GC_X_FLAGS(develop,                                                 \
-                   develop_pd,                                              \
-                   product,                                                 \
-                   product_pd,                                              \
-                   notproduct,                                              \
-                   range,                                                   \
-                   constraint)                                              \
+#define GC_Z_ORIGINAL_FLAGS(develop,                                        \
+                            develop_pd,                                     \
+                            product,                                        \
+                            product_pd,                                     \
+                            notproduct,                                     \
+                            range,                                          \
+                            constraint)                                     \
                                                                             \
   product(double, ZCollectionInterval, 0,                                   \
           "Force GC at a fixed time interval (in seconds)")                 \
@@ -38,6 +38,6 @@
   product(bool, ZVerifyViews, false, DIAGNOSTIC,                            \
           "Verify heap view accesses")
 
-// end of GC_X_FLAGS
+// end of GC_Z_ORIGINAL_FLAGS
 
 #endif // SHARE_GC_X_Z_GLOBALS_HPP

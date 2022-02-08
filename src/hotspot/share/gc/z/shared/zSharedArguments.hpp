@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,13 +21,25 @@
  * questions.
  */
 
-#include "precompiled.hpp"
-#include "gc/x/xArguments.hpp"
+#ifndef SHARE_GC_Z_SHARED_ZSHAREDARGUMENTS_HPP
+#define SHARE_GC_Z_SHARED_ZSHAREDARGUMENTS_HPP
 
-namespace ZOriginal {
+#include "gc/shared/gcArguments.hpp"
 
-bool ZArguments::is_os_supported() {
-  return true;
-}
+class CollectedHeap;
 
-}
+class ZSharedArguments : public GCArguments {
+private:
+  virtual void initialize_alignments();
+
+  virtual void initialize();
+  virtual size_t conservative_max_heap_alignment();
+  virtual size_t heap_virtual_to_physical_ratio();
+  virtual CollectedHeap* create_heap();
+
+  virtual bool is_supported() const;
+
+  bool is_os_supported() const;
+};
+
+#endif // SHARE_GC_Z_SHARED_ZSHAREDARGUMENTS_HPP

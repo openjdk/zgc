@@ -24,13 +24,13 @@
 #ifndef SHARE_GC_Z_Z_GLOBALS_HPP
 #define SHARE_GC_Z_Z_GLOBALS_HPP
 
-#define GC_Z_FLAGS(develop,                                                 \
-                   develop_pd,                                              \
-                   product,                                                 \
-                   product_pd,                                              \
-                   notproduct,                                              \
-                   range,                                                   \
-                   constraint)                                              \
+#define GC_Z_GENERATIONAL_FLAGS(develop,                                    \
+                                develop_pd,                                 \
+                                product,                                    \
+                                product_pd,                                 \
+                                notproduct,                                 \
+                                range,                                      \
+                                constraint)                                 \
                                                                             \
   product(double, ZAllocationSpikeTolerance, 2.0,                           \
           "Allocation spike tolerance factor")                              \
@@ -100,6 +100,6 @@
   product(bool, ZVerifyForwarding, false, DIAGNOSTIC,                       \
           "Verify forwarding tables")
 
-// end of GC_Z_FLAGS
+// end of GC_Z_GENERATIONAL_FLAGS
 
 #endif // SHARE_GC_Z_Z_GLOBALS_HPP
