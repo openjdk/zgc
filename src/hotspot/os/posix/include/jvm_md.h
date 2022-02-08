@@ -79,6 +79,14 @@
 #include <errno.h>
 #include <signal.h>
 
+#ifdef minor
+#undef minor
+#endif
+
+#ifdef major
+#undef major
+#endif
+
 /* Signals */
 
 #include <sys/socket.h>   // for socklen_t
