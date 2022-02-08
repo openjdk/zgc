@@ -98,4 +98,4 @@ void ZBarrierSet::print_on(outputStream* st) const {
   st->print_cr("ZBarrierSet");
 }
 
-}
+} // namespace ZOriginal

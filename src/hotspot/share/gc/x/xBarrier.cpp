@@ -274,4 +274,4 @@ void ZLoadBarrierOopClosure::do_oop(narrowOop* p) {
   ShouldNotReachHere();
 }
 
-}
+} // namespace ZOriginal

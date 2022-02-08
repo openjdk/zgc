@@ -94,4 +94,4 @@ bool ZSyscall::is_large_pages_supported() {
   return has_kernelbase_symbol("CreateFileMapping2");
 }
 
-}
+} // namespace ZOriginal

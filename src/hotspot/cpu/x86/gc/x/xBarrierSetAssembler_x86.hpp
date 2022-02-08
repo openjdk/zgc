@@ -106,6 +106,6 @@ public:
 #endif // COMPILER2
 };
 
-}
+} // namespace ZOriginal
 
 #endif // CPU_X86_GC_X_ZBARRIERSETASSEMBLER_X86_HPP

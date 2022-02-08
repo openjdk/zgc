@@ -58,6 +58,6 @@ inline void ZMarkCache::inc_live(ZPage* page, size_t bytes) {
   _cache[index].inc_live(page, bytes);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKCACHE_INLINE_HPP

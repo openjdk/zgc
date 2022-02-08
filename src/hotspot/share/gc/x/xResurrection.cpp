@@ -43,4 +43,4 @@ void ZResurrection::unblock() {
   Atomic::store(&_blocked, false);
 }
 
-}
+} // namespace ZOriginal

@@ -235,4 +235,4 @@ void ZNMethodTable::nmethods_do(NMethodClosure* cl) {
   _iteration.nmethods_do(cl);
 }
 
-}
+} // namespace ZOriginal

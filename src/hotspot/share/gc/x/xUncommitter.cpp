@@ -97,4 +97,4 @@ void ZUncommitter::stop_service() {
   _lock.notify_all();
 }
 
-}
+} // namespace ZOriginal

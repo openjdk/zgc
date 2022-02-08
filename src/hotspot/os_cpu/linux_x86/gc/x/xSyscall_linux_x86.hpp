@@ -39,6 +39,6 @@ namespace ZOriginal {
 #define SYS_fallocate        285
 #endif
 
-}
+} // namespace ZOriginal
 
 #endif // OS_CPU_LINUX_X86_GC_X_ZSYSCALL_LINUX_X86_HPP

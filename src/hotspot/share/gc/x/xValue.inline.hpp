@@ -209,6 +209,6 @@ inline bool ZValueConstIterator<S, T>::next(const T** value) {
   return false;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZVALUE_INLINE_HPP

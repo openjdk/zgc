@@ -48,6 +48,6 @@ public:
   void threads_do(ThreadClosure* tc) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZWORKERS_HPP

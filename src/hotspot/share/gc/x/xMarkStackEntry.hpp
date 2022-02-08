@@ -141,6 +141,6 @@ public:
   }
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKSTACKENTRY_HPP

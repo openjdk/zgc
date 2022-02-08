@@ -41,6 +41,6 @@ public:
   bool par_set_bit_pair(idx_t bit, bool finalizable, bool& inc_live);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBITMAP_HPP

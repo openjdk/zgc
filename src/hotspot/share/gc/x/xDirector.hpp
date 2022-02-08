@@ -44,6 +44,6 @@ public:
   ZDirector(ZDriver* driver);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZDIRECTOR_HPP

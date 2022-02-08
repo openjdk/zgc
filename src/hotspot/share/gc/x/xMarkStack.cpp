@@ -227,4 +227,4 @@ void ZMarkThreadLocalStacks::free(ZMarkStackAllocator* allocator) {
   }
 }
 
-}
+} // namespace ZOriginal

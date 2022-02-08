@@ -164,6 +164,6 @@ public:
   void verify();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZHEAP_HPP

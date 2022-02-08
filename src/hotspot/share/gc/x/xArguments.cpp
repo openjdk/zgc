@@ -115,4 +115,4 @@ bool ZArguments::is_supported() {
   return is_os_supported();
 }
 
-}
+} // namespace ZOriginal

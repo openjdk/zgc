@@ -53,6 +53,6 @@ public:
   bool try_exit_stage1();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKTERMINATE_HPP

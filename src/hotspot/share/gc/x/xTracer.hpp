@@ -61,6 +61,6 @@ public:
   ~ZTraceThreadPhase();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZTRACER_HPP

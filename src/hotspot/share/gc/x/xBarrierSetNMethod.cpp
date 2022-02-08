@@ -74,4 +74,4 @@ ByteSize ZBarrierSetNMethod::thread_disarmed_offset() const {
   return ZThreadLocalData::nmethod_disarmed_offset();
 }
 
-}
+} // namespace ZOriginal

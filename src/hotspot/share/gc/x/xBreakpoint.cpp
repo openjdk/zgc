@@ -64,4 +64,4 @@ void ZBreakpoint::at_after_reference_processing_started() {
   ConcurrentGCBreakpoints::at("AFTER CONCURRENT REFERENCE PROCESSING STARTED");
 }
 
-}
+} // namespace ZOriginal

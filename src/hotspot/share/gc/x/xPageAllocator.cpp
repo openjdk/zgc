@@ -871,4 +871,4 @@ void ZPageAllocator::threads_do(ThreadClosure* tc) const {
   tc->do_thread(_uncommitter);
 }
 
-}
+} // namespace ZOriginal

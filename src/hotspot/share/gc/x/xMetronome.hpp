@@ -44,6 +44,6 @@ public:
   void stop();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMETRONOME_HPP

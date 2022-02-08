@@ -42,4 +42,4 @@ const char* ZNUMA::to_string() {
   return _enabled ? "Enabled" : "Disabled";
 }
 
-}
+} // namespace ZOriginal

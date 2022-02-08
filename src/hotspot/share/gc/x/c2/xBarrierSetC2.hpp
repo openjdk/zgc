@@ -95,6 +95,6 @@ public:
   virtual void emit_stubs(CodeBuffer& cb) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_C2_ZBARRIERSETC2_HPP

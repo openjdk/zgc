@@ -40,6 +40,6 @@ public:
   static uint nconcurrent_workers();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZHEURISTICS_HPP

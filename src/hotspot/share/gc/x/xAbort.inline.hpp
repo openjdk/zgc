@@ -34,6 +34,6 @@ inline bool ZAbort::should_abort() {
   return Atomic::load_acquire(&_should_abort);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZABORT_INLINE_HPP

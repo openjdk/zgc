@@ -43,6 +43,6 @@ public:
   static long get_mempolicy(int* mode, unsigned long* nodemask, unsigned long maxnode, void* addr, unsigned long flags);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // OS_LINUX_GC_X_ZSYSCALL_LINUX_HPP

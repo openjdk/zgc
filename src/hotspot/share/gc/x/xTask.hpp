@@ -52,6 +52,6 @@ public:
   virtual void work() = 0;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZTASK_HPP

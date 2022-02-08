@@ -45,6 +45,6 @@ public:
   void remove(ZForwarding* forwarding);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZFORWARDINGTABLE_HPP

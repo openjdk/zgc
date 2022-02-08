@@ -80,4 +80,4 @@ const char* ZGlobalPhaseToString() {
   }
 }
 
-}
+} // namespace ZOriginal

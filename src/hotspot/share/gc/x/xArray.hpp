@@ -50,6 +50,6 @@ public:
 template <typename T> using ZArrayIterator = ZArrayIteratorImpl<T, false /* Parallel */>;
 template <typename T> using ZArrayParallelIterator = ZArrayIteratorImpl<T, true /* Parallel */>;
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZARRAY_HPP

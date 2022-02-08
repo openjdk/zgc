@@ -43,4 +43,4 @@ ZMarkCache::~ZMarkCache() {
   }
 }
 
-}
+} // namespace ZOriginal

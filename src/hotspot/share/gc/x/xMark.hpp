@@ -106,6 +106,6 @@ public:
   bool flush_and_free(Thread* thread);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARK_HPP

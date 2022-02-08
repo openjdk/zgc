@@ -34,6 +34,6 @@ inline bool ZResurrection::is_blocked() {
   return Atomic::load(&_blocked);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRESURRECTION_INLINE_HPP

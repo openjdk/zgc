@@ -66,6 +66,6 @@ inline void ZMemory::grow_from_back(size_t size) {
   _end += size;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMEMORY_INLINE_HPP

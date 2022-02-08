@@ -93,6 +93,6 @@ template <typename T>
 inline ZGranuleMapIterator<T>::ZGranuleMapIterator(const ZGranuleMap<T>* granule_map) :
     ZArrayIteratorImpl<T, false /* Parallel */>(granule_map->_map, granule_map->_size) {}
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZGRANULEMAP_INLINE_HPP

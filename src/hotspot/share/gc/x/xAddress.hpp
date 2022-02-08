@@ -65,6 +65,6 @@ public:
   static uintptr_t remapped_or_null(uintptr_t value);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZADDRESS_HPP

@@ -81,4 +81,4 @@ void ZThread::clear_worker_id() {
   _worker_id = (uint)-1;
 }
 
-}
+} // namespace ZOriginal

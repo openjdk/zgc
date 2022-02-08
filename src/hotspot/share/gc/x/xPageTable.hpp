@@ -58,6 +58,6 @@ public:
   bool next(ZPage** page);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPAGETABLE_HPP

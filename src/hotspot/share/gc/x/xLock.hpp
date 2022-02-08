@@ -78,6 +78,6 @@ public:
   ~ZLocker();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLOCK_HPP

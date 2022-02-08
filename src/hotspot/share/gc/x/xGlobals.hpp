@@ -157,6 +157,6 @@ const size_t      ZMarkTerminateFlushMax        = 3;
 // Try complete mark timeout
 const uint64_t    ZMarkCompleteTimeout          = 200; // us
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZGLOBALS_HPP

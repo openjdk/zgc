@@ -58,4 +58,4 @@ ZInitialize::ZInitialize(ZBarrierSet* barrier_set) {
   pd_initialize();
 }
 
-}
+} // namespace ZOriginal

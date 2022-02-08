@@ -51,6 +51,6 @@ public:
   const char* get() const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // OS_LINUX_GC_X_ZMOUNTPOINT_LINUX_HPP

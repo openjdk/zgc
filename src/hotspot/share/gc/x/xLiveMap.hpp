@@ -89,6 +89,6 @@ public:
   void iterate(ObjectClosure* cl, uintptr_t page_start, size_t page_object_alignment_shift);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLIVEMAP_HPP

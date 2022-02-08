@@ -51,6 +51,6 @@ public:
   StringDedup::Requests* string_dedup_requests();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKCONTEXT_HPP

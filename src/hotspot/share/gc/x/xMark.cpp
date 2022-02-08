@@ -849,4 +849,4 @@ void ZMark::verify_all_stacks_empty() const {
   guarantee(_stripes.is_empty(), "Should be empty");
 }
 
-}
+} // namespace ZOriginal

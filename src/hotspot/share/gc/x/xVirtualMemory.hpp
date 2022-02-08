@@ -79,6 +79,6 @@ public:
   void free(const ZVirtualMemory& vmem);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZVIRTUALMEMORY_HPP

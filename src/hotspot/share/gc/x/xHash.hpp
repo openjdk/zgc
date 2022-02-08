@@ -35,6 +35,6 @@ public:
   static uint32_t address_to_uint32(uintptr_t key);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZHASH_HPP

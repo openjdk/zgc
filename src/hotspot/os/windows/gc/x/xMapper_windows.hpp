@@ -93,6 +93,6 @@ public:
   static void unmap_view_preserve_placeholder(uintptr_t addr, size_t size);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // OS_WINDOWS_GC_X_ZMAPPER_WINDOWS_HPP

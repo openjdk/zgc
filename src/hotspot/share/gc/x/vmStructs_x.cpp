@@ -42,4 +42,4 @@ ZGlobalsForVMStructs::ZGlobalsForVMStructs() :
 ZGlobalsForVMStructs ZGlobalsForVMStructs::_instance;
 ZGlobalsForVMStructs* ZGlobalsForVMStructs::_instance_p = &ZGlobalsForVMStructs::_instance;
 
-}
+} // namespace ZOriginal

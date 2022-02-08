@@ -54,6 +54,6 @@ public:
   static bool is_large_pages_supported();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // OS_WINDOWS_GC_X_ZSYSCALL_WINDOWS_HPP

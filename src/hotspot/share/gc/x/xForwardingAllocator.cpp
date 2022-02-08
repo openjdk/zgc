@@ -41,4 +41,4 @@ void ZForwardingAllocator::reset(size_t size) {
   _end = _start + size;
 }
 
-}
+} // namespace ZOriginal

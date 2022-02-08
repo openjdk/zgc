@@ -565,4 +565,4 @@ void ZBarrierSetC2::compute_liveness_at_stubs() const {
   }
 }
 
-}
+} // namespace ZOriginal

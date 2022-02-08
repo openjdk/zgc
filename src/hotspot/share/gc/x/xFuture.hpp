@@ -42,6 +42,6 @@ public:
   T get();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZFUTURE_HPP

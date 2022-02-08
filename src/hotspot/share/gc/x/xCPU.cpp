@@ -68,4 +68,4 @@ uint32_t ZCPU::id_slow() {
   return _cpu;
 }
 
-}
+} // namespace ZOriginal

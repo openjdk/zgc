@@ -95,4 +95,4 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
   return cast_to_oop(mem);
 }
 
-}
+} // namespace ZOriginal

@@ -79,6 +79,6 @@ inline bool ZBitMap::par_set_bit_pair(idx_t bit, bool finalizable, bool& inc_liv
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBITMAP_INLINE_HPP

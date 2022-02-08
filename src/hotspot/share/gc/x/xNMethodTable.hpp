@@ -74,6 +74,6 @@ public:
   static void purge(ZWorkers* workers);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZNMETHODTABLE_HPP

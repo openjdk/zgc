@@ -38,6 +38,6 @@ public:
   ZInitialize(ZBarrierSet* barrier_set);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZINITIALIZE_HPP

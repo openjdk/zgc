@@ -125,7 +125,7 @@ static void z_compare_and_exchange(MacroAssembler& _masm, const MachNode* node,
   }
 }
 
-}
+} // namespace ZOriginal
 
 %}
 

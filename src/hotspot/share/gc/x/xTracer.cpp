@@ -134,4 +134,4 @@ void ZTracer::send_thread_phase(const char* name, const Ticks& start, const Tick
   }
 }
 
-}
+} // namespace ZOriginal

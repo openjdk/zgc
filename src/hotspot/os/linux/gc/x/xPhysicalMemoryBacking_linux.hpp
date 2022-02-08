@@ -76,6 +76,6 @@ public:
   void unmap(uintptr_t addr, size_t size) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // OS_LINUX_GC_X_ZPHYSICALMEMORYBACKING_LINUX_HPP

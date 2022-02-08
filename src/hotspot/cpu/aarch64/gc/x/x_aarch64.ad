@@ -50,7 +50,7 @@ static void z_load_barrier_slow_path(MacroAssembler& _masm, const MachNode* node
   __ bind(*stub->continuation());
 }
 
-}
+} // namespace ZOriginal
 
 %}
 

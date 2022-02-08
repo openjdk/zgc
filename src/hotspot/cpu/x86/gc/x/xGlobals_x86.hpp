@@ -33,6 +33,6 @@ const size_t ZPlatformCacheLineSize    = 64;
 size_t ZPlatformAddressOffsetBits();
 size_t ZPlatformAddressMetadataShift();
 
-}
+} // namespace ZOriginal
 
 #endif // CPU_X86_GC_X_ZGLOBALS_X86_HPP

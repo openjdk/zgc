@@ -87,6 +87,6 @@ inline bool ZMarkTerminate::try_exit_stage1() {
   return try_exit_stage(&_nworking_stage1);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKTERMINATE_INLINE_HPP

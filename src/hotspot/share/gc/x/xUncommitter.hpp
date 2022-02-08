@@ -48,6 +48,6 @@ public:
   ZUncommitter(ZPageAllocator* page_allocator);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZUNCOMMITTER_HPP

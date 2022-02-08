@@ -71,4 +71,4 @@ uint32_t ZNUMA::memory_id(uintptr_t addr) {
   return id;
 }
 
-}
+} // namespace ZOriginal

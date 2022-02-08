@@ -90,6 +90,6 @@ public:
 #endif // COMPILER2
 };
 
-}
+} // namespace ZOriginal
 
 #endif // CPU_AARCH64_GC_X_ZBARRIERSETASSEMBLER_AARCH64_HPP

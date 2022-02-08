@@ -136,4 +136,4 @@ void ZPage::verify_live(uint32_t live_objects, size_t live_bytes) const {
   guarantee(live_bytes == _livemap.live_bytes(), "Invalid number of live bytes");
 }
 
-}
+} // namespace ZOriginal

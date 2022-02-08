@@ -43,6 +43,6 @@ public:
   static void object_copy_conjoint(uintptr_t from, uintptr_t to, size_t size);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZUTILS_HPP

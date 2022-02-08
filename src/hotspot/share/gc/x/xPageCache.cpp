@@ -357,4 +357,4 @@ void ZPageCache::pages_do(ZPageClosure* cl) const {
   }
 }
 
-}
+} // namespace ZOriginal

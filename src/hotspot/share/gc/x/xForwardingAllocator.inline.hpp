@@ -45,6 +45,6 @@ inline void* ZForwardingAllocator::alloc(size_t size) {
   return addr;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZFORWARDINGALLOCATOR_INLINE_HPP

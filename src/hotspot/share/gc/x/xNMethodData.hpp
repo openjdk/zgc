@@ -70,6 +70,6 @@ public:
   ZNMethodDataOops* swap_oops(ZNMethodDataOops* oops);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZNMETHODDATA_HPP

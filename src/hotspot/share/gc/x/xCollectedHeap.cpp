@@ -325,4 +325,4 @@ bool ZCollectedHeap::supports_concurrent_gc_breakpoints() const {
   return true;
 }
 
-}
+} // namespace ZOriginal

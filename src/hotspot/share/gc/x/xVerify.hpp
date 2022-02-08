@@ -58,6 +58,6 @@ public:
   ~ZVerifyViewsFlip();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZVERIFY_HPP

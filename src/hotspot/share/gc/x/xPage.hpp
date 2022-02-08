@@ -122,6 +122,6 @@ public:
   virtual void do_page(const ZPage* page) = 0;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPAGE_HPP

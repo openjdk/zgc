@@ -42,6 +42,6 @@ public:
   void threads_do(ThreadClosure* tc) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRUNTIMEWORKERS_HPP

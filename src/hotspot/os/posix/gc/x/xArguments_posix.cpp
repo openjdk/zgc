@@ -30,4 +30,4 @@ bool ZArguments::is_os_supported() {
   return true;
 }
 
-}
+} // namespace ZOriginal

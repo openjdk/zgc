@@ -31,4 +31,4 @@ bool ZArguments::is_os_supported() {
   return ZSyscall::is_supported();
 }
 
-}
+} // namespace ZOriginal

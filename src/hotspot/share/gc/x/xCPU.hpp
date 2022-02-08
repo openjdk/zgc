@@ -51,6 +51,6 @@ public:
   static uint32_t id();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZCPU_HPP

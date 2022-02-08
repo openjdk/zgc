@@ -67,6 +67,6 @@ inline uintptr_t ZVirtualMemoryManager::lowest_available_address() const {
   return _manager.peek_low_address();
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZVIRTUALMEMORY_INLINE_HPP

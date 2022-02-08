@@ -134,4 +134,4 @@ void ZLiveMap::resize(uint32_t size) {
   }
 }
 
-}
+} // namespace ZOriginal

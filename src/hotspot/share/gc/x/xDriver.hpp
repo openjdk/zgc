@@ -83,6 +83,6 @@ public:
   void collect(const ZDriverRequest& request);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZDRIVER_HPP

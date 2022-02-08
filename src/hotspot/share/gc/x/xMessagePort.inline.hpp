@@ -180,6 +180,6 @@ inline void ZRendezvousPort::ack() {
   _port.ack();
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMESSAGEPORT_INLINE_HPP

@@ -77,6 +77,6 @@ inline size_t ZPageAllocatorStats::reclaimed() const {
   return _reclaimed;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPAGEALLOCATOR_INLINE_HPP

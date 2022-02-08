@@ -53,6 +53,6 @@ public:
   void unmap_and_destroy_page(ZPage* page);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZUNMAPPER_HPP

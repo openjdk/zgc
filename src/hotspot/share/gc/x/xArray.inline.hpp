@@ -80,6 +80,6 @@ inline bool ZArrayIteratorImpl<T, Parallel>::next(T* elem) {
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZARRAY_INLINE_HPP

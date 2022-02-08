@@ -127,6 +127,6 @@ public:
   ZRelocationSetSelectorStats stats() const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRELOCATIONSETSELECTOR_HPP

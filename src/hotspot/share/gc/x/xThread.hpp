@@ -60,6 +60,6 @@ public:
   static uint worker_id();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZTHREAD_HPP

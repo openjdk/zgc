@@ -162,6 +162,6 @@ inline uintptr_t ZForwarding::insert(uintptr_t from_index, uintptr_t to_offset, 
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZFORWARDING_INLINE_HPP

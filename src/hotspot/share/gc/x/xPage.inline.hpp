@@ -311,6 +311,6 @@ inline bool ZPage::undo_alloc_object_atomic(uintptr_t addr, size_t size) {
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPAGE_INLINE_HPP

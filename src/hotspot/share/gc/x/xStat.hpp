@@ -574,6 +574,6 @@ public:
   static void print();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZSTAT_HPP

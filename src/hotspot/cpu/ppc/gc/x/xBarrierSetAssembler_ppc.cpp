@@ -568,4 +568,4 @@ void ZBarrierSetAssembler::generate_c2_load_barrier_stub(MacroAssembler* masm, Z
 #undef __
 #endif // COMPILER2
 
-}
+} // namespace ZOriginal

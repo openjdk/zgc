@@ -92,6 +92,6 @@ public:
   void free(uintptr_t start, size_t size);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMEMORY_HPP

@@ -115,6 +115,6 @@ public:
   void debug_unmap(uintptr_t offset, size_t size) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPHYSICALMEMORY_HPP

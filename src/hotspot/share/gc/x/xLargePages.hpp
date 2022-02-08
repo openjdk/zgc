@@ -50,6 +50,6 @@ public:
   static const char* to_string();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLARGEPAGES_HPP

@@ -79,6 +79,6 @@ public:
   void enqueue_references();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZREFERENCEPROCESSOR_HPP

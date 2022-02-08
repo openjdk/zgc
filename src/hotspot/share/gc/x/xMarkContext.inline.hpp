@@ -52,6 +52,6 @@ inline StringDedup::Requests* ZMarkContext::string_dedup_requests() {
   return &_string_dedup_requests;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKCACHE_INLINE_HPP

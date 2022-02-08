@@ -100,4 +100,4 @@ void ZStackWatermark::process(const frame& fr, RegisterMap& register_map, void* 
   fr.oops_do(closure_from_context(context), &_cb_cl, &register_map, DerivedPointerIterationMode::_directly);
 }
 
-}
+} // namespace ZOriginal

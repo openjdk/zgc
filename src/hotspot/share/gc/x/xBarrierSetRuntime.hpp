@@ -55,6 +55,6 @@ public:
   static address clone_addr();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBARRIERSETRUNTIME_HPP

@@ -76,6 +76,6 @@ public:
   void free();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKSTACKALLOCATOR_HPP

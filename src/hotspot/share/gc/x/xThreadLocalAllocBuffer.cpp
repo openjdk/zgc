@@ -93,4 +93,4 @@ void ZThreadLocalAllocBuffer::update_stats(JavaThread* thread) {
   }
 }
 
-}
+} // namespace ZOriginal

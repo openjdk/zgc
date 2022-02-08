@@ -265,6 +265,6 @@ inline bool ZMarkThreadLocalStacks::pop(ZMarkStackAllocator* allocator,
   return pop_slow(allocator, stripe, stackp, entry);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKSTACK_INLINE_HPP

@@ -241,6 +241,6 @@ inline oop ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_atomic_xchg_
   return Raw::oop_atomic_xchg_not_in_heap(addr, new_value);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBARRIERSET_INLINE_HPP

@@ -58,6 +58,6 @@ inline void ZUtils::object_copy_conjoint(uintptr_t from, uintptr_t to, size_t si
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZUTILS_INLINE_HPP

@@ -77,6 +77,6 @@ public:
   virtual void generate_c1_runtime_stubs(BufferBlob* blob);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_C1_ZBARRIERSETC1_HPP

@@ -66,6 +66,6 @@ public:
   void pages_do(ZPageClosure* cl) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPAGECACHE_HPP

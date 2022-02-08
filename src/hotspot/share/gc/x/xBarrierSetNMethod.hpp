@@ -40,6 +40,6 @@ public:
   virtual int* disarmed_value_address() const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBARRIERSETNMETHOD_HPP

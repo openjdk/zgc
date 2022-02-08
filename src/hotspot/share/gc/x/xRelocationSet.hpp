@@ -58,6 +58,6 @@ public:
 using ZRelocationSetIterator = ZRelocationSetIteratorImpl<false /* Parallel */>;
 using ZRelocationSetParallelIterator = ZRelocationSetIteratorImpl<true /* Parallel */>;
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRELOCATIONSET_HPP

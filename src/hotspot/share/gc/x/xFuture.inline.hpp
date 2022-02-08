@@ -58,6 +58,6 @@ inline T ZFuture<T>::get() {
   return _value;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZFUTURE_INLINE_HPP

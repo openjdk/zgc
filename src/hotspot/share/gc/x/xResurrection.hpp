@@ -38,6 +38,6 @@ public:
   static void unblock();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRESURRECTION_HPP

@@ -65,6 +65,6 @@ public:
   void ack();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMESSAGEPORT_HPP

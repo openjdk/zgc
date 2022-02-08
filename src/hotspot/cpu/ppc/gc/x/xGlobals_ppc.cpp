@@ -204,4 +204,4 @@ size_t ZPlatformAddressMetadataShift() {
   return ZPlatformAddressOffsetBits();
 }
 
-}
+} // namespace ZOriginal

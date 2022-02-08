@@ -163,6 +163,6 @@ public:
   void free(ZMarkStackAllocator* allocator);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKSTACK_HPP

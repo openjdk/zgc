@@ -387,6 +387,6 @@ inline void ZBarrier::mark_barrier_on_oop_array(volatile oop* p, size_t length, 
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBARRIER_INLINE_HPP

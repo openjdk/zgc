@@ -142,6 +142,6 @@ typedef ZAttachedArray<ZForwarding, ZForwardingEntry> ZAttachedArrayForForwardin
   declare_toplevel_type(ZForwardingEntry)                                                            \
   declare_toplevel_type(ZPhysicalMemoryManager)
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_VMSTRUCTS_Z_HPP

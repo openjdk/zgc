@@ -58,6 +58,6 @@ public:
   ZGranuleMapIterator(const ZGranuleMap<T>* granule_map);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZGRANULEMAP_HPP

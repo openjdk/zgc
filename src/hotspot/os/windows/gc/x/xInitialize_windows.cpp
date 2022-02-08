@@ -31,4 +31,4 @@ void ZInitialize::pd_initialize() {
   ZSyscall::initialize();
 }
 
-}
+} // namespace ZOriginal

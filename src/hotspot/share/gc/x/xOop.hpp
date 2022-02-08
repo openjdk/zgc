@@ -35,6 +35,6 @@ public:
   static uintptr_t to_address(oop o);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZOOP_HPP

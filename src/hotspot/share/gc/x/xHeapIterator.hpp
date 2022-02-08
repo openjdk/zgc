@@ -96,6 +96,6 @@ public:
   virtual void object_iterate(ObjectClosure* cl, uint worker_id);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZHEAPITERATOR_HPP

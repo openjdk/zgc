@@ -119,6 +119,6 @@ inline ZLocker<T>::~ZLocker() {
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLOCK_INLINE_HPP

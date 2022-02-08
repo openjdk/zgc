@@ -134,6 +134,6 @@ public:
   virtual void do_oop(narrowOop* p);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBARRIER_HPP

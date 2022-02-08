@@ -48,4 +48,4 @@ WorkerTask* ZTask::worker_task() {
   return &_worker_task;
 }
 
-}
+} // namespace ZOriginal

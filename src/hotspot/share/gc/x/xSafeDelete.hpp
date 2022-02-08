@@ -66,6 +66,6 @@ public:
   ZSafeDeleteNoLock();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZSAFEDELETE_HPP

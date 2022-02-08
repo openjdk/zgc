@@ -40,6 +40,6 @@ inline bool ZLargePages::is_transparent() {
   return _state == Transparent;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLARGEPAGES_INLINE_HPP

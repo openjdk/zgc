@@ -123,6 +123,6 @@ public:
   void report_num_dead();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZROOTSITERATOR_HPP

@@ -89,4 +89,4 @@ ZNMethodDataOops* ZNMethodData::swap_oops(ZNMethodDataOops* new_oops) {
   return old_oops;
 }
 
-}
+} // namespace ZOriginal

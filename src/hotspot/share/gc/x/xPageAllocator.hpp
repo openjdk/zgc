@@ -173,6 +173,6 @@ public:
   size_t reclaimed() const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPAGEALLOCATOR_HPP

@@ -136,6 +136,6 @@ inline uintptr_t ZAddress::remapped_or_null(uintptr_t value) {
   return is_null(value) ? 0 : remapped(value);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZADDRESS_INLINE_HPP

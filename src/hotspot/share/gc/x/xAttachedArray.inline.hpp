@@ -85,6 +85,6 @@ inline ArrayT* ZAttachedArray<ObjectT, ArrayT>::operator()(const ObjectT* obj) c
   return reinterpret_cast<ArrayT*>(reinterpret_cast<uintptr_t>(obj) + object_size());
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZATTACHEDARRAY_INLINE_HPP

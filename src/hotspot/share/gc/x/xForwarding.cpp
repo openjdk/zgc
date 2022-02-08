@@ -211,4 +211,4 @@ void ZForwarding::verify() const {
   _page->verify_live(live_objects, live_bytes);
 }
 
-}
+} // namespace ZOriginal

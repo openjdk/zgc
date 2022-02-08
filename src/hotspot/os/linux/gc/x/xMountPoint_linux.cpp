@@ -151,4 +151,4 @@ const char* ZMountPoint::get() const {
   return _path;
 }
 
-}
+} // namespace ZOriginal

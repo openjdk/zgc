@@ -160,6 +160,6 @@ inline size_t ZRelocationSetSelector::forwarding_entries() const {
   return _small.forwarding_entries() + _medium.forwarding_entries();
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRELOCATIONSETSELECTOR_INLINE_HPP

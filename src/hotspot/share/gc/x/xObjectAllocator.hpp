@@ -78,6 +78,6 @@ public:
   void retire_pages();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZOBJECTALLOCATOR_HPP

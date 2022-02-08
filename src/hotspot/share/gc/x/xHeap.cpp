@@ -519,4 +519,4 @@ void ZHeap::verify() {
   ZVerify::after_weak_processing();
 }
 
-}
+} // namespace ZOriginal

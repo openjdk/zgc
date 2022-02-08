@@ -36,6 +36,6 @@ public:
   ZObjArrayAllocator(Klass* klass, size_t word_size, int length, bool do_zero, Thread* thread);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZOBJARRAYALLOCATOR_HPP

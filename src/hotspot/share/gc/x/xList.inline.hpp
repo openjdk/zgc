@@ -237,6 +237,6 @@ inline bool ZListRemoveIteratorImpl<T, Forward>::next(T** elem) {
   return *elem != NULL;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLIST_INLINE_HPP

@@ -38,6 +38,6 @@ public:
   void process_weak_roots();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZWEAKROOTSPROCESSOR_HPP

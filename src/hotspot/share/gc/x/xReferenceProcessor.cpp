@@ -460,4 +460,4 @@ void ZReferenceProcessor::enqueue_references() {
   _pending_list_tail = _pending_list.addr();
 }
 
-}
+} // namespace ZOriginal

@@ -410,6 +410,6 @@ void ZVerify::verify_thread_frames_bad(JavaThread* jt) {
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // ASSERT

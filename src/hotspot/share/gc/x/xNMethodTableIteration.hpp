@@ -48,6 +48,6 @@ public:
   void nmethods_do(NMethodClosure* cl);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZNMETHODTABLEITERATION_HPP

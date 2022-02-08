@@ -60,6 +60,6 @@ inline ZTraceThreadPhase::~ZTraceThreadPhase() {
   ZTracer::tracer()->report_thread_phase(_name, _start, Ticks::now());
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZTRACER_INLINE_HPP

@@ -35,7 +35,7 @@ public:
   static Address address_bad_mask_from_jni_env(Register env);
 };
 
-}
+} // namespace ZOriginal
 
 #include CPU_HEADER(gc/x/xBarrierSetAssembler)
 

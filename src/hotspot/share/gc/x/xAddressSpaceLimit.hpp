@@ -34,6 +34,6 @@ public:
   static size_t heap_view();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZADDRESSSPACELIMIT_HPP

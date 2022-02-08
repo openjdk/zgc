@@ -34,6 +34,6 @@ template <bool Parallel>
 inline ZRelocationSetIteratorImpl<Parallel>::ZRelocationSetIteratorImpl(ZRelocationSet* relocation_set) :
     ZArrayIteratorImpl<ZForwarding*, Parallel>(relocation_set->_forwardings, relocation_set->_nforwardings) {}
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRELOCATIONSET_INLINE_HPP

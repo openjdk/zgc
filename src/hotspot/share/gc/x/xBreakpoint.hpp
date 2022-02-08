@@ -42,6 +42,6 @@ public:
   static void at_after_reference_processing_started();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZBREAKPOINT_HPP

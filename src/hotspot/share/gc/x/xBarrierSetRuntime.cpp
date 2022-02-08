@@ -115,4 +115,4 @@ address ZBarrierSetRuntime::clone_addr() {
   return reinterpret_cast<address>(clone);
 }
 
-}
+} // namespace ZOriginal

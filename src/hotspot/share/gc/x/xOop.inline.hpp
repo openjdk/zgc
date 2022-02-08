@@ -36,6 +36,6 @@ inline uintptr_t ZOop::to_address(oop o) {
   return cast_from_oop<uintptr_t>(o);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZOOP_INLINE_HPP

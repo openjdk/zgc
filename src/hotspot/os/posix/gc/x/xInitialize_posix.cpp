@@ -30,4 +30,4 @@ void ZInitialize::pd_initialize() {
   // Does nothing
 }
 
-}
+} // namespace ZOriginal

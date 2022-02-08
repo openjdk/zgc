@@ -41,4 +41,4 @@ long ZSyscall::get_mempolicy(int* mode, unsigned long* nodemask, unsigned long m
   return syscall(SYS_get_mempolicy, mode, nodemask, maxnode, addr, flags);
 }
 
-}
+} // namespace ZOriginal

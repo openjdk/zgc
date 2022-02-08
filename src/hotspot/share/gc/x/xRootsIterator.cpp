@@ -143,4 +143,4 @@ void ZWeakRootsIterator::apply(OopClosure* cl) {
   _oop_storage_set.apply(cl);
 }
 
-}
+} // namespace ZOriginal

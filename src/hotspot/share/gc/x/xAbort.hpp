@@ -37,6 +37,6 @@ public:
   static void abort();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZABORT_HPP

@@ -98,6 +98,6 @@ template <typename T>
 ZSafeDeleteNoLock<T>::ZSafeDeleteNoLock() :
     ZSafeDeleteImpl<T>(NULL) {}
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZSAFEDELETE_INLINE_HPP

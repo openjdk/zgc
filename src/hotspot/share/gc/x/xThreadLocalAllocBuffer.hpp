@@ -47,6 +47,6 @@ public:
   static void update_stats(JavaThread* thread);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZTHREADLOCALALLOCBUFFER_HPP

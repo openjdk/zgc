@@ -41,6 +41,6 @@ public:
   void finish();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZUNLOAD_HPP

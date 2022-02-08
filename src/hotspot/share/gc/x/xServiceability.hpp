@@ -89,6 +89,6 @@ public:
   ~ZServiceabilityPauseTracer();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZSERVICEABILITY_HPP

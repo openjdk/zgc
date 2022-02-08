@@ -51,6 +51,6 @@ public:
   ArrayT* operator()(const ObjectT* obj) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZATTACHEDARRAY_HPP

@@ -433,4 +433,4 @@ void ZHeapIterator::object_iterate(ObjectClosure* cl, uint worker_id) {
   }
 }
 
-}
+} // namespace ZOriginal

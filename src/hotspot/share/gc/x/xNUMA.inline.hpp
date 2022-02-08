@@ -32,6 +32,6 @@ inline bool ZNUMA::is_enabled() {
   return _enabled;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZNUMA_INLINE_HPP

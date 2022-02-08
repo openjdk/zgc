@@ -47,6 +47,6 @@ public:
   void unmap(uintptr_t addr, size_t size) const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // OS_BSD_GC_X_ZPHYSICALMEMORYBACKING_BSD_HPP

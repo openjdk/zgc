@@ -76,6 +76,6 @@ inline uint32_t ZHash::address_to_uint32(uintptr_t key) {
   return uint32_to_uint32((uint32_t)(key >> 3));
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZHASH_INLINE_HPP

@@ -77,4 +77,4 @@ void ZNMethodTableIteration::nmethods_do(NMethodClosure* cl) {
   }
 }
 
-}
+} // namespace ZOriginal

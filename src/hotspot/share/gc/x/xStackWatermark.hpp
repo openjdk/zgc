@@ -67,6 +67,6 @@ public:
   ThreadLocalAllocStats& stats();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZSTACKWATERMARK_HPP

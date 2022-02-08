@@ -61,6 +61,6 @@ inline uint ZThread::worker_id() {
   return _worker_id;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZTHREAD_INLINE_HPP

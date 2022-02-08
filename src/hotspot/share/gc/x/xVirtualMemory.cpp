@@ -209,4 +209,4 @@ void ZVirtualMemoryManager::free(const ZVirtualMemory& vmem) {
   _manager.free(vmem.start(), vmem.size());
 }
 
-}
+} // namespace ZOriginal

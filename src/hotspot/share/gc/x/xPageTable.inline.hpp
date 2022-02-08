@@ -53,6 +53,6 @@ inline bool ZPageTableIterator::next(ZPage** page) {
   return false;
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPAGETABLE_INLINE_HPP

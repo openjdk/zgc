@@ -235,4 +235,4 @@ void ZBarrierSetC1::generate_c1_runtime_stubs(BufferBlob* blob) {
     generate_c1_runtime_stub(blob, ON_WEAK_OOP_REF, "load_barrier_on_weak_oop_field_preloaded_runtime_stub");
 }
 
-}
+} // namespace ZOriginal

@@ -47,6 +47,6 @@ inline uint32_t ZCPU::id() {
   return id_slow();
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZCPU_INLINE_HPP

@@ -79,6 +79,6 @@ inline void ZMark::mark_object(uintptr_t addr) {
   stacks->push(&_allocator, &_stripes, stripe, entry, publish);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARK_INLINE_HPP

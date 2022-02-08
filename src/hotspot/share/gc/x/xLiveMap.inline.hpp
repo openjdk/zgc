@@ -174,6 +174,6 @@ inline void ZLiveMap::iterate(ObjectClosure* cl, uintptr_t page_start, size_t pa
   }
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLIVEMAP_INLINE_HPP

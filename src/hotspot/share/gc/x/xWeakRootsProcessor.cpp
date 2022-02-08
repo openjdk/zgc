@@ -80,4 +80,4 @@ void ZWeakRootsProcessor::process_weak_roots() {
   _workers->run(&task);
 }
 
-}
+} // namespace ZOriginal

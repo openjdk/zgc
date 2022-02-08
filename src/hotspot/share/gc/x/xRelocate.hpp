@@ -48,6 +48,6 @@ public:
   void relocate(ZRelocationSet* relocation_set);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZRELOCATE_HPP

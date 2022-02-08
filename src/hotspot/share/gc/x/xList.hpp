@@ -115,6 +115,6 @@ template <typename T> using ZListIterator = ZListIteratorImpl<T, true /* Forward
 template <typename T> using ZListReverseIterator = ZListIteratorImpl<T, false /* Forward */>;
 template <typename T> using ZListRemoveIterator = ZListRemoveIteratorImpl<T, true /* Forward */>;
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZLIST_HPP

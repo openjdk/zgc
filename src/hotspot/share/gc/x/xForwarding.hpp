@@ -87,6 +87,6 @@ public:
   void verify() const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZFORWARDING_HPP

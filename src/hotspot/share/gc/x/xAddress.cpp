@@ -59,4 +59,4 @@ void ZAddress::flip_to_remapped() {
   set_good_mask(ZAddressMetadataRemapped);
 }
 
-}
+} // namespace ZOriginal

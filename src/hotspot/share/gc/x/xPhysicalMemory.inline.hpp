@@ -73,6 +73,6 @@ inline const ZPhysicalMemorySegment& ZPhysicalMemory::segment(int index) const {
   return _segments.at(index);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZPHYSICALMEMORY_INLINE_HPP

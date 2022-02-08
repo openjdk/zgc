@@ -127,6 +127,6 @@ public:
   virtual bool supports_concurrent_gc_breakpoints() const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZCOLLECTEDHEAP_HPP

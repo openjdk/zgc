@@ -56,6 +56,6 @@ public:
   void inc_live(ZPage* page, size_t bytes);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZMARKCACHE_HPP

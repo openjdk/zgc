@@ -139,6 +139,6 @@ template <typename T> using ZPerCPUConstIterator = ZValueConstIterator<ZPerCPUSt
 template <typename T> using ZPerNUMAConstIterator = ZValueConstIterator<ZPerNUMAStorage, T>;
 template <typename T> using ZPerWorkerConstIterator = ZValueConstIterator<ZPerWorkerStorage, T>;
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZVALUE_HPP

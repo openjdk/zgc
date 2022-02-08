@@ -54,4 +54,4 @@ void ZPageTable::remove(ZPage* page) {
   _map.put(offset, size, NULL);
 }
 
-}
+} // namespace ZOriginal

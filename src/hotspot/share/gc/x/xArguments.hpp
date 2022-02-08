@@ -41,6 +41,6 @@ public:
   static bool is_os_supported();
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZARGUMENTS_HPP

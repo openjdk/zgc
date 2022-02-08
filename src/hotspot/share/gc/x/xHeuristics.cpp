@@ -105,4 +105,4 @@ uint ZHeuristics::nconcurrent_workers() {
   return nworkers(UseDynamicNumberOfGCThreads ? 25.0 : 12.5);
 }
 
-}
+} // namespace ZOriginal

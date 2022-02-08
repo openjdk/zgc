@@ -42,6 +42,6 @@ public:
   const char* to_string() const;
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZERRNO_HPP

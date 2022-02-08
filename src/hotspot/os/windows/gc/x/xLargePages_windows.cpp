@@ -41,4 +41,4 @@ void ZLargePages::pd_initialize() {
   _state = Disabled;
 }
 
-}
+} // namespace ZOriginal

@@ -45,6 +45,6 @@ public:
   void* alloc(size_t size);
 };
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZFORWARDINGALLOCATOR_HPP

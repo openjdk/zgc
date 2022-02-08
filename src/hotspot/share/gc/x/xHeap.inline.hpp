@@ -132,6 +132,6 @@ inline bool ZHeap::is_oop(uintptr_t addr) const {
   return ZAddress::is_good(addr) && is_object_aligned(addr) && is_in(addr);
 }
 
-}
+} // namespace ZOriginal
 
 #endif // SHARE_GC_X_ZHEAP_INLINE_HPP

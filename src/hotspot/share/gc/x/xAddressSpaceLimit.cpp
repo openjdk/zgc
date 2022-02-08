@@ -54,4 +54,4 @@ size_t ZAddressSpaceLimit::heap_view() {
   return align_up(limit, ZGranuleSize);
 }
 
-}
+} // namespace ZOriginal
