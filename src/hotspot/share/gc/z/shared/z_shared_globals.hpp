@@ -41,20 +41,20 @@
   GC_Z_ORIGINAL_FLAGS(                                                      \
     develop,                                                                \
     develop_pd,                                                             \
-	  product,                                                                \
-	  product_pd,                                                             \
-	  notproduct,                                                             \
-	  range,                                                                  \
-	  constraint)                                                             \
+    product,                                                                \
+    product_pd,                                                             \
+    notproduct,                                                             \
+    range,                                                                  \
+    constraint)                                                             \
                                                                             \
   GC_Z_GENERATIONAL_FLAGS(                                                  \
     develop,                                                                \
     develop_pd,                                                             \
-	  product,                                                                \
-	  product_pd,                                                             \
-	  notproduct,                                                             \
-	  range,                                                                  \
-	  constraint)
+    product,                                                                \
+    product_pd,                                                             \
+    notproduct,                                                             \
+    range,                                                                  \
+    constraint)
 
 // end of GC_Z_SHARED_FLAGS
 
