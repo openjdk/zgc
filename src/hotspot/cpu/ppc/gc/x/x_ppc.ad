@@ -25,7 +25,7 @@
 source_hpp %{
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/x/c2/zBarrierSetC2.hpp"
+#include "gc/x/c2/xBarrierSetC2.hpp"
 #include "gc/x/xThreadLocalData.hpp"
 
 %}
@@ -129,7 +129,7 @@ static void z_compare_and_exchange(MacroAssembler& _masm, const MachNode* node,
 
 %}
 
-instruct zLoadP(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
+instruct zOriginalLoadP(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
 %{
   match(Set dst (LoadP mem));
   effect(TEMP_DEF dst, TEMP tmp, KILL cr0);
@@ -148,7 +148,7 @@ instruct zLoadP(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
 %}
 
 // Load Pointer Volatile
-instruct zLoadP_acq(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
+instruct zOriginalLoadP_acq(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
 %{
   match(Set dst (LoadP mem));
   effect(TEMP_DEF dst, TEMP tmp, KILL cr0);
@@ -169,12 +169,12 @@ instruct zLoadP_acq(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp, flagsRegCR0 cr0)
   ins_pipe(pipe_class_default);
 %}
 
-instruct zCompareAndSwapP(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
+instruct zOriginalCompareAndSwapP(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
                           iRegPdst tmp_xchg, iRegPdst tmp_mask, flagsRegCR0 cr0) %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   effect(TEMP_DEF res, TEMP tmp_xchg, TEMP tmp_mask, KILL cr0);
 
-  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong)
+  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZOriginal::ZLoadBarrierStrong)
             && (((CompareAndSwapNode*)n)->order() != MemNode::acquire && ((CompareAndSwapNode*) n)->order() != MemNode::seqcst));
 
   format %{ "CMPXCHG $res, $mem, $oldval, $newval; as bool; ptr" %}
@@ -187,12 +187,12 @@ instruct zCompareAndSwapP(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc 
   ins_pipe(pipe_class_default);
 %}
 
-instruct zCompareAndSwapP_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
+instruct zOriginalCompareAndSwapP_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
                               iRegPdst tmp_xchg, iRegPdst tmp_mask, flagsRegCR0 cr0) %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   effect(TEMP_DEF res, TEMP tmp_xchg, TEMP tmp_mask, KILL cr0);
 
-  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong)
+  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZOriginal::ZLoadBarrierStrong)
             && (((CompareAndSwapNode*)n)->order() == MemNode::acquire || ((CompareAndSwapNode*) n)->order() == MemNode::seqcst));
 
   format %{ "CMPXCHG acq $res, $mem, $oldval, $newval; as bool; ptr" %}
@@ -205,12 +205,12 @@ instruct zCompareAndSwapP_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegP
   ins_pipe(pipe_class_default);
 %}
 
-instruct zCompareAndSwapPWeak(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
+instruct zOriginalCompareAndSwapPWeak(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
                               iRegPdst tmp_xchg, iRegPdst tmp_mask, flagsRegCR0 cr0) %{
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   effect(TEMP_DEF res, TEMP tmp_xchg, TEMP tmp_mask, KILL cr0);
 
-  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong)
+  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZOriginal::ZLoadBarrierStrong)
             && ((CompareAndSwapNode*)n)->order() != MemNode::acquire && ((CompareAndSwapNode*) n)->order() != MemNode::seqcst);
 
   format %{ "weak CMPXCHG $res, $mem, $oldval, $newval; as bool; ptr" %}
@@ -223,12 +223,12 @@ instruct zCompareAndSwapPWeak(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegP
   ins_pipe(pipe_class_default);
 %}
 
-instruct zCompareAndSwapPWeak_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
+instruct zOriginalCompareAndSwapPWeak_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
                                   iRegPdst tmp_xchg, iRegPdst tmp_mask, flagsRegCR0 cr0) %{
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   effect(TEMP_DEF res, TEMP tmp_xchg, TEMP tmp_mask, KILL cr0);
 
-  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong)
+  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZOriginal::ZLoadBarrierStrong)
             && (((CompareAndSwapNode*)n)->order() == MemNode::acquire || ((CompareAndSwapNode*) n)->order() == MemNode::seqcst));
 
   format %{ "weak CMPXCHG acq $res, $mem, $oldval, $newval; as bool; ptr" %}
@@ -241,12 +241,12 @@ instruct zCompareAndSwapPWeak_acq(iRegIdst res, iRegPdst mem, iRegPsrc oldval, i
   ins_pipe(pipe_class_default);
 %}
 
-instruct zCompareAndExchangeP(iRegPdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
+instruct zOriginalCompareAndExchangeP(iRegPdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
                               iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
   effect(TEMP_DEF res, TEMP tmp, KILL cr0);
 
-  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong)
+  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZOriginal::ZLoadBarrierStrong)
             && (
               ((CompareAndSwapNode*)n)->order() != MemNode::acquire
               && ((CompareAndSwapNode*)n)->order() != MemNode::seqcst
@@ -261,12 +261,12 @@ instruct zCompareAndExchangeP(iRegPdst res, iRegPdst mem, iRegPsrc oldval, iRegP
   ins_pipe(pipe_class_default);
 %}
 
-instruct zCompareAndExchangeP_acq(iRegPdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
+instruct zOriginalCompareAndExchangeP_acq(iRegPdst res, iRegPdst mem, iRegPsrc oldval, iRegPsrc newval,
                                   iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
   effect(TEMP_DEF res, TEMP tmp, KILL cr0);
 
-  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZLoadBarrierStrong)
+  predicate((UseZGC && !ZGenerational && n->as_LoadStore()->barrier_data() == ZOriginal::ZLoadBarrierStrong)
             && (
               ((CompareAndSwapNode*)n)->order() == MemNode::acquire
               || ((CompareAndSwapNode*)n)->order() == MemNode::seqcst
@@ -281,7 +281,7 @@ instruct zCompareAndExchangeP_acq(iRegPdst res, iRegPdst mem, iRegPsrc oldval, i
   ins_pipe(pipe_class_default);
 %}
 
-instruct zGetAndSetP(iRegPdst res, iRegPdst mem, iRegPsrc newval, iRegPdst tmp, flagsRegCR0 cr0) %{
+instruct zOriginalGetAndSetP(iRegPdst res, iRegPdst mem, iRegPsrc newval, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (GetAndSetP mem newval));
   effect(TEMP_DEF res, TEMP tmp, KILL cr0);
 
