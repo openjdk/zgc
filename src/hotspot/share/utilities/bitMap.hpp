@@ -327,7 +327,7 @@ class BitMap {
   // the function returned false.
   template <typename Function>
   bool iterate(Function function, idx_t beg, idx_t end);
-  
+
   template <typename Function>
   bool iterate(Function function) {
     return iterate(function, 0, _size);
@@ -355,7 +355,7 @@ class BitMap {
 
   template <typename BitMapClosureType>
   bool iterate_reverse(BitMapClosureType* cl, idx_t beg, idx_t end);
-  
+
   template <typename BitMapClosureType>
   bool iterate_reverse(BitMapClosureType* cl) {
     return iterate_reverse(cl, 0, _size);
