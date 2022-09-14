@@ -30,6 +30,7 @@
 #include "opto/loopnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/memnode.hpp"
+#include "opto/machnode.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 // This means the access is mismatched. This means the value of an access
@@ -302,6 +303,12 @@ public:
   virtual void emit_stubs(CodeBuffer& cb) const { }
 
   static int arraycopy_payload_base_offset(bool is_array);
+
+#ifndef PRODUCT
+  virtual void dump_barrier_data(const MachNode* mach, outputStream* st) const {
+    st->print("%x", mach->barrier_data());
+  };
+#endif
 };
 
 #endif // SHARE_GC_SHARED_C2_BARRIERSETC2_HPP

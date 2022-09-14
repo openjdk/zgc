@@ -142,6 +142,10 @@ public:
   virtual void emit_stubs(CodeBuffer& cb) const;
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;
   virtual void eliminate_gc_barrier_data(Node* node) const;
+
+#ifndef PRODUCT
+  virtual void dump_barrier_data(const MachNode* mach, outputStream* st) const;
+#endif
 };
 
 #endif // SHARE_GC_Z_C2_ZBARRIERSETC2_HPP
