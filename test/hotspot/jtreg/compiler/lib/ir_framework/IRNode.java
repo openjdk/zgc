@@ -1341,6 +1341,17 @@ public class IRNode {
     public static final String XOR3_SVE = PREFIX + "XOR3_SVE" + POSTFIX;
     static {
         machOnlyNameRegex(XOR3_SVE, "veor3_sve");
+
+    public static final String ZLOADP_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "ZLOADP_WITH_BARRIER_FLAG" + POSTFIX;
+    static {
+        String regex = START + "zLoadP" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
+        machOnly(ZLOADP_WITH_BARRIER_FLAG, regex);
+    }
+
+    public static final String ZSTOREP_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "ZSTOREP_WITH_BARRIER_FLAG" + POSTFIX;
+    static {
+        String regex = START + "zStoreP" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
+        machOnly(ZSTOREP_WITH_BARRIER_FLAG, regex);
     }
 
     /*
