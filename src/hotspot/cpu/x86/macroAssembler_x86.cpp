@@ -3843,7 +3843,7 @@ void MacroAssembler::resolve_jobject(Register value,
 
   // Resolve local handle
   access_load_at(T_OBJECT, IN_NATIVE | AS_RAW, value, Address(value, 0), tmp, thread);
-  //verify_oop(value);
+  verify_oop(value);
   jmp(done);
 
   bind(tagged);
@@ -3860,7 +3860,6 @@ void MacroAssembler::resolve_jobject(Register value,
   access_load_at(T_OBJECT, IN_NATIVE | ON_PHANTOM_OOP_REF,
                  value, Address(value, -JNIHandles::weak_tag_value), tmp, thread);
   verify_oop(value);
-  jmp(done);
 
   bind(done);
 }
