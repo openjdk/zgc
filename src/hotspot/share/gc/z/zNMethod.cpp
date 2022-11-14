@@ -110,6 +110,8 @@ void ZNMethod::log_register(const nmethod* nm) {
     return;
   }
 
+  ResourceMark rm;
+
   const ZNMethodData* const data = gc_data(nm);
 
   log.print("Register NMethod: %s.%s (" PTR_FORMAT ") [" PTR_FORMAT ", " PTR_FORMAT "] "
@@ -142,7 +144,7 @@ void ZNMethod::log_register(const nmethod* nm) {
     oop* const end = nm->oops_end();
     for (oop* p = begin; p < end; p++) {
       const oop o = Atomic::load(p); // C1 PatchingStub may replace it concurrently.
-      const char* external_name = (o == nullptr) ? "N/A" : o->klass()->external_name();
+      const char* const external_name = (o == nullptr) ? "N/A" : o->klass()->external_name();
       log_oops.print("           Oop: " PTR_FORMAT " (%s)",
                      p2i(o), external_name);
     }
@@ -162,6 +164,8 @@ void ZNMethod::log_unregister(const nmethod* nm) {
     return;
   }
 
+  ResourceMark rm;
+
   log.print("Unregister NMethod: %s.%s (" PTR_FORMAT ") [" PTR_FORMAT ", " PTR_FORMAT "] ",
             nm->method()->method_holder()->external_name(),
             nm->method()->name()->as_C_string(),
@@ -170,9 +174,23 @@ void ZNMethod::log_unregister(const nmethod* nm) {
             p2i(nm->code_end()));
 }
 
-void ZNMethod::register_nmethod(nmethod* nm) {
+void ZNMethod::log_purge(const nmethod* nm) {
+  LogTarget(Debug, gc, nmethod) log;
+  if (!log.is_enabled()) {
+    return;
+  }
+
   ResourceMark rm;
 
+  log.print("Purge NMethod: %s.%s (" PTR_FORMAT ") [" PTR_FORMAT ", " PTR_FORMAT "] ",
+            nm->method()->method_holder()->external_name(),
+            nm->method()->name()->as_C_string(),
+            p2i(nm),
+            p2i(nm->code_begin()),
+            p2i(nm->code_end()));
+}
+
+void ZNMethod::register_nmethod(nmethod* nm) {
   // Create and attach gc data
   attach_gc_data(nm);
 
@@ -180,7 +198,7 @@ void ZNMethod::register_nmethod(nmethod* nm) {
 
   log_register(nm);
 
-  // Patch nmathod barriers
+  // Patch nmethod barriers
   nmethod_patch_barriers(nm);
 
   // Register nmethod
@@ -191,11 +209,13 @@ void ZNMethod::register_nmethod(nmethod* nm) {
 }
 
 void ZNMethod::unregister_nmethod(nmethod* nm) {
-  ResourceMark rm;
-
   log_unregister(nm);
 
   ZNMethodTable::unregister_nmethod(nm);
+}
+
+void ZNMethod::purge_nmethod(nmethod* nm) {
+  log_purge(nm);
 
   // Destroy GC data
   delete gc_data(nm);
@@ -287,7 +307,7 @@ uintptr_t ZNMethod::color(nmethod* nm) {
 oop ZNMethod::load_oop(oop* p, DecoratorSet decorators) {
   assert((decorators & ON_WEAK_OOP_REF) == 0,
          "nmethod oops have phantom strength, not weak");
-  nmethod* nm = CodeCache::find_nmethod((void*)p);
+  nmethod* const nm = CodeCache::find_nmethod((void*)p);
   if (!is_armed(nm)) {
     // If the nmethod entry barrier isn't armed, then it has been applied
     // already. The implication is that the contents of the memory location
@@ -297,8 +317,8 @@ oop ZNMethod::load_oop(oop* p, DecoratorSet decorators) {
     return *p;
   }
 
-  bool keep_alive = (decorators & ON_PHANTOM_OOP_REF) != 0 &&
-                    (decorators & AS_NO_KEEPALIVE) == 0;
+  const bool keep_alive = (decorators & ON_PHANTOM_OOP_REF) != 0 &&
+                          (decorators & AS_NO_KEEPALIVE) == 0;
   ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
 
   // Make a local root
@@ -333,6 +353,10 @@ public:
     }
 
     if (nm->is_unloading()) {
+      // Unlink from the ZNMethodTable
+      ZNMethod::unregister_nmethod(nm);
+
+      // Shared unlink
       ZLocker<ZReentrantLock> locker(ZNMethod::lock_for_nmethod(nm));
       nm->unlink();
       return;
@@ -415,7 +439,7 @@ void ZNMethod::unlink(ZWorkers* workers, bool unloading_occurred) {
     // Cleaning failed because we ran out of transitional IC stubs,
     // so we have to refill and try again. Refilling requires taking
     // a safepoint, so we temporarily leave the suspendible thread set.
-    SuspendibleThreadSetLeaver sts;
+    SuspendibleThreadSetLeaver sts_leaver;
     InlineCacheBuffer::refill_ic_stubs();
   }
 }

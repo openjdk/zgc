@@ -59,7 +59,7 @@ uint32_t ZStackWatermark::epoch_id() const {
 ZStackWatermark::ZStackWatermark(JavaThread* jt) :
     StackWatermark(jt, StackWatermarkKind::gc, *ZPointerStoreGoodMaskLowOrderBitsAddr),
     // First watermark is fake and setup to be replaced at next phase shift
-    _old_watermarks{{ZPointerStoreBadMask, 1}, {0,}},
+    _old_watermarks{{ZPointerStoreBadMask, 1}, {}, {}},
     _old_watermarks_newest(0),
     _stats() {}
 
@@ -84,7 +84,7 @@ uintptr_t ZStackWatermark::prev_head_color() const {
 
 uintptr_t ZStackWatermark::prev_frame_color(const frame& fr) const {
   for (int i = _old_watermarks_newest; i >= 0; i--) {
-    ZColorWatermark ow = _old_watermarks[i];
+    const ZColorWatermark ow = _old_watermarks[i];
     if (ow._watermark == 0 || uintptr_t(fr.sp()) <= ow._watermark) {
       return ow._color;
     }
@@ -170,7 +170,7 @@ void ZStackWatermark::process_head(void* context) {
 
   _jt->oops_do_no_frames(&cl, &cb_cl);
 
-  zaddress_unsafe* invisible_root = ZThreadLocalData::invisible_root(_jt);
+  zaddress_unsafe* const invisible_root = ZThreadLocalData::invisible_root(_jt);
   if (invisible_root != NULL) {
     ZUncoloredRoot::process_invisible(invisible_root, color);
   }

@@ -445,7 +445,6 @@ public:
 struct ZStatWorkersStats {
   double _accumulated_time;
   double _accumulated_duration;
-  uint _active_workers;
 };
 
 //
@@ -509,11 +508,12 @@ public:
 };
 
 struct ZStatRelocationSummary {
-  size_t npages;
+  size_t npages_candidates;
   size_t total;
-  size_t empty;
-  size_t relocate;
   size_t live;
+  size_t empty;
+  size_t npages_selected;
+  size_t relocate;
 };
 
 //
@@ -523,7 +523,9 @@ class ZStatRelocation {
 private:
   ZRelocationSetSelectorStats _selector_stats;
   size_t                      _forwarding_usage;
+  size_t                      _small_selected;
   size_t                      _small_in_place_count;
+  size_t                      _medium_selected;
   size_t                      _medium_in_place_count;
 
   void print(const char* name,
@@ -537,7 +539,8 @@ public:
   void at_install_relocation_set(size_t forwarding_usage);
   void at_relocate_end(size_t small_in_place_count, size_t medium_in_place_count);
 
-  void print();
+  void print_page_summary();
+  void print_age_table();
 };
 
 //
@@ -568,7 +571,6 @@ private:
   } _soft, _weak, _final, _phantom;
 
   static void set(ZCount* count, size_t encountered, size_t discovered, size_t enqueued);
-  static void print(const char* name, const ZCount& ref);
 
 public:
   static void set_soft(size_t encountered, size_t discovered, size_t enqueued);
@@ -611,6 +613,7 @@ private:
     size_t free;
     size_t used;
     size_t used_generation;
+    size_t allocation_stalls;
   } _at_mark_start;
 
   struct ZAtMarkEnd {
@@ -621,6 +624,7 @@ private:
     size_t live;
     size_t garbage;
     size_t mutator_allocated;
+    size_t allocation_stalls;
   } _at_mark_end;
 
   struct ZAtRelocateStart {
@@ -634,6 +638,7 @@ private:
     size_t reclaimed;
     size_t promoted;
     size_t compacted;
+    size_t allocation_stalls;
   } _at_relocate_start;
 
   struct ZAtRelocateEnd {
@@ -653,6 +658,7 @@ private:
     size_t reclaimed;
     size_t promoted;
     size_t compacted;
+    size_t allocation_stalls;
   } _at_relocate_end;
 
   NumberSeq _reclaimed_bytes;
@@ -681,12 +687,17 @@ public:
   size_t live_at_mark_end() const;
   size_t used_at_relocate_end() const;
   size_t used_at_collection_end() const;
+  size_t stalls_at_mark_start() const;
+  size_t stalls_at_mark_end() const;
+  size_t stalls_at_relocate_start() const;
+  size_t stalls_at_relocate_end() const;
 
   size_t reclaimed_avg();
 
   ZStatHeapStats stats();
 
   void print(const ZGeneration* generation) const;
+  void print_stalls() const;
 };
 
 #endif // SHARE_GC_Z_ZSTAT_HPP

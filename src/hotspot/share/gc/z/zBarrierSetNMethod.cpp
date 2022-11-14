@@ -60,7 +60,7 @@ bool ZBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
 
     // We can end up calling nmethods that are unloading
     // since we clear compiled ICs lazily. Returning false
-    // will re-resovle the call and update the compiled IC.
+    // will re-resolve the call and update the compiled IC.
     return false;
   }
 
@@ -71,8 +71,8 @@ bool ZBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
   ZUncoloredRootProcessWeakOopClosure cl(ZNMethod::color(nm));
   ZNMethod::nmethod_oops_do_inner(nm, &cl);
 
-  uintptr_t prev_color = ZNMethod::color(nm);
-  uintptr_t new_color = *(int*)ZPointerStoreGoodMaskLowOrderBitsAddr;
+  const uintptr_t prev_color = ZNMethod::color(nm);
+  const uintptr_t new_color = *(int*)ZPointerStoreGoodMaskLowOrderBitsAddr;
   log_trace(gc, nmethod)("nmethod: " PTR_FORMAT " visited by entry (complete) [" PTR_FORMAT " -> " PTR_FORMAT "]", p2i(nm), prev_color, new_color);
 
 

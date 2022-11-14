@@ -24,10 +24,11 @@
 #ifndef SHARE_GC_Z_ZUNCOLOREDROOT_INLINE_HPP
 #define SHARE_GC_Z_ZUNCOLOREDROOT_INLINE_HPP
 
+#include "gc/z/zUncoloredRoot.hpp"
+
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
-#include "gc/z/zUncoloredRoot.hpp"
 #include "oops/oop.hpp"
 
 template <typename ObjectFunctionT>
@@ -59,7 +60,7 @@ inline void ZUncoloredRoot::barrier(ObjectFunctionT function, zaddress_unsafe* p
 }
 
 inline zaddress ZUncoloredRoot::make_load_good(zaddress_unsafe addr, uintptr_t color) {
-  zpointer color_ptr = ZAddress::color(zaddress::null, color);
+  const zpointer color_ptr = ZAddress::color(zaddress::null, color);
   if (!ZPointer::is_load_good(color_ptr)) {
     return ZBarrier::relocate_or_remap(addr, ZBarrier::remap_generation(color_ptr));
   } else {
@@ -109,7 +110,7 @@ inline void ZUncoloredRoot::process_no_keepalive(zaddress_unsafe* p, uintptr_t c
 }
 
 inline zaddress_unsafe* ZUncoloredRoot::cast(oop* p) {
-  zaddress_unsafe* root = (zaddress_unsafe*)p;
+  zaddress_unsafe* const root = (zaddress_unsafe*)p;
   DEBUG_ONLY(assert_is_valid(*root);)
   return root;
 }

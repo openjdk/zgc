@@ -30,14 +30,15 @@
 #include "gc/z/zCollectedHeap.hpp"
 #include "gc/z/zDirector.hpp"
 #include "gc/z/zDriver.hpp"
+#include "gc/z/zGCIdPrinter.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
 #include "gc/z/zServiceability.hpp"
 #include "gc/z/zStat.hpp"
 
-static const ZStatPhaseCollection ZPhaseCollectionMinor("Minor Garbage Collection", true /* minor */);
-static const ZStatPhaseCollection ZPhaseCollectionMajor("Major Garbage Collection", false /* minor */);
+static const ZStatPhaseCollection ZPhaseCollectionMinor("Minor Collection", true /* minor */);
+static const ZStatPhaseCollection ZPhaseCollectionMajor("Major Collection", false /* minor */);
 
 template <typename DriverT>
 class ZGCCauseSetter : public GCCauseSetter {
@@ -183,6 +184,7 @@ public:
 
 void ZDriverMinor::gc(const ZDriverRequest& request) {
   ZDriverScopeMinor scope(request, &_gc_timer);
+  ZGCIdMinor minor_id(gc_id());
   ZGeneration::young()->collect(ZYoungType::minor, &_gc_timer);
 }
 
@@ -221,7 +223,7 @@ void ZDriverMinor::run_service() {
 }
 
 void ZDriverMinor::stop_service() {
-  ZDriverRequest request(GCCause::_no_gc, 0, 0);
+  const ZDriverRequest request(GCCause::_no_gc, 0, 0);
   _port.send_async(request);
 }
 
@@ -392,9 +394,8 @@ public:
   }
 };
 
-void ZDriverMajor::gc(const ZDriverRequest& request) {
-  ZDriverScopeMajor scope(request, &_gc_timer);
-
+void ZDriverMajor::collect_young(const ZDriverRequest& request) {
+  ZGCIdMajor major_id(gc_id(), 'Y');
   if (should_preclean_young(request.cause())) {
     // Collect young generation and promote everything to old generation
     ZGeneration::young()->collect(ZYoungType::major_full_preclean, &_gc_timer);
@@ -412,11 +413,23 @@ void ZDriverMajor::gc(const ZDriverRequest& request) {
 
   // Handle allocations waiting for a young collection
   handle_alloc_stalling_for_young();
+}
+
+void ZDriverMajor::collect_old() {
+  ZGCIdMajor major_id(gc_id(), 'O');
+  ZGeneration::old()->collect(&_gc_timer);
+}
+
+void ZDriverMajor::gc(const ZDriverRequest& request) {
+  ZDriverScopeMajor scope(request, &_gc_timer);
+
+  // Collect the young generation
+  collect_young(request);
 
   abortpoint();
 
-  // Collect old generation
-  ZGeneration::old()->collect(&_gc_timer);
+  // Collect the old generation
+  collect_old();
 }
 
 static void handle_alloc_stalling_for_old() {
@@ -455,6 +468,6 @@ void ZDriverMajor::run_service() {
 }
 
 void ZDriverMajor::stop_service() {
-  ZDriverRequest request(GCCause::_no_gc, 0, 0);
+  const ZDriverRequest request(GCCause::_no_gc, 0, 0);
   _port.send_async(request);
 }

@@ -24,16 +24,15 @@
 #ifndef SHARE_GC_Z_ZCONTINUATION_INLINE_HPP
 #define SHARE_GC_Z_ZCONTINUATION_INLINE_HPP
 
+#include "gc/z/zContinuation.hpp"
+
 #include "classfile/javaClasses.hpp"
 #include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zContinuation.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zStackChunkGCData.inline.hpp"
 #include "oops/oop.inline.hpp"
 
 inline bool ZContinuation::requires_barriers(const ZHeap* heap, stackChunkOop chunk) {
-  zpointer* cont_addr = chunk->field_addr<zpointer>(jdk_internal_vm_StackChunk::cont_offset());
-
   if (!heap->is_allocating(to_zaddress(chunk))) {
     // An object that isn't allocating, is visible from GC tracing. Such
     // stack chunks require barriers.

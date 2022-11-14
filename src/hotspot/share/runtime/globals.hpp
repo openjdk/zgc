@@ -491,6 +491,9 @@ const int ObjectAlignmentInBytes = 8;
   develop(bool, TestUnresponsiveErrorHandler, false,                        \
           "If true, simulates an unresponsive error handler.")              \
                                                                             \
+  develop(bool, TestReentrantErrorHandler, false,                           \
+          "If true, simulates an reentrant error handler.")                 \
+                                                                            \
   develop(bool, Verbose, false,                                             \
           "Print additional debugging information from other modes")        \
                                                                             \
@@ -675,9 +678,6 @@ const int ObjectAlignmentInBytes = 8;
                                                                             \
   notproduct(bool, PrintClassLoaderDataGraphAtExit, false,                  \
           "Print the class loader data graph at exit")                      \
-                                                                            \
-  product(bool, DynamicallyResizeSystemDictionaries, true, DIAGNOSTIC,      \
-          "Dynamically resize system dictionaries as needed")               \
                                                                             \
   product(bool, AllowParallelDefineClass, false,                            \
           "Allow parallel defineClass requests for class loaders "          \

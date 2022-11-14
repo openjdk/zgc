@@ -56,10 +56,6 @@ private:
   // Fast-path TLAB allocation failed. Takes a slow-path and potentially safepoint.
   HeapWord* mem_allocate_slow(Allocation& allocation) const;
 
-  // Raw memory allocation. This will try to do a TLAB allocation, and otherwise fall
-  // back to calling CollectedHeap::mem_allocate().
-  HeapWord* mem_allocate(Allocation& allocation) const;
-
 protected:
   MemAllocator(Klass* klass, size_t word_size, Thread* thread)
     : _thread(thread),
@@ -70,10 +66,6 @@ protected:
   // Initialization provided by subclasses.
   virtual oop initialize(HeapWord* mem) const = 0;
 
-  virtual MemRegion obj_memory_range(oop obj) const {
-    return MemRegion(cast_from_oop<HeapWord*>(obj), _word_size);
-  }
-
   // This function clears the memory of the object.
   void mem_clear(HeapWord* mem) const;
 
@@ -82,8 +74,18 @@ protected:
   // that must be parseable as an oop by concurrent collectors.
   oop finish(HeapWord* mem) const;
 
+  // Raw memory allocation. This will try to do a TLAB allocation, and otherwise fall
+  // back to calling CollectedHeap::mem_allocate().
+  HeapWord* mem_allocate(Allocation& allocation) const;
+
+  virtual MemRegion obj_memory_range(oop obj) const {
+    return MemRegion(cast_from_oop<HeapWord*>(obj), _word_size);
+  }
+
+public:
   // Allocate and fully construct the object, and perform various instrumentation. Could safepoint.
   oop allocate() const;
+  oop try_allocate_in_existing_tlab();
 };
 
 class ObjAllocator: public MemAllocator {
@@ -100,6 +102,7 @@ class ObjArrayAllocator: public MemAllocator {
 protected:
   const int  _length;
   const bool _do_zero;
+
   virtual MemRegion obj_memory_range(oop obj) const;
 
 public:

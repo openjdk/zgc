@@ -259,7 +259,7 @@ bool ZReferenceProcessor::discover_reference(oop reference_obj, ReferenceType ty
 
   log_trace(gc, ref)("Encountered Reference: " PTR_FORMAT " (%s)", p2i(reference_obj), reference_type_name(type));
 
-  zaddress reference = to_zaddress(reference_obj);
+  const zaddress reference = to_zaddress(reference_obj);
 
   // Update statistics
   _encountered_count.get()[type]++;
@@ -282,6 +282,8 @@ void ZReferenceProcessor::process_worker_discovered_list(zaddress discovered_lis
   // Iterate over the discovered list and unlink them as we go, potentially
   // appending them to the keep list
   for (zaddress reference = discovered_list; !is_null(reference); ) {
+    assert(ZHeap::heap()->is_old(reference), "Must be old");
+
     const ReferenceType type = reference_type(reference);
     const zaddress next = reference_discovered(reference);
     reference_set_discovered(reference, zaddress::null);
@@ -307,7 +309,7 @@ void ZReferenceProcessor::process_worker_discovered_list(zaddress discovered_lis
 
   // Anything kept on the list?
   if (!is_null(keep_head)) {
-    zaddress old_pending_list = Atomic::xchg(_pending_list.addr(), keep_head);
+    const zaddress old_pending_list = Atomic::xchg(_pending_list.addr(), keep_head);
 
     // Concatenate the old list
     reference_set_discovered(keep_tail, old_pending_list);
@@ -315,16 +317,18 @@ void ZReferenceProcessor::process_worker_discovered_list(zaddress discovered_lis
     if (is_null(old_pending_list)) {
       // Old list was empty. First to prepend to list, record tail
       _pending_list_tail = keep_tail;
+    } else {
+      assert(ZHeap::heap()->is_old(old_pending_list), "Must be old");
     }
   }
 }
 
 void ZReferenceProcessor::work() {
-  SuspendibleThreadSetJoiner sts;
+  SuspendibleThreadSetJoiner sts_joiner;
 
   ZPerWorkerIterator<zaddress> iter(&_discovered_list);
   for (zaddress* start; iter.next(&start);) {
-    zaddress discovered_list = Atomic::xchg(start, zaddress::null);
+    const zaddress discovered_list = Atomic::xchg(start, zaddress::null);
 
     if (discovered_list != zaddress::null) {
       // Process discovered references
@@ -445,7 +449,7 @@ void ZReferenceProcessor::process_references() {
 
 void ZReferenceProcessor::verify_pending_references() {
 #ifdef ASSERT
-  SuspendibleThreadSetJoiner sts;
+  SuspendibleThreadSetJoiner sts_joiner;
 
   assert(!is_null(_pending_list.get()), "Should not contain colored null");
 
@@ -467,8 +471,8 @@ void ZReferenceProcessor::verify_pending_references() {
 }
 
 zaddress ZReferenceProcessor::swap_pending_list(zaddress pending_list) {
-  oop pending_list_oop = to_oop(pending_list);
-  oop prev = Universe::swap_reference_pending_list(pending_list_oop);
+  const oop pending_list_oop = to_oop(pending_list);
+  const oop prev = Universe::swap_reference_pending_list(pending_list_oop);
   return to_zaddress(prev);
 }
 
@@ -488,7 +492,7 @@ void ZReferenceProcessor::enqueue_references() {
     MonitorLocker ml(Heap_lock);
     SuspendibleThreadSetJoiner sts_joiner;
 
-    zaddress prev_list = swap_pending_list(_pending_list.get());
+    const zaddress prev_list = swap_pending_list(_pending_list.get());
 
     // Link together new and old list
     reference_set_discovered(_pending_list_tail, prev_list);

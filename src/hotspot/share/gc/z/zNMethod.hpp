@@ -25,6 +25,7 @@
 #define SHARE_GC_Z_ZNMETHOD_HPP
 
 #include "memory/allocation.hpp"
+#include "memory/iterator.hpp"
 #include "oops/accessDecorators.hpp"
 #include "oops/oopsHierarchy.hpp"
 
@@ -39,10 +40,12 @@ private:
 
   static void log_register(const nmethod* nm);
   static void log_unregister(const nmethod* nm);
+  static void log_purge(const nmethod* nm);
 
 public:
   static void register_nmethod(nmethod* nm);
   static void unregister_nmethod(nmethod* nm);
+  static void purge_nmethod(nmethod* nm);
 
   static bool supports_entry_barrier(nmethod* nm);
 

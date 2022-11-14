@@ -72,10 +72,12 @@ void ClassLoaderDataGraph::clear_claimed_marks(int claim) {
   }
 }
 
-void ClassLoaderDataGraph::verify_claimed_marks_not(int claim) {
+void ClassLoaderDataGraph::verify_claimed_marks_cleared(int claim) {
+#ifdef ASSERT
  for (ClassLoaderData* cld = Atomic::load_acquire(&_head); cld != NULL; cld = cld->next()) {
     cld->verify_not_claimed(claim);
   }
+#endif
 }
 
 // Class iterator used by the compiler.  It gets some number of classes at

@@ -34,10 +34,11 @@
 #include "utilities/powerOfTwo.hpp"
 
 ZRelocationSetSelectorGroupStats::ZRelocationSetSelectorGroupStats() :
-    _npages(0),
+    _npages_candidates(0),
     _total(0),
     _live(0),
     _empty(0),
+    _npages_selected(0),
     _relocate(0) {}
 
 ZRelocationSetSelectorGroup::ZRelocationSetSelectorGroup(const char* name,
@@ -158,7 +159,7 @@ void ZRelocationSetSelectorGroup::select_inner() {
 
   // Finalize selection
   for (int i = selected_from; i < _live_pages.length(); i++) {
-    ZPage* page = _live_pages.at(i);
+    ZPage* const page = _live_pages.at(i);
     if (page->is_young()) {
       _not_selected_pages.append(page);
     }
@@ -171,7 +172,7 @@ void ZRelocationSetSelectorGroup::select_inner() {
     _stats[i]._relocate = selected_live_bytes[i];
   }
 
-  log_trace(gc, reloc)("Relocation Set (%s Pages): %d->%d, %d skipped, " SIZE_FORMAT " forwarding entries",
+  log_debug(gc, reloc)("Relocation Set (%s Pages): %d->%d, %d skipped, " SIZE_FORMAT " forwarding entries",
                        _name, selected_from, selected_to, npages - selected_from, selected_forwarding_entries);
 }
 
@@ -193,18 +194,17 @@ void ZRelocationSetSelectorGroup::select() {
     }
   }
 
-  size_t npages = 0;
-  size_t total = 0;
-  size_t empty = 0;
-  size_t relocate = 0;
+  ZRelocationSetSelectorGroupStats s{};
   for (uint i = 0; i <= ZPageAgeMax; ++i) {
-    npages += _stats[i].npages();
-    total += _stats[i].total();
-    empty += _stats[i].empty();
-    relocate += _stats[i].relocate();
+    s._npages_candidates += _stats[i].npages_candidates();
+    s._total += _stats[i].total();
+    s._empty += _stats[i].empty();
+    s._npages_selected += _stats[i].npages_selected();
+    s._relocate += _stats[i].relocate();
   }
+
   // Send event
-  event.commit((u8)_page_type, npages, total, empty, relocate);
+  event.commit((u8)_page_type, s._npages_candidates, s._total, s._empty, s._npages_selected, s._relocate);
 }
 
 ZRelocationSetSelector::ZRelocationSetSelector(double fragmentation_limit) :
@@ -233,11 +233,15 @@ void ZRelocationSetSelector::select() {
 
 ZRelocationSetSelectorStats ZRelocationSetSelector::stats() const {
   ZRelocationSetSelectorStats stats;
+
   for (uint i = 0; i <= ZPageAgeMax; ++i) {
-    ZPageAge age = static_cast<ZPageAge>(i);
+    const ZPageAge age = static_cast<ZPageAge>(i);
     stats._small[i] = _small.stats(age);
     stats._medium[i] = _medium.stats(age);
     stats._large[i] = _large.stats(age);
   }
+
+  stats._has_relocatable_pages = total() > 0;
+
   return stats;
 }

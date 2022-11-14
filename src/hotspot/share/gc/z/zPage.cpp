@@ -22,6 +22,7 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zList.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
@@ -64,7 +65,7 @@ ZPage* ZPage::clone_limited() const {
 }
 
 ZPage* ZPage::clone_limited_promote_flipped() const {
-  ZPage* page = new ZPage(_type, _virtual, _physical);
+  ZPage* const page = new ZPage(_type, _virtual, _physical);
 
   // The page is still filled with the same objects, need to retain the top pointer.
   page->_top = _top;
@@ -141,7 +142,7 @@ void ZPage::reset_remembered_set() {
 }
 
 void ZPage::reset(ZPageAge age, ZPageResetType type) {
-  ZPageAge prev_age = _age;
+  const ZPageAge prev_age = _age;
   _age = age;
   _last_used = 0;
 
@@ -196,7 +197,7 @@ ZPage* ZPage::split_with_pmem(ZPageType type, const ZPhysicalMemory& pmem) {
 
   assert(vmem.end() == _virtual.start(), "Should be consecutive");
 
-  log_debug(gc, page)("Split page [" PTR_FORMAT ", " PTR_FORMAT ", " PTR_FORMAT "]",
+  log_trace(gc, page)("Split page [" PTR_FORMAT ", " PTR_FORMAT ", " PTR_FORMAT "]",
       untype(vmem.start()),
       untype(vmem.end()),
       untype(_virtual.end()));
@@ -238,9 +239,9 @@ public:
       _result(NULL) {}
 
   virtual void do_object(oop obj) {
-    uintptr_t p_int = reinterpret_cast<uintptr_t>(_p);
-    uintptr_t base_int = cast_from_oop<uintptr_t>(obj);
-    uintptr_t end_int = base_int + wordSize * obj->size();
+    const uintptr_t p_int = reinterpret_cast<uintptr_t>(_p);
+    const uintptr_t base_int = cast_from_oop<uintptr_t>(obj);
+    const uintptr_t end_int = base_int + wordSize * obj->size();
     if (p_int >= base_int && p_int < end_int) {
       _result = obj;
     }
@@ -257,25 +258,17 @@ bool ZPage::is_remset_cleared_previous() const {
   return _remembered_set.is_cleared_previous();
 }
 
-#ifdef ASSERT
 void ZPage::verify_remset_cleared_current() const {
-  if (!is_remset_cleared_current()) {
-    log_msg(" Current remset not cleared");
-    assert(is_remset_cleared_current(), "Should be cleared "
-           PTR_FORMAT " " PTR_FORMAT " " PTR_FORMAT,
-           untype(start()), untype(top()), untype(end()));
+  if (ZVerifyRemembered && !is_remset_cleared_current()) {
+    fatal_msg(" current remset bits should be cleared");
   }
 }
 
 void ZPage::verify_remset_cleared_previous() const {
-  if (!is_remset_cleared_previous()) {
-    log_msg(" Previous remset not cleared");
-    assert(is_remset_cleared_previous(), "Should be cleared "
-           PTR_FORMAT " " PTR_FORMAT " " PTR_FORMAT,
-           untype(start()), untype(top()), untype(end()));
+  if (ZVerifyRemembered && !is_remset_cleared_previous()) {
+    fatal_msg(" previous remset bits should be cleared");
   }
 }
-#endif
 
 void ZPage::clear_remset_current() {
  _remembered_set.clear_current();
@@ -329,4 +322,10 @@ void ZPage::verify_live(uint32_t live_objects, size_t live_bytes, bool in_place)
   }
   guarantee(live_objects == _livemap.live_objects(), "Invalid number of live objects");
   guarantee(live_bytes == _livemap.live_bytes(), "Invalid number of live bytes");
+}
+
+void ZPage::fatal_msg(const char* msg) const {
+  stringStream ss;
+  print_on_msg(&ss, msg);
+  fatal("%s", ss.base());
 }

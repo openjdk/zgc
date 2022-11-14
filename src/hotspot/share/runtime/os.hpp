@@ -647,9 +647,6 @@ class os: AllStatic {
   static struct dirent* readdir(DIR* dirp);
   static int            closedir(DIR* dirp);
 
-  // Dynamic library extension
-  static const char*    dll_file_extension();
-
   static const char*    get_temp_directory();
   static const char*    get_current_directory(char *buf, size_t buflen);
 
@@ -761,6 +758,8 @@ class os: AllStatic {
   static void print_tos(outputStream* st, address sp);
   static void print_instructions(outputStream* st, address pc, int unitsize);
   static void print_register_info(outputStream* st, const void* context);
+  static void print_nth_register_info(outputStream* st, int n, const void* context);
+  static int  print_nth_register_info_max_index();
   static bool signal_sent_by_kill(const void* siginfo);
   static void print_siginfo(outputStream* st, const void* siginfo);
   static void print_signal_handlers(outputStream* st, char* buf, size_t buflen);

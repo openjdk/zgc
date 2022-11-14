@@ -59,7 +59,7 @@ void ZRemembered::oops_do_forwarded_via_containing(GrowableArrayView<ZRemembered
   zaddress to_addr = zaddress::null;
   size_t object_size = 0;
 
-  for (ZRememberedSetContaining containing: *array) {
+  for (const ZRememberedSetContaining containing: *array) {
     if (from_addr != containing._addr) {
       from_addr = containing._addr;
 
@@ -240,8 +240,8 @@ struct ZRememberedScanForwardingMeasureRetained {
       _start(Ticks::now()) {
   }
   ~ZRememberedScanForwardingMeasureRetained() {
-    Ticks end = Ticks::now();
-    Tickspan duration = end - _start;
+    const Ticks end = Ticks::now();
+    const Tickspan duration = end - _start;
     _context->report_retained(duration);
   }
 };
@@ -254,14 +254,14 @@ struct ZRememberedScanForwardingMeasureReleased {
       _start(Ticks::now()) {
   }
   ~ZRememberedScanForwardingMeasureReleased() {
-    Ticks end = Ticks::now();
-    Tickspan duration = end - _start;
+    const Ticks end = Ticks::now();
+    const Tickspan duration = end - _start;
     _context->report_released(duration);
   }
 };
 
 void ZRemembered::scan_forwarding(ZForwarding* forwarding, void* context_void) const {
-  ZRememberedScanForwardingContext* context = (ZRememberedScanForwardingContext*)context_void;
+  ZRememberedScanForwardingContext* const context = (ZRememberedScanForwardingContext*)context_void;
 
   if (forwarding->retain_page(ZGeneration::old()->relocate_queue())) {
     ZRememberedScanForwardingMeasureRetained measure(context);
@@ -312,7 +312,7 @@ public:
       _remembered.scan_forwarding(forwarding, &context);
       ZVerify::after_scan(forwarding);
 
-      if (ZGeneration::young()->should_worker_stop()) {
+      if (ZGeneration::young()->should_worker_resize()) {
         break;
       }
     };
@@ -363,7 +363,7 @@ public:
       // entries in the current active set.
       _remembered._page_table->register_found_old(page);
 
-      if (ZGeneration::young()->should_worker_stop()) {
+      if (ZGeneration::young()->should_worker_resize()) {
         break;
       }
     }
@@ -385,7 +385,7 @@ void ZRemembered::scan() const {
 void ZRemembered::scan_field(volatile zpointer* p) const {
   assert(ZGeneration::young()->is_phase_mark(), "Wrong phase");
 
-  zaddress addr = ZBarrier::mark_young_good_barrier_on_oop_field(p);
+  const zaddress addr = ZBarrier::mark_young_good_barrier_on_oop_field(p);
 
   if (!is_null(addr) && ZHeap::heap()->is_young(addr)) {
     remember(p);

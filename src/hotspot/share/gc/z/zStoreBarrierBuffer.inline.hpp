@@ -25,6 +25,8 @@
 #define SHARE_GC_Z_ZSTOREBARRIERBUFFER_INLINE_HPP
 
 #include "gc/z/zStoreBarrierBuffer.hpp"
+
+#include "gc/shared/gc_globals.hpp"
 #include "gc/z/zThreadLocalData.hpp"
 #include "runtime/thread.hpp"
 
@@ -38,19 +40,19 @@ inline void ZStoreBarrierBuffer::add(volatile zpointer* p, zpointer prev) {
     flush();
   }
   _current -= sizeof(ZStoreBarrierEntry);
-  _buffer[current()] = {p, prev, (void*)0x1 /* fake pc value */};
+  _buffer[current()] = {p, prev, (void*)0x1 /* fake pc value */, nullptr};
 }
 
 inline ZStoreBarrierBuffer* ZStoreBarrierBuffer::buffer_for_store(bool heal) {
   if (heal) {
     return NULL;
   }
-  Thread* thread = Thread::current();
+  Thread* const thread = Thread::current();
   if (!thread->is_Java_thread()) {
     return NULL;
   }
 
-  ZStoreBarrierBuffer* buffer = ZThreadLocalData::store_barrier_buffer(JavaThread::cast(thread));
+  ZStoreBarrierBuffer* const buffer = ZThreadLocalData::store_barrier_buffer(JavaThread::cast(thread));
   return ZBufferStoreBarriers ? buffer : NULL;
 }
 

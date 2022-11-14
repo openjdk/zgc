@@ -179,6 +179,7 @@ public:
   BitMapIterator remset_iterator_limited_current(uintptr_t l_offset, size_t size);
   BitMapIterator remset_iterator_limited_previous(uintptr_t l_offset, size_t size);
 
+  zaddress_unsafe find_base_unsafe(volatile zpointer* p);
   zaddress_unsafe find_base(volatile zpointer* p);
 
   template <typename Function>
@@ -194,8 +195,8 @@ public:
   bool is_remset_cleared_current() const;
   bool is_remset_cleared_previous() const;
 
-  void verify_remset_cleared_current() const NOT_DEBUG_RETURN;
-  void verify_remset_cleared_previous() const NOT_DEBUG_RETURN;
+  void verify_remset_cleared_current() const;
+  void verify_remset_cleared_previous() const;
 
   void clear_remset_current();
   void clear_remset_previous(const char* where);
@@ -218,6 +219,8 @@ public:
   bool was_remembered(volatile zpointer* p);
   bool is_remembered(volatile zpointer* p);
   void verify_live(uint32_t live_objects, size_t live_bytes, bool in_place) const;
+
+  void fatal_msg(const char* msg) const;
 };
 
 class ZPageClosure {

@@ -88,8 +88,9 @@ ZContinuation::ZColorStackOopClosure::ZColorStackOopClosure(stackChunkOop chunk)
 
 void ZContinuation::ZColorStackOopClosure::do_oop(oop* p) {
   // Convert zaddress to zpointer
-  zaddress_unsafe* p_zaddress_unsafe = (zaddress_unsafe*)p;
-  zpointer* p_zpointer = (zpointer*)p;
+  // TODO: Comment why this is safe and non volatile
+  zaddress_unsafe* const p_zaddress_unsafe = (zaddress_unsafe*)p;
+  zpointer* const p_zpointer = (zpointer*)p;
   *p_zpointer = ZAddress::color(*p_zaddress_unsafe, _color);
 
 }
@@ -99,8 +100,8 @@ void ZContinuation::ZColorStackOopClosure::do_oop(narrowOop* p) {
 }
 
 void ZContinuation::ZUncolorStackOopClosure::do_oop(oop* p) {
-  zpointer ptr = *(volatile zpointer*)p;
-  zaddress addr = ZPointer::uncolor(ptr);
+  const zpointer ptr = *(volatile zpointer*)p;
+  const zaddress addr = ZPointer::uncolor(ptr);
   *(volatile zaddress*)p = addr;
 }
 

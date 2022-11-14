@@ -309,7 +309,8 @@ public:
   }
 
   virtual void emit_code(LIR_Assembler* ce) {
-    const ZBarrierSetAssembler* bs_asm = (const ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
+    const ZBarrierSetAssembler* const bs_asm =
+        (const ZBarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
     if (_info != NULL) {
       ce->add_debug_info_for_null_check_here(_info);
     }
@@ -375,11 +376,12 @@ LIR_Opr ZBarrierSetC1::store_barrier(LIRAccess& access, LIR_Opr new_zaddress, bo
   }
 
   LIR_Opr new_zpointer = gen->new_register(T_OBJECT);
-  ZStoreBarrierStubC1* stub = new ZStoreBarrierStubC1(access,
-                                                      new_zaddress_reg,
-                                                      new_zpointer,
-                                                      is_atomic,
-                                                      store_barrier_on_oop_field_runtime_stub(is_atomic));
+  ZStoreBarrierStubC1* const stub =
+      new ZStoreBarrierStubC1(access,
+                              new_zaddress_reg,
+                              new_zpointer,
+                              is_atomic,
+                              store_barrier_on_oop_field_runtime_stub(is_atomic));
 
   __ append(new LIR_OpZStoreBarrier(access.resolved_addr(),
                                     new_zaddress_reg,
@@ -415,7 +417,6 @@ void ZBarrierSetC1::store_at_resolved(LIRAccess& access, LIR_Opr value) {
     return;
   }
 
-  LIRGenerator* gen = access.gen();
   value = store_barrier(access, value, false /* is_atomic */);
 
   BarrierSetC1::store_at_resolved(access, value);
@@ -427,16 +428,16 @@ LIR_Opr ZBarrierSetC1::atomic_cmpxchg_at_resolved(LIRAccess& access, LIRItem& cm
   }
 
   new_value.load_item();
-  LIR_Opr new_value_zpointer = store_barrier(access, new_value.result(), true /* is_atomic */);
+  const LIR_Opr new_value_zpointer = store_barrier(access, new_value.result(), true /* is_atomic */);
 
   cmp_value.load_item();
   cmp_value.set_destroys_register();
   color(access, cmp_value.result());
 
 #ifdef AMD64
-  LIR_Opr cmp_value_opr = FrameMap::rax_oop_opr;
+  const LIR_Opr cmp_value_opr = FrameMap::rax_oop_opr;
 #else
-  LIR_Opr cmp_value_opr = access.gen()->new_register(T_OBJECT);
+  const LIR_Opr cmp_value_opr = access.gen()->new_register(T_OBJECT);
 #endif
   access.gen()->lir()->move(cmp_value.result(), cmp_value_opr);
 

@@ -311,7 +311,7 @@ public:
     // Only help out with metadata visiting
     return _visit_metadata;
   }
-  
+
   virtual void do_nmethod(nmethod* nm) {
     assert(do_metadata(), "Don't call otherwise");
     assert(!finalizable, "Can't handle finalizable marking of nmethods");
@@ -441,7 +441,7 @@ bool ZMark::drain(ZMarkContext* context) {
     if ((processed++ & 31) == 0) {
       // Yield once per 32 oops
       SuspendibleThreadSet::yield();
-      if (_generation->should_worker_stop()) {
+      if (ZAbort::should_abort() || _generation->should_worker_resize()) {
         return false;
       }
     }
@@ -542,7 +542,7 @@ public:
       SuspendibleThreadSet::desynchronize();
     }
     // Flush VM thread
-    Thread* thread = Thread::current();
+    Thread* const thread = Thread::current();
     _cl->do_thread(thread);
   }
 
@@ -582,7 +582,7 @@ bool ZMark::try_proactive_flush() {
 
   Atomic::inc(&_work_nproactiveflush);
 
-  SuspendibleThreadSetLeaver sts;
+  SuspendibleThreadSetLeaver sts_leaver;
   return flush(false /* gc_threads */);
 }
 
@@ -595,7 +595,7 @@ void ZMark::leave() {
 }
 
 void ZMark::work() {
-  SuspendibleThreadSetJoiner sts;
+  SuspendibleThreadSetJoiner sts_joiner;
   ZMarkStripe* const stripe = _stripes.stripe_for_worker(_nworkers, WorkerThread::worker_id());
   ZMarkThreadLocalStacks* const stacks = ZThreadLocalData::mark_stacks(Thread::current(), _generation->id());
   ZMarkContext context(ZMarkStripesMax, stripe, stacks);

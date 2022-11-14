@@ -143,7 +143,7 @@ void ZRelocateQueue::leave() {
   }
 }
 
-void ZRelocateQueue::add_and_wait_inner(ZForwarding* forwarding) {
+void ZRelocateQueue::add_and_wait(ZForwarding* forwarding) {
   ZStatTimer timer(ZCriticalPhaseRelocationStall);
   ZLocker<ZConditionLock> locker(&_lock);
 
@@ -158,26 +158,9 @@ void ZRelocateQueue::add_and_wait_inner(ZForwarding* forwarding) {
     _lock.notify_all();
   }
 
-  while (!forwarding->is_done() && !ZAbort::should_abort()) {
+  while (!forwarding->is_done()) {
     _lock.wait();
   }
-}
-
-void ZRelocateQueue::add_and_wait_for_in_place_relocation(ZForwarding* forwarding) {
-  // Page is being in-place relocated and it is therefore guaranteed
-  // to be fully relocated when this call returns. No need to check
-  // and handle the case when the GC is being aborted.
-  add_and_wait_inner(forwarding);
-}
-
-bool ZRelocateQueue::add_and_wait(ZForwarding* forwarding) {
-  if (ZAbort::should_abort()) {
-    return false;
-  }
-
-  add_and_wait_inner(forwarding);
-
-  return !ZAbort::should_abort();
 }
 
 bool ZRelocateQueue::prune() {
@@ -188,7 +171,7 @@ bool ZRelocateQueue::prune() {
   bool done = false;
 
   for (int i = 0; i < _queue.length();) {
-    ZForwarding* const forwarding = _queue.at(i);
+    const ZForwarding* const forwarding = _queue.at(i);
     if (forwarding->is_done()) {
       done = true;
 
@@ -391,14 +374,8 @@ zaddress ZRelocate::relocate_object(ZForwarding* forwarding, zaddress_unsafe fro
     }
 
     // Failed to relocate object. Signal and wait for a worker thread to
-    // complete relocation of this page, and then forward the object. If
-    // the GC aborts the relocation phase before the page has been relocated,
-    // then wait return false and we just forward the object in-place.
-
-    if (!_queue.add_and_wait(forwarding)) {
-      // Aborted while waiting - forward object in-place
-      return forwarding_insert(forwarding, safe(from_addr), safe(from_addr), &cursor);
-    }
+    // complete relocation of this page, and then forward the object.
+    _queue.add_and_wait(forwarding);
   }
 
   // Forward object
@@ -453,7 +430,7 @@ public:
       _in_place_count(0) {}
 
   ZPage* alloc_and_retire_target_page(ZForwarding* forwarding, ZPage* target) {
-    ZAllocatorForRelocation* allocator = ZAllocator::relocation(forwarding->to_age());
+    ZAllocatorForRelocation* const allocator = ZAllocator::relocation(forwarding->to_age());
     ZPage* const page = alloc_page(allocator, forwarding->type(), forwarding->size());
     if (page == NULL) {
       Atomic::inc(&_in_place_count);
@@ -534,10 +511,10 @@ public:
     // current target page. The shared page will be different from the
     // current target page if another thread shared a page, or allocated
     // a new page.
-    ZPageAge to_age = forwarding->to_age();
+    const ZPageAge to_age = forwarding->to_age();
     if (shared(to_age) == target) {
-      ZAllocatorForRelocation* allocator = ZAllocator::relocation(forwarding->to_age());
-      ZPage* to_page = alloc_page(allocator, forwarding->type(), forwarding->size());
+      ZAllocatorForRelocation* const allocator = ZAllocator::relocation(forwarding->to_age());
+      ZPage* const to_page = alloc_page(allocator, forwarding->type(), forwarding->size());
       set_shared(to_age, to_page);
       if (to_page == NULL) {
         Atomic::inc(&_in_place_count);
@@ -554,7 +531,7 @@ public:
   }
 
   void share_target_page(ZPage* page) {
-    ZPageAge age = page->age();
+    const ZPageAge age = page->age();
 
     ZLocker<ZConditionLock> locker(&_lock);
     assert(_in_place, "Invalid state");
@@ -619,7 +596,7 @@ private:
     ZForwardingCursor cursor;
 
     const size_t size = ZUtils::object_size(from_addr);
-    ZPage* to_page = target(_forwarding->to_age());
+    ZPage* const to_page = target(_forwarding->to_age());
 
     // Lookup forwarding
     {
@@ -777,12 +754,12 @@ private:
       return;
     }
 
-    zaddress_unsafe addr_unsafe = ZPointer::uncolor_unsafe(ptr);
-    ZForwarding* forwarding = ZGeneration::young()->forwarding(addr_unsafe);
+    const zaddress_unsafe addr_unsafe = ZPointer::uncolor_unsafe(ptr);
+    ZForwarding* const forwarding = ZGeneration::young()->forwarding(addr_unsafe);
 
     if (forwarding == NULL) {
       // Object isn't being relocated
-      zaddress addr = safe(addr_unsafe);
+      const zaddress addr = safe(addr_unsafe);
       if (!add_remset_if_young(p, addr)) {
         // Not young - eagerly remap to skip adding a remset entry just to get deferred remapping
         ZBarrier::remap_young_relocated(p, ptr);
@@ -790,7 +767,7 @@ private:
       return;
     }
 
-    zaddress addr = forwarding->find(addr_unsafe);
+    const zaddress addr = forwarding->find(addr_unsafe);
 
     if (!is_null(addr)) {
       // Object has already been relocated
@@ -832,19 +809,12 @@ private:
       return;
     }
 
-    if (ZAbort::should_abort() && ZHeap::heap()->is_young(to_addr)) {
-      // During VM shutdown, a mutator may pin the object before the GC relocates it.
-      // Then it will get stuck in the young generation, and hence won't really be
-      // a promotion any longer.
-      return;
-    }
-
     // Normal promotion
     update_remset_promoted(to_addr);
   }
 
   bool try_relocate_object(zaddress from_addr) {
-    zaddress to_addr = try_relocate_object_inner(from_addr);
+    const zaddress to_addr = try_relocate_object_inner(from_addr);
 
     if (is_null(to_addr)) {
       return false;
@@ -913,7 +883,7 @@ private:
       // Allocate a new target page, or if that fails, use the page being
       // relocated as the new target, which will cause it to be relocated
       // in-place.
-      ZPageAge to_age = _forwarding->to_age();
+      const ZPageAge to_age = _forwarding->to_age();
       ZPage* to_page = _allocator->alloc_and_retire_target_page(_forwarding, target(to_age));
       set_target(to_age, to_page);
       if (to_page != NULL) {
@@ -1015,11 +985,6 @@ public:
 
     _forwarding->page()->log_msg(" (relocate page)");
 
-    // Check if we should abort
-    if (ZAbort::should_abort()) {
-      return;
-    }
-
     ZVerify::before_relocation(_forwarding);
 
     // Relocate objects
@@ -1081,7 +1046,7 @@ public:
 class ZRelocateStoreBufferInstallBasePointersThreadClosure : public ThreadClosure {
 public:
   virtual void do_thread(Thread* thread) {
-    JavaThread* jt = JavaThread::cast(thread);
+    JavaThread* const jt = JavaThread::cast(thread);
     ZStoreBarrierBuffer* buffer = ZThreadLocalData::store_barrier_buffer(jt);
     buffer->install_base_pointers();
   }
@@ -1132,8 +1097,8 @@ public:
     ZRelocateWork<ZRelocateMediumAllocator> medium(&_medium_allocator, _generation);
 
     const auto do_forwarding = [&](ZForwarding* forwarding) {
-      ZPage* page = forwarding->page();
-      ZPageAge to_age = forwarding->to_age();
+      ZPage* const page = forwarding->page();
+      const ZPageAge to_age = forwarding->to_age();
       if (page->is_small()) {
         small.do_forwarding(forwarding);
       } else {
@@ -1245,7 +1210,7 @@ public:
       });
 
       SuspendibleThreadSet::yield();
-      if (ZGeneration::young()->should_worker_stop()) {
+      if (ZGeneration::young()->should_worker_resize()) {
         return;
       }
     }
@@ -1271,7 +1236,7 @@ public:
         forwarding->oops_do_in_forwarded_via_table(remap_and_maybe_add_remset);
       }
 
-      if (ZGeneration::young()->should_worker_stop()) {
+      if (ZGeneration::young()->should_worker_resize()) {
         break;
       }
 
@@ -1311,7 +1276,7 @@ ZPageAge ZRelocate::compute_to_age(ZPageAge from_age) {
   if (from_age == ZPageAge::old) {
     return ZPageAge::old;
   } else {
-    uint age = static_cast<uint>(from_age);
+    const uint age = static_cast<uint>(from_age);
     if (age >= ZGeneration::young()->tenuring_threshold()) {
       return ZPageAge::old;
     }

@@ -329,7 +329,8 @@ ZPageAllocatorStats ZPageAllocator::stats(ZGeneration* generation) const {
                              used_generation(generation->id()),
                              generation->freed(),
                              generation->promoted(),
-                             generation->compacted());
+                             generation->compacted(),
+                             _stalled.size());
 }
 
 void ZPageAllocator::reset_statistics(ZGenerationId id) {
@@ -523,7 +524,7 @@ bool ZPageAllocator::alloc_page_stall(ZPageAllocation* allocation) {
   check_out_of_memory_during_initialization();
 
   // Start asynchronous minor GC
-  ZDriverRequest request(GCCause::_z_allocation_stall, 1, 0);
+  const ZDriverRequest request(GCCause::_z_allocation_stall, 1, 0);
   ZDriver::minor()->collect(request);
 
   // Wait for allocation to complete or fail
@@ -862,7 +863,7 @@ size_t ZPageAllocator::uncommit(uint64_t* timeout) {
   size_t flushed;
 
   {
-    SuspendibleThreadSetJoiner joiner;
+    SuspendibleThreadSetJoiner sts_joiner;
     ZLocker<ZLock> locker(&_lock);
 
     // Never uncommit below min capacity. We flush out and uncommit chunks at
@@ -893,7 +894,7 @@ size_t ZPageAllocator::uncommit(uint64_t* timeout) {
   }
 
   {
-    SuspendibleThreadSetJoiner joiner;
+    SuspendibleThreadSetJoiner sts_joiner;
     ZLocker<ZLock> locker(&_lock);
 
     // Adjust claimed and capacity to reflect the uncommit
@@ -963,11 +964,11 @@ void ZPageAllocator::restart_gc() const {
 
   if (!has_alloc_seen_young(allocation)) {
     // Start asynchronous minor GC, keep allocation requests enqueued
-    ZDriverRequest request(GCCause::_z_allocation_stall, 1, 0);
+    const ZDriverRequest request(GCCause::_z_allocation_stall, 1, 0);
     ZDriver::minor()->collect(request);
   } else {
     // Start asynchronous major GC, keep allocation requests enqueued
-    ZDriverRequest request(GCCause::_z_allocation_stall, 1, 1);
+    const ZDriverRequest request(GCCause::_z_allocation_stall, 1, 1);
     ZDriver::major()->collect(request);
   }
 }

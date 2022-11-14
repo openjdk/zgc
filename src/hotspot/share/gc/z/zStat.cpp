@@ -658,7 +658,7 @@ void ZStatPhaseCollection::register_start(ConcurrentGCTimer* timer, const Ticks&
 
   set_used_at_start(ZHeap::heap()->used());
 
-  log_info(gc, start)("%s (%s)", name(), GCCause::to_string(cause));
+  log_info(gc)("%s (%s)", name(), GCCause::to_string(cause));
 }
 
 void ZStatPhaseCollection::register_end(ConcurrentGCTimer* timer, const Ticks& start, const Ticks& end) const {
@@ -694,7 +694,7 @@ ZStatPhaseGeneration::ZStatPhaseGeneration(const char* name, ZGenerationId id) :
 void ZStatPhaseGeneration::register_start(ConcurrentGCTimer* timer, const Ticks& start) const {
   ZCollectedHeap::heap()->print_heap_before_gc();
 
-  log_info(gc, phases, start)("%s", name());
+  log_info(gc, phases)("%s", name());
 }
 
 void ZStatPhaseGeneration::register_end(ConcurrentGCTimer* timer, const Ticks& start, const Ticks& end) const {
@@ -710,6 +710,7 @@ void ZStatPhaseGeneration::register_end(ConcurrentGCTimer* timer, const Ticks& s
 
   ZGeneration* const generation = ZGeneration::generation(_id);
 
+  generation->stat_heap()->print_stalls();
   ZStatLoad::print();
   ZStatMMU::print();
   generation->stat_mark()->print();
@@ -718,7 +719,12 @@ void ZStatPhaseGeneration::register_end(ConcurrentGCTimer* timer, const Ticks& s
   if (generation->is_old()) {
     ZStatReferences::print();
   }
-  generation->stat_relocation()->print();
+
+  generation->stat_relocation()->print_page_summary();
+  if (generation->is_young()) {
+    generation->stat_relocation()->print_age_table();
+  }
+
   generation->stat_heap()->print(generation);
 
   log_info(gc, phases)("%s " ZSIZE_FMT "->" ZSIZE_FMT " %.3fs",
@@ -944,7 +950,7 @@ void ZStatMutatorAllocRate::sample_allocation(size_t allocation_bytes) {
     return;
   }
 
-  size_t allocated_sample = Atomic::load(&_allocated_since_sample);
+  const size_t allocated_sample = Atomic::load(&_allocated_since_sample);
 
   if (allocated_sample < _sampling_granule) {
     // Someone beat us to it
@@ -978,7 +984,7 @@ void ZStatMutatorAllocRate::sample_allocation(size_t allocation_bytes) {
   _last_sample_time = now;
 
   log_debug(gc, alloc)("Mutator Allocation Rate: %.1fMB/s Predicted: %.1fMB/s, Avg: %.1f(+/-%.1f)MB/s",
-                       bytes_per_second,
+                       bytes_per_second / M,
                        _rate.predict_next() / M,
                        _rate.avg() / M,
                        _rate.sd() / M);
@@ -1046,7 +1052,7 @@ void ZStat::print(LogTargetHandle log, const ZStatSamplerHistory* history) const
 
 void ZStat::run_service() {
   ZStatSamplerHistory* const history = new ZStatSamplerHistory[ZStatSampler::count()];
-  LogTarget(Info, gc, stats) log;
+  LogTarget(Debug, gc, stats) log;
 
   ZStatSampler::sort();
 
@@ -1056,6 +1062,12 @@ void ZStat::run_service() {
     if (should_print(log)) {
       print(log, history);
     }
+  }
+
+  // At exit print the final stats
+  LogTarget(Info, gc, stats) exit_log;
+  if (exit_log.is_enabled()) {
+    print(exit_log, history);
   }
 
   delete [] history;
@@ -1213,7 +1225,7 @@ void ZStatCycle::at_start() {
 
 void ZStatCycle::at_end(ZStatWorkers* stat_workers, bool record_stats) {
   ZLocker<ZLock> locker(&_stat_lock);
-  Ticks end_of_last = _end_of_last;
+  const Ticks end_of_last = _end_of_last;
   _end_of_last = Ticks::now();
 
   if (ZDriver::major()->gc_cause() == GCCause::_z_warmup && _nwarmup_cycles < 3) {
@@ -1326,9 +1338,9 @@ void ZStatWorkers::at_end() {
 }
 
 double ZStatWorkers::accumulated_time() {
-  uint nworkers = _active_workers;
+  const uint nworkers = _active_workers;
   const Ticks now = Ticks::now();
-  Ticks start = _start_of_last;
+  const Ticks start = _start_of_last;
   Tickspan time = _accumulated_time;
   if (nworkers != 0) {
     for (uint i = 0; i < nworkers; ++i) {
@@ -1340,7 +1352,7 @@ double ZStatWorkers::accumulated_time() {
 
 double ZStatWorkers::accumulated_duration() {
   const Ticks now = Ticks::now();
-  Ticks start = _start_of_last;
+  const Ticks start = _start_of_last;
   Tickspan duration = _accumulated_duration;
   if (_active_workers != 0) {
     duration += now - start;
@@ -1382,7 +1394,10 @@ ZStatWorkersStats ZStatWorkers::stats() {
 void ZStatLoad::print() {
   double loadavg[3] = {};
   os::loadavg(loadavg, ARRAY_SIZE(loadavg));
-  log_info(gc, load)("Load: %.2f/%.2f/%.2f", loadavg[0], loadavg[1], loadavg[2]);
+  log_info(gc, load)("Load: %.2f (%.0f%%) / %.2f (%.0f%%) / %.2f (%.0f%%)",
+                     loadavg[0], percent_of(loadavg[0], (double) ZCPU::count()),
+                     loadavg[1], percent_of(loadavg[1], (double) ZCPU::count()),
+                     loadavg[2], percent_of(loadavg[2], (double) ZCPU::count()));
 }
 
 //
@@ -1437,7 +1452,9 @@ void ZStatMark::print() {
 ZStatRelocation::ZStatRelocation() :
     _selector_stats(),
     _forwarding_usage(),
+    _small_selected(),
     _small_in_place_count(),
+    _medium_selected(),
     _medium_in_place_count() {
 }
 
@@ -1454,17 +1471,73 @@ void ZStatRelocation::at_relocate_end(size_t small_in_place_count, size_t medium
   _medium_in_place_count = medium_in_place_count;
 }
 
-void ZStatRelocation::print() {
+void ZStatRelocation::print_page_summary() {
   LogTarget(Info, gc, reloc) lt;
 
-  if (!lt.is_enabled()) {
-    // Nothing to log
+  if (!_selector_stats.has_relocatable_pages() || !lt.is_enabled()) {
+    // Nothing to log or logging not enabled.
     return;
   }
 
-  ZStatRelocationSummary small_summary = {0};
-  ZStatRelocationSummary medium_summary = {0};
-  ZStatRelocationSummary large_summary = {0};
+  // Zero initialize
+  ZStatRelocationSummary small_summary{};
+  ZStatRelocationSummary medium_summary{};
+  ZStatRelocationSummary large_summary{};
+
+  auto account_page_size = [&](ZStatRelocationSummary& summary, const ZRelocationSetSelectorGroupStats& stats) {
+    summary.npages_candidates += stats.npages_candidates();
+    summary.total += stats.total();
+    summary.empty += stats.empty();
+    summary.npages_selected += stats.npages_selected();
+    summary.relocate += stats.relocate();
+  };
+
+  for (uint i = 0; i <= ZPageAgeMax; ++i) {
+    const ZPageAge age = static_cast<ZPageAge>(i);
+
+    account_page_size(small_summary, _selector_stats.small(age));
+    account_page_size(medium_summary, _selector_stats.medium(age));
+    account_page_size(large_summary, _selector_stats.large(age));
+  }
+
+  ZStatTablePrinter pages(20, 12);
+  lt.print("%s", pages()
+           .fill()
+           .right("Candidates")
+           .right("Selected")
+           .right("In-Place")
+           .right("Size")
+           .right("Empty")
+           .right("Relocated")
+           .end());
+
+  auto print_summary = [&](const char* name, ZStatRelocationSummary& summary, size_t in_place_count) {
+    lt.print("%s", pages()
+             .left("%s Pages:", name)
+             .right("%zu", summary.npages_candidates)
+             .right("%zu", summary.npages_selected)
+             .right("%zu", in_place_count)
+             .right("%zuM", summary.total / M)
+             .right("%zuM", summary.empty / M)
+             .right("%zuM", summary.relocate /M)
+             .end());
+  };
+
+  print_summary("Small", small_summary, _small_in_place_count);
+  if (ZPageSizeMedium == 0) {
+    print_summary("Medium", medium_summary, _medium_in_place_count);
+  }
+  print_summary("Large", large_summary, 0 /* in_place_count */);
+
+  lt.print("Forwarding Usage: " SIZE_FORMAT "M", _forwarding_usage / M);
+}
+
+void ZStatRelocation::print_age_table() {
+  LogTarget(Info, gc, reloc) lt;
+  if (!_selector_stats.has_relocatable_pages() || !lt.is_enabled()) {
+    // Nothing to log or logging not enabled.
+    return;
+  }
 
   ZStatTablePrinter age_table(10, 18);
   lt.print("Age Table:");
@@ -1475,59 +1548,33 @@ void ZStatRelocation::print() {
            .end());
 
   for (uint i = 0; i <= ZPageAgeMax; ++i) {
-    size_t live = 0;
-    size_t bytes = 0;
     ZPageAge age = static_cast<ZPageAge>(i);
-
-    auto account_page_size = [&](ZStatRelocationSummary& summary, const ZRelocationSetSelectorGroupStats& stats) {
-      summary.npages += stats.npages();
-      summary.total += stats.total();
-      summary.empty += stats.empty();
-      summary.relocate += stats.relocate();
+    size_t live = 0;
+    size_t total = 0;
+    auto summarize_pages = [&](const ZRelocationSetSelectorGroupStats& stats) {
       live += stats.live();
-      bytes += stats.total();
+      total += stats.total();
     };
 
-    account_page_size(small_summary, _selector_stats.small(age));
-    account_page_size(medium_summary, _selector_stats.medium(age));
-    account_page_size(large_summary, _selector_stats.large(age));
+    summarize_pages(_selector_stats.small(age));
+    summarize_pages(_selector_stats.medium(age));
+    summarize_pages(_selector_stats.large(age));
 
-    if (bytes != 0) {
+    if (total != 0) {
       FormatBuffer<> age_str("");
       if (age == ZPageAge::eden) {
         age_str.append("Eden");
-      } else if (age == ZPageAge::old) {
-        age_str.append("Old");
-      } else {
+      } else if (age != ZPageAge::old) {
         age_str.append("Survivor %d", i);
       }
 
       lt.print("%s", age_table()
                .left("%s", age_str.buffer())
                .left(ZTABLE_ARGS(live))
-               .left(ZTABLE_ARGS(bytes - live))
+               .left(ZTABLE_ARGS(total - live))
                .end());
     }
   }
-
-  auto print_summary = [&](const char* name, ZStatRelocationSummary& summary, size_t in_place_count) {
-    lt.print("%s Pages: " SIZE_FORMAT " / " SIZE_FORMAT "M, Empty: " SIZE_FORMAT "M, "
-             "Relocated: " SIZE_FORMAT "M, In-Place: " SIZE_FORMAT,
-             name,
-             summary.npages,
-             summary.total / M,
-             summary.empty / M,
-             summary.relocate / M,
-             in_place_count);
-  };
-
-  print_summary("Small", small_summary, _small_in_place_count);
-  if (ZPageSizeMedium != 0) {
-    print_summary("Medium", medium_summary, _medium_in_place_count);
-  }
-  print_summary("Large", large_summary, 0 /* in_place_count */);
-
-  lt.print("Forwarding Usage: " SIZE_FORMAT "M", _forwarding_usage / M);
 }
 
 //
@@ -1543,7 +1590,7 @@ void ZStatNMethods::print() {
 // Stat metaspace
 //
 void ZStatMetaspace::print() {
-  MetaspaceCombinedStats stats = MetaspaceUtils::get_combined_statistics();
+  const MetaspaceCombinedStats stats = MetaspaceUtils::get_combined_statistics();
   log_info(gc, metaspace)("Metaspace: "
                           SIZE_FORMAT "M used, "
                           SIZE_FORMAT "M committed, " SIZE_FORMAT "M reserved",
@@ -1582,22 +1629,33 @@ void ZStatReferences::set_phantom(size_t encountered, size_t discovered, size_t 
   set(&_phantom, encountered, discovered, enqueued);
 }
 
-void ZStatReferences::print(const char* name, const ZStatReferences::ZCount& ref) {
-  log_info(gc, ref)("%s: "
-                    SIZE_FORMAT " encountered, "
-                    SIZE_FORMAT " discovered, "
-                    SIZE_FORMAT " enqueued",
-                    name,
-                    ref.encountered,
-                    ref.discovered,
-                    ref.enqueued);
-}
-
 void ZStatReferences::print() {
-  print("Soft", _soft);
-  print("Weak", _weak);
-  print("Final", _final);
-  print("Phantom", _phantom);
+  LogTarget(Info, gc, ref) lt;
+  if (!lt.is_enabled()) {
+    // Nothing to log
+    return;
+  }
+  ZStatTablePrinter refs(20, 12);
+  lt.print("%s", refs()
+           .fill()
+           .right("Encountered")
+           .right("Discovered")
+           .right("Enqueued")
+           .end());
+
+  auto ref_print = [&] (const char* name, const ZStatReferences::ZCount& ref) {
+    lt.print("%s", refs()
+             .left("%s References:", name)
+             .right("%zu", ref.encountered)
+             .right("%zu", ref.discovered)
+             .right("%zu", ref.enqueued)
+             .end());
+  };
+
+  ref_print("Soft", _soft);
+  ref_print("Weak", _weak);
+  ref_print("Final", _final);
+  ref_print("Phantom", _phantom);
 }
 
 //
@@ -1677,6 +1735,7 @@ void ZStatHeap::at_mark_start(const ZPageAllocatorStats& stats) {
   _at_mark_start.free = free(stats.used());
   _at_mark_start.used = stats.used();
   _at_mark_start.used_generation = stats.used_generation();
+  _at_mark_start.allocation_stalls = stats.allocation_stalls();
 }
 
 void ZStatHeap::at_mark_end(const ZPageAllocatorStats& stats) {
@@ -1687,6 +1746,7 @@ void ZStatHeap::at_mark_end(const ZPageAllocatorStats& stats) {
   _at_mark_end.used = stats.used();
   _at_mark_end.used_generation = stats.used_generation();
   _at_mark_end.mutator_allocated = mutator_allocated(stats.used_generation(), 0 /* reclaimed */, 0 /* relocated */);
+  _at_mark_end.allocation_stalls = stats.allocation_stalls();
 }
 
 void ZStatHeap::at_select_relocation_set(const ZRelocationSetSelectorStats& stats) {
@@ -1694,7 +1754,7 @@ void ZStatHeap::at_select_relocation_set(const ZRelocationSetSelectorStats& stat
 
   size_t live = 0;
   for (uint i = 0; i <= ZPageAgeMax; ++i) {
-    ZPageAge age = static_cast<ZPageAge>(i);
+    const ZPageAge age = static_cast<ZPageAge>(i);
     live += stats.small(age).live() + stats.medium(age).live() + stats.large(age).live();
   }
   _at_mark_end.live = live;
@@ -1716,6 +1776,7 @@ void ZStatHeap::at_relocate_start(const ZPageAllocatorStats& stats) {
   _at_relocate_start.reclaimed = reclaimed(stats.freed(), stats.compacted(), stats.promoted());
   _at_relocate_start.promoted = stats.promoted();
   _at_relocate_start.compacted = stats.compacted();
+  _at_relocate_start.allocation_stalls = stats.allocation_stalls();
 }
 
 void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_stats) {
@@ -1737,6 +1798,7 @@ void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_st
   _at_relocate_end.reclaimed = reclaimed(stats.freed(), stats.compacted(), stats.promoted());
   _at_relocate_end.promoted = stats.promoted();
   _at_relocate_end.compacted = stats.compacted();
+  _at_relocate_end.allocation_stalls = stats.allocation_stalls();
 
   if (record_stats) {
     _reclaimed_bytes.add(_at_relocate_end.reclaimed);
@@ -1769,6 +1831,22 @@ size_t ZStatHeap::used_at_relocate_end() const {
 
 size_t ZStatHeap::used_at_collection_end() const {
   return used_at_relocate_end();
+}
+
+size_t ZStatHeap::stalls_at_mark_start() const {
+  return _at_mark_start.allocation_stalls;
+}
+
+size_t ZStatHeap::stalls_at_mark_end() const {
+  return _at_mark_end.allocation_stalls;
+}
+
+size_t ZStatHeap::stalls_at_relocate_start() const {
+  return _at_relocate_start.allocation_stalls;
+}
+
+size_t ZStatHeap::stalls_at_relocate_end() const {
+  return _at_relocate_end.allocation_stalls;
 }
 
 ZStatHeapStats ZStatHeap::stats() {
@@ -1887,5 +1965,23 @@ void ZStatHeap::print(const ZGeneration* generation) const {
                      .left(ZTABLE_ARGS_NA)
                      .left(ZTABLE_ARGS_NA)
                      .left(ZTABLE_ARGS(_at_relocate_end.compacted))
+                     .end());
+}
+
+void ZStatHeap::print_stalls() const {
+  ZStatTablePrinter stall_table(20, 16);
+  log_info(gc, alloc)("%s", stall_table()
+                     .fill()
+                     .center("Mark Start")
+                     .center("Mark End")
+                     .center("Relocate Start")
+                     .center("Relocate End")
+                     .end());
+  log_info(gc, alloc)("%s", stall_table()
+                     .left("%s", "Allocation Stalls:")
+                     .center("%zu", _at_mark_start.allocation_stalls)
+                     .center("%zu", _at_mark_end.allocation_stalls)
+                     .center("%zu", _at_relocate_start.allocation_stalls)
+                     .center("%zu", _at_relocate_end.allocation_stalls)
                      .end());
 }

@@ -95,7 +95,7 @@ bool ZForwarding::retain_page(ZRelocateQueue* queue) {
 
     if (ref_count < 0) {
       // Claimed
-      queue->add_and_wait_for_in_place_relocation(this);
+      queue->add_and_wait(this);
 
       // Released
       return false;
@@ -215,7 +215,7 @@ bool ZForwarding::is_done() const {
 // none:      Starting state - neither OC nor YC has stated their intentions
 // published: The OC has completed relocating all objects, and published an array
 //            of all to-space fields that should have a remembered set entry.
-// reject:    The OC relocation of the page happened concurrentely with the YC
+// reject:    The OC relocation of the page happened concurrently with the YC
 //            remset scanning. Two situations:
 //            a) The page had not been released yet: The YC eagerly relocated and
 //            scanned the to-space objects with remset entries.
@@ -358,7 +358,7 @@ void ZForwarding::relocated_remembered_fields_notify_concurrent_scan_of() {
 }
 
 bool ZForwarding::relocated_remembered_fields_published_contains(volatile zpointer* p) {
-  for (volatile zpointer* elem : _relocated_remembered_fields_array) {
+  for (volatile zpointer* const elem : _relocated_remembered_fields_array) {
     if (elem == p) {
       return true;
     }

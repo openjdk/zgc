@@ -77,12 +77,12 @@ void ZRememberedSet::clear_all(const char* where) {
 }
 
 void ZRememberedSet::clear_current() {
-  log_debug(gc, remset)("Clear remset current: " PTR_FORMAT, p2i(current()));
+  log_trace(gc, remset)("Clear remset current: " PTR_FORMAT, p2i(current()));
   current()->clear_large();
 }
 
 void ZRememberedSet::clear_previous(const char* where) {
-  log_debug(gc, remset)("Clear remset previous: " PTR_FORMAT " %s", p2i(previous()), where);
+  log_trace(gc, remset)("Clear remset previous: " PTR_FORMAT " %s", p2i(previous()), where);
   previous()->clear_large();
 }
 
@@ -198,7 +198,7 @@ ZRememberedSetContainingInLiveIterator::ZRememberedSetContainingInLiveIterator(Z
 bool ZRememberedSetContainingInLiveIterator::next(ZRememberedSetContaining* containing) {
   ZRememberedSetContaining local;
   while (_iter.next(&local)) {
-    zaddress local_addr = safe(local._addr);
+    const zaddress local_addr = safe(local._addr);
     if (local_addr != _addr) {
       _addr = local_addr;
       _addr_size = ZUtils::object_size(_addr);

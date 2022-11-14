@@ -206,7 +206,7 @@ bool ZStoreBarrierBuffer::stored_during_old_mark() const {
 }
 
 void ZStoreBarrierBuffer::on_new_phase_mark(int i) {
-  ZStoreBarrierEntry& entry = _buffer[i];
+  const ZStoreBarrierEntry& entry = _buffer[i];
   const zpointer prev = entry._prev;
 
   if (is_null_any(prev)) {
@@ -278,7 +278,7 @@ void ZStoreBarrierBuffer::on_error(outputStream* st) {
 
     ss.reset();
 
-    CodeBlob* b = CodeCache::find_blob(pc);
+    const CodeBlob* const b = CodeCache::find_blob(pc);
     if (b != nullptr) {
       b->dump_for_addr((address)pc, &ss, false);
     } else {
@@ -322,7 +322,7 @@ bool ZStoreBarrierBuffer::is_in(volatile zpointer* p) {
     return false;
   }
 
-  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *jt = jtiwh.next(); ) {
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread * const jt = jtiwh.next(); ) {
     ZStoreBarrierBuffer* const buffer = ZThreadLocalData::store_barrier_buffer(jt);
 
     const uintptr_t  last_remap_bits = ZPointer::remap_bits(buffer->_last_processed_color) & ZPointerRemappedMask;

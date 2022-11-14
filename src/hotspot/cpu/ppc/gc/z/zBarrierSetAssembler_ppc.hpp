@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2021 SAP SE. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,6 +73,8 @@ public:
                                              Register obj, Register tmp, Label& slowpath);
 
   virtual void check_oop(MacroAssembler *masm, Register oop, const char* msg);
+
+  virtual NMethodPatchingType nmethod_patching_type() { return NMethodPatchingType::conc_data_patch; }
 
 #ifdef COMPILER1
   void generate_c1_load_barrier_stub(LIR_Assembler* ce,
