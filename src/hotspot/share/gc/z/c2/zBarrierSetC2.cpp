@@ -584,26 +584,36 @@ static const Node* look_through_node(const Node* node) {
   return node;
 }
 
+// Whether the given offset is undefined.
+static bool is_undefined(intptr_t offset) {
+  return offset == Type::OffsetTop;
+}
+
+// Whether the given offset is unknown.
+static bool is_unknown(intptr_t offset) {
+  return offset == Type::OffsetBot;
+}
+
+// Whether the given offset is concrete (defined and compile-time known).
+static bool is_concrete(intptr_t offset) {
+  return !is_undefined(offset) && !is_unknown(offset);
+}
+
 // Compute base + offset components of the memory address accessed by mach.
-// Return a node representing the base address (or NULL if it cannot be found),
-// and an offset (which may be a concrete value or a special signal value if the
-// offset cannot be found, e.g. because it is not a compile-time constant).
+// Return a node representing the base address, or NULL if the base cannot be
+// found or the offset is undefined or a concrete negative value. If a non-NULL
+// base is returned, the offset is a concrete, nonnegative value or unknown.
 static const Node* get_base_and_offset(const MachNode* mach, intptr_t& offset) {
   const TypePtr* adr_type = NULL;
   offset = 0;
   const Node* const base = mach->get_base_and_disp(offset, adr_type);
 
-  if (base == NULL || base == NodeSentinel) {
+  if (base == NULL || base == NodeSentinel ||
+      is_undefined(offset) || (is_concrete(offset) && offset < 0)) {
     return NULL;
   }
 
   return look_through_node(base);
-}
-
-// Whether the given offset is concrete (known at compile-time) and nonnegative.
-static bool is_concrete(intptr_t offset) {
-  // This test implies offset != Type::OffsetTop && offset != Type::OffsetBot.
-  return offset >= 0;
 }
 
 // Whether a phi node corresponds to an array allocation.
@@ -698,10 +708,12 @@ void ZBarrierSetC2::analyze_dominating_barriers_impl(Node_List& accesses, Node_L
         if (mem != access_obj) {
           continue;
         }
-        if (!is_concrete(access_offset) && !is_array_allocation(mem)) {
-          // The accessed address has a variable or unknown offset, but the
-          // allocated object cannot be determined to be an array. Avoid eliding
-          // in this case, to be on the safe side.
+        assert((is_concrete(access_offset) && access_offset >= 0) || is_unknown(access_offset),
+               "candidate allocation-dominated accesses must be either concrete and nonnegative or unknown");
+        if (is_unknown(access_offset) && !is_array_allocation(mem)) {
+          // The accessed address has an unknown offset, but the allocated
+          // object cannot be determined to be an array. Avoid eliding in this
+          // case, to be on the safe side.
           continue;
         }
       } else {
@@ -721,6 +733,8 @@ void ZBarrierSetC2::analyze_dominating_barriers_impl(Node_List& accesses, Node_L
           // Not the same addresses, not a candidate
           continue;
         }
+        assert(is_concrete(access_offset) && access_offset >= 0,
+               "candidate non-allocation-dominated accesses must be concrete and nonnegative");
       }
 
       Block* mem_block = cfg->get_block_for_node(mem);
