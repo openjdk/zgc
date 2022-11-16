@@ -708,14 +708,14 @@ void ZBarrierSetC2::analyze_dominating_barriers_impl(Node_List& accesses, Node_L
         if (mem != access_obj) {
           continue;
         }
-        assert((is_concrete(access_offset) && access_offset >= 0) || is_unknown(access_offset),
-               "candidate allocation-dominated accesses must be either concrete and nonnegative or unknown");
         if (is_unknown(access_offset) && !is_array_allocation(mem)) {
           // The accessed address has an unknown offset, but the allocated
           // object cannot be determined to be an array. Avoid eliding in this
           // case, to be on the safe side.
           continue;
         }
+        assert((is_concrete(access_offset) && access_offset >= 0) || (is_unknown(access_offset) && is_array_allocation(mem)),
+               "candidate allocation-dominated access offsets must be either concrete and nonnegative, or unknown (for array allocations only)");
       } else {
         // Access node
         const MachNode* const mem_mach = mem->as_Mach();
@@ -734,7 +734,7 @@ void ZBarrierSetC2::analyze_dominating_barriers_impl(Node_List& accesses, Node_L
           continue;
         }
         assert(is_concrete(access_offset) && access_offset >= 0,
-               "candidate non-allocation-dominated accesses must be concrete and nonnegative");
+               "candidate non-allocation-dominated access offsets must be concrete and nonnegative");
       }
 
       Block* mem_block = cfg->get_block_for_node(mem);
