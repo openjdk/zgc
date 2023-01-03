@@ -25,7 +25,6 @@ using namespace std;
 #include "gc/z/zPageAllocator.hpp"
 #include <sys/resource.h>
 
-#include "precompiled.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcVMOperations.hpp"
@@ -41,57 +40,59 @@ using namespace std;
 #include "gc/z/zVerify.hpp"
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
+#include "precompiled.hpp"
 #include "runtime/threads.hpp"
 #include "runtime/vmOperations.hpp"
 #include "runtime/vmThread.hpp"
 
-static const ZStatPhaseCycle      ZPhaseCycle("Garbage Collection Cycle");
-static const ZStatPhasePause      ZPhasePauseMarkStart("Pause Mark Start");
+double last_user_cpu_usage = 0;
+static const ZStatPhaseCycle ZPhaseCycle("Garbage Collection Cycle");
+static const ZStatPhasePause ZPhasePauseMarkStart("Pause Mark Start");
 static const ZStatPhaseConcurrent ZPhaseConcurrentMark("Concurrent Mark");
-static const ZStatPhaseConcurrent ZPhaseConcurrentMarkContinue("Concurrent Mark Continue");
-static const ZStatPhaseConcurrent ZPhaseConcurrentMarkFree("Concurrent Mark Free");
-static const ZStatPhasePause      ZPhasePauseMarkEnd("Pause Mark End");
-static const ZStatPhaseConcurrent ZPhaseConcurrentProcessNonStrongReferences("Concurrent Process Non-Strong References");
-static const ZStatPhaseConcurrent ZPhaseConcurrentResetRelocationSet("Concurrent Reset Relocation Set");
-static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSet("Concurrent Select Relocation Set");
-static const ZStatPhasePause      ZPhasePauseRelocateStart("Pause Relocate Start");
-static const ZStatPhaseConcurrent ZPhaseConcurrentRelocated("Concurrent Relocate");
-static const ZStatCriticalPhase   ZCriticalPhaseGCLockerStall("GC Locker Stall", false /* verbose */);
-static const ZStatSampler         ZSamplerJavaThreads("System", "Java Threads", ZStatUnitThreads);
+static const ZStatPhaseConcurrent
+    ZPhaseConcurrentMarkContinue("Concurrent Mark Continue");
+static const ZStatPhaseConcurrent
+    ZPhaseConcurrentMarkFree("Concurrent Mark Free");
+static const ZStatPhasePause ZPhasePauseMarkEnd("Pause Mark End");
+static const ZStatPhaseConcurrent ZPhaseConcurrentProcessNonStrongReferences(
+    "Concurrent Process Non-Strong References");
+static const ZStatPhaseConcurrent
+    ZPhaseConcurrentResetRelocationSet("Concurrent Reset Relocation Set");
+static const ZStatPhaseConcurrent
+    ZPhaseConcurrentSelectRelocationSet("Concurrent Select Relocation Set");
+static const ZStatPhasePause ZPhasePauseRelocateStart("Pause Relocate Start");
+static const ZStatPhaseConcurrent
+    ZPhaseConcurrentRelocated("Concurrent Relocate");
+static const ZStatCriticalPhase
+    ZCriticalPhaseGCLockerStall("GC Locker Stall", false /* verbose */);
+static const ZStatSampler ZSamplerJavaThreads("System", "Java Threads",
+                                              ZStatUnitThreads);
 
-ZDriverRequest::ZDriverRequest() :
-    ZDriverRequest(GCCause::_no_gc) {}
+ZDriverRequest::ZDriverRequest() : ZDriverRequest(GCCause::_no_gc) {}
 
-ZDriverRequest::ZDriverRequest(GCCause::Cause cause) :
-    ZDriverRequest(cause, ConcGCThreads) {}
+ZDriverRequest::ZDriverRequest(GCCause::Cause cause)
+    : ZDriverRequest(cause, ConcGCThreads) {}
 
-ZDriverRequest::ZDriverRequest(GCCause::Cause cause, uint nworkers) :
-    _cause(cause),
-    _nworkers(nworkers) {}
+ZDriverRequest::ZDriverRequest(GCCause::Cause cause, uint nworkers)
+    : _cause(cause), _nworkers(nworkers) {}
 
-bool ZDriverRequest::operator==(const ZDriverRequest& other) const {
+bool ZDriverRequest::operator==(const ZDriverRequest &other) const {
   return _cause == other._cause;
 }
 
-GCCause::Cause ZDriverRequest::cause() const {
-  return _cause;
-}
+GCCause::Cause ZDriverRequest::cause() const { return _cause; }
 
-uint ZDriverRequest::nworkers() const {
-  return _nworkers;
-}
+uint ZDriverRequest::nworkers() const { return _nworkers; }
 
 class VM_ZOperation : public VM_Operation {
 private:
   const uint _gc_id;
-  bool       _gc_locked;
-  bool       _success;
+  bool _gc_locked;
+  bool _success;
 
 public:
-  VM_ZOperation() :
-      _gc_id(GCId::current()),
-      _gc_locked(false),
-      _success(false) {}
+  VM_ZOperation()
+      : _gc_id(GCId::current()), _gc_locked(false), _success(false) {}
 
   virtual bool needs_inactive_gc_locker() const {
     // An inactive GC locker is needed in operations where we change the bad
@@ -100,9 +101,7 @@ public:
     return false;
   }
 
-  virtual bool skip_thread_oop_barriers() const {
-    return true;
-  }
+  virtual bool skip_thread_oop_barriers() const { return true; }
 
   virtual bool do_operation() = 0;
 
@@ -132,28 +131,18 @@ public:
     ZStatSample(ZSamplerJavaThreads, Threads::number_of_threads());
   }
 
-  virtual void doit_epilogue() {
-    Heap_lock->unlock();
-  }
+  virtual void doit_epilogue() { Heap_lock->unlock(); }
 
-  bool gc_locked() const {
-    return _gc_locked;
-  }
+  bool gc_locked() const { return _gc_locked; }
 
-  bool success() const {
-    return _success;
-  }
+  bool success() const { return _success; }
 };
 
 class VM_ZMarkStart : public VM_ZOperation {
 public:
-  virtual VMOp_Type type() const {
-    return VMOp_ZMarkStart;
-  }
+  virtual VMOp_Type type() const { return VMOp_ZMarkStart; }
 
-  virtual bool needs_inactive_gc_locker() const {
-    return true;
-  }
+  virtual bool needs_inactive_gc_locker() const { return true; }
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseMarkStart);
@@ -168,9 +157,7 @@ public:
 
 class VM_ZMarkEnd : public VM_ZOperation {
 public:
-  virtual VMOp_Type type() const {
-    return VMOp_ZMarkEnd;
-  }
+  virtual VMOp_Type type() const { return VMOp_ZMarkEnd; }
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseMarkEnd);
@@ -181,13 +168,9 @@ public:
 
 class VM_ZRelocateStart : public VM_ZOperation {
 public:
-  virtual VMOp_Type type() const {
-    return VMOp_ZRelocateStart;
-  }
+  virtual VMOp_Type type() const { return VMOp_ZRelocateStart; }
 
-  virtual bool needs_inactive_gc_locker() const {
-    return true;
-  }
+  virtual bool needs_inactive_gc_locker() const { return true; }
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseRelocateStart);
@@ -199,31 +182,21 @@ public:
 
 class VM_ZVerify : public VM_Operation {
 public:
-  virtual VMOp_Type type() const {
-    return VMOp_ZVerify;
-  }
+  virtual VMOp_Type type() const { return VMOp_ZVerify; }
 
-  virtual bool skip_thread_oop_barriers() const {
-    return true;
-  }
+  virtual bool skip_thread_oop_barriers() const { return true; }
 
-  virtual void doit() {
-    ZVerify::after_weak_processing();
-  }
+  virtual void doit() { ZVerify::after_weak_processing(); }
 };
 
-ZDriver::ZDriver() :
-    _gc_cycle_port(),
-    _gc_locker_port() {
+ZDriver::ZDriver() : _gc_cycle_port(), _gc_locker_port() {
   set_name("ZDriver");
   create_and_start();
 }
 
-bool ZDriver::is_busy() const {
-  return _gc_cycle_port.is_busy();
-}
+bool ZDriver::is_busy() const { return _gc_cycle_port.is_busy(); }
 
-void ZDriver::collect(const ZDriverRequest& request) {
+void ZDriver::collect(const ZDriverRequest &request) {
   switch (request.cause()) {
   case GCCause::_wb_young_gc:
   case GCCause::_wb_conc_mark:
@@ -268,8 +241,7 @@ void ZDriver::collect(const ZDriverRequest& request) {
   }
 }
 
-template <typename T>
-bool ZDriver::pause() {
+template <typename T> bool ZDriver::pause() {
   for (;;) {
     T op;
     VMThread::execute(&op);
@@ -287,9 +259,7 @@ bool ZDriver::pause() {
   }
 }
 
-void ZDriver::pause_mark_start() {
-  pause<VM_ZMarkStart>();
-}
+void ZDriver::pause_mark_start() { pause<VM_ZMarkStart>(); }
 
 void ZDriver::concurrent_mark() {
   ZStatTimer timer(ZPhaseConcurrentMark);
@@ -298,9 +268,7 @@ void ZDriver::concurrent_mark() {
   ZBreakpoint::at_before_marking_completed();
 }
 
-bool ZDriver::pause_mark_end() {
-  return pause<VM_ZMarkEnd>();
-}
+bool ZDriver::pause_mark_end() { return pause<VM_ZMarkEnd>(); }
 
 void ZDriver::concurrent_mark_continue() {
   ZStatTimer timer(ZPhaseConcurrentMarkContinue);
@@ -340,20 +308,16 @@ void ZDriver::concurrent_select_relocation_set() {
   ZHeap::heap()->select_relocation_set();
 }
 
-void ZDriver::pause_relocate_start() {
-  pause<VM_ZRelocateStart>();
-}
+void ZDriver::pause_relocate_start() { pause<VM_ZRelocateStart>(); }
 
 void ZDriver::concurrent_relocate() {
   ZStatTimer timer(ZPhaseConcurrentRelocated);
   ZHeap::heap()->relocate();
 }
 
-void ZDriver::check_out_of_memory() {
-  ZHeap::heap()->check_out_of_memory();
-}
+void ZDriver::check_out_of_memory() { ZHeap::heap()->check_out_of_memory(); }
 
-static bool should_clear_soft_references(const ZDriverRequest& request) {
+static bool should_clear_soft_references(const ZDriverRequest &request) {
   // Clear soft references if implied by the GC cause
   if (request.cause() == GCCause::_wb_full_gc ||
       request.cause() == GCCause::_metadata_GC_clear_soft_refs ||
@@ -366,18 +330,18 @@ static bool should_clear_soft_references(const ZDriverRequest& request) {
   return false;
 }
 
-static uint select_active_worker_threads_dynamic(const ZDriverRequest& request) {
+static uint
+select_active_worker_threads_dynamic(const ZDriverRequest &request) {
   // Use requested number of worker threads
   return request.nworkers();
 }
 
-static uint select_active_worker_threads_static(const ZDriverRequest& request) {
+static uint select_active_worker_threads_static(const ZDriverRequest &request) {
   const GCCause::Cause cause = request.cause();
   const uint nworkers = request.nworkers();
 
   // Boost number of worker threads if implied by the GC cause
-  if (cause == GCCause::_wb_full_gc ||
-      cause == GCCause::_java_lang_system_gc ||
+  if (cause == GCCause::_wb_full_gc || cause == GCCause::_java_lang_system_gc ||
       cause == GCCause::_metadata_GC_clear_soft_refs ||
       cause == GCCause::_z_allocation_stall) {
     // Boost
@@ -389,7 +353,7 @@ static uint select_active_worker_threads_static(const ZDriverRequest& request) {
   return nworkers;
 }
 
-static uint select_active_worker_threads(const ZDriverRequest& request) {
+static uint select_active_worker_threads(const ZDriverRequest &request) {
   if (UseDynamicNumberOfGCThreads) {
     return select_active_worker_threads_dynamic(request);
   } else {
@@ -399,19 +363,17 @@ static uint select_active_worker_threads(const ZDriverRequest& request) {
 
 class ZDriverGCScope : public StackObj {
 private:
-  GCIdMark                   _gc_id;
-  GCCause::Cause             _gc_cause;
-  GCCauseSetter              _gc_cause_setter;
-  ZStatTimer                 _timer;
+  GCIdMark _gc_id;
+  GCCause::Cause _gc_cause;
+  GCCauseSetter _gc_cause_setter;
+  ZStatTimer _timer;
   ZServiceabilityCycleTracer _tracer;
 
 public:
-  ZDriverGCScope(const ZDriverRequest& request) :
-      _gc_id(),
-      _gc_cause(request.cause()),
-      _gc_cause_setter(ZCollectedHeap::heap(), _gc_cause),
-      _timer(ZPhaseCycle),
-      _tracer() {
+  ZDriverGCScope(const ZDriverRequest &request)
+      : _gc_id(), _gc_cause(request.cause()),
+        _gc_cause_setter(ZCollectedHeap::heap(), _gc_cause),
+        _timer(ZPhaseCycle), _tracer() {
     // Update statistics
     ZStatCycle::at_start();
 
@@ -441,27 +403,49 @@ public:
 // to the function f, since we can't abort between pause_relocate_start()
 // and concurrent_relocate(). We need to let concurrent_relocate() call
 // abort_page() on the remaining entries in the relocation set.
-#define concurrent(f)                 \
-  do {                                \
-    concurrent_##f();                 \
-    if (should_terminate()) {         \
-      return;                         \
-    }                                 \
+#define concurrent(f)                                                          \
+  do {                                                                         \
+    concurrent_##f();                                                          \
+    if (should_terminate()) {                                                  \
+      return;                                                                  \
+    }                                                                          \
   } while (false)
 
-void ZDriver::gc(const ZDriverRequest& request) {
+void ZDriver::gc(const ZDriverRequest &request) {
   ZDriverGCScope scope(request);
 
   struct rusage usage;
-  int retval_start = getrusage(RUSAGE_SELF, &usage);
-  double start = 0;
-  if (retval_start == 0) {
-    start = (double)(usage.ru_utime.tv_sec +
-                     usage.ru_utime.tv_usec / (1000 * 1000));
-    (double)(usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / (1000 * 1000));
-
-    cout << "startttttt = " << start << endl;
+  // First time the application is run, last cpu time (last_user_cpu_usage) is
+  // zero. The following IF statement checks it and sets last_user_cpu_usage to
+  // the initial user app cpu usage value
+  if (last_user_cpu_usage == 0) {
+    int retval_start = getrusage(RUSAGE_SELF, &usage);
+    if (retval_start == 0) {
+      last_user_cpu_usage = (double)(usage.ru_utime.tv_sec +
+                                     usage.ru_utime.tv_usec / (1000 * 1000)) +
+                            (double)(usage.ru_stime.tv_sec +
+                                     usage.ru_stime.tv_usec / (1000 * 1000));
+    }
+    cout << "last User CPU time = " << last_user_cpu_usage << endl;
   }
+  int retval_end = getrusage(RUSAGE_SELF, &usage);
+  double current_user_cpu_usage = 0;
+  if (retval_end == 0) {
+    current_user_cpu_usage = (double)(usage.ru_utime.tv_sec +
+                                      usage.ru_utime.tv_usec / (1000 * 1000)) +
+                             (double)(usage.ru_stime.tv_sec +
+                                      usage.ru_stime.tv_usec / (1000 * 1000));
+    cout << "Current User CPU time = = " << current_user_cpu_usage << endl;
+  }
+
+  double user_app_cpu_usage = 0; // the CPU time spent in the user app between two GC calls
+  user_app_cpu_usage = current_user_cpu_usage - last_user_cpu_usage;
+  last_user_cpu_usage =
+      current_user_cpu_usage; // set the last_user_cpu_usage to the current
+                              // value for the next iteration
+
+  cout << "user's application CPU usage = " << user_app_cpu_usage << endl;
+
   // Phase 1: Pause Mark Start
   pause_mark_start();
 
@@ -513,46 +497,20 @@ void ZDriver::gc(const ZDriverRequest& request) {
   // st->print(" (********** GC CPU time: %d)", gc_cpu);
   //  st->print(" (********** GC CPU time: %s)", "hHHHHHHHHHH");
 
-  // current mutator CPU utilization
-  // struct rusage usage;
-  // int retval = getrusage(RUSAGE_THREAD, &usage);
-  // if (retval == 0) {
-  //   jlong a= usage.ru_utime.tv_sec + usage.ru_stime.tv_sec +
-  //   usage.ru_utime.tv_usec + usage.ru_stime.tv_usec / (1000 * 1000);
-  // }
-  // struct rusage usage;
-  int retval_end = getrusage(RUSAGE_SELF, &usage);
-  double user_proc_cpu = 0;
-  double end = 0;
-  if (retval_end == 0) {
-    // user_proc_cpu = (double)(usage.ru_utime.tv_sec + usage.ru_utime.tv_usec /
-    //                     (1000 * 1000))+
-    //                 (double)(usage.ru_stime.tv_sec + usage.ru_stime.tv_usec /
-    //                     (1000 * 1000));
-    last = (double)(usage.ru_utime.tv_sec +
-                   usage.ru_utime.tv_usec / (1000 * 1000)) +
-          (double)(usage.ru_stime.tv_sec +
-                   usage.ru_stime.tv_usec / (1000 * 1000));
-                   lastCPUUsage=last;
-                   end = last
-
-    user_proc_cpu = end - start;
-    cout << "enddddddd = " << end << endl;
-    cout << "user CPU usage = " << user_proc_cpu << endl;
-  }
   double cpu_overhead = 2;
-  double gc_to_proc_cpu = gc_cpu / user_proc_cpu;
-  cout << "gc_to_proc_cpu is: " << gc_to_proc_cpu << endl;
-  if (gc_to_proc_cpu > 0 && user_proc_cpu > 0) {
+  //gc_to_app_cpu = CPU time used by GC devided by CPU time for user's application
+  double gc_to_app_cpu = user_app_cpu_usage > 0 ? gc_cpu / user_app_cpu_usage : 0;
+  cout << "gc_to_app_cpu is: " << gc_to_app_cpu << endl;
+  if (gc_to_app_cpu > 0) {
     double new_heap_size = 0.0;
     // current soft heap size
     // look for SoftMaxHeapSize
     double soft_heap = (double)ZHeap::heap()->soft_max_capacity(); // in Byte?
     cout << "soft heap size = " << soft_heap / (1024 * 1024) << endl;
-    if (gc_to_proc_cpu < cpu_overhead) {
+    if (gc_to_app_cpu < cpu_overhead) {
       new_heap_size = (double)soft_heap / 2;
       cout << "decrease HEAP size:" << new_heap_size << endl;
-    } else if (gc_to_proc_cpu >= cpu_overhead) {
+    } else if (gc_to_app_cpu >= cpu_overhead) {
       new_heap_size = soft_heap + (soft_heap / 2);
       cout << "increase HEAP size" << new_heap_size << endl;
     }
@@ -562,7 +520,6 @@ void ZDriver::gc(const ZDriverRequest& request) {
   }
 
   cout << "******** END ********" << endl;
-}
 }
 
 void ZDriver::run_service() {
