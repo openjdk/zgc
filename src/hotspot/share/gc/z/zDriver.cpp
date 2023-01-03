@@ -20,6 +20,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+#include <iostream>
+using namespace std;
+#include "gc/z/zPageAllocator.hpp"
+#include <sys/resource.h>
 
 #include "precompiled.hpp"
 #include "gc/shared/gcId.hpp"
@@ -448,6 +452,16 @@ public:
 void ZDriver::gc(const ZDriverRequest& request) {
   ZDriverGCScope scope(request);
 
+  struct rusage usage;
+  int retval_start = getrusage(RUSAGE_SELF, &usage);
+  double start = 0;
+  if (retval_start == 0) {
+    start = (double)(usage.ru_utime.tv_sec +
+                     usage.ru_utime.tv_usec / (1000 * 1000));
+    (double)(usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / (1000 * 1000));
+
+    cout << "startttttt = " << start << endl;
+  }
   // Phase 1: Pause Mark Start
   pause_mark_start();
 
@@ -480,6 +494,75 @@ void ZDriver::gc(const ZDriverRequest& request) {
 
   // Phase 10: Concurrent Relocate
   concurrent(relocate);
+
+  // current GC CPU time (seconds?)
+  cout << "******** START ********" << endl;
+  constexpr double one_in_1000 = 3.290527;
+  const double serial_gc_time = ZStatCycle::serial_time().davg() +
+                                (ZStatCycle::serial_time().dsd() * one_in_1000);
+  const double parallelizable_gc_time =
+      ZStatCycle::parallelizable_time().davg() +
+      (ZStatCycle::parallelizable_time().dsd() * one_in_1000);
+  // cout << "serial_gc_time = " << serial_gc_time << endl;
+  // cout << "parallelizable_gc_time = " << parallelizable_gc_time << endl;
+
+  const double gc_cpu = serial_gc_time + parallelizable_gc_time;
+  cout << "gc_cpu = " << gc_cpu << endl;
+
+  // outputStream* st;
+  // st->print(" (********** GC CPU time: %d)", gc_cpu);
+  //  st->print(" (********** GC CPU time: %s)", "hHHHHHHHHHH");
+
+  // current mutator CPU utilization
+  // struct rusage usage;
+  // int retval = getrusage(RUSAGE_THREAD, &usage);
+  // if (retval == 0) {
+  //   jlong a= usage.ru_utime.tv_sec + usage.ru_stime.tv_sec +
+  //   usage.ru_utime.tv_usec + usage.ru_stime.tv_usec / (1000 * 1000);
+  // }
+  // struct rusage usage;
+  int retval_end = getrusage(RUSAGE_SELF, &usage);
+  double user_proc_cpu = 0;
+  double end = 0;
+  if (retval_end == 0) {
+    // user_proc_cpu = (double)(usage.ru_utime.tv_sec + usage.ru_utime.tv_usec /
+    //                     (1000 * 1000))+
+    //                 (double)(usage.ru_stime.tv_sec + usage.ru_stime.tv_usec /
+    //                     (1000 * 1000));
+    last = (double)(usage.ru_utime.tv_sec +
+                   usage.ru_utime.tv_usec / (1000 * 1000)) +
+          (double)(usage.ru_stime.tv_sec +
+                   usage.ru_stime.tv_usec / (1000 * 1000));
+                   lastCPUUsage=last;
+                   end = last
+
+    user_proc_cpu = end - start;
+    cout << "enddddddd = " << end << endl;
+    cout << "user CPU usage = " << user_proc_cpu << endl;
+  }
+  double cpu_overhead = 2;
+  double gc_to_proc_cpu = gc_cpu / user_proc_cpu;
+  cout << "gc_to_proc_cpu is: " << gc_to_proc_cpu << endl;
+  if (gc_to_proc_cpu > 0 && user_proc_cpu > 0) {
+    double new_heap_size = 0.0;
+    // current soft heap size
+    // look for SoftMaxHeapSize
+    double soft_heap = (double)ZHeap::heap()->soft_max_capacity(); // in Byte?
+    cout << "soft heap size = " << soft_heap / (1024 * 1024) << endl;
+    if (gc_to_proc_cpu < cpu_overhead) {
+      new_heap_size = (double)soft_heap / 2;
+      cout << "decrease HEAP size:" << new_heap_size << endl;
+    } else if (gc_to_proc_cpu >= cpu_overhead) {
+      new_heap_size = soft_heap + (soft_heap / 2);
+      cout << "increase HEAP size" << new_heap_size << endl;
+    }
+    ZHeap::heap()->adjust_soft_heap(new_heap_size, true);
+    double so_heap = ZHeap::heap()->soft_max_capacity(); // in Byte?
+    cout << "new soft heap size = " << so_heap << endl;
+  }
+
+  cout << "******** END ********" << endl;
+}
 }
 
 void ZDriver::run_service() {

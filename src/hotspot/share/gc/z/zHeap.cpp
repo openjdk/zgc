@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+#include <iostream>
+using namespace std;
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
@@ -92,6 +94,12 @@ size_t ZHeap::max_capacity() const {
 
 size_t ZHeap::soft_max_capacity() const {
   return _page_allocator.soft_max_capacity();
+}
+
+void ZHeap::adjust_soft_heap(size_t size,bool b) {
+  cout<<"in the Zheap File and soft heap size is:"<<size/ (1024 * 1024)<<endl;
+  cout<<"in the Zheap File and soft heap size is:"<<size<<endl;
+  _page_allocator.adjust_soft_max_capacity(size, b);
 }
 
 size_t ZHeap::capacity() const {

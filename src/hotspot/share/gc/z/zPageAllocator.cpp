@@ -20,6 +20,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+#include <iostream>
+using namespace std;
 
 #include "precompiled.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
@@ -251,6 +253,16 @@ size_t ZPageAllocator::soft_max_capacity() const {
   const size_t soft_max_capacity = Atomic::load(&SoftMaxHeapSize);
   const size_t current_max_capacity = Atomic::load(&_current_max_capacity);
   return MIN2(soft_max_capacity, current_max_capacity);
+}
+
+void ZPageAllocator::adjust_soft_max_capacity(size_t size, bool adjust_soft_max) {
+  cout<<"#########"<<endl;
+  cout<<"in the ZPageAllocator File and soft heap size is:"<<size/ (1024 * 1024)<<" boolean value is: "<<adjust_soft_max<<endl;
+  cout<<"in the ZPageAllocator File and soft heap size is:"<<size<<endl;
+  if (adjust_soft_max) {
+    cout<<"in the if condition"<<endl;
+    Atomic::store(&SoftMaxHeapSize, size);
+  }
 }
 
 size_t ZPageAllocator::capacity() const {

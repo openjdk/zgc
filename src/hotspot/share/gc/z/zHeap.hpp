@@ -80,6 +80,8 @@ public:
   size_t min_capacity() const;
   size_t max_capacity() const;
   size_t soft_max_capacity() const;
+
+  void adjust_soft_heap(size_t size,bool b);
   size_t capacity() const;
   size_t used() const;
   size_t unused() const;
