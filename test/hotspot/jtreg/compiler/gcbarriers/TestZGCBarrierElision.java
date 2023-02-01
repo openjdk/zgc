@@ -34,24 +34,19 @@ import compiler.lib.ir_framework.CompilePhase;
  * @run driver compiler.gcbarriers.TestZGCBarrierElision
  */
 
-class Payload {
-    volatile Content c;
-    public Payload(Content c) {
-        this.c = c;
-    }
-}
+class Inner {}
 
-class Content {
-    int id;
-    public Content(int id) {
-        this.id = id;
+class Outer {
+    volatile Inner inner;
+    public Outer(Inner inner) {
+        this.inner = inner;
     }
 }
 
 public class TestZGCBarrierElision {
 
-    static Payload p = new Payload(new Content(5));
-    static Content c1 = new Content(45);
+    static Inner inner = new Inner();
+    static Outer outer = new Outer(inner);
 
     public static void main(String[] args) {
         TestFramework framework = new TestFramework();
@@ -63,49 +58,35 @@ public class TestZGCBarrierElision {
     static void blackhole(Object o) {}
 
     @Test
-    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" },
-        phase = CompilePhase.FINAL_CODE)
-    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" },
-        phase = CompilePhase.FINAL_CODE)
-        private static void testLoadThenLoad(Payload p, Content t1) {
-        Content t2 = p.c;
-        blackhole(t2);
-        Content t3 = p.c;
-        blackhole(t3);
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testLoadThenLoad(Outer o, Inner i) {
+        blackhole(o.inner);
+        blackhole(o.inner);
     }
 
     @Test
-    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" },
-        phase = CompilePhase.FINAL_CODE)
-    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" },
-        phase = CompilePhase.FINAL_CODE)
-    private static void testStoreThenStore(Payload p, Content t1) {
-        p.c = t1;
-        blackhole(p);
-        p.c = t1;
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testStoreThenStore(Outer o, Inner i) {
+        o.inner = i;
+        o.inner = i;
     }
 
     @Test
-    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" },
-        phase = CompilePhase.FINAL_CODE)
-    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" },
-        phase = CompilePhase.FINAL_CODE)
-    private static void testStoreThenLoad(Payload p, Content t1) {
-        p.c = t1;
-        blackhole(p);
-        Content t2 = p.c;
-        blackhole(t2);
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" },  phase = CompilePhase.FINAL_CODE)
+    private static void testStoreThenLoad(Outer o, Inner i) {
+        o.inner = i;
+        blackhole(o.inner);
     }
 
     @Test
-    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" },
-        phase = CompilePhase.FINAL_CODE)
-    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" },
-        phase = CompilePhase.FINAL_CODE)
-    private static void testLoadThenStore(Payload p, Content t1) {
-        Content t2 = p.c;
-        blackhole(t2);
-        p.c = t1;
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" },  phase = CompilePhase.FINAL_CODE)
+    private static void testLoadThenStore(Outer o, Inner i) {
+        blackhole(o.inner);
+        o.inner = i;
     }
 
     @Run(test = {"testLoadThenLoad",
@@ -113,9 +94,9 @@ public class TestZGCBarrierElision {
                  "testStoreThenLoad",
                  "testLoadThenStore"})
     private void run() {
-        testLoadThenLoad(p, c1);
-        testStoreThenStore(p, c1);
-        testStoreThenLoad(p, c1);
-        testLoadThenStore(p, c1);
+        testLoadThenLoad(outer, inner);
+        testStoreThenStore(outer, inner);
+        testStoreThenLoad(outer, inner);
+        testLoadThenStore(outer, inner);
     }
 }
