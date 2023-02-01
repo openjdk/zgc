@@ -35,7 +35,7 @@ import compiler.lib.ir_framework.CompilePhase;
  */
 
 class Payload {
-    Content c;
+    volatile Content c;
     public Payload(Content c) {
         this.c = c;
     }
@@ -50,9 +50,8 @@ class Content {
 
 public class TestZGCBarrierElision {
 
-    Payload p = new Payload(new Content(5));
-    Content c1 = new Content(45);
-    Content c2 = new Content(15);
+    static volatile Payload p = new Payload(new Content(5));
+    static volatile Content c1 = new Content(45);
 
     public static void main(String[] args) {
         TestFramework framework = new TestFramework();
@@ -61,20 +60,18 @@ public class TestZGCBarrierElision {
         framework.addScenarios(zgc).start();
     }
 
-    static void blackhole(Content t) {}
-
-    static void blackhole(Payload p) {}
+    static void blackhole(Object o) {}
 
     @Test
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" },
         phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" },
         phase = CompilePhase.FINAL_CODE)
-    private static void testLoadFollowedByLoad(Payload p) {
-        Content t1 = p.c;
-        blackhole(t1);
+        private static void testLoadThenLoad(Payload p, Content t1) {
         Content t2 = p.c;
         blackhole(t2);
+        Content t3 = p.c;
+        blackhole(t3);
     }
 
     @Test
@@ -82,10 +79,10 @@ public class TestZGCBarrierElision {
         phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" },
         phase = CompilePhase.FINAL_CODE)
-    private static void testStoreFollowedByStore(Payload p, Content t1, Content t2) {
+    private static void testStoreThenStore(Payload p, Content t1) {
         p.c = t1;
         blackhole(p);
-        p.c = t2;
+        p.c = t1;
     }
 
     @Test
@@ -93,7 +90,7 @@ public class TestZGCBarrierElision {
         phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" },
         phase = CompilePhase.FINAL_CODE)
-    private static void testStoreFollowedByLoad(Payload p, Content t1) {
+    private static void testStoreThenLoad(Payload p, Content t1) {
         p.c = t1;
         blackhole(p);
         Content t2 = p.c;
@@ -105,20 +102,20 @@ public class TestZGCBarrierElision {
         phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" },
         phase = CompilePhase.FINAL_CODE)
-    private static void testLoadFollowedByStore(Payload p, Content t1) {
+    private static void testLoadThenStore(Payload p, Content t1) {
         Content t2 = p.c;
         blackhole(t2);
         p.c = t1;
     }
 
-    @Run(test = {"testLoadFollowedByLoad",
-                 "testStoreFollowedByStore",
-                 "testStoreFollowedByLoad",
-                 "testLoadFollowedByStore"})
+    @Run(test = {"testLoadThenLoad",
+                 "testStoreThenStore",
+                 "testStoreThenLoad",
+                 "testLoadThenStore"})
     private void run() {
-        testLoadFollowedByLoad(p);
-        testStoreFollowedByStore(p, c1, c2);
-        testStoreFollowedByLoad(p, c1);
-        testLoadFollowedByStore(p, c1);
+        testLoadThenLoad(p, c1);
+        testStoreThenStore(p, c1);
+        testStoreThenLoad(p, c1);
+        testLoadThenStore(p, c1);
     }
 }
