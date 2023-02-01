@@ -50,8 +50,8 @@ class Content {
 
 public class TestZGCBarrierElision {
 
-    static volatile Payload p = new Payload(new Content(5));
-    static volatile Content c1 = new Content(45);
+    static Payload p = new Payload(new Content(5));
+    static Content c1 = new Content(45);
 
     public static void main(String[] args) {
         TestFramework framework = new TestFramework();
