@@ -38,24 +38,40 @@ class Inner {}
 
 class Outer {
     volatile Inner inner;
-    public Outer(Inner inner) {
-        this.inner = inner;
-    }
+    public Outer() {}
 }
 
 public class TestZGCBarrierElision {
 
     static Inner inner = new Inner();
-    static Outer outer = new Outer(inner);
+    static Outer outer = new Outer();
 
     public static void main(String[] args) {
         TestFramework framework = new TestFramework();
         Scenario zgc = new Scenario(0, "-XX:+UseZGC", "-XX:+UnlockExperimentalVMOptions", "-XX:CompileCommand=quiet",
-                                       "-XX:CompileCommand=blackhole,compiler.gcbarriers.TestZGCBarrierElision::blackhole");
+                                    "-XX:CompileCommand=blackhole,compiler.gcbarriers.TestZGCBarrierElision::blackhole");
         framework.addScenarios(zgc).start();
     }
 
     static void blackhole(Object o) {}
+
+    @Test
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testAllocateThenLoad(Outer o, Inner i) {
+        Outer o1 = new Outer();
+        blackhole(o1);
+        // Two loads are required, the first one is directly optimized away.
+        blackhole(o1.inner);
+        blackhole(o1.inner);
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testAllocateThenStore(Outer o, Inner i) {
+        Outer o1 = new Outer();
+        o1.inner = i;
+        blackhole(o1);
+    }
 
     @Test
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
@@ -89,11 +105,15 @@ public class TestZGCBarrierElision {
         o.inner = i;
     }
 
-    @Run(test = {"testLoadThenLoad",
+    @Run(test = {"testAllocateThenLoad",
+                 "testAllocateThenStore",
+                 "testLoadThenLoad",
                  "testStoreThenStore",
                  "testStoreThenLoad",
                  "testLoadThenStore"})
     private void run() {
+        testAllocateThenLoad(outer, inner);
+        testAllocateThenStore(outer, inner);
         testLoadThenLoad(outer, inner);
         testStoreThenStore(outer, inner);
         testStoreThenLoad(outer, inner);
