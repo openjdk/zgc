@@ -22,6 +22,7 @@
  */
 
 #include "gc/shared/gcLogPrecious.hpp"
+#include "gc/z/zAdaptiveHeap.inline.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zArray.inline.hpp"
 #include "gc/z/zErrno.hpp"
@@ -35,6 +36,8 @@
 #include "hugepages.hpp"
 #include "logging/log.hpp"
 #include "os_linux.hpp"
+#include "runtime/globals.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/init.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safefetch.hpp"
@@ -116,6 +119,8 @@ static const char* ZPreferredHugetlbfsMountpoints[] = {
 static int z_fallocate_hugetlbfs_attempts = 3;
 static bool z_fallocate_supported = true;
 
+static size_t z_max_map_count = 0;
+
 ZPhysicalMemoryBacking::ZPhysicalMemoryBacking(size_t max_capacity)
   : _fd(-1),
     _filesystem(0),
@@ -150,6 +155,14 @@ ZPhysicalMemoryBacking::ZPhysicalMemoryBacking(size_t max_capacity)
   _filesystem = buf.f_type;
   _block_size = buf.f_bsize;
   _available = buf.f_bavail * _block_size;
+
+  // Note that the available space on a tmpfs or a hugetlbfs filesystem
+  // will be zero if no size limit was specified when it was mounted.
+  if (_available == 0) {
+    log_info_p(gc, init)("Available space on backing filesystem: N/A");
+  } else {
+    log_info_p(gc, init)("Available space on backing filesystem: %zuM", _available / M);
+  }
 
   log_info_p(gc, init)("Heap Backing Filesystem: %s (" UINT64_FORMAT_X ")",
                        is_tmpfs() ? ZFILESYSTEM_TMPFS : is_hugetlbfs() ? ZFILESYSTEM_HUGETLBFS : "other", _filesystem);
@@ -308,11 +321,8 @@ void ZPhysicalMemoryBacking::warn_available_space(size_t max_capacity) const {
   // will be zero if no size limit was specified when it was mounted.
   if (_available == 0) {
     // No size limit set, skip check
-    log_info_p(gc, init)("Available space on backing filesystem: N/A");
     return;
   }
-
-  log_info_p(gc, init)("Available space on backing filesystem: %zuM", _available / M);
 
   // Warn if the filesystem doesn't currently have enough space available to hold
   // the max heap size. The max heap size will be capped if we later hit this limit
@@ -328,7 +338,11 @@ void ZPhysicalMemoryBacking::warn_available_space(size_t max_capacity) const {
   }
 }
 
-void ZPhysicalMemoryBacking::warn_max_map_count(size_t max_capacity) const {
+void ZPhysicalMemoryBacking::compute_max_map_count() const {
+  if (z_max_map_count != 0) {
+    return;
+  }
+
   const char* const filename = ZFILENAME_PROC_MAX_MAP_COUNT;
   FILE* const file = os::fopen(filename, "r");
   if (file == nullptr) {
@@ -337,38 +351,50 @@ void ZPhysicalMemoryBacking::warn_max_map_count(size_t max_capacity) const {
     return;
   }
 
-  size_t actual_max_map_count = 0;
-  const int result = fscanf(file, "%zu", &actual_max_map_count);
+  const int result = fscanf(file, "%zu", &z_max_map_count);
   fclose(file);
   if (result != 1) {
     // Failed to read file, skip check
     log_debug_p(gc, init)("Failed to read %s", filename);
     return;
   }
+}
+
+void ZPhysicalMemoryBacking::warn_max_map_count(size_t expected_capacity, size_t max_capacity) const {
+  // In the worst case, ZGC needs 2 mappings per granule. The reason is that if the
+  // fragmentation is at maximum, the mappings will be interleaved between being
+  // backed by memory vs not being backed by memory.
+  const size_t mappings_per_granule = 2;
 
   // The required max map count is impossible to calculate exactly since subsystems
   // other than ZGC are also creating memory mappings, and we have no control over that.
   // However, ZGC tends to create the most mappings and dominate the total count.
-  // In the worst cases, ZGC will map each granule three times, i.e. once per heap view.
-  // We speculate that we need another 20% to allow for non-ZGC subsystems to map memory.
-  const size_t required_max_map_count = (max_capacity / ZGranuleSize) * 3 * 1.2;
-  if (actual_max_map_count < required_max_map_count) {
-    log_warning_p(gc)("***** WARNING! INCORRECT SYSTEM CONFIGURATION DETECTED! *****");
-    log_warning_p(gc)("The system limit on number of memory mappings per process might be too low for the given");
-    log_warning_p(gc)("max Java heap size (%zuM). Please adjust %s to allow for at",
-                      max_capacity / M, filename);
-    log_warning_p(gc)("least %zu mappings (current limit is %zu). Continuing execution "
-                      "with the current", required_max_map_count, actual_max_map_count);
-    log_warning_p(gc)("limit could lead to a premature OutOfMemoryError being thrown, due to failure to map memory.");
+  const size_t required_max_map_count = (expected_capacity / ZGranuleSize) * mappings_per_granule * 1.2;
+  if (z_max_map_count >= required_max_map_count) {
+    return;
   }
+
+  const size_t recommended_max_map_count = (max_capacity / ZGranuleSize) * mappings_per_granule * 1.2;
+
+  const char* const filename = ZFILENAME_PROC_MAX_MAP_COUNT;
+  log_warning_p(gc)("***** WARNING! INCORRECT SYSTEM CONFIGURATION DETECTED! *****");
+  log_warning_p(gc)("The system limit on number of memory mappings per process might be too low for the");
+  log_warning_p(gc)("Java heap size (%zuM). Please adjust %s to allow for at",
+                    expected_capacity / M, filename);
+  log_warning_p(gc)("least %zu mappings (current limit is %zu). Continuing execution "
+                    "with the current", recommended_max_map_count, z_max_map_count);
+  log_warning_p(gc)("limit could lead to a premature OutOfMemoryError being thrown, due to failure to map memory.");
 }
 
-void ZPhysicalMemoryBacking::warn_commit_limits(size_t max_capacity) const {
+void ZPhysicalMemoryBacking::warn_commit_limits(size_t expected_capacity, size_t max_capacity) const {
   // Warn if available space is too low
-  warn_available_space(max_capacity);
+  warn_available_space(expected_capacity);
+
+  // Compute max map count the first time (during bootstrapping)
+  compute_max_map_count();
 
   // Warn if max map count is too low
-  warn_max_map_count(max_capacity);
+  warn_max_map_count(expected_capacity, max_capacity);
 }
 
 bool ZPhysicalMemoryBacking::is_tmpfs() const {
@@ -513,7 +539,7 @@ ZErrno ZPhysicalMemoryBacking::fallocate_fill_hole(zbacking_offset offset, size_
   // some point touch these segments, otherwise we can not punch hole in them.
   // Also note that we need to use compat mode when using transparent huge pages,
   // since we need to use madvise(2) on the mapping before the page is allocated.
-  if (z_fallocate_supported && !ZLargePages::is_enabled()) {
+  if (z_fallocate_supported && !ZLargePages::is_explicit()) {
      const ZErrno err = fallocate_fill_hole_syscall(offset, length);
      if (!err) {
        // Success
@@ -615,8 +641,12 @@ retry:
       goto retry;
     }
 
+    static volatile bool warned_failed_commit = false;
+    if (AtomicAccess::cmpxchg(&warned_failed_commit, false, true) == false) {
+      log_error_p(gc)("Failed to commit memory (%s)", err.to_string());
+    }
+
     // Failed
-    log_error_p(gc)("Failed to commit memory (%s)", err.to_string());
     return false;
   }
 
@@ -704,4 +734,8 @@ void ZPhysicalMemoryBacking::unmap(zaddress_unsafe addr, size_t size) const {
     ZErrno err;
     fatal("Failed to map memory (%s)", err.to_string());
   }
+}
+
+void ZPhysicalMemoryBacking::collapse(zaddress_unsafe addr, size_t size) const {
+  os::Linux::madvise_collapse_transparent_huge_pages((void*)untype(addr), size);
 }

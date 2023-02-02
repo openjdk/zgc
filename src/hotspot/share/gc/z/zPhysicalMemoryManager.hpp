@@ -53,7 +53,7 @@ public:
 
   bool is_initialized() const;
 
-  void warn_commit_limits(size_t max_capacity) const;
+  void warn_commit_limits(size_t expected_capacity, size_t max_capacity) const;
   void try_enable_uncommit(size_t min_capacity, size_t max_capacity);
 
   void alloc(const ZVirtualMemory& vmem, uint32_t numa_id);
@@ -74,6 +74,8 @@ public:
 
   void stash_segments(const ZArraySlice<const ZVirtualMemory>& vmems, ZArray<zbacking_index>* stash_out) const;
   void restore_segments(const ZArraySlice<const ZVirtualMemory>& vmems, const ZArray<zbacking_index>& stash);
+
+  void collapse(const ZVirtualMemory& vmem) const;
 };
 
 #endif // SHARE_GC_Z_ZPHYSICALMEMORYMANAGER_HPP

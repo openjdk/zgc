@@ -31,7 +31,8 @@ private:
   enum State {
     Disabled,
     Explicit,
-    Transparent
+    Transparent,
+    Collapse
   };
 
   static State _state;
@@ -45,6 +46,7 @@ public:
   static bool is_enabled();
   static bool is_explicit();
   static bool is_transparent();
+  static bool is_collapse();
 
   static const char* to_string();
 };
