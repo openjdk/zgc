@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,31 +21,21 @@
  * questions.
  */
 
-#ifndef SHARE_GC_Z_ZARGUMENTS_HPP
-#define SHARE_GC_Z_ZARGUMENTS_HPP
+#ifndef SHARE_GC_Z_ZADAPTIVEHEAP_INLINE_HPP
+#define SHARE_GC_Z_ZADAPTIVEHEAP_INLINE_HPP
 
-#include "gc/shared/gcArguments.hpp"
+#include "gc/z/zAdaptiveHeap.hpp"
 
-class CollectedHeap;
 
-class ZArguments : public GCArguments {
-  friend class ZTest;
+inline bool ZAdaptiveHeap::explicit_max_capacity() {
+  precond(_initialized);
+  return _explicit_max_capacity;
+}
 
-private:
-  static void select_max_gc_threads();
+inline bool ZAdaptiveHeap::can_adapt() {
+  precond(_initialized);
+  return _can_adapt;
+}
 
-  static bool is_os_supported();
 
-public:
-  virtual void set_heap_size();
-  virtual void initialize_alignments();
-  virtual void initialize_heap_flags_and_sizes();
-  virtual void initialize();
-  virtual size_t conservative_max_heap_alignment();
-  virtual size_t heap_virtual_to_physical_ratio();
-  virtual CollectedHeap* create_heap();
-
-  virtual bool is_supported() const;
-};
-
-#endif // SHARE_GC_Z_ZARGUMENTS_HPP
+#endif // SHARE_GC_Z_ZADAPTIVEHEAP_INLINE_HPP

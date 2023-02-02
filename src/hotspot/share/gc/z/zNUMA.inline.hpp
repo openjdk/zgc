@@ -38,6 +38,10 @@ inline bool ZNUMA::is_faked() {
   return ZFakeNUMA > 1;
 }
 
+inline bool ZNUMA::is_bound() {
+  return _bound_node_count != _node_count;
+}
+
 inline uint32_t ZNUMA::count() {
   return _count;
 }
