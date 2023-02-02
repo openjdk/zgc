@@ -34,8 +34,16 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
+  product(bool, ZAdaptive, false,                                           \
+          "Enable Automatic Heap Sizing")                                   \
+                                                                            \
   product(double, ZAllocationSpikeTolerance, 2.0,                           \
           "Allocation spike tolerance factor")                              \
+                                                                            \
+  product(double, ZGCIntensity, 0, MANAGEABLE,                              \
+          "Level of GC intensity, used for automatic heap sizing "          \
+          "policies to use either more CPU or memory")                      \
+          constraint(ZGCIntensityConstraintFunc, AfterErgo)                 \
                                                                             \
   product(double, ZFragmentationLimit, 5.0,                                 \
           "Maximum allowed heap fragmentation")                             \
@@ -114,6 +122,9 @@
   product(int, ZTenuringThreshold, -1, DIAGNOSTIC,                          \
           "Young generation tenuring threshold, -1 for dynamic computation")\
           range(-1, static_cast<int>(ZPageAgeCount) - 1)                    \
+                                                                            \
+  product(bool, ZMemoryHeating, true, DIAGNOSTIC,                           \
+          "Use concurrent memory worker(s) to optimize committed memory")   \
                                                                             \
   develop(bool, ZVerifyOops, false,                                         \
           "Verify accessed oops")                                           \

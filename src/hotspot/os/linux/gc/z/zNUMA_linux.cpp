@@ -38,17 +38,19 @@ static uint32_t* z_node_to_numa_id = nullptr;
 void ZNUMA::pd_initialize() {
   _enabled = UseNUMA;
 
-  size_t configured_nodes = 0;
+  uint32_t configured_nodes = 1;
+  const int max_nodes = os::Linux::numa_num_configured_nodes();
 
-  if (UseNUMA) {
-    const size_t max_nodes = os::Linux::numa_num_configured_nodes();
-    z_numa_id_to_node = NEW_C_HEAP_ARRAY(uint, max_nodes, mtGC);
-    configured_nodes = os::numa_get_leaf_groups(z_numa_id_to_node, 0);
+  if (max_nodes != -1) {
+    assert(max_nodes >= 1, "bad max_nodes value: %d", max_nodes);
 
-    z_node_to_numa_id = NEW_C_HEAP_ARRAY(uint32_t, max_nodes, mtGC);
+    z_numa_id_to_node = NEW_C_HEAP_ARRAY(uint, (size_t)max_nodes, mtGC);
+    configured_nodes = (uint32_t)os::numa_get_leaf_groups(z_numa_id_to_node, 0);
+
+    z_node_to_numa_id = NEW_C_HEAP_ARRAY(uint32_t, (size_t)max_nodes, mtGC);
 
     // Fill the array with invalid NUMA ids
-    for (uint32_t i = 0; i < max_nodes; i++) {
+    for (uint32_t i = 0; i < (size_t)max_nodes; i++) {
       z_node_to_numa_id[i] = (uint32_t)-1;
     }
 
@@ -56,6 +58,12 @@ void ZNUMA::pd_initialize() {
     for (uint32_t i = 0; i < configured_nodes; i++) {
       z_node_to_numa_id[z_numa_id_to_node[i]] = i;
     }
+
+    _node_count = (uint32_t)max_nodes;
+    _bound_node_count = configured_nodes;
+  } else {
+    _node_count = 1;
+    _bound_node_count = 1;
   }
 
   // UseNUMA and is_faked() are mutually excluded in zArguments.cpp.
