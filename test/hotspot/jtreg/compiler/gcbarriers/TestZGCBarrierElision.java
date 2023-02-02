@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,10 +25,12 @@ package compiler.gcbarriers;
 
 import compiler.lib.ir_framework.*;
 import compiler.lib.ir_framework.CompilePhase;
+import jdk.internal.misc.Unsafe;
 
 /**
  * @test
  * @summary Test elision of dominating barriers in ZGC.
+ * @modules java.base/jdk.internal.misc
  * @library /test/lib /
  * @requires vm.gc.Z
  * @run driver compiler.gcbarriers.TestZGCBarrierElision
@@ -37,6 +39,8 @@ import compiler.lib.ir_framework.CompilePhase;
 class Inner {}
 
 class Outer {
+    // This field is declared volatile to prevent C2 from optimizing memory
+    // accesses away.
     volatile Inner inner;
     public Outer() {}
 }
@@ -45,10 +49,12 @@ public class TestZGCBarrierElision {
 
     static Inner inner = new Inner();
     static Outer outer = new Outer();
+    static Outer[] outerArray = new Outer[42];
+    public static final Unsafe U = Unsafe.getUnsafe();
 
     public static void main(String[] args) {
         TestFramework framework = new TestFramework();
-        Scenario zgc = new Scenario(0, "-XX:+UseZGC", "-XX:+UnlockExperimentalVMOptions", "-XX:CompileCommand=quiet",
+        Scenario zgc = new Scenario(0, "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED", "-XX:+UseZGC", "-XX:+UnlockExperimentalVMOptions", "-XX:CompileCommand=quiet",
                                     "-XX:CompileCommand=blackhole,compiler.gcbarriers.TestZGCBarrierElision::blackhole");
         framework.addScenarios(zgc).start();
     }
@@ -59,6 +65,7 @@ public class TestZGCBarrierElision {
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testAllocateThenLoad(Outer o, Inner i) {
         Outer o1 = new Outer();
+        // This blackhole is necessary to prevent C2 from optimizing away the entire body.
         blackhole(o1);
         // Two loads are required, the first one is directly optimized away.
         blackhole(o1.inner);
@@ -69,8 +76,9 @@ public class TestZGCBarrierElision {
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testAllocateThenStore(Outer o, Inner i) {
         Outer o1 = new Outer();
-        o1.inner = i;
+        // This blackhole is necessary to prevent C2 from optimizing away the entire body.
         blackhole(o1);
+        o1.inner = i;
     }
 
     @Test
@@ -111,12 +119,80 @@ public class TestZGCBarrierElision {
                  "testStoreThenStore",
                  "testStoreThenLoad",
                  "testLoadThenStore"})
-    private void run() {
+    private void runClassInstanceTests() {
         testAllocateThenLoad(outer, inner);
         testAllocateThenStore(outer, inner);
         testLoadThenLoad(outer, inner);
         testStoreThenStore(outer, inner);
         testStoreThenLoad(outer, inner);
         testLoadThenStore(outer, inner);
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testAllocateArrayThenStoreAtKnownIndex(Outer o, Inner i) {
+        long offset = U.arrayBaseOffset(Outer[].class);
+        Outer[] a = new Outer[42];
+        U.putReferenceVolatile(a, offset, o);
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testAllocateArrayThenStoreAtUnknownIndex(Outer o, Inner i, int index) {
+        long offset = U.arrayBaseOffset(Outer[].class);
+        int scale = U.arrayIndexScale(Outer[].class);
+        Outer[] a = new Outer[42];
+        U.putReferenceVolatile(a, offset + index * scale, o);
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testArrayLoadThenLoad(Outer[] o, Outer o1, Outer o2, Inner i) {
+        long offset = U.arrayBaseOffset(Outer[].class);
+        blackhole(U.getReferenceVolatile(o, offset));
+        blackhole(U.getReferenceVolatile(o, offset));
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testArrayStoreThenStore(Outer[] o, Outer o1, Outer o2, Inner i) {
+        long offset = U.arrayBaseOffset(Outer[].class);
+        U.putReferenceVolatile(o, offset, o1);
+        U.putReferenceVolatile(o, offset, o2);
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testArrayStoreThenLoad(Outer[] o, Outer o1, Outer o2, Inner i) {
+        long offset = U.arrayBaseOffset(Outer[].class);
+        U.putReferenceVolatile(o, offset, o1);
+        blackhole(U.getReferenceVolatile(o, offset));
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testArrayLoadThenStore(Outer[] o, Outer o1, Outer o2, Inner i) {
+        long offset = U.arrayBaseOffset(Outer[].class);
+        blackhole(U.getReferenceVolatile(o, offset));
+        U.putReferenceVolatile(o, offset, o1);
+    }
+
+    @Run(test = {"testAllocateArrayThenStoreAtKnownIndex",
+                 "testAllocateArrayThenStoreAtUnknownIndex",
+                 "testArrayLoadThenLoad",
+                 "testArrayStoreThenStore",
+                 "testArrayStoreThenLoad",
+                 "testArrayLoadThenStore"})
+    private void runArrayTests() {
+        testAllocateArrayThenStoreAtKnownIndex(outer, inner);
+        testAllocateArrayThenStoreAtUnknownIndex(outer, inner, 10);
+        testArrayLoadThenLoad(outerArray, outer, outer, inner);
+        testArrayStoreThenStore(outerArray, outer, outer, inner);
+        testArrayStoreThenLoad(outerArray, outer, outer, inner);
+        testArrayLoadThenStore(outerArray, outer, outer, inner);
     }
 }
