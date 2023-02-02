@@ -38,4 +38,8 @@ inline bool ZLargePages::is_transparent() {
   return _state == Transparent;
 }
 
+inline bool ZLargePages::is_collapse() {
+  return _state == Collapse;
+}
+
 #endif // SHARE_GC_Z_ZLARGEPAGES_INLINE_HPP

@@ -27,6 +27,8 @@
 #include "utilities/macros.hpp"
 
 bool ZNUMA::_enabled;
+uint32_t ZNUMA::_node_count;
+uint32_t ZNUMA::_bound_node_count;
 uint32_t ZNUMA::_count;
 
 void ZNUMA::initialize() {

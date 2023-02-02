@@ -21,16 +21,22 @@
  * questions.
  */
 
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/gcArguments.hpp"
+#include "gc/z/zAdaptiveHeap.inline.hpp"
 #include "gc/z/zAddressSpaceLimit.hpp"
 #include "gc/z/zArguments.hpp"
 #include "gc/z/zCollectedHeap.hpp"
 #include "gc/z/zGlobals.hpp"
+#include "gc/z/zHeap.hpp"
 #include "gc/z/zHeuristics.hpp"
 #include "gc/z/zUtils.inline.hpp"
+#include "logging/log.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
+#include "runtime/os.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 void ZArguments::initialize_alignments() {
   SpaceAlignment = ZGranuleSize;
@@ -38,18 +44,21 @@ void ZArguments::initialize_alignments() {
 }
 
 void ZArguments::initialize_heap_flags_and_sizes() {
-  GCArguments::initialize_heap_flags_and_sizes();
+  precond(!FLAG_IS_ERGO(SoftMaxHeapSize));
 
-  if (!FLAG_IS_CMDLINE(MaxHeapSize) &&
-      !FLAG_IS_CMDLINE(MaxRAMPercentage) &&
-      !FLAG_IS_CMDLINE(SoftMaxHeapSize)) {
+  if (!ZAdaptiveHeap::explicit_max_capacity() && !ZAdaptiveHeap::can_adapt()) {
     // We are really just guessing how much memory the program needs.
     // When that is the case, we don't want the soft and hard limits to be the same
     // as it can cause flakiness in the number of GC threads used, in order to keep
     // to a random number we just pulled out of thin air.
-    FLAG_SET_ERGO(SoftMaxHeapSize, MaxHeapSize * 90 / 100);
+    FLAG_SET_ERGO_IF_DEFAULT(SoftMaxHeapSize, MaxHeapSize * 90 / 100);
+  } else {
+    // This denotes there is no soft max heap size set.
+    FLAG_SET_ERGO_IF_DEFAULT(SoftMaxHeapSize, 0);
   }
-}
+
+  GCArguments::initialize_heap_flags_and_sizes();
+};
 
 void ZArguments::select_max_gc_threads() {
   // Select number of parallel threads
@@ -116,6 +125,72 @@ void ZArguments::select_max_gc_threads() {
   } else if (ZOldGCThreads == 0) {
     vm_exit_during_initialization("The flag -XX:ZOldGCThreads can't be lower than 1");
   }
+}
+
+void ZArguments::set_heap_size() {
+  // We purposely do not care about MinRAMPercentage as adaptive heap sizing
+  // will use up to the whole machine, so even if MinRAMPercentage is set to
+  // 100%, we will still satisfy it.
+
+  assert(!FLAG_IS_ERGO(MaxHeapSize), "Who set my heap size ergo?");
+  assert(!FLAG_IS_ERGO(MaxRAMPercentage), "Who set my heap size ergo?");
+
+  const bool explicit_max_heap_size = !FLAG_IS_DEFAULT(MaxHeapSize) ||
+                                      !FLAG_IS_DEFAULT(MaxRAMPercentage);
+
+  const bool gc_intensity_was_zero = AtomicAccess::load(&ZGCIntensity) == 0.0;
+  const bool ahs_explicitly_disabled = gc_intensity_was_zero || (!ZAdaptWithExplicitMaxCapacity && explicit_max_heap_size);
+
+  if (ahs_explicitly_disabled) {
+    // Let the shared code setup the set the heap size
+    GCArguments::set_heap_size();
+  } else {
+    // When ahs is not explicitly disabled we set the heap size ourselves
+    assert(!FLAG_IS_ERGO(InitialHeapSize), "Who set my heap size ergo?");
+    assert(!FLAG_IS_ERGO(MinHeapSize), "Who set my heap size ergo?");
+    assert(!FLAG_IS_ERGO(MinRAMPercentage), "Who set my heap size ergo?");
+
+    if (!FLAG_IS_DEFAULT(ErgoHeapSizeLimit)) {
+      log_warning(gc, heap, init)("ZGC does not use ErgoHeapSizeLimit, the value is ignored");
+    }
+    if (!FLAG_IS_DEFAULT(HeapBaseMinAddress)) {
+      log_warning(gc, heap, init)("ZGC does not use HeapBaseMinAddress, the value is ignored");
+    }
+
+    // When the user has specified MaxRAMPercentage explicitly, we dispatch to either
+    // the container or machine's limit. If not explicitly specified, we use the machine's
+    // limit as we might need to scale up to most of the underlying memory.
+    const double phys_mem = !FLAG_IS_DEFAULT(MaxRAMPercentage)
+        ? checked_cast<double>(os::physical_memory())
+        : checked_cast<double>(os::Machine::physical_memory());
+
+    FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
+    FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
+
+    const size_t max_size = align_down((size_t)(phys_mem * (MaxRAMPercentage / 100.)), ZGranuleSize);
+    FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
+
+    const size_t initial_size = (size_t)(phys_mem * (InitialRAMPercentage / 100.));
+    FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
+  }
+
+  const bool can_adapt = !ahs_explicitly_disabled && MaxHeapSize != MinHeapSize;
+
+  if (!can_adapt) {
+    // After setting the heap size we may have ended up with a configuration
+    // which we cannot adapt.
+
+    if (!gc_intensity_was_zero) {
+      if (FLAG_IS_CMDLINE(ZGCIntensity)) {
+        log_warning(gc)("Heap size is fixed, but ZGCIntensity is set. "
+                        "Adaptive heap sizing is not available.");
+      }
+      // If the heap size is fixed, set ZGCIntensity to 0.0
+      FLAG_SET_ERGO(ZGCIntensity, 0.0);
+    }
+  }
+
+  ZAdaptiveHeap::initialize(explicit_max_heap_size, can_adapt);
 }
 
 void ZArguments::initialize() {
