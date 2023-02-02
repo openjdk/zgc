@@ -38,7 +38,7 @@ import jdk.test.lib.jfr.Events;
  * @requires vm.hasJFR & vm.gc.Z
  * @requires vm.flagless
  * @library /test/lib /test/jdk /test/hotspot/jtreg
- * @run main/othervm -XX:+UseZGC -Xms32M -Xmx128M -Xlog:gc,gc+heap -XX:+ZUncommit -XX:ZUncommitDelay=1 jdk.jfr.event.gc.detailed.TestZUncommitEvent
+ * @run main/othervm -XX:+UseZGC -Xms32M -Xmx128M -Xlog:gc,gc+heap -XX:+ZUncommit -XX:ZUncommitDelay=1 -XX:ZGCIntensity=0 jdk.jfr.event.gc.detailed.TestZUncommitEvent
  */
 
 public class TestZUncommitEvent {

@@ -26,8 +26,6 @@
 #define SHARE_RUNTIME_ARGUMENTS_HPP
 
 #include "gc/shared/gcArguments.hpp"
-#include "logging/logLevel.hpp"
-#include "logging/logTag.hpp"
 #include "jni.h"
 #include "memory/allocation.hpp"
 #include "memory/allStatic.hpp"
