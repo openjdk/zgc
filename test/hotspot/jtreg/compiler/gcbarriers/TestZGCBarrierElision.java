@@ -50,8 +50,16 @@ public class TestZGCBarrierElision {
 
     static Inner inner = new Inner();
     static Outer outer = new Outer();
+    static Outer outer2 = new Outer();
     static Outer[] outerArray = new Outer[42];
     public static final Unsafe U = Unsafe.getUnsafe();
+    public static final long field1Offset = U.objectFieldOffset(Outer.class, "field1");
+    public static final long outerArrayBaseOffset = U.arrayBaseOffset(Outer[].class);
+    public static final int outerArrayScale = U.arrayIndexScale(Outer[].class);
+
+    static void blackhole(Object o) {}
+
+    static void nonInlinedMethod() {}
 
     public static void main(String[] args) {
         TestFramework framework = new TestFramework();
@@ -62,9 +70,6 @@ public class TestZGCBarrierElision {
                                     "-XX:-UseCountedLoopSafepoints", "-XX:LoopMaxUnroll=0");
         framework.addScenarios(zgc).start();
     }
-
-    static void blackhole(Object o) {}
-    static void nonInlinedMethod() {}
 
     @Test
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
@@ -125,13 +130,21 @@ public class TestZGCBarrierElision {
         blackhole(o.field2);
     }
 
+    @Test
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "2" }, phase = CompilePhase.FINAL_CODE)
+    private static void testLoadThenLoadFromAnotherObject(Outer o1, Outer o2) {
+        blackhole(o1.field1);
+        blackhole(o2.field1);
+    }
+
     @Run(test = {"testAllocateThenLoad",
                  "testAllocateThenStore",
                  "testLoadThenLoad",
                  "testStoreThenStore",
                  "testStoreThenLoad",
                  "testLoadThenStore",
-                 "testLoadThenLoadAnotherField"})
+                 "testLoadThenLoadAnotherField",
+                 "testLoadThenLoadFromAnotherObject"})
     private void runBasicTests() {
         testAllocateThenLoad(outer, inner);
         testAllocateThenStore(outer, inner);
@@ -140,68 +153,62 @@ public class TestZGCBarrierElision {
         testStoreThenLoad(outer, inner);
         testLoadThenStore(outer, inner);
         testLoadThenLoadAnotherField(outer, inner);
+        testLoadThenLoadFromAnotherObject(outer, outer2);
     }
 
     @Test
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testAllocateArrayThenStoreAtKnownIndex(Outer o, Inner i) {
-        long offset = U.arrayBaseOffset(Outer[].class);
         Outer[] a = new Outer[42];
-        U.putReferenceVolatile(a, offset, o);
+        blackhole(a);
+        U.putReferenceVolatile(a, outerArrayBaseOffset, o);
     }
 
     @Test
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testAllocateArrayThenStoreAtUnknownIndex(Outer o, Inner i, int index) {
-        long offset = U.arrayBaseOffset(Outer[].class);
-        int scale = U.arrayIndexScale(Outer[].class);
         Outer[] a = new Outer[42];
-        U.putReferenceVolatile(a, offset + index * scale, o);
+        blackhole(a);
+        U.putReferenceVolatile(a, outerArrayBaseOffset + index * outerArrayScale, o);
     }
 
     @Test
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testArrayLoadThenLoad(Outer[] o, Outer o1, Outer o2, Inner i) {
-        long offset = U.arrayBaseOffset(Outer[].class);
-        blackhole(U.getReferenceVolatile(o, offset));
-        blackhole(U.getReferenceVolatile(o, offset));
+        blackhole(U.getReferenceVolatile(o, outerArrayBaseOffset));
+        blackhole(U.getReferenceVolatile(o, outerArrayBaseOffset));
     }
 
     @Test
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testArrayStoreThenStore(Outer[] o, Outer o1, Outer o2, Inner i) {
-        long offset = U.arrayBaseOffset(Outer[].class);
-        U.putReferenceVolatile(o, offset, o1);
-        U.putReferenceVolatile(o, offset, o2);
+        U.putReferenceVolatile(o, outerArrayBaseOffset, o1);
+        U.putReferenceVolatile(o, outerArrayBaseOffset, o2);
     }
 
     @Test
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testArrayStoreThenLoad(Outer[] o, Outer o1, Outer o2, Inner i) {
-        long offset = U.arrayBaseOffset(Outer[].class);
-        U.putReferenceVolatile(o, offset, o1);
-        blackhole(U.getReferenceVolatile(o, offset));
+        U.putReferenceVolatile(o, outerArrayBaseOffset, o1);
+        blackhole(U.getReferenceVolatile(o, outerArrayBaseOffset));
     }
 
     @Test
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testArrayLoadThenStore(Outer[] o, Outer o1, Outer o2, Inner i) {
-        long offset = U.arrayBaseOffset(Outer[].class);
-        blackhole(U.getReferenceVolatile(o, offset));
-        U.putReferenceVolatile(o, offset, o1);
+        blackhole(U.getReferenceVolatile(o, outerArrayBaseOffset));
+        U.putReferenceVolatile(o, outerArrayBaseOffset, o1);
     }
 
     @Test
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "2" }, phase = CompilePhase.FINAL_CODE)
     private static void testArrayLoadThenLoadAnotherElement(Outer[] o, Outer o1, Outer o2, Inner i) {
-        long offset = U.arrayBaseOffset(Outer[].class);
-        int scale = U.arrayIndexScale(Outer[].class);
-        blackhole(U.getReferenceVolatile(o, offset));
-        blackhole(U.getReferenceVolatile(o, offset + 10 * scale));
+        blackhole(U.getReferenceVolatile(o, outerArrayBaseOffset));
+        blackhole(U.getReferenceVolatile(o, outerArrayBaseOffset + 10 * outerArrayScale));
     }
 
     @Run(test = {"testAllocateArrayThenStoreAtKnownIndex",
@@ -268,5 +275,48 @@ public class TestZGCBarrierElision {
         testStoreThenLoopThenStore(outer, inner, 10);
         testStoreThenCallThenStore(outer, inner);
     }
+
+    @Test
+    private static void testAllocateThenAtomic(Outer o, Inner i) {
+    }
+
+    @Test
+    private static void testLoadThenAtomic(Outer o, Inner i) {
+    }
+
+    @Test
+    private static void testStoreThenAtomic(Outer o, Inner i) {
+    }
+
+    @Test
+    //@IR(counts = { IRNode.ZXCHGP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    //@IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testAtomicThenLoad(Outer o, Inner i) throws Exception {
+        U.getAndSetReference(o, field1Offset, i);
+        blackhole(o.field1);
+    }
+
+    @Test
+    private static void testAtomicThenStore(Outer o, Inner i) {
+    }
+
+    @Test
+    private static void testAtomicThenAtomic(Outer o, Inner i) {
+    }
+
+    @Run(test = {"testAllocateThenAtomic",
+                 "testLoadThenAtomic",
+                 "testStoreThenAtomic",
+                 "testAtomicThenLoad",
+                 "testAtomicThenStore",
+                 "testAtomicThenAtomic"})
+    private void runAtomicOperationTests() throws Exception {
+            testAllocateThenAtomic(outer, inner);
+            testLoadThenAtomic(outer, inner);
+            testStoreThenAtomic(outer, inner);
+            testAtomicThenLoad(outer, inner);
+            testAtomicThenStore(outer, inner);
+            testAtomicThenAtomic(outer, inner);
+        }
 
 }
