@@ -25,6 +25,7 @@ package compiler.gcbarriers;
 
 import compiler.lib.ir_framework.*;
 import compiler.lib.ir_framework.CompilePhase;
+import java.util.concurrent.ThreadLocalRandom;
 import jdk.internal.misc.Unsafe;
 
 /**
@@ -56,11 +57,14 @@ public class TestZGCBarrierElision {
         TestFramework framework = new TestFramework();
         Scenario zgc = new Scenario(0, "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
                                     "-XX:+UseZGC", "-XX:+UnlockExperimentalVMOptions", "-XX:CompileCommand=quiet",
-                                    "-XX:CompileCommand=blackhole,compiler.gcbarriers.TestZGCBarrierElision::blackhole");
+                                    "-XX:CompileCommand=blackhole,compiler.gcbarriers.TestZGCBarrierElision::blackhole",
+                                    "-XX:CompileCommand=dontinline,compiler.gcbarriers.TestZGCBarrierElision::nonInlinedMethod",
+                                    "-XX:-UseCountedLoopSafepoints", "-XX:LoopMaxUnroll=0");
         framework.addScenarios(zgc).start();
     }
 
     static void blackhole(Object o) {}
+    static void nonInlinedMethod() {}
 
     @Test
     @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
@@ -216,4 +220,53 @@ public class TestZGCBarrierElision {
         testArrayLoadThenStore(outerArray, outer, outer, inner);
         testArrayLoadThenLoadAnotherElement(outerArray, outer, outer, inner);
     }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testStoreThenConditionalStore(Outer o, Inner i, int value) {
+        o.field1 = i;
+        if (value % 2 == 0) {
+            o.field1 = i;
+        }
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "2" }, phase = CompilePhase.FINAL_CODE)
+    private static void testConditionalStoreThenStore(Outer o, Inner i, int value) {
+        if (value % 2 == 0) {
+            o.field1 = i;
+        }
+        o.field1 = i;
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
+    private static void testStoreThenLoopThenStore(Outer o, Inner i, int value) {
+        o.field1 = i;
+        for (int j = 0; j < 100; j++) {
+            o.field1 = i;
+        }
+    }
+
+    @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "2" }, phase = CompilePhase.FINAL_CODE)
+    private static void testStoreThenCallThenStore(Outer o, Inner i) {
+        o.field1 = i;
+        nonInlinedMethod();
+        o.field1 = i;
+    }
+
+    @Run(test = {"testStoreThenConditionalStore",
+                 "testConditionalStoreThenStore",
+                 "testStoreThenLoopThenStore",
+                 "testStoreThenCallThenStore"})
+    private void runControlFlowTests() {
+        testStoreThenConditionalStore(outer, inner, ThreadLocalRandom.current().nextInt(0, 100));
+        testConditionalStoreThenStore(outer, inner, ThreadLocalRandom.current().nextInt(0, 100));
+        testStoreThenLoopThenStore(outer, inner, 10);
+        testStoreThenCallThenStore(outer, inner);
+    }
+
 }
