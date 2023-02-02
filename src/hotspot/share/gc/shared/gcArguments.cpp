@@ -282,10 +282,6 @@ void GCArguments::initialize_heap_flags_and_sizes() {
     }
   }
 
-  if (FLAG_IS_DEFAULT(SoftMaxHeapSize)) {
-    FLAG_SET_ERGO(SoftMaxHeapSize, MaxHeapSize);
-  }
-
   FLAG_SET_ERGO(MinHeapDeltaBytes, align_up(MinHeapDeltaBytes, SpaceAlignment));
 
   if (checked_cast<uint>(ObjectAlignmentInBytes) > GCCardSizeInBytes) {

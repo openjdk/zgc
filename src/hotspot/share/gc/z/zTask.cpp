@@ -22,13 +22,18 @@
  */
 
 #include "gc/z/zTask.hpp"
+#include "gc/z/zWorkers.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 ZTask::Task::Task(ZTask* task, const char* name)
   : WorkerTask(name),
     _task(task) {}
 
 void ZTask::Task::work(uint worker_id) {
+  jlong start = os::current_thread_cpu_time(true /* user + sys */);
   _task->work();
+  jlong elapsed = os::current_thread_cpu_time(true /* user + sys */) - start;
+  _workers->add_accumulated_vtime(double(elapsed) / NANOSECS_PER_SEC);
 }
 
 ZTask::ZTask(const char* name)
@@ -40,6 +45,10 @@ const char* ZTask::name() const {
 
 WorkerTask* ZTask::worker_task() {
   return &_worker_task;
+}
+
+void ZTask::set_workers(ZWorkers* workers) {
+  _worker_task._workers = workers;
 }
 
 ZRestartableTask::ZRestartableTask(const char* name)

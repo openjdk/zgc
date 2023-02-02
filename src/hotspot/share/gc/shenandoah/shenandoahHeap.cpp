@@ -201,7 +201,11 @@ jint ShenandoahHeap::initialize() {
   assert(num_min_regions <= _num_regions, "sanity");
   _minimum_size = num_min_regions * reg_size_bytes;
 
-  _soft_max_size = clamp(SoftMaxHeapSize, min_capacity(), max_capacity());
+  if (SoftMaxHeapSize != 0) {
+    _soft_max_size = clamp(SoftMaxHeapSize, min_capacity(), max_capacity());
+  } else {
+    _soft_max_size = max_capacity();
+  }
 
   _committed = _initial_size;
 
@@ -811,6 +815,9 @@ void ShenandoahHeap::notify_explicit_gc_requested() {
 
 bool ShenandoahHeap::check_soft_max_changed() {
   size_t new_soft_max = AtomicAccess::load(&SoftMaxHeapSize);
+  if (new_soft_max == 0) {
+    new_soft_max = max_capacity();
+  }
   size_t old_soft_max = soft_max_capacity();
   if (new_soft_max != old_soft_max) {
     new_soft_max = MAX2(min_capacity(), new_soft_max);

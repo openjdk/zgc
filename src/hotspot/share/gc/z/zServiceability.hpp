@@ -41,6 +41,7 @@ private:
 public:
   ZServiceabilityMemoryPool(const char* name, ZGenerationId id, size_t min_capacity, size_t max_capacity);
 
+  virtual size_t max_size() const;
   virtual size_t used_in_bytes();
   virtual MemoryUsage get_memory_usage();
 };

@@ -25,9 +25,36 @@
 #include "hugepages.hpp"
 #include "os_linux.hpp"
 #include "runtime/globals.hpp"
+#include "runtime/globals_extension.hpp"
+
+#include <sys/mman.h>
+
+static bool madv_collapse_available() {
+  const size_t size = 2 * M;
+  void* const res = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+  if (res == MAP_FAILED) {
+    return false;
+  }
+
+  assert(size >= os::vm_page_size(), "Unexpected page size");
+  os::pretouch_memory(res, (void*)(((char*)res) + os::vm_page_size()));
+
+  bool result = os::Linux::madvise_collapse_transparent_huge_pages(res, size);
+
+  munmap(res, size);
+
+  return result;
+}
 
 void ZLargePages::pd_initialize() {
+  bool can_collapse = ZMemoryHeating && madv_collapse_available();
+
   if (os::Linux::thp_requested()) {
+    if (can_collapse) {
+      _state = Collapse;
+      return;
+    }
     // Check if the OS config turned off transparent huge pages for shmem.
     _os_enforced_transparent_mode = HugePages::shmem_thp_info().is_disabled();
     _state = _os_enforced_transparent_mode ? Disabled : Transparent;
@@ -36,6 +63,11 @@ void ZLargePages::pd_initialize() {
 
   if (UseLargePages) {
     _state = Explicit;
+    return;
+  }
+
+  if (FLAG_IS_DEFAULT(UseTransparentHugePages) && can_collapse) {
+    _state = Collapse;
     return;
   }
 
