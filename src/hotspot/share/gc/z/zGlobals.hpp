@@ -89,4 +89,16 @@ const size_t      ZMarkProactiveFlushMax        = 10;
 // Try complete mark timeout
 const uint64_t    ZMarkCompleteTimeout          = 200; // us
 
+// How much CPU resources concurrent workers should use by default
+const double      ZConcurrentWorkersCPUShare    = 0.25;
+
+// How much memory reserve do we try to keep as buffer zone on the machine
+const double      ZMemoryConcerningThreshold    = 0.2;
+
+// How much memory reserve do we try to keep as buffer zone on the machine
+const double      ZMemoryHighThreshold          = 0.08;
+
+// How much memory reserve do we enforce to keep as buffer zone on the machine
+const double      ZMemoryCriticalThreshold      = 0.05;
+
 #endif // SHARE_GC_Z_ZGLOBALS_HPP
