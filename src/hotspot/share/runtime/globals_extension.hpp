@@ -96,4 +96,16 @@ ALL_FLAGS(DEFINE_FLAG_MEMBER_SETTER,
     }                                         \
   } while (0)
 
+#define FLAG_SET_ERGO_IF_DEFAULT_OR_VALUE(name, set_value, check_value) \
+  do {                                                                  \
+    if (FLAG_IS_DEFAULT(name)) {                                        \
+      FLAG_SET_ERGO(name, set_value);                                   \
+    } else if (name == check_value) {                                   \
+      FLAG_SET_ERGO(name, set_value);                                   \
+    }                                                                   \
+  } while (0)
+
+#define FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(name, value) \
+  FLAG_SET_ERGO_IF_DEFAULT_OR_VALUE(name, value, 0)
+
 #endif // SHARE_RUNTIME_GLOBALS_EXTENSION_HPP
