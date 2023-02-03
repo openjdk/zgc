@@ -1343,22 +1343,22 @@ public class IRNode {
         machOnlyNameRegex(XOR3_SVE, "veor3_sve");
     }
 
-    public static final String ZLOADP_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "ZLOADP_WITH_BARRIER_FLAG" + POSTFIX;
+    public static final String Z_LOAD_P_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "Z_LOAD_P_WITH_BARRIER_FLAG" + POSTFIX;
     static {
-        String regex = START + "zLoadP" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
-        machOnly(ZLOADP_WITH_BARRIER_FLAG, regex);
+        String regex = START + "zLoadP\\S*" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
+        machOnly(Z_LOAD_P_WITH_BARRIER_FLAG, regex);
     }
 
-    public static final String ZSTOREP_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "ZSTOREP_WITH_BARRIER_FLAG" + POSTFIX;
+    public static final String Z_STORE_P_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "Z_STORE_P_WITH_BARRIER_FLAG" + POSTFIX;
     static {
-        String regex = START + "zStoreP" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
-        machOnly(ZSTOREP_WITH_BARRIER_FLAG, regex);
+        String regex = START + "zStoreP\\S*" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
+        machOnly(Z_STORE_P_WITH_BARRIER_FLAG, regex);
     }
 
-    public static final String ZXCHGP_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "ZXCHGP_WITH_BARRIER_FLAG" + POSTFIX;
+    public static final String Z_GET_AND_SET_P_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "Z_GET_AND_SET_P_WITH_BARRIER_FLAG" + POSTFIX;
     static {
-        String regex = START + "zXChgP" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
-        machOnly(ZXCHGP_WITH_BARRIER_FLAG, regex);
+        String regex = START + "(zXChgP)|(zGetAndSetP\\S*)" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
+        machOnly(Z_GET_AND_SET_P_WITH_BARRIER_FLAG, regex);
     }
 
     /*
