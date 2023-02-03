@@ -1355,6 +1355,12 @@ public class IRNode {
         machOnly(ZSTOREP_WITH_BARRIER_FLAG, regex);
     }
 
+    public static final String ZXCHGP_WITH_BARRIER_FLAG = COMPOSITE_PREFIX + "ZXCHGP_WITH_BARRIER_FLAG" + POSTFIX;
+    static {
+        String regex = START + "zXChgP" + MID + "barrier\\(\\s*" + IS_REPLACED + "\\s*\\)" + END;
+        machOnly(ZXCHGP_WITH_BARRIER_FLAG, regex);
+    }
+
     /*
      * Utility methods to set up IR_NODE_MAPPINGS.
      */
