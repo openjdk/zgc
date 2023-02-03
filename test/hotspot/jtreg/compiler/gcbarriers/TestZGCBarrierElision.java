@@ -26,7 +26,6 @@ package compiler.gcbarriers;
 import compiler.lib.ir_framework.*;
 import java.lang.invoke.VarHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -35,7 +34,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *          volatile memory accesses and blackholes to prevent C2 from simply
  *          optimizing them away.
  * @library /test/lib /
- * @requires vm.gc.Z
+ * @requires vm.gc.Z & os.simpleArch == "x64"
  * @run driver compiler.gcbarriers.TestZGCBarrierElision
  */
 
