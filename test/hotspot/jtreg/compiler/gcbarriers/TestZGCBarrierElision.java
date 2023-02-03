@@ -260,7 +260,7 @@ public class TestZGCBarrierElision {
     @Test
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
-    private static void testStoreThenLoopThenStore(Outer o, Inner i, int value) {
+    private static void testStoreThenStoreInLoop(Outer o, Inner i, int value) {
         o.field1 = i;
         for (int j = 0; j < 100; j++) {
             o.field1 = i;
@@ -277,25 +277,37 @@ public class TestZGCBarrierElision {
 
     @Run(test = {"testStoreThenConditionalStore",
                  "testConditionalStoreThenStore",
-                 "testStoreThenLoopThenStore",
+                 "testStoreThenStoreInLoop",
                  "testStoreThenCallThenStore"})
     private void runControlFlowTests() {
         testStoreThenConditionalStore(outer, inner, ThreadLocalRandom.current().nextInt(0, 100));
         testConditionalStoreThenStore(outer, inner, ThreadLocalRandom.current().nextInt(0, 100));
-        testStoreThenLoopThenStore(outer, inner, 10);
+        testStoreThenStoreInLoop(outer, inner, 10);
         testStoreThenCallThenStore(outer, inner);
     }
 
     @Test
+    @IR(counts = { IRNode.ZXCHGP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testAllocateThenAtomic(Outer o, Inner i) {
+        Outer o1 = new Outer();
+        blackhole(o1);
+        field1VarHandle.getAndSet​(o1, i);
     }
 
     @Test
+    @IR(counts = { IRNode.ZLOADP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZXCHGP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testLoadThenAtomic(Outer o, Inner i) {
+        blackhole(o.field1);
+        field1VarHandle.getAndSet​(o, i);
     }
 
     @Test
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZXCHGP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testStoreThenAtomic(Outer o, Inner i) {
+        o.field1 = i;
+        field1VarHandle.getAndSet​(o, i);
     }
 
     @Test
@@ -307,11 +319,19 @@ public class TestZGCBarrierElision {
     }
 
     @Test
+    @IR(counts = { IRNode.ZXCHGP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZSTOREP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testAtomicThenStore(Outer o, Inner i) {
+        field1VarHandle.getAndSet​(o, i);
+        o.field1 = i;
     }
 
     @Test
+    @IR(counts = { IRNode.ZXCHGP_WITH_BARRIER_FLAG, "strong", "1" }, phase = CompilePhase.FINAL_CODE)
+    @IR(counts = { IRNode.ZXCHGP_WITH_BARRIER_FLAG, "elided", "1" }, phase = CompilePhase.FINAL_CODE)
     private static void testAtomicThenAtomic(Outer o, Inner i) {
+        field1VarHandle.getAndSet​(o, i);
+        field1VarHandle.getAndSet​(o, i);
     }
 
     @Test
