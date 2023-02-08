@@ -28,9 +28,9 @@
 #include "memory/allocation.hpp"
 #include "oops/accessDecorators.hpp"
 #include "opto/loopnode.hpp"
+#include "opto/machnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/memnode.hpp"
-#include "opto/machnode.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 // This means the access is mismatched. This means the value of an access
