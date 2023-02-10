@@ -34,7 +34,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *          volatile memory accesses and blackholes to prevent C2 from simply
  *          optimizing them away.
  * @library /test/lib /
- * @requires vm.gc.Z & os.simpleArch == "x64"
+ * @requires vm.gc.Z & (vm.simpleArch == "x64" | vm.simpleArch == "aarch64")
  * @run driver compiler.gcbarriers.TestZGCBarrierElision
  */
 
