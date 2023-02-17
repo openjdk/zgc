@@ -180,6 +180,12 @@ public:
   void patch_barriers();
 
   void check_oop(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, Label& error);
+
+  void z_color(MacroAssembler* masm, Register ref) const;
+
+  void z_uncolor(MacroAssembler* masm, Register ref) const;
+
+  void check_color(MacroAssembler* masm, Register ref) const;
 };
 
 #endif // CPU_X86_GC_Z_ZBARRIERSETASSEMBLER_X86_HPP

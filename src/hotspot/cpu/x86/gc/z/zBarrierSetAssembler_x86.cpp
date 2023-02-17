@@ -345,10 +345,7 @@ void ZBarrierSetAssembler::store_barrier_fast(MacroAssembler* masm,
     if (rnew_zaddress != noreg) {
       // noreg means null; no need to color
       __ movptr(rnew_zpointer, rnew_zaddress);
-      __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatLoadGoodBeforeShl);
-      __ shlq(rnew_zpointer, barrier_Relocation::unpatched);
-      __ orq_imm32(rnew_zpointer, barrier_Relocation::unpatched);
-      __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatStoreGoodAfterOr);
+      z_color(masm, rnew_zpointer);
     }
   } else {
     __ movzwq(rnew_zpointer, ref_addr);
@@ -820,29 +817,34 @@ void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
   BLOCK_COMMENT("} ZBarrierSetAssembler::try_resolve_jobject_in_native");
 }
 
+void ZBarrierSetAssembler::z_color(MacroAssembler* masm, Register ref) const {
+  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatLoadGoodBeforeShl);
+  __ shlq(ref, barrier_Relocation::unpatched);
+  __ orq_imm32(ref, barrier_Relocation::unpatched);
+  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatStoreGoodAfterOr);
+}
+
+void ZBarrierSetAssembler::z_uncolor(MacroAssembler* masm, Register ref) const {
+  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatLoadGoodBeforeShl);
+  __ shrq(ref, barrier_Relocation::unpatched);
+}
+
+void ZBarrierSetAssembler::check_color(MacroAssembler* masm, Register ref) const {
+  __ Assembler::testl(ref, barrier_Relocation::unpatched);
+  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatMarkBadAfterTest);
+}
+
 #ifdef COMPILER1
 
 #undef __
 #define __ ce->masm()->
 
-static void z_uncolor(LIR_Assembler* ce, LIR_Opr ref) {
-  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatLoadGoodBeforeShl);
-  __ shrq(ref->as_register(), barrier_Relocation::unpatched);
-}
-
-static void z_color(LIR_Assembler* ce, LIR_Opr ref) {
-  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatLoadGoodBeforeShl);
-  __ shlq(ref->as_register(), barrier_Relocation::unpatched);
-  __ orq_imm32(ref->as_register(), barrier_Relocation::unpatched);
-  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatStoreGoodAfterOr);
-}
-
 void ZBarrierSetAssembler::generate_c1_uncolor(LIR_Assembler* ce, LIR_Opr ref) const {
-  z_uncolor(ce, ref);
+  z_uncolor(ce->masm(), ref->as_register());
 }
 
 void ZBarrierSetAssembler::generate_c1_color(LIR_Assembler* ce, LIR_Opr ref) const {
-  z_color(ce, ref);
+  z_color(ce->masm(), ref->as_register());
 }
 
 void ZBarrierSetAssembler::generate_c1_load_barrier(LIR_Assembler* ce,
@@ -851,16 +853,15 @@ void ZBarrierSetAssembler::generate_c1_load_barrier(LIR_Assembler* ce,
                                                     bool on_non_strong) const {
   if (on_non_strong) {
     // Test against MarkBad mask
-    __ Assembler::testl(ref->as_register(), barrier_Relocation::unpatched);
-    __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatMarkBadAfterTest);
+    check_color(ce->masm(), ref->as_register());
 
     // Slow path if not zero
     __ jcc(Assembler::notZero, *stub->entry());
     // Fast path: convert to colorless
-    z_uncolor(ce, ref);
+    z_uncolor(ce->masm(), ref->as_register());
   } else {
     // Convert to colorless and fast path test
-    z_uncolor(ce, ref);
+    z_uncolor(ce->masm(), ref->as_register());
     __ jcc(Assembler::above, *stub->entry());
   }
   __ bind(*stub->continuation());

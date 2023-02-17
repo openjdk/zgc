@@ -158,7 +158,7 @@ void ZBarrierSetAssembler::load_at(MacroAssembler* masm,
   __ bind(uncolor);
 
   // Remove the color bits
-  __ lsr(dst, dst, ZPointerLoadShift);
+  z_uncolor(masm, dst);
 
   __ bind(done);
 }
@@ -198,9 +198,7 @@ void ZBarrierSetAssembler::store_barrier_fast(MacroAssembler* masm,
     }
     __ br(Assembler::NE, medium_path);
     __ bind(medium_path_continuation);
-    __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatStoreGoodBeforeMov);
-    __ movzw(rtmp, barrier_Relocation::unpatched);
-    __ orr(rnew_zpointer, rtmp, rnew_zaddress, Assembler::LSL, ZPointerLoadShift);
+    z_color(masm, rnew_zpointer, rnew_zaddress, rtmp);
   } else {
     assert(!is_atomic, "atomics outside of nmethods not supported");
     __ lea(rtmp, ref_addr);
@@ -652,7 +650,7 @@ void ZBarrierSetAssembler::copy_load_at(MacroAssembler* masm,
     ShouldNotReachHere();
   }
   if ((decorators & ARRAYCOPY_CHECKCAST) != 0) {
-    __ lsr(dst1, dst1, ZPointerLoadShift);
+    z_uncolor(masm, dst1);
   }
 }
 
@@ -833,11 +831,32 @@ void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
   __ bind(uncolor);
 
   // Uncolor
-  __ lsr(robj, robj, ZPointerLoadShift);
+  z_uncolor(masm, robj);
 
   __ bind(done);
 
   BLOCK_COMMENT("} ZBarrierSetAssembler::try_resolve_jobject_in_native");
+}
+
+void ZBarrierSetAssembler::z_color(MacroAssembler* masm,
+                                   Register dst,
+                                   Register src,
+                                   Register tmp) const {
+  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatStoreGoodBeforeMov);
+  __ movzw(tmp, barrier_Relocation::unpatched);
+  __ orr(dst, tmp, src, Assembler::LSL, ZPointerLoadShift);
+}
+
+void ZBarrierSetAssembler::z_uncolor(MacroAssembler* masm, Register ref) const {
+  __ lsr(ref, ref, ZPointerLoadShift);
+}
+
+void ZBarrierSetAssembler::check_color(MacroAssembler* masm,
+                                       Register ref,
+                                       Register tmp) const {
+  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatMarkBadBeforeMov);
+  __ movzw(tmp, barrier_Relocation::unpatched);
+  __ tst(ref, tmp);
 }
 
 static uint16_t patch_barrier_relocation_value(int format) {
@@ -892,22 +911,12 @@ void ZBarrierSetAssembler::patch_barrier_relocation(address addr, int format) {
 #undef __
 #define __ ce->masm()->
 
-static void z_uncolor(LIR_Assembler* ce, LIR_Opr ref) {
-  __ lsr(ref->as_register(), ref->as_register(), ZPointerLoadShift);
-}
-
-static void z_color(LIR_Assembler* ce, LIR_Opr ref) {
-  __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatStoreGoodBeforeMov);
-  __ movzw(rscratch2, barrier_Relocation::unpatched);
-  __ orr(ref->as_register(), rscratch2, ref->as_register(), Assembler::LSL, ZPointerLoadShift);
-}
-
 void ZBarrierSetAssembler::generate_c1_uncolor(LIR_Assembler* ce, LIR_Opr ref) const {
-  z_uncolor(ce, ref);
+  z_uncolor(ce->masm(), ref->as_register());
 }
 
 void ZBarrierSetAssembler::generate_c1_color(LIR_Assembler* ce, LIR_Opr ref) const {
-  z_color(ce, ref);
+  z_color(ce->masm(), ref->as_register(), ref->as_register(), rscratch2);
 }
 
 void ZBarrierSetAssembler::generate_c1_load_barrier(LIR_Assembler* ce,
@@ -918,18 +927,16 @@ void ZBarrierSetAssembler::generate_c1_load_barrier(LIR_Assembler* ce,
   if (on_non_strong) {
     // Test against MarkBad mask
     assert_different_registers(rscratch1, rthread, ref->as_register());
-    __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatMarkBadBeforeMov);
-    __ movzw(rscratch1, barrier_Relocation::unpatched);
-    __ tst(ref->as_register(), rscratch1);
+    check_color(ce->masm(), ref->as_register(), rscratch1);
     __ br(Assembler::NE, *stub->entry());
-    z_uncolor(ce, ref);
+    z_uncolor(ce->masm(), ref->as_register());
   } else {
     Label good;
     __ relocate(barrier_Relocation::spec(), ZBarrierRelocationFormatLoadGoodBeforeTbX);
     __ tbz(ref->as_register(), barrier_Relocation::unpatched, good);
     __ b(*stub->entry());
     __ bind(good);
-    z_uncolor(ce, ref);
+    z_uncolor(ce->masm(), ref->as_register());
   }
   __ bind(*stub->continuation());
 }
@@ -1433,7 +1440,7 @@ void ZBarrierSetAssembler::check_oop(MacroAssembler* masm, Register obj, Registe
   __ br(Assembler::EQ, check_oop);
 
   // Uncolor presumed zpointer
-  __ lsr(obj, obj, ZPointerLoadShift);
+  z_uncolor(masm, obj);
 
   __ b(check_zaddress);
 

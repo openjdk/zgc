@@ -158,6 +158,12 @@ public:
 
   void patch_barriers() {}
 
+  void z_color(MacroAssembler* masm, Register dst, Register src, Register tmp) const;
+
+  void z_uncolor(MacroAssembler* masm, Register ref) const;
+
+  void check_color(MacroAssembler* masm, Register ref, Register tmp) const;
+
 #ifdef COMPILER1
   void generate_c1_color(LIR_Assembler* ce, LIR_Opr ref) const;
   void generate_c1_uncolor(LIR_Assembler* ce, LIR_Opr ref) const;
