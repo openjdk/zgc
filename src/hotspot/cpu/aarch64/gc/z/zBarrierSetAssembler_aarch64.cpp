@@ -498,13 +498,19 @@ static void copy_load_barrier(MacroAssembler* masm,
                               Register tmp1,
                               Register tmp2,
                               FloatRegister vec_tmp) {
-  Label done;
+  Label done, fallback;
 
   // Test reference against bad mask. If mask bad, then we need to fix it up.
   __ andr(vec_tmp, Assembler::T16B, ref, z_copy_load_bad_vreg);
   __ umaxv(vec_tmp, Assembler::T16B, vec_tmp);
   __ fcmpd(vec_tmp, 0.0);
-  __ br(Assembler::EQ, done);
+  __ br(Assembler::NE, fallback);
+
+  // Remove any bad colors
+  __ bic(ref, Assembler::T16B, ref, z_copy_store_bad_vreg);
+  __ b(done);
+
+  __ bind(fallback);
 
   __ umov(tmp2, ref, Assembler::D, 0);
   copy_load_barrier(masm, tmp2, Address(src.base(), src.offset() + 0), tmp1);
@@ -561,13 +567,20 @@ static void copy_store_barrier(MacroAssembler* masm,
                                Register tmp2,
                                Register tmp3,
                                FloatRegister vec_tmp) {
-  Label done;
+  Label done, fallback;
 
   // Test reference against bad mask. If mask bad, then we need to fix it up.
   __ andr(vec_tmp, Assembler::T16B, pre_ref, z_copy_store_bad_vreg);
   __ umaxv(vec_tmp, Assembler::T16B, vec_tmp);
   __ fcmpd(vec_tmp, 0.0);
-  __ br(Assembler::EQ, done);
+  __ br(Assembler::NE, fallback);
+
+  // Add good colors
+  __ orr(new_ref, Assembler::T16B, new_ref, z_copy_store_good_vreg);
+
+  __ b(done);
+
+  __ bind(fallback);
 
   // Extract the 2 oops from the pre_ref vector register
   __ umov(tmp2, pre_ref, Assembler::D, 0);
@@ -577,11 +590,6 @@ static void copy_store_barrier(MacroAssembler* masm,
   copy_store_barrier(masm, tmp2, noreg, Address(src.base(), src.offset() + 8), tmp1, tmp3);
 
   __ bind(done);
-
-  // Remove any bad colors
-  __ bic(new_ref, Assembler::T16B, new_ref, z_copy_store_bad_vreg);
-  // Add good colors
-  __ orr(new_ref, Assembler::T16B, new_ref, z_copy_store_good_vreg);
 }
 
 class ZAdjustAddress {
@@ -764,16 +772,7 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
   ZAdjustAddress adjust(masm, dst);
   dst = adjust.address();
 
-  if (is_dest_uninitialized) {
-    if (bytes == 32) {
-      __ bic(src1, Assembler::T16B, src1, z_copy_store_bad_vreg);
-      __ orr(src1, Assembler::T16B, src1, z_copy_store_good_vreg);
-      __ bic(src2, Assembler::T16B, src2, z_copy_store_bad_vreg);
-      __ orr(src2, Assembler::T16B, src2, z_copy_store_good_vreg);
-    } else {
-      ShouldNotReachHere();
-    }
-  } else {
+  if (!is_dest_uninitialized) {
     // Load pre values
     BarrierSetAssembler::copy_load_at(masm, decorators, type, bytes, vec_tmp1, vec_tmp2, dst, noreg, noreg, fnoreg);
 
