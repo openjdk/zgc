@@ -559,6 +559,19 @@ static void copy_store_barrier(MacroAssembler* masm,
   }
 }
 
+static void copy_store_barrier_done(MacroAssembler* masm,
+                                    FloatRegister ref,
+                                    Address src,
+                                    Register tmp1,
+                                    Register tmp2) {
+  // Add good colors
+  __ orr(ref, Assembler::T16B, ref, z_copy_store_good_vreg);
+  // Store new values
+  __ umov(tmp1, ref, Assembler::D, 0);
+  __ umov(tmp2, ref, Assembler::D, 1);
+  __ stp(tmp1, tmp2, src);
+}
+
 static void copy_store_barrier(MacroAssembler* masm,
                                FloatRegister pre_ref,
                                FloatRegister new_ref,
@@ -575,9 +588,7 @@ static void copy_store_barrier(MacroAssembler* masm,
   __ fcmpd(vec_tmp, 0.0);
   __ br(Assembler::NE, fallback);
 
-  // Add good colors
-  __ orr(new_ref, Assembler::T16B, new_ref, z_copy_store_good_vreg);
-
+  copy_store_barrier_done(masm, new_ref, src, tmp1, tmp2);
   __ b(done);
 
   __ bind(fallback);
@@ -772,7 +783,10 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
   ZAdjustAddress adjust(masm, dst);
   dst = adjust.address();
 
-  if (!is_dest_uninitialized) {
+  if (is_dest_uninitialized) {
+    copy_store_barrier_done(masm, src1, Address(dst.base(), dst.offset() + 0), tmp1, tmp2);
+    copy_store_barrier_done(masm, src2, Address(dst.base(), dst.offset() + 16), tmp1, tmp2);
+  } else {
     // Load pre values
     BarrierSetAssembler::copy_load_at(masm, decorators, type, bytes, vec_tmp1, vec_tmp2, dst, noreg, noreg, fnoreg);
 
@@ -784,9 +798,6 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
       ShouldNotReachHere();
     }
   }
-
-  // Store new values
-  BarrierSetAssembler::copy_store_at(masm, decorators, type, bytes, dst, src1, src2, noreg, noreg, noreg, fnoreg, fnoreg, fnoreg);
 }
 
 void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
