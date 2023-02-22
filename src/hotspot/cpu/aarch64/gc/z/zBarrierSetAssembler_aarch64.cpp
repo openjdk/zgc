@@ -490,6 +490,10 @@ static void copy_load_barrier(MacroAssembler* masm,
   __ lsl(ref, ref, ZPointerLoadShift);
 
   __ bind(done);
+
+  // Remove metadata bits so that the store side (vectorized or non-vectorized) can
+  // inject the store-good color with an or instruction.
+  __ bfi(ref, zr, 0, 16);
 }
 
 static void copy_load_barrier(MacroAssembler* masm,
@@ -551,12 +555,6 @@ static void copy_store_barrier(MacroAssembler* masm,
   }
 
   __ bind(done);
-
-  if (new_ref != noreg) {
-    // Set store-good color, replacing whatever color was there before
-    __ ldr(tmp1, Address(rthread, ZThreadLocalData::store_good_mask_offset()));
-    __ bfi(new_ref, tmp1, 0, 16);
-  }
 }
 
 static void copy_store_barrier_done(MacroAssembler* masm,
@@ -675,6 +673,14 @@ void ZBarrierSetAssembler::copy_load_at(MacroAssembler* masm,
   }
 }
 
+static void copy_store_barrier_done(MacroAssembler* masm,
+                                    Register ref,
+                                    Register tmp) {
+  // Set store-good color, replacing whatever color was there before
+  __ ldr(tmp, Address(rthread, ZThreadLocalData::store_good_mask_offset()));
+  __ bfi(ref, tmp, 0, 16);
+}
+
 void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
                                          DecoratorSet decorators,
                                          BasicType type,
@@ -699,17 +705,7 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
 
   bool is_dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
-  if (is_dest_uninitialized) {
-    __ ldr(tmp1, Address(rthread, ZThreadLocalData::store_good_mask_offset()));
-    if (bytes == 8) {
-      __ bfi(src1, tmp1, 0, 16);
-    } else if (bytes == 16) {
-      __ bfi(src1, tmp1, 0, 16);
-      __ bfi(src2, tmp1, 0, 16);
-    } else {
-      ShouldNotReachHere();
-    }
-  } else {
+  if (!is_dest_uninitialized) {
     // Store barrier pre values and color new values
     if (bytes == 8) {
       __ ldr(tmp1, dst);
@@ -726,6 +722,15 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
     } else {
       ShouldNotReachHere();
     }
+  }
+
+  if (bytes == 8) {
+    copy_store_barrier_done(masm, src1, tmp1);
+  } else if (bytes == 16) {
+    copy_store_barrier_done(masm, src1, tmp1);
+    copy_store_barrier_done(masm, src2, tmp1);
+  } else {
+    ShouldNotReachHere();
   }
 
   // Store new values
