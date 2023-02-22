@@ -784,8 +784,12 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
   dst = adjust.address();
 
   if (is_dest_uninitialized) {
-    copy_store_barrier_done(masm, src1, Address(dst.base(), dst.offset() + 0), tmp1, tmp2);
-    copy_store_barrier_done(masm, src2, Address(dst.base(), dst.offset() + 16), tmp1, tmp2);
+    if (bytes == 32) {
+      copy_store_barrier_done(masm, src1, Address(dst.base(), dst.offset() + 0), tmp1, tmp2);
+      copy_store_barrier_done(masm, src2, Address(dst.base(), dst.offset() + 16), tmp1, tmp2);
+    } else {
+      ShouldNotReachHere();
+    }
   } else {
     // Load pre values
     BarrierSetAssembler::copy_load_at(masm, decorators, type, bytes, vec_tmp1, vec_tmp2, dst, noreg, noreg, fnoreg);
