@@ -960,7 +960,11 @@ class StubGenerator: public StubCodeGenerator {
     Label same_aligned;
     Label copy_big, copy32_loop, copy8_loop, copy_small, done;
 
-    __ beqz(count, done, true);
+    // The size of copy32_loop body increases significantly with ZGC GC barriers.
+    // Need conditional far branches to reach a point beyond the loop in this case.
+    bool is_far = UseZGC ? true : false;
+
+    __ beqz(count, done, is_far);
     __ slli(cnt, count, exact_log2(granularity));
     if (is_backwards) {
       __ add(src, s, cnt);
@@ -974,15 +978,15 @@ class StubGenerator: public StubCodeGenerator {
       __ addi(tmp, cnt, -32);
       __ bgez(tmp, copy32_loop);
       __ addi(tmp, cnt, -8);
-      __ bgez(tmp, copy8_loop, true);
+      __ bgez(tmp, copy8_loop, is_far);
       __ j(copy_small);
     } else {
       __ mv(tmp, 16);
-      __ blt(cnt, tmp, copy_small, true);
+      __ blt(cnt, tmp, copy_small, is_far);
 
       __ xorr(tmp, src, dst);
       __ andi(tmp, tmp, 0b111);
-      __ bnez(tmp, copy_small, true);
+      __ bnez(tmp, copy_small, is_far);
 
       __ bind(same_aligned);
       __ andi(tmp, src, 0b111);
@@ -998,26 +1002,27 @@ class StubGenerator: public StubCodeGenerator {
         __ addi(dst, dst, step);
       }
       __ addi(cnt, cnt, -granularity);
-      __ beqz(cnt, done, true);
+      __ beqz(cnt, done, is_far);
       __ j(same_aligned);
 
       __ bind(copy_big);
       __ mv(tmp, 32);
-      __ blt(cnt, tmp, copy8_loop, true);
+      __ blt(cnt, tmp, copy8_loop, is_far);
     }
+
     __ bind(copy32_loop);
     if (is_backwards) {
       __ addi(src, src, -wordSize * 4);
       __ addi(dst, dst, -wordSize * 4);
     }
     // we first load 32 bytes, then write it, so the direction here doesn't matter
-    bs_asm->copy_load_at(_masm, decorators, type, 8, tmp3, Address(src), gct1);
-    bs_asm->copy_load_at(_masm, decorators, type, 8, tmp4, Address(src, 8), gct1);
+    bs_asm->copy_load_at(_masm, decorators, type, 8, tmp3, Address(src),     gct1);
+    bs_asm->copy_load_at(_masm, decorators, type, 8, tmp4, Address(src, 8),  gct1);
     bs_asm->copy_load_at(_masm, decorators, type, 8, tmp5, Address(src, 16), gct1);
     bs_asm->copy_load_at(_masm, decorators, type, 8, tmp6, Address(src, 24), gct1);
 
-    bs_asm->copy_store_at(_masm, decorators, type, 8, Address(dst), tmp3, gct1, gct2, gct3);
-    bs_asm->copy_store_at(_masm, decorators, type, 8, Address(dst, 8), tmp4, gct1, gct2, gct3);
+    bs_asm->copy_store_at(_masm, decorators, type, 8, Address(dst),     tmp3, gct1, gct2, gct3);
+    bs_asm->copy_store_at(_masm, decorators, type, 8, Address(dst, 8),  tmp4, gct1, gct2, gct3);
     bs_asm->copy_store_at(_masm, decorators, type, 8, Address(dst, 16), tmp5, gct1, gct2, gct3);
     bs_asm->copy_store_at(_masm, decorators, type, 8, Address(dst, 24), tmp6, gct1, gct2, gct3);
 
