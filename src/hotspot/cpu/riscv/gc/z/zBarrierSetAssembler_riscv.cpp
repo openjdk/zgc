@@ -554,35 +554,6 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
   BarrierSetAssembler::copy_store_at(masm, decorators, type, bytes, dst, src, noreg, noreg, noreg);
 }
 
-void ZBarrierSetAssembler::copy_load_at(MacroAssembler* masm,
-                                        DecoratorSet decorators,
-                                        BasicType type,
-                                        size_t bytes,
-                                        FloatRegister dst1,
-                                        FloatRegister dst2,
-                                        Address src,
-                                        Register tmp1,
-                                        Register tmp2,
-                                        FloatRegister vec_tmp) {
-  Unimplemented();
-}
-
-void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
-                                         DecoratorSet decorators,
-                                         BasicType type,
-                                         size_t bytes,
-                                         Address dst,
-                                         FloatRegister src1,
-                                         FloatRegister src2,
-                                         Register tmp1,
-                                         Register tmp2,
-                                         Register tmp3,
-                                         FloatRegister vec_tmp1,
-                                         FloatRegister vec_tmp2,
-                                         FloatRegister vec_tmp3) {
-  Unimplemented();
-}
-
 void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
                                                          Register jni_env,
                                                          Register robj,
