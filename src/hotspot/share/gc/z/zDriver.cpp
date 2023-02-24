@@ -148,8 +148,7 @@ void ZDriverMinor::collect(const ZDriverRequest& request) {
     fatal("Unsupported GC cause (%s)", GCCause::to_string(request.cause()));
     break;
   }
-}
-
+};
 GCTracer* ZDriverMinor::jfr_tracer() {
   return &_jfr_tracer;
 }
