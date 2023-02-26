@@ -673,9 +673,9 @@ void ZBarrierSetAssembler::copy_load_at(MacroAssembler* masm,
   }
 }
 
-static void remove_metadata_bits(MacroAssembler* masm,
-                                 Register ref,
-                                 Register tmp) {
+static void color_source(MacroAssembler* masm,
+                         Register ref,
+                         Register tmp) {
   // Set store-good color, replacing whatever color was there before
   __ ldr(tmp, Address(rthread, ZThreadLocalData::store_good_mask_offset()));
   __ bfi(ref, tmp, 0, 16);
@@ -725,10 +725,10 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
   }
 
   if (bytes == 8) {
-    remove_metadata_bits(masm, src1, tmp1);
+    color_source(masm, src1, tmp1);
   } else if (bytes == 16) {
-    remove_metadata_bits(masm, src1, tmp1);
-    remove_metadata_bits(masm, src2, tmp1);
+    color_source(masm, src1, tmp1);
+    color_source(masm, src2, tmp1);
   } else {
     ShouldNotReachHere();
   }
