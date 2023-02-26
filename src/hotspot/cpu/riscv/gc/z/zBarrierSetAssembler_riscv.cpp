@@ -449,11 +449,8 @@ static void copy_load_barrier(MacroAssembler* masm,
       __ mv(c_rarg0, ref);
     }
 
-    __ call_VM_leaf(ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(IN_HEAP | ON_STRONG_OOP_REF), 2);
+    __ call_VM_leaf(ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_store_good_addr(), 2);
   }
-
-  // Slow-path has uncolored; revert
-  __ slli(ref, ref, ZPointerLoadShift);
 
   __ bind(done);
 }

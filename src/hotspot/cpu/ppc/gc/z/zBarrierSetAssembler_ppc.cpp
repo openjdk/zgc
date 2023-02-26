@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, 2022 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -463,9 +463,8 @@ void ZBarrierSetAssembler::copy_load_at_slow(MacroAssembler* masm,
     ZRuntimeCallSpill rcs(masm, R0, MacroAssembler::PRESERVATION_FRAME_LR_GP_REGS);
     assert(zpointer != R4_ARG2, "or change argument setup");
     __ mr_if_needed(R4_ARG2, addr);
-    __ call_VM_leaf(ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_addr(), zpointer, R4_ARG2);
+    __ call_VM_leaf(ZBarrierSetRuntime::load_barrier_on_oop_field_preloaded_store_good_addr(), zpointer, R4_ARG2);
   }
-  __ sldi(zpointer, R0, ZPointerLoadShift); // Slow-path has uncolored; revert
   __ mtctr(tmp); // restore loop counter
   __ b(continuation);
 }
