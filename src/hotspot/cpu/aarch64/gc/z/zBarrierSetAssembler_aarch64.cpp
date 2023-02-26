@@ -557,11 +557,11 @@ static void copy_store_barrier(MacroAssembler* masm,
   __ bind(done);
 }
 
-static void copy_store_barrier_done(MacroAssembler* masm,
-                                    FloatRegister ref,
-                                    Address src,
-                                    Register tmp1,
-                                    Register tmp2) {
+static void color_and_store_source(MacroAssembler* masm,
+                                   FloatRegister ref,
+                                   Address src,
+                                   Register tmp1,
+                                   Register tmp2) {
   // Add good colors
   __ orr(ref, Assembler::T16B, ref, z_copy_store_good_vreg);
   // Store new values
@@ -586,7 +586,7 @@ static void copy_store_barrier(MacroAssembler* masm,
   __ fcmpd(vec_tmp, 0.0);
   __ br(Assembler::NE, fallback);
 
-  copy_store_barrier_done(masm, new_ref, src, tmp1, tmp2);
+  color_and_store_source(masm, new_ref, src, tmp1, tmp2);
   __ b(done);
 
   __ bind(fallback);
@@ -673,9 +673,9 @@ void ZBarrierSetAssembler::copy_load_at(MacroAssembler* masm,
   }
 }
 
-static void copy_store_barrier_done(MacroAssembler* masm,
-                                    Register ref,
-                                    Register tmp) {
+static void remove_metadata_bits(MacroAssembler* masm,
+                                 Register ref,
+                                 Register tmp) {
   // Set store-good color, replacing whatever color was there before
   __ ldr(tmp, Address(rthread, ZThreadLocalData::store_good_mask_offset()));
   __ bfi(ref, tmp, 0, 16);
@@ -725,10 +725,10 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
   }
 
   if (bytes == 8) {
-    copy_store_barrier_done(masm, src1, tmp1);
+    remove_metadata_bits(masm, src1, tmp1);
   } else if (bytes == 16) {
-    copy_store_barrier_done(masm, src1, tmp1);
-    copy_store_barrier_done(masm, src2, tmp1);
+    remove_metadata_bits(masm, src1, tmp1);
+    remove_metadata_bits(masm, src2, tmp1);
   } else {
     ShouldNotReachHere();
   }
@@ -758,7 +758,7 @@ void ZBarrierSetAssembler::copy_load_at(MacroAssembler* masm,
   BarrierSetAssembler::copy_load_at(masm, decorators, type, bytes, dst1, dst2, src, noreg, noreg, fnoreg);
 
   if (bytes == 32) {
-    copy_load_barrier(masm, dst1, Address(src.base(), src.offset() + 0), tmp1, tmp2, vec_tmp);
+    copy_load_barrier(masm, dst1, Address(src.base(), src.offset() + 0),  tmp1, tmp2, vec_tmp);
     copy_load_barrier(masm, dst2, Address(src.base(), src.offset() + 16), tmp1, tmp2, vec_tmp);
   } else {
     ShouldNotReachHere();
@@ -790,8 +790,8 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
 
   if (is_dest_uninitialized) {
     if (bytes == 32) {
-      copy_store_barrier_done(masm, src1, Address(dst.base(), dst.offset() + 0), tmp1, tmp2);
-      copy_store_barrier_done(masm, src2, Address(dst.base(), dst.offset() + 16), tmp1, tmp2);
+      color_and_store_source(masm, src1, Address(dst.base(), dst.offset() + 0),  tmp1, tmp2);
+      color_and_store_source(masm, src2, Address(dst.base(), dst.offset() + 16), tmp1, tmp2);
     } else {
       ShouldNotReachHere();
     }
@@ -801,7 +801,7 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
 
     // Store barrier pre values and color new values
     if (bytes == 32) {
-      copy_store_barrier(masm, vec_tmp1, src1, Address(dst.base(), dst.offset() + 0), tmp1, tmp2, tmp3, vec_tmp3);
+      copy_store_barrier(masm, vec_tmp1, src1, Address(dst.base(), dst.offset() + 0),  tmp1, tmp2, tmp3, vec_tmp3);
       copy_store_barrier(masm, vec_tmp2, src2, Address(dst.base(), dst.offset() + 16), tmp1, tmp2, tmp3, vec_tmp3);
     } else {
       ShouldNotReachHere();
