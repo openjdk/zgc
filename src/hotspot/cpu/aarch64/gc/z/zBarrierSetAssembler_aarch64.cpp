@@ -555,6 +555,10 @@ static void copy_store_barrier(MacroAssembler* masm,
   }
 
   __ bind(done);
+
+  if (new_ref == noreg) {
+    __ str(pre_ref, src);
+  }
 }
 
 static void color_and_store_source(MacroAssembler* masm,
