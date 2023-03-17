@@ -84,21 +84,18 @@ private:
   bool try_steal_local(ZMarkContext* context);
   bool try_steal_global(ZMarkContext* context);
   bool try_steal(ZMarkContext* context);
-  bool flush(bool gc_threads);
+  bool flush();
   bool try_proactive_flush();
-  bool try_terminate_flush();
   bool try_terminate();
   void leave();
   bool try_end();
 
   ZWorkers* workers() const;
-  void prepare_work();
-  void finish_work();
-  void resize_workers(uint nworkers);
 
-  void work();
+  bool follow_work(bool partial);
 
   void verify_all_stacks_empty() const;
+  void verify_worker_stacks_empty() const;
 
 public:
   ZMark(ZGeneration* generation, ZPageTable* page_table);
@@ -109,13 +106,22 @@ public:
   void mark_object(zaddress addr);
 
   void start();
-  void mark_roots();
+  void mark_young_roots();
+  void mark_old_roots();
   void mark_follow();
   bool end();
   void free();
 
   void flush_and_free();
   bool flush_and_free(Thread* thread);
+
+  // Following work
+  void prepare_work();
+  void finish_work();
+  void resize_workers(uint nworkers);
+  void follow_work_complete();
+  bool follow_work_partial();
+  bool try_terminate_flush();
 };
 
 #endif // SHARE_GC_Z_ZMARK_HPP

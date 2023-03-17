@@ -554,6 +554,10 @@ void ZBarrierSetAssembler::copy_store_at(MacroAssembler* masm,
   BarrierSetAssembler::copy_store_at(masm, decorators, type, bytes, dst, src, noreg, noreg, noreg);
 }
 
+bool ZBarrierSetAssembler::supports_rvv_arraycopy() {
+  return false;
+}
+
 void ZBarrierSetAssembler::try_resolve_jobject_in_native(MacroAssembler* masm,
                                                          Register jni_env,
                                                          Register robj,

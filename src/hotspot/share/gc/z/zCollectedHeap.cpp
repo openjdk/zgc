@@ -21,6 +21,7 @@
  * questions.
  */
 
+#include "gc/z/zAddress.hpp"
 #include "precompiled.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
@@ -332,6 +333,11 @@ VirtualSpaceSummary ZCollectedHeap::create_heap_space_summary() {
   const uintptr_t reserved_end = ZAddressHeapBase + max_capacity();
 
   return VirtualSpaceSummary((HeapWord*)start, (HeapWord*)committed_end, (HeapWord*)reserved_end);
+}
+
+bool ZCollectedHeap::contains_null(const oop* p) const {
+  const zpointer* const ptr = (const zpointer*)p;
+  return is_null_any(*ptr);
 }
 
 void ZCollectedHeap::safepoint_synchronize_begin() {

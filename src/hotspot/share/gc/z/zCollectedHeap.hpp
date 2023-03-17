@@ -112,6 +112,8 @@ public:
 
   VirtualSpaceSummary create_heap_space_summary() override;
 
+  bool contains_null(const oop* p) const override;
+
   void safepoint_synchronize_begin() override;
   void safepoint_synchronize_end() override;
 

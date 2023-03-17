@@ -38,7 +38,7 @@ private:
   friend class GCIdMark;
 
   static uint _next_id;
-  static const uint UNDEFINED = (uint)-1;
+  static const uint UNDEFINED = UINT_MAX;
   static uint create();
 
   // Default printer used unless a custom printer is set

@@ -220,7 +220,9 @@ private:
   void concurrent_relocate();
 
 public:
-  ZGenerationYoung(ZPageTable* page_table, ZPageAllocator* page_allocator);
+  ZGenerationYoung(ZPageTable* page_table,
+                   const ZForwardingTable* old_forwarding_table,
+                   ZPageAllocator* page_allocator);
 
   ZYoungType type() const;
 
@@ -247,8 +249,8 @@ public:
   // Scan a remembered set entry
   void scan_remembered_field(volatile zpointer* p);
 
-  // Scan all remembered sets
-  void scan_remembered_sets();
+  // Register old pages with remembered set
+  void register_with_remset(ZPage* page);
 
   // Verification
   bool is_remembered(volatile zpointer* p) const;
@@ -263,7 +265,7 @@ private:
   ZReferenceProcessor _reference_processor;
   ZWeakRootsProcessor _weak_roots_processor;
   ZUnload             _unload;
-  uint                _total_collections_at_end;
+  uint                _total_collections_at_start;
   uint32_t            _young_seqnum_at_reloc_start;
 
   void flip_mark_start();
@@ -276,8 +278,7 @@ private:
   void process_non_strong_references();
   void relocate_start();
   void relocate();
-  void remap_roots();
-  void remap_remembered_sets();
+  void remap_young_roots();
 
   void concurrent_mark();
   bool pause_mark_end();
@@ -289,7 +290,7 @@ private:
   void concurrent_select_relocation_set();
   void pause_relocate_start();
   void concurrent_relocate();
-  void concurrent_remap_roots();
+  void concurrent_remap_young_roots();
 
 public:
   ZGenerationOld(ZPageTable* page_table, ZPageAllocator* page_allocator);
@@ -303,7 +304,7 @@ public:
   ReferenceDiscoverer* reference_discoverer();
   void set_soft_reference_policy(bool clear);
 
-  uint total_collections_at_end() const;
+  uint total_collections_at_start() const;
 
   bool active_remset_is_current() const;
 

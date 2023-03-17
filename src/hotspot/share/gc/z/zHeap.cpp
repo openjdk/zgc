@@ -60,8 +60,8 @@ ZHeap::ZHeap() :
     _allocator_eden(),
     _allocator_relocation(),
     _serviceability(initial_capacity(), min_capacity(), max_capacity()),
-    _young(&_page_table, &_page_allocator),
     _old(&_page_table, &_page_allocator),
+    _young(&_page_table, _old.forwarding_table(), &_page_allocator),
     _initialized(false) {
 
   // Install global heap instance
@@ -76,6 +76,10 @@ ZHeap::ZHeap() :
   if (!_page_allocator.prime_cache(_old.workers(), InitialHeapSize)) {
     log_error_p(gc)("Failed to allocate initial Java heap (" SIZE_FORMAT "M)", InitialHeapSize / M);
     return;
+  }
+
+  if (UseDynamicNumberOfGCThreads) {
+    log_info_p(gc, init)("GC Workers Max: %u (dynamic)", ConcGCThreads);
   }
 
   // Update statistics
@@ -275,6 +279,11 @@ size_t ZHeap::free_empty_pages(const ZArray<ZPage*>* pages) {
 void ZHeap::keep_alive(oop obj) {
   const zaddress addr = to_zaddress(obj);
   ZBarrier::mark<ZMark::Resurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+}
+
+void ZHeap::mark_flush_and_free(Thread* thread) {
+  _young.mark_flush_and_free(thread);
+  _old.mark_flush_and_free(thread);
 }
 
 bool ZHeap::is_allocating(zaddress addr) const {

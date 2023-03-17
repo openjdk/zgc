@@ -97,12 +97,12 @@ static const ZStatPhaseConcurrent ZPhaseConcurrentRemapRootsOld("Concurrent Rema
 
 static const ZStatSubPhase ZSubPhaseConcurrentMarkRootsYoung("Concurrent Mark Roots", ZGenerationId::young);
 static const ZStatSubPhase ZSubPhaseConcurrentMarkFollowYoung("Concurrent Mark Follow", ZGenerationId::young);
-static const ZStatSubPhase ZSubPhaseConcurrentMarkRememberedSetYoung("Concurrent Mark Remset", ZGenerationId::young);
 
 static const ZStatSubPhase ZSubPhaseConcurrentMarkRootsOld("Concurrent Mark Roots", ZGenerationId::old);
 static const ZStatSubPhase ZSubPhaseConcurrentMarkFollowOld("Concurrent Mark Follow", ZGenerationId::old);
 static const ZStatSubPhase ZSubPhaseConcurrentRemapRootsColoredOld("Concurrent Remap Roots Colored", ZGenerationId::old);
 static const ZStatSubPhase ZSubPhaseConcurrentRemapRootsUncoloredOld("Concurrent Remap Roots Uncolored", ZGenerationId::old);
+static const ZStatSubPhase ZSubPhaseConcurrentRemapRememberedOld("Concurrent Remap Remembered", ZGenerationId::old);
 
 static const ZStatSampler ZSamplerJavaThreads("System", "Java Threads", ZStatUnitThreads);
 
@@ -473,11 +473,13 @@ ZYoungTypeSetter::~ZYoungTypeSetter() {
   ZGeneration::young()->_active_type = ZYoungType::none;
 }
 
-ZGenerationYoung::ZGenerationYoung(ZPageTable* page_table, ZPageAllocator* page_allocator) :
+ZGenerationYoung::ZGenerationYoung(ZPageTable* page_table,
+                                   const ZForwardingTable* old_forwarding_table,
+                                   ZPageAllocator* page_allocator) :
     ZGeneration(ZGenerationId::young, page_table, page_allocator),
     _active_type(ZYoungType::none),
     _tenuring_threshold(0),
-    _remembered(page_table, page_allocator) {
+    _remembered(page_table, old_forwarding_table, page_allocator) {
   ZGeneration::_young = this;
 }
 
@@ -838,12 +840,13 @@ void ZGenerationYoung::mark_start() {
 
 void ZGenerationYoung::mark_roots() {
   ZStatTimerYoung timer(ZSubPhaseConcurrentMarkRootsYoung);
-  _mark.mark_roots();
+  _mark.mark_young_roots();
 }
 
 void ZGenerationYoung::mark_follow() {
+  // Combine following with scanning the remembered set
   ZStatTimerYoung timer(ZSubPhaseConcurrentMarkFollowYoung);
-  _mark.mark_follow();
+  _remembered.scan_and_follow(&_mark);
 }
 
 bool ZGenerationYoung::mark_end() {
@@ -914,9 +917,8 @@ void ZGenerationYoung::register_in_place_relocate_promoted(ZPage* page) {
   _relocation_set.register_in_place_relocate_promoted(page);
 }
 
-void ZGenerationYoung::scan_remembered_sets() {
-  ZStatTimerYoung timer(ZSubPhaseConcurrentMarkRememberedSetYoung);
-  _remembered.scan();
+void ZGenerationYoung::register_with_remset(ZPage* page) {
+  _remembered.register_found_old(page);
 }
 
 ZGenerationOld::ZGenerationOld(ZPageTable* page_table, ZPageAllocator* page_allocator) :
@@ -924,7 +926,7 @@ ZGenerationOld::ZGenerationOld(ZPageTable* page_table, ZPageAllocator* page_allo
     _reference_processor(&_workers),
     _weak_roots_processor(&_workers),
     _unload(&_workers),
-    _total_collections_at_end(0),
+    _total_collections_at_start(0),
     _young_seqnum_at_reloc_start(0) {
   ZGeneration::_old = this;
 }
@@ -995,7 +997,7 @@ void ZGenerationOld::collect(ConcurrentGCTimer* timer) {
     ZDriverLocker locker;
 
     // Phase 8: Concurrent Remap Roots
-    concurrent_remap_roots();
+    concurrent_remap_young_roots();
 
     abortpoint();
 
@@ -1045,7 +1047,6 @@ public:
 };
 
 bool ZGenerationOld::pause_mark_end() {
-  ZDriverLocker locker;
   return VM_ZMarkEndOld().pause();
 }
 
@@ -1136,9 +1137,9 @@ void ZGenerationOld::concurrent_relocate() {
   relocate();
 }
 
-void ZGenerationOld::concurrent_remap_roots() {
+void ZGenerationOld::concurrent_remap_young_roots() {
   ZStatTimerOld timer(ZPhaseConcurrentRemapRootsOld);
-  remap_roots();
+  remap_young_roots();
 }
 
 void ZGenerationOld::mark_start() {
@@ -1176,11 +1177,13 @@ void ZGenerationOld::mark_start() {
   // to be armed, and the thread-local disarm values are lazily updated
   // when JavaThreads wake up from safepoints.
   CodeCache::on_gc_marking_cycle_start();
+
+  _total_collections_at_start = ZCollectedHeap::heap()->total_collections();
 }
 
 void ZGenerationOld::mark_roots() {
   ZStatTimerOld timer(ZSubPhaseConcurrentMarkRootsOld);
-  _mark.mark_roots();
+  _mark.mark_old_roots();
 }
 
 void ZGenerationOld::mark_follow() {
@@ -1332,7 +1335,6 @@ void ZGenerationOld::relocate() {
 
   // Update statistics
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
-  _total_collections_at_end = ZCollectedHeap::heap()->total_collections();
 }
 
 class ZRemapOopClosure : public OopClosure {
@@ -1382,20 +1384,23 @@ public:
 
 typedef ClaimingCLDToOopClosure<ClassLoaderData::_claim_none> ZRemapCLDClosure;
 
-class ZRemapRootsTask : public ZTask {
+class ZRemapYoungRootsTask : public ZTask {
 private:
-  ZRootsIteratorAllColored   _roots_colored;
-  ZRootsIteratorAllUncolored _roots_uncolored;
+  ZGenerationPagesParallelIterator _old_pages_parallel_iterator;
 
-  ZRemapOopClosure           _cl_colored;
-  ZRemapCLDClosure           _cld_cl;
+  ZRootsIteratorAllColored         _roots_colored;
+  ZRootsIteratorAllUncolored       _roots_uncolored;
 
-  ZRemapThreadClosure        _thread_cl;
-  ZRemapNMethodClosure       _nm_cl;
+  ZRemapOopClosure                 _cl_colored;
+  ZRemapCLDClosure                 _cld_cl;
+
+  ZRemapThreadClosure              _thread_cl;
+  ZRemapNMethodClosure             _nm_cl;
 
 public:
-  ZRemapRootsTask() :
-      ZTask("ZRemapRootsTask"),
+  ZRemapYoungRootsTask(ZPageTable* page_table, ZPageAllocator* page_allocator) :
+      ZTask("ZRemapYoungRootsTask"),
+      _old_pages_parallel_iterator(page_table, ZGenerationId::old, page_allocator),
       _roots_colored(ZGenerationIdOptional::old),
       _roots_uncolored(ZGenerationIdOptional::old),
       _cl_colored(),
@@ -1405,7 +1410,7 @@ public:
     ClassLoaderDataGraph_lock->lock();
   }
 
-  ~ZRemapRootsTask() {
+  ~ZRemapYoungRootsTask() {
     ClassLoaderDataGraph_lock->unlock();
   }
 
@@ -1421,29 +1426,41 @@ public:
       _roots_uncolored.apply(&_thread_cl,
                              &_nm_cl);
     }
+
+    {
+      ZStatTimerWorker timer(ZSubPhaseConcurrentRemapRememberedOld);
+      _old_pages_parallel_iterator.do_pages([&](ZPage* page) {
+        // Visit all object fields that potentially pointing into young generation
+        page->oops_do_current_remembered(ZBarrier::load_barrier_on_oop_field);
+        return true;
+      });
+    }
   }
 };
 
-void ZGenerationOld::remap_remembered_sets() {
-  ZGenerationPagesIterator iter(_page_table, ZGenerationId::old, _page_allocator);
-  for (ZPage* page; iter.next(&page);) {
-    // Visit all object fields that potentially pointing into young generation
-    page->oops_do_current_remembered(ZBarrier::load_barrier_on_oop_field);
-  }
-}
+// This function is used by the old generation to purge roots to the young generation from
+// young remap bit errors, before the old generation performs old relocate start. By doing
+// that, we can know that double remap bit errors don't need to be concerned with double
+// remap bit errors, in the young generation roots. That makes it possible to figure out
+// which generation table to use when remapping a pointer, without needing an extra adjust
+// phase that walks the entire heap.
+void ZGenerationOld::remap_young_roots() {
+  // We upgrade the number of workers to the number last used by the young generation. The
+  // reason is that this code is run under the driver lock, which means that a young generation
+  // collection might be waiting for this code to complete.
+  uint prev_nworkers = _workers.active_workers();
+  uint remap_nworkers = clamp(MAX2(_workers.active_workers(), ZGeneration::young()->workers()->active_workers()), 1u, ZOldGCThreads);
+  _workers.set_active_workers(remap_nworkers);
 
-void ZGenerationOld::remap_roots() {
+  // TODO: The STS joiner is only needed to satisfy z_assert_is_barrier_safe that doesn't
+  // understand the driver locker. Consider making the assert aware of the driver locker.
   SuspendibleThreadSetJoiner sts_joiner;
 
-  // Remap remembered sets
-  remap_remembered_sets();
-
-  sts_joiner.yield();
-
-  ZRemapRootsTask task;
+  ZRemapYoungRootsTask task(_page_table, _page_allocator);
   workers()->run(&task);
+  _workers.set_active_workers(prev_nworkers);
 }
 
-uint ZGenerationOld::total_collections_at_end() const {
-  return _total_collections_at_end;
+uint ZGenerationOld::total_collections_at_start() const {
+  return _total_collections_at_start;
 }

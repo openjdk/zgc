@@ -39,6 +39,8 @@ serviceability/sa/TestJhsdbJstackMixed.java                   8248912   generic-
 serviceability/sa/ClhsdbPstack.java#process                   8248912   generic-all
 serviceability/sa/ClhsdbPstack.java#core                      8248912   generic-all
 
+serviceability/sa/TestSysProps.java                           8302055   generic-all
+
 # Quiet all SA tests
 serviceability/sa/LingeredAppWithDefaultMethods.java          8000000    generic-all
 serviceability/sa/LingeredAppWithInterface.java               8000000    generic-all

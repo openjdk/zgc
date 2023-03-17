@@ -121,6 +121,8 @@ public:
                              Register tmp2,
                              Register tmp3);
 
+  virtual bool supports_rvv_arraycopy();
+
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm,
                                              Register jni_env,
                                              Register robj,

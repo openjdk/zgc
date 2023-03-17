@@ -37,6 +37,73 @@ void ZArguments::initialize_alignments() {
   HeapAlignment = SpaceAlignment;
 }
 
+void ZArguments::select_max_gc_threads() {
+  // Select number of parallel threads
+  if (FLAG_IS_DEFAULT(ParallelGCThreads)) {
+    FLAG_SET_DEFAULT(ParallelGCThreads, ZHeuristics::nparallel_workers());
+  }
+
+  if (ParallelGCThreads == 0) {
+    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:ParallelGCThreads=0");
+  }
+
+  // The max number of concurrent threads we heuristically want for a generation
+  uint max_nworkers_generation;
+
+  if (FLAG_IS_DEFAULT(ConcGCThreads)) {
+    max_nworkers_generation = ZHeuristics::nconcurrent_workers();
+
+    // Computed max number of GC threads at a time in the machine
+    uint max_nworkers = max_nworkers_generation;
+
+    if (!FLAG_IS_DEFAULT(ZYoungGCThreads)) {
+      max_nworkers = MAX2(max_nworkers, ZYoungGCThreads);
+    }
+
+    if (!FLAG_IS_DEFAULT(ZOldGCThreads)) {
+      max_nworkers = MAX2(max_nworkers, ZOldGCThreads);
+    }
+
+    FLAG_SET_DEFAULT(ConcGCThreads, max_nworkers);
+  } else {
+    max_nworkers_generation = ConcGCThreads;
+  }
+
+  if (FLAG_IS_DEFAULT(ZYoungGCThreads)) {
+    if (UseDynamicNumberOfGCThreads) {
+      FLAG_SET_ERGO(ZYoungGCThreads, max_nworkers_generation);
+    } else {
+      const uint static_young_threads = MAX2(uint(max_nworkers_generation * 0.9), 1u);
+      FLAG_SET_ERGO(ZYoungGCThreads, static_young_threads);
+    }
+  }
+
+  if (FLAG_IS_DEFAULT(ZOldGCThreads)) {
+    if (UseDynamicNumberOfGCThreads) {
+      FLAG_SET_ERGO(ZOldGCThreads, max_nworkers_generation);
+    } else {
+      const uint static_old_threads = MAX2(ConcGCThreads - ZYoungGCThreads, 1u);
+      FLAG_SET_ERGO(ZOldGCThreads, static_old_threads);
+    }
+  }
+
+  if (ConcGCThreads == 0) {
+    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:ConcGCThreads=0");
+  }
+
+  if (ZYoungGCThreads > ConcGCThreads) {
+    vm_exit_during_initialization("The flag -XX:ZYoungGCThreads can't be higher than -XX:ConcGCThreads");
+  } else if (ZYoungGCThreads == 0) {
+    vm_exit_during_initialization("The flag -XX:ZYoungGCThreads can't be lower than 1");
+  }
+
+  if (ZOldGCThreads > ConcGCThreads) {
+    vm_exit_during_initialization("The flag -XX:ZOldGCThreads can't be higher than -XX:ConcGCThreads");
+  } else if (ZOldGCThreads == 0) {
+    vm_exit_during_initialization("The flag -XX:ZOldGCThreads can't be lower than 1");
+  }
+}
+
 void ZArguments::initialize() {
   GCArguments::initialize();
 
@@ -54,23 +121,7 @@ void ZArguments::initialize() {
     FLAG_SET_DEFAULT(UseNUMA, true);
   }
 
-  // Select number of parallel threads
-  if (FLAG_IS_DEFAULT(ParallelGCThreads)) {
-    FLAG_SET_DEFAULT(ParallelGCThreads, ZHeuristics::nparallel_workers());
-  }
-
-  if (ParallelGCThreads == 0) {
-    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:ParallelGCThreads=0");
-  }
-
-  // Select number of concurrent threads
-  if (FLAG_IS_DEFAULT(ConcGCThreads)) {
-    FLAG_SET_DEFAULT(ConcGCThreads, ZHeuristics::nconcurrent_workers());
-  }
-
-  if (ConcGCThreads == 0) {
-    vm_exit_during_initialization("The flag -XX:+UseZGC can not be combined with -XX:ConcGCThreads=0");
-  }
+  select_max_gc_threads();
 
   // Backwards compatible alias for ZCollectionIntervalMajor
   if (!FLAG_IS_DEFAULT(ZCollectionInterval)) {
@@ -125,12 +176,6 @@ void ZArguments::initialize() {
   if (!FLAG_IS_DEFAULT(ZTenuringThreshold) && ZTenuringThreshold > static_cast<int>(MaxTenuringThreshold)) {
     vm_exit_during_initialization(err_msg("ZTenuringThreshold must be be within bounds of "
                                           "MaxTenuringThreshold"));
-  }
-
-  // The heuristics used when UseDynamicNumberOfGCThreads is
-  // enabled defaults to using a ZAllocationSpikeTolerance of 1.
-  if (UseDynamicNumberOfGCThreads && FLAG_IS_DEFAULT(ZAllocationSpikeTolerance)) {
-    FLAG_SET_DEFAULT(ZAllocationSpikeTolerance, 1);
   }
 
 #ifdef COMPILER2

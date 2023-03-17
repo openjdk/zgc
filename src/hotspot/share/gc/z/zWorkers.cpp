@@ -39,9 +39,13 @@ static const char* generation_name(ZGenerationId id) {
   return (id == ZGenerationId::young) ? "Young" : "Old";
 }
 
+static uint max_nworkers(ZGenerationId id) {
+  return id == ZGenerationId::young ? ZYoungGCThreads : ZOldGCThreads;
+}
+
 ZWorkers::ZWorkers(ZGenerationId id, ZStatWorkers* stats) :
     _workers(workers_name(id),
-             ConcGCThreads),
+             max_nworkers(id)),
     _generation_name(generation_name(id)),
     _resize_lock(),
     _requested_nworkers(0),
@@ -148,6 +152,11 @@ void ZWorkers::request_resize_workers(uint nworkers) {
 
   if (_requested_nworkers == nworkers) {
     // Already requested
+    return;
+  }
+
+  if (_workers.active_workers() == nworkers) {
+    // Already the right amount of threads
     return;
   }
 

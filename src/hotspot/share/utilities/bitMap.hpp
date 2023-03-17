@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -107,13 +107,13 @@ class BitMap {
     return raw_to_words_align_down(bit);
   }
 
-  // Helper for get_next_{zero,one}_bit variants.
+  // Helper for find_first_{set,clear}_bit variants.
   // - flip designates whether searching for 1s or 0s.  Must be one of
   //   find_{zeros,ones}_flip.
   // - aligned_right is true if end is a priori on a bm_word_t boundary.
   // - returns end if bit not found
   template<bm_word_t flip, bool aligned_right>
-  inline idx_t get_next_bit_impl(idx_t beg, idx_t end) const;
+  inline idx_t find_first_bit_impl(idx_t beg, idx_t end) const;
 
   // Helper for get_prev_{zero,one}_bit variants.
   // - flip designates whether searching for 1s or 0s.  Must be one of
@@ -123,9 +123,11 @@ class BitMap {
   template<bm_word_t flip, bool aligned_left>
   inline idx_t get_prev_bit_impl(idx_t beg, idx_t end) const;
 
-  // Values for get_next_bit_impl flip parameter.
+  // Values for find_first_bit_impl flip parameter.
   static const bm_word_t find_ones_flip = 0;
   static const bm_word_t find_zeros_flip = ~(bm_word_t)0;
+
+  template<typename ReturnType> struct IterateInvoker;
 
   // Threshold for performing small range operation, even when large range
   // operation was requested. Measured in words.
@@ -148,14 +150,17 @@ class BitMap {
   bm_word_t* map()                 { return _map; }
   const bm_word_t* map() const     { return _map; }
 
-  bm_word_t word(idx_t word_index, bm_word_t flip) const { return _map[word_index] ^ flip; }
-
   // Return a pointer to the word containing the specified bit.
   bm_word_t* word_addr(idx_t bit) {
     return map() + to_words_align_down(bit);
   }
   const bm_word_t* word_addr(idx_t bit) const {
     return map() + to_words_align_down(bit);
+  }
+
+  // Get a word and flip its bits according to flip.
+  bm_word_t flipped_word(idx_t word, bm_word_t flip) const {
+    return _map[word] ^ flip;
   }
 
   // Set a word to a specified value or to all ones; clear a word.
@@ -235,8 +240,8 @@ class BitMap {
   // will CAS the value into the bitmap and is quite a bit slower.
   // The parallel version also returns a value indicating if the
   // calling thread was the one that changed the value of the bit.
-  void at_put(idx_t index, bool value);
-  bool par_at_put(idx_t index, bool value);
+  void at_put(idx_t bit, bool value);
+  bool par_at_put(idx_t bit, bool value);
 
   // Update a range of bits.  Ranges are half-open [beg, end).
   void set_range   (idx_t beg, idx_t end);
@@ -271,38 +276,37 @@ class BitMap {
   // Verify [beg,end) is a valid range, e.g. beg <= end <= size().
   void verify_range(idx_t beg, idx_t end) const NOT_DEBUG_RETURN;
 
-  // Applies the function to the index for each set bit, starting from the
-  // least index in the range to the greatest, in order. The iteration
-  // terminates if the closure returns false.
+  // Applies an operation to the index of each set bit in [beg, end), in
+  // increasing order.
   //
-  // If the function modifies the bitmap, modifications to bits at indices
+  // If i is an index of the bitmap, the operation is either
+  // - function(i)
+  // - cl->do_bit(i)
+  // The result of an operation must be either void or convertible to bool.
+  //
+  // If an operation returns false then the iteration stops at that index.
+  // The result of the iteration is true unless the iteration was stopped by
+  // an operation returning false.
+  //
+  // If an operation modifies the bitmap, modifications to bits at indices
   // greater than the current index will affect which further indices the
-  // function will be applied to.
+  // operation will be applied to.
   //
-  // precondition: beg and end form a valid range.
-  //  beg - inclusive
-  //  end - exclusive
-  //
-  // Function interface: bool function(idx_t index)
-  //  index - visited bit
-  //  return false if iterations should terminate early
-  //
-  // Returns true if the iteration completed, false if terminated early because
-  // the function returned false.
-  template <typename Function>
-  bool iterate(Function function, idx_t beg, idx_t end);
+  // precondition: beg and end form a valid range for the bitmap.
+  template<typename Function>
+  bool iterate(Function function, idx_t beg, idx_t end) const;
 
-  template <typename Function>
-  bool iterate(Function function) {
-    return iterate(function, 0, _size);
+  template<typename BitMapClosureType>
+  bool iterate(BitMapClosureType* cl, idx_t beg, idx_t end) const;
+
+  template<typename Function>
+  bool iterate(Function function) const {
+    return iterate(function, 0, size());
   }
 
-  template <typename BitMapClosureType>
-  bool iterate(BitMapClosureType* cl, idx_t beg, idx_t end);
-
-  template <typename BitMapClosureType>
-  bool iterate(BitMapClosureType* cl) {
-    return iterate(cl, 0, _size);
+  template<typename BitMapClosureType>
+  bool iterate(BitMapClosureType* cl) const {
+    return iterate(cl, 0, size());
   }
 
   // Reverse version of "iterate".
@@ -328,19 +332,19 @@ class BitMap {
   // Looking for 1's and 0's at indices equal to or greater than "beg",
   // stopping if none has been found before "end", and returning
   // "end" (which must be at most "size") in that case.
-  idx_t get_next_one_offset (idx_t beg, idx_t end) const;
-  idx_t get_next_zero_offset(idx_t beg, idx_t end) const;
+  idx_t find_first_set_bit(idx_t beg, idx_t end) const;
+  idx_t find_first_clear_bit(idx_t beg, idx_t end) const;
 
-  idx_t get_next_one_offset(idx_t offset) const {
-    return get_next_one_offset(offset, size());
+  idx_t find_first_set_bit(idx_t beg) const {
+    return find_first_set_bit(beg, size());
   }
-  idx_t get_next_zero_offset(idx_t offset) const {
-    return get_next_zero_offset(offset, size());
+  idx_t find_first_clear_bit(idx_t beg) const {
+    return find_first_clear_bit(beg, size());
   }
 
-  // Like "get_next_one_offset", except requires that "end" is
+  // Like "find_first_set_bit", except requires that "end" is
   // aligned to bitsizeof(bm_word_t).
-  idx_t get_next_one_offset_aligned_right(idx_t beg, idx_t end) const;
+  idx_t find_first_set_bit_aligned_right(idx_t beg, idx_t end) const;
 
   // Looking for 1's and 0's at indices lower than "r_index",
   // stopping if none has been found before or at "l_index", and returning

@@ -26,7 +26,6 @@
 #include "asm/macroAssembler.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
-#include "gc/shared/gc_globals.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -1600,8 +1599,9 @@ address StubGenerator::generate_conjoint_short_copy(bool aligned, address noover
 //
 address StubGenerator::generate_disjoint_int_oop_copy(bool aligned, bool is_oop, address* entry,
                                                       const char *name, bool dest_uninitialized) {
+  BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
 #if COMPILER2_OR_JVMCI
-  if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+  if ((!is_oop || bs->supports_avx3_masked_arraycopy()) && VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
      return generate_disjoint_copy_avx3_masked(entry, "jint_disjoint_arraycopy_avx3", 2,
                                                aligned, is_oop, dest_uninitialized);
   }
@@ -1643,7 +1643,6 @@ address StubGenerator::generate_disjoint_int_oop_copy(bool aligned, bool is_oop,
   }
 
   BasicType type = is_oop ? T_OBJECT : T_INT;
-  BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
   {
@@ -1712,8 +1711,9 @@ __ BIND(L_exit);
 address StubGenerator::generate_conjoint_int_oop_copy(bool aligned, bool is_oop, address nooverlap_target,
                                                       address *entry, const char *name,
                                                       bool dest_uninitialized) {
+  BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
 #if COMPILER2_OR_JVMCI
-  if (VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+  if ((!is_oop || bs->supports_avx3_masked_arraycopy()) && VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
      return generate_conjoint_copy_avx3_masked(entry, "jint_conjoint_arraycopy_avx3", 2,
                                                nooverlap_target, aligned, is_oop, dest_uninitialized);
   }
@@ -1751,7 +1751,6 @@ address StubGenerator::generate_conjoint_int_oop_copy(bool aligned, bool is_oop,
   }
 
   BasicType type = is_oop ? T_OBJECT : T_INT;
-  BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
   // no registers are destroyed by this call
   bs->arraycopy_prologue(_masm, decorators, type, from, to, count);
 
@@ -1828,7 +1827,7 @@ address StubGenerator::generate_disjoint_long_oop_copy(bool aligned, bool is_oop
                                                        const char *name, bool dest_uninitialized) {
   BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
 #if COMPILER2_OR_JVMCI
-  if ((!is_oop || bs->supports_avx3_masked_arraycopy()) && VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize  >= 32) {
+  if ((!is_oop || bs->supports_avx3_masked_arraycopy()) && VM_Version::supports_avx512vlbw() && VM_Version::supports_bmi2() && MaxVectorSize >= 32) {
      return generate_disjoint_copy_avx3_masked(entry, "jlong_disjoint_arraycopy_avx3", 3,
                                                aligned, is_oop, dest_uninitialized);
   }

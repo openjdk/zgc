@@ -68,6 +68,8 @@ public:
                              Register tmp2,
                              Register tmp3);
 
+  virtual bool supports_rvv_arraycopy() { return true; }
+
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp2);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
