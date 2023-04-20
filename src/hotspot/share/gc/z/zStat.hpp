@@ -510,15 +510,6 @@ public:
   void print();
 };
 
-struct ZStatRelocationSummary {
-  size_t npages_candidates;
-  size_t total;
-  size_t live;
-  size_t empty;
-  size_t npages_selected;
-  size_t relocate;
-};
-
 //
 // Stat relocation
 //
@@ -531,9 +522,7 @@ private:
   size_t                      _medium_selected;
   size_t                      _medium_in_place_count;
 
-  void print(const char* name,
-             ZStatRelocationSummary selector_group,
-             size_t in_place_count);
+  ZRelocationSetSelectorStats* const selector_stats() const;
 
 public:
   ZStatRelocation();
@@ -541,9 +530,10 @@ public:
   void at_select_relocation_set(const ZRelocationSetSelectorStats& selector_stats);
   void at_install_relocation_set(size_t forwarding_usage);
   void at_relocate_end(size_t small_in_place_count, size_t medium_in_place_count);
+  void reset();
 
-  void print_page_summary();
-  void print_age_table();
+  void print_page_summary() const;
+  void print_age_table(const ZStatRelocation* const previous) const;
 };
 
 //

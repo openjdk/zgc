@@ -1071,7 +1071,7 @@ public:
       _medium_allocator(_generation) {}
 
   ~ZRelocateTask() {
-    _generation->stat_relocation()->at_relocate_end(_small_allocator.in_place_count(), _medium_allocator.in_place_count());
+    _generation->current_stat_relocation()->at_relocate_end(_small_allocator.in_place_count(), _medium_allocator.in_place_count());
   }
 
   virtual void work() {

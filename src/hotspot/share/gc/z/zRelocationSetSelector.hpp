@@ -31,6 +31,7 @@
 #include "memory/allocation.hpp"
 
 class ZPage;
+class ZRelocationSetSelectorGroup;
 
 class ZRelocationSetSelectorGroupStats {
   friend class ZRelocationSetSelectorGroup;
@@ -56,6 +57,7 @@ public:
 
   size_t npages_selected() const;
   size_t relocate() const;
+  void reset();
 };
 
 class ZRelocationSetSelectorStats {
@@ -66,14 +68,23 @@ private:
   ZRelocationSetSelectorGroupStats _medium[ZPageAgeMax + 1];
   ZRelocationSetSelectorGroupStats _large[ZPageAgeMax + 1];
 
-  size_t _has_relocatable_pages;
+  bool _has_relocatable_pages;
 
 public:
+  ZRelocationSetSelectorStats();
+  ZRelocationSetSelectorStats(const ZRelocationSetSelectorGroup* small,
+                              const ZRelocationSetSelectorGroup* medium,
+                              const ZRelocationSetSelectorGroup* large,
+                              bool has_relocatable_pages);
   const ZRelocationSetSelectorGroupStats& small(ZPageAge age) const;
   const ZRelocationSetSelectorGroupStats& medium(ZPageAge age) const;
   const ZRelocationSetSelectorGroupStats& large(ZPageAge age) const;
+  size_t live_bytes(ZPageAge age) const;
+  size_t npages(ZPageAge age) const;
 
   bool has_relocatable_pages() const;
+
+  void reset();
 };
 
 class ZRelocationSetSelectorGroup {

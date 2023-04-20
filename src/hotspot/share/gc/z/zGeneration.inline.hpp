@@ -103,8 +103,12 @@ inline ZStatMark* ZGeneration::stat_mark() {
   return &_stat_mark;
 }
 
-inline ZStatRelocation* ZGeneration::stat_relocation() {
-  return &_stat_relocation;
+inline const ZStatRelocation* ZGeneration::previous_stat_relocation() const {
+  return &_previous_stat_relocation;
+}
+
+inline ZStatRelocation* ZGeneration::current_stat_relocation() {
+  return &_current_stat_relocation;
 }
 
 inline ZPageTable* ZGeneration::page_table() const {

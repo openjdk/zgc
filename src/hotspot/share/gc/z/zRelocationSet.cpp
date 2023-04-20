@@ -160,7 +160,7 @@ void ZRelocationSet::install(const ZRelocationSetSelector* selector) {
   _nforwardings = task.nforwardings();
 
   // Update statistics
-  _generation->stat_relocation()->at_install_relocation_set(_allocator.size());
+  _generation->current_stat_relocation()->at_install_relocation_set(_allocator.size());
 }
 
 static void destroy_and_clear(ZPageAllocator* page_allocator, ZArray<ZPage*>* array) {
