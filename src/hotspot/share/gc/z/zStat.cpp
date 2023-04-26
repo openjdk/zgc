@@ -1592,6 +1592,26 @@ void ZStatRelocation::print_age_table() const {
            .center("Large")
            .end());
 
+  auto unit = [](size_t bytes) {
+    if (bytes < K) {
+      return "B";
+    }
+    if (bytes < M) {
+      return "K";
+    }
+    return "M";
+  };
+
+  auto value = [](size_t bytes) {
+    if (bytes < K) {
+      return bytes;
+    }
+    if (bytes < M) {
+      return bytes / K;
+    }
+    return bytes / M;
+  };
+
   for (uint i = 0; i < end; ++i) {
     const ZPageAge age = static_cast<ZPageAge>(i);
 
@@ -1602,11 +1622,16 @@ void ZStatRelocation::print_age_table() const {
       desc.append("Survivor %d", i);
     }
 
+    const size_t prev_live_bytes = _previous_selector_stats.live_bytes(age);
+    const size_t live_bytes = _selector_stats.live_bytes(age);
+
     lt.print("%s", age_table()
              .left("%s", desc.buffer())
-             .left(SIZE_FORMAT_W(8) "M -> " SIZE_FORMAT "M",
-                   (_previous_selector_stats.live_bytes(age) / M),
-                   (_selector_stats.live_bytes(age) / M))
+             .left(SIZE_FORMAT_W(8) "%s" " -> " SIZE_FORMAT "%s",
+                   value(prev_live_bytes),
+                   unit(prev_live_bytes),
+                   value(live_bytes),
+                   unit(live_bytes))
              .left(SIZE_FORMAT_W(7) " -> " SIZE_FORMAT,
                    _previous_selector_stats.small(age).npages_candidates(),
                    _selector_stats.small(age).npages_candidates())
