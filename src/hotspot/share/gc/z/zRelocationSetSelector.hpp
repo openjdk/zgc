@@ -57,7 +57,6 @@ public:
 
   size_t npages_selected() const;
   size_t relocate() const;
-  void reset();
 };
 
 class ZRelocationSetSelectorStats {
@@ -76,15 +75,15 @@ public:
                               const ZRelocationSetSelectorGroup* medium,
                               const ZRelocationSetSelectorGroup* large,
                               bool has_relocatable_pages);
+
   const ZRelocationSetSelectorGroupStats& small(ZPageAge age) const;
   const ZRelocationSetSelectorGroupStats& medium(ZPageAge age) const;
   const ZRelocationSetSelectorGroupStats& large(ZPageAge age) const;
+
   size_t live_bytes(ZPageAge age) const;
   size_t npages(ZPageAge age) const;
 
   bool has_relocatable_pages() const;
-
-  void reset();
 };
 
 class ZRelocationSetSelectorGroup {

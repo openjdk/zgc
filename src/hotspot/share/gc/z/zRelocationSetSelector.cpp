@@ -43,11 +43,11 @@ ZRelocationSetSelectorGroupStats::ZRelocationSetSelectorGroupStats() :
 
 ZRelocationSetSelectorStats::ZRelocationSetSelectorStats() :
     _has_relocatable_pages(false) {
-    for (uint i = 0; i <= ZPageAgeMax; ++i) {
-      _small[i] = ZRelocationSetSelectorGroupStats();
-      _medium[i] = ZRelocationSetSelectorGroupStats();
-      _large[i] = ZRelocationSetSelectorGroupStats();
-    }
+  for (uint i = 0; i <= ZPageAgeMax; ++i) {
+    _small[i] = ZRelocationSetSelectorGroupStats();
+    _medium[i] = ZRelocationSetSelectorGroupStats();
+    _large[i] = ZRelocationSetSelectorGroupStats();
+  }
 }
 
 ZRelocationSetSelectorStats::ZRelocationSetSelectorStats(const ZRelocationSetSelectorGroup* small,
@@ -55,12 +55,12 @@ ZRelocationSetSelectorStats::ZRelocationSetSelectorStats(const ZRelocationSetSel
                                                          const ZRelocationSetSelectorGroup* large,
                                                          bool has_relocatable_pages) :
     _has_relocatable_pages(has_relocatable_pages) {
-    for (uint i = 0; i <= ZPageAgeMax; ++i) {
-      const ZPageAge age = static_cast<ZPageAge>(i);
-      _small[i] = small->stats(age);
-      _medium[i] = medium->stats(age);
-      _large[i] = large->stats(age);
-    }
+  for (uint i = 0; i <= ZPageAgeMax; ++i) {
+    const ZPageAge age = static_cast<ZPageAge>(i);
+    _small[i] = small->stats(age);
+    _medium[i] = medium->stats(age);
+    _large[i] = large->stats(age);
+  }
 }
 
 ZRelocationSetSelectorGroup::ZRelocationSetSelectorGroup(const char* name,

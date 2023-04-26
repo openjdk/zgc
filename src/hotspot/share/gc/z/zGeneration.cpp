@@ -127,8 +127,7 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _stat_cycle(),
     _stat_workers(),
     _stat_mark(),
-    _previous_stat_relocation(),
-    _current_stat_relocation(),
+    _stat_relocation(),
     _gc_timer(nullptr) {
 }
 
@@ -260,7 +259,7 @@ void ZGeneration::select_relocation_set(ZGenerationId generation, bool promote_a
   }
 
   // Update statistics
-  current_stat_relocation()->at_select_relocation_set(selector.stats());
+  stat_relocation()->at_select_relocation_set(selector.stats());
   stat_heap()->at_select_relocation_set(selector.stats());
 }
 
@@ -369,16 +368,11 @@ void ZGeneration::set_phase(Phase new_phase) {
 }
 
 void ZGeneration::at_collection_start(ConcurrentGCTimer* gc_timer) {
-  reset_relocation_stats();
   set_gc_timer(gc_timer);
   stat_cycle()->at_start();
   stat_heap()->at_collection_start(_page_allocator->stats(this));
+  stat_relocation()->at_collection_start();
   workers()->set_active();
-}
-
-void ZGeneration::reset_relocation_stats() {
-  _previous_stat_relocation = _current_stat_relocation;
-  _current_stat_relocation.reset();
 }
 
 void ZGeneration::at_collection_end() {
