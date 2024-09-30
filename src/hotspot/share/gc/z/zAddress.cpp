@@ -36,6 +36,10 @@ size_t     ZAddressOffsetBits;
 uintptr_t  ZAddressOffsetMask;
 size_t     ZAddressOffsetMax;
 
+size_t     ZBackingOffsetMax;
+
+uint32_t   ZBackingIndexMax;
+
 uintptr_t  ZPointerRemapped;
 uintptr_t  ZPointerRemappedYoungMask;
 uintptr_t  ZPointerRemappedOldMask;

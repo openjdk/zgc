@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,39 +21,32 @@
  * questions.
  */
 
-#include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zVirtualMemory.hpp"
-#include "logging/log.hpp"
+#ifndef SHARE_GC_Z_ZVIRTUALMEMORYMANAGER_INLINE_HPP
+#define SHARE_GC_Z_ZVIRTUALMEMORYMANAGER_INLINE_HPP
 
-#include <sys/mman.h>
-#include <sys/types.h>
+#include "gc/z/zVirtualMemoryManager.hpp"
 
-void ZVirtualMemoryManager::pd_initialize_before_reserve() {
-  // Does nothing
+#include "gc/z/zMemory.inline.hpp"
+#include "gc/z/zNUMA.inline.hpp"
+#include "utilities/globalDefinitions.hpp"
+
+inline bool ZVirtualMemoryManager::is_multi_partition_enabled() const {
+  return !_multi_partition.is_empty();
 }
 
-void ZVirtualMemoryManager::pd_initialize_after_reserve() {
-  // Does nothing
+inline bool ZVirtualMemoryManager::is_in_multi_partition(const ZVirtualMemory& vmem) const {
+  return _multi_partition.limits_contain(vmem);
 }
 
-bool ZVirtualMemoryManager::pd_reserve(zaddress_unsafe addr, size_t size) {
-  void* const res = mmap((void*)untype(addr), size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE|MAP_NORESERVE, -1, 0);
-  if (res == MAP_FAILED) {
-    // Failed to reserve memory
-    return false;
+inline uint32_t ZVirtualMemoryManager::get_partition_id(const ZVirtualMemory& vmem) const {
+  const uint32_t numa_nodes = ZNUMA::count();
+  for (uint32_t numa_id = 0; numa_id < numa_nodes; numa_id++) {
+    if (_partitions.get(numa_id).limits_contain(vmem)) {
+      return numa_id;
+    }
   }
 
-  if (res != (void*)untype(addr)) {
-    // Failed to reserve memory at the requested address
-    munmap(res, size);
-    return false;
-  }
-
-  // Success
-  return true;
+  ShouldNotReachHere();
 }
 
-void ZVirtualMemoryManager::pd_unreserve(zaddress_unsafe addr, size_t size) {
-  const int res = munmap((void*)untype(addr), size);
-  assert(res == 0, "Failed to unmap memory");
-}
+#endif // SHARE_GC_Z_ZVIRTUALMEMORYMANAGER_INLINE_HPP

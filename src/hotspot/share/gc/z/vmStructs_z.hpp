@@ -87,8 +87,6 @@ typedef ZAttachedArray<ZForwarding, ZForwardingEntry> ZAttachedArrayForForwardin
   volatile_nonstatic_field(ZPage,               _top,                 zoffset_end)                   \
                                                                                                      \
   nonstatic_field(ZPageAllocator,               _max_capacity,        const size_t)                  \
-  volatile_nonstatic_field(ZPageAllocator,      _capacity,            size_t)                        \
-  volatile_nonstatic_field(ZPageAllocator,      _used,                size_t)                        \
                                                                                                      \
   nonstatic_field(ZPageTable,                   _map,                 ZGranuleMapForPageTable)       \
                                                                                                      \
@@ -97,7 +95,7 @@ typedef ZAttachedArray<ZForwarding, ZForwardingEntry> ZAttachedArrayForForwardin
                                                                                                      \
   nonstatic_field(ZForwardingTable,             _map,                 ZGranuleMapForForwarding)      \
                                                                                                      \
-  nonstatic_field(ZVirtualMemory,               _start,               const zoffset)                 \
+  nonstatic_field(ZVirtualMemory,               _start,               const zoffset_end)             \
   nonstatic_field(ZVirtualMemory,               _end,                 const zoffset_end)             \
                                                                                                      \
   nonstatic_field(ZForwarding,                  _virtual,             const ZVirtualMemory)          \

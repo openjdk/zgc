@@ -36,8 +36,6 @@ import sun.jvm.hotspot.types.TypeDataBase;
 public class ZPageAllocator extends VMObject {
 
     private static CIntegerField maxCapacityField;
-    private static CIntegerField capacityField;
-    private static CIntegerField usedField;
 
     static {
         VM.registerVMInitializedObserver((o, d) -> initialize(VM.getVM().getTypeDataBase()));
@@ -47,8 +45,6 @@ public class ZPageAllocator extends VMObject {
         Type type = db.lookupType("ZPageAllocator");
 
         maxCapacityField = type.getCIntegerField("_max_capacity");
-        capacityField = type.getCIntegerField("_capacity");
-        usedField = type.getCIntegerField("_used");
     }
 
     public long maxCapacity() {
@@ -56,11 +52,11 @@ public class ZPageAllocator extends VMObject {
     }
 
     public long capacity() {
-        return capacityField.getValue(addr);
+        return 0;
     }
 
     public long used() {
-        return usedField.getValue(addr);
+        return 0;
     }
 
     public ZPageAllocator(Address addr) {

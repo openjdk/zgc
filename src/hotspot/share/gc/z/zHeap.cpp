@@ -240,18 +240,18 @@ void ZHeap::undo_alloc_page(ZPage* page) {
   log_trace(gc)("Undo page allocation, thread: " PTR_FORMAT " (%s), page: " PTR_FORMAT ", size: %zu",
                 p2i(Thread::current()), ZUtils::thread_name(), p2i(page), page->size());
 
-  free_page(page, false /* allow_defragment */);
+  free_page(page);
 }
 
-void ZHeap::free_page(ZPage* page, bool allow_defragment) {
+void ZHeap::free_page(ZPage* page) {
   // Remove page table entry
   _page_table.remove(page);
 
   // Free page
-  _page_allocator.free_page(page, allow_defragment);
+  _page_allocator.free_page(page);
 }
 
-size_t ZHeap::free_empty_pages(const ZArray<ZPage*>* pages) {
+size_t ZHeap::free_empty_pages(ZGenerationId id, const ZArray<ZPage*>* pages) {
   size_t freed = 0;
   // Remove page table entries
   ZArrayIterator<ZPage*> iter(pages);
@@ -261,7 +261,7 @@ size_t ZHeap::free_empty_pages(const ZArray<ZPage*>* pages) {
   }
 
   // Free pages
-  _page_allocator.free_pages(pages);
+  _page_allocator.free_pages(id, pages);
 
   return freed;
 }
@@ -319,15 +319,17 @@ ZServiceabilityCounters* ZHeap::serviceability_counters() {
 }
 
 void ZHeap::print_on(outputStream* st) const {
-  st->print_cr(" ZHeap           used %zuM, capacity %zuM, max capacity %zuM",
-               used() / M,
-               capacity() / M,
-               max_capacity() / M);
+  _page_allocator.print_on(st);
   MetaspaceUtils::print_on(st);
 }
 
-void ZHeap::print_extended_on(outputStream* st) const {
-  print_on(st);
+void ZHeap::print_on_error(outputStream* st) const {
+  _page_allocator.print_on_error(st);
+  MetaspaceUtils::print_on(st);
+}
+
+void ZHeap::print_extended_on_error(outputStream* st) const {
+  print_on_error(st);
   st->cr();
 
   // Do not allow pages to be deleted
@@ -335,13 +337,20 @@ void ZHeap::print_extended_on(outputStream* st) const {
 
   // Print all pages
   st->print_cr("ZGC Page Table:");
-  ZPageTableIterator iter(&_page_table);
-  for (ZPage* page; iter.next(&page);) {
-    page->print_on(st);
+  {
+    streamIndentor indentor(st, 1);
+    ZPageTableIterator iter(&_page_table);
+    for (ZPage* page; iter.next(&page);) {
+      page->print_on(st);
+    }
   }
 
   // Allow pages to be deleted
   _page_allocator.disable_safe_destroy();
+
+  st->cr();
+
+  _page_allocator.print_extended_on_error(st);
 }
 
 bool ZHeap::print_location(outputStream* st, uintptr_t addr) const {

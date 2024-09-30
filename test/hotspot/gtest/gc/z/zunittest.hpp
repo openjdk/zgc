@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,25 @@
  * questions.
  */
 
-#include "gc/z/zVirtualMemory.inline.hpp"
+#ifndef ZUNITTEST_HPP
+#define ZUNITTEST_HPP
+
+#include "runtime/os.hpp"
 #include "unittest.hpp"
 
-TEST(ZVirtualMemory, split) {
-  ZVirtualMemory vmem(zoffset(0), 10);
+class ZTest : public testing::Test {
+private:
+  unsigned int _rand_seed;
 
-  ZVirtualMemory vmem0 = vmem.split(0);
-  EXPECT_EQ(vmem0.size(), 0u);
-  EXPECT_EQ(vmem.size(), 10u);
+public:
+  ZTest()
+    : _rand_seed(static_cast<unsigned int>(::testing::UnitTest::GetInstance()->random_seed())) {}
 
-  ZVirtualMemory vmem1 = vmem.split(5);
-  EXPECT_EQ(vmem1.size(), 5u);
-  EXPECT_EQ(vmem.size(), 5u);
+  int random() {
+    const int next_seed = os::next_random(_rand_seed);
+    _rand_seed = static_cast<unsigned int>(next_seed);
+    return next_seed;
+  }
+};
 
-  ZVirtualMemory vmem2 = vmem.split(5);
-  EXPECT_EQ(vmem2.size(), 5u);
-  EXPECT_EQ(vmem.size(), 0u);
-
-  ZVirtualMemory vmem3 = vmem.split(0);
-  EXPECT_EQ(vmem3.size(), 0u);
-}
+#endif // ZUNITTEST_HPP

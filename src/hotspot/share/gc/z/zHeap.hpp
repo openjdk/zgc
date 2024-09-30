@@ -104,8 +104,8 @@ public:
   // Page allocation
   ZPage* alloc_page(ZPageType type, size_t size, ZAllocationFlags flags, ZPageAge age);
   void undo_alloc_page(ZPage* page);
-  void free_page(ZPage* page, bool allow_defragment);
-  size_t free_empty_pages(const ZArray<ZPage*>* pages);
+  void free_page(ZPage* page);
+  size_t free_empty_pages(ZGenerationId id, const ZArray<ZPage*>* pages);
 
   // Object allocation
   bool is_alloc_stalling() const;
@@ -132,7 +132,8 @@ public:
 
   // Printing
   void print_on(outputStream* st) const;
-  void print_extended_on(outputStream* st) const;
+  void print_on_error(outputStream* st) const;
+  void print_extended_on_error(outputStream* st) const;
   bool print_location(outputStream* st, uintptr_t addr) const;
   bool print_location(outputStream* st, zaddress addr) const;
   bool print_location(outputStream* st, zpointer ptr) const;

@@ -29,9 +29,9 @@
 #include "gc/z/zForwardingEntry.hpp"
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zLock.hpp"
+#include "gc/z/zMemory.hpp"
 #include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageType.hpp"
-#include "gc/z/zVirtualMemory.hpp"
 
 class ObjectClosure;
 class ZForwardingAllocator;
