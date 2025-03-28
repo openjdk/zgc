@@ -1286,7 +1286,7 @@ bool ZPageAllocator::is_initialized() const {
 }
 
 bool ZPageAllocator::prime_cache(ZWorkers* workers, size_t size) {
-  ZPerNUMAIterator<ZPartition> iter = partition_iterator();
+  ZPartitionIterator iter = partition_iterator();
   for (ZPartition* partition; iter.next(&partition);) {
     const uint32_t numa_id = partition->numa_id();
     const size_t to_prime = ZNUMA::calculate_share(numa_id, size);
@@ -1319,7 +1319,7 @@ size_t ZPageAllocator::soft_max_capacity() const {
 
 size_t ZPageAllocator::current_max_capacity() const {
   size_t current_max_capacity = 0;
-  ZPerNUMAConstIterator<ZPartition> iter = partition_iterator();
+  ZPartitionConstIterator iter = partition_iterator();
   for (const ZPartition* partition; iter.next(&partition);) {
     current_max_capacity += Atomic::load(&partition->_current_max_capacity);
   }
@@ -1329,7 +1329,7 @@ size_t ZPageAllocator::current_max_capacity() const {
 
 size_t ZPageAllocator::capacity() const {
   size_t capacity = 0;
-  ZPerNUMAConstIterator<ZPartition> iter = partition_iterator();
+  ZPartitionConstIterator iter = partition_iterator();
   for (const ZPartition* partition; iter.next(&partition);) {
     capacity += Atomic::load(&partition->_capacity);
   }
@@ -1350,7 +1350,7 @@ size_t ZPageAllocator::unused() const {
   ssize_t capacity = 0;
   ssize_t claimed = 0;
 
-  ZPerNUMAConstIterator<ZPartition> iter = partition_iterator();
+  ZPartitionConstIterator iter = partition_iterator();
   for (const ZPartition* partition; iter.next(&partition);) {
     capacity += (ssize_t)Atomic::load(&partition->_capacity);
     claimed += (ssize_t)Atomic::load(&partition->_claimed);
@@ -1388,7 +1388,7 @@ void ZPageAllocator::reset_statistics(ZGenerationId id) {
     // consistent values.
     ZLocker<ZLock> locker(&_lock);
     size_t total_used = 0;
-    ZPerNUMAIterator<ZPartition> iter(&_partitions);
+    ZPartitionIterator iter(&_partitions);
     for (ZPartition* partition; iter.next(&partition);) {
       total_used += partition->_used;
     }
@@ -1567,15 +1567,16 @@ bool ZPageAllocator::claim_capacity_or_stall(ZPageAllocation* allocation) {
 }
 
 bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation) {
-  const uint32_t start_node = allocation->initiating_numa_id();
-  const uint32_t numa_nodes = ZNUMA::count();
+  const uint32_t start_numa_id = allocation->initiating_numa_id();
+  const uint32_t start_partition = start_numa_id;
+  const uint32_t num_partitions = _partitions.count();
 
   // Round robin single-partition claiming
 
-  for (uint32_t i = 0; i < numa_nodes; ++i) {
-    const uint32_t numa_id = (start_node + i) % numa_nodes;
+  for (uint32_t i = 0; i < num_partitions; ++i) {
+    const uint32_t partition_id = (start_partition + i) % num_partitions;
 
-    if (claim_capacity_single_partition(allocation->single_partition_allocation(), numa_id)) {
+    if (claim_capacity_single_partition(allocation->single_partition_allocation(), partition_id)) {
       return true;
     }
   }
@@ -1592,7 +1593,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation) {
 
   ZMultiPartitionAllocation* const multi_partition_allocation = allocation->multi_partition_allocation();
 
-  claim_capacity_multi_partition(multi_partition_allocation, start_node);
+  claim_capacity_multi_partition(multi_partition_allocation, start_partition);
 
   return true;
 }
@@ -1605,8 +1606,8 @@ bool ZPageAllocator::claim_capacity_single_partition(ZSinglePartitionAllocation*
 
 void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition) {
   const size_t size = multi_partition_allocation->size();
-  const uint32_t numa_nodes = ZNUMA::count();
-  const size_t split_size = align_up(size / numa_nodes, ZGranuleSize);
+  const uint32_t num_partitions = _partitions.count();
+  const size_t split_size = align_up(size / num_partitions, ZGranuleSize);
 
   size_t remaining = size;
 
@@ -1645,9 +1646,9 @@ void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* m
 
   // Loops over every partition and claims memory
   const auto do_claim_each_partition = [&](bool claim_evenly) {
-    for (uint32_t i = 0; i < numa_nodes; ++i) {
-      const uint32_t numa_id = (start_partition + i) % numa_nodes;
-      ZPartition& partition = _partitions.get(numa_id);
+    for (uint32_t i = 0; i < num_partitions; ++i) {
+      const uint32_t partition_id = (start_partition + i) % num_partitions;
+      ZPartition& partition = _partitions.get(partition_id);
 
       if (!do_claim_one_partition(partition, claim_evenly)) {
         // All memory claimed
@@ -2206,7 +2207,7 @@ ZPartition& ZPageAllocator::partition_from_vmem(const ZVirtualMemory& vmem) {
 size_t ZPageAllocator::sum_available() const {
   size_t total = 0;
 
-  ZPerNUMAConstIterator<ZPartition> iter = partition_iterator();
+  ZPartitionConstIterator iter = partition_iterator();
   for (const ZPartition* partition; iter.next(&partition);) {
     total += partition->available();
   }
@@ -2355,16 +2356,16 @@ void ZPageAllocator::handle_alloc_stalling_for_old(bool cleared_all_soft_refs) {
   restart_gc();
 }
 
-ZPerNUMAConstIterator<ZPartition> ZPageAllocator::partition_iterator() const {
-  return ZPerNUMAConstIterator<ZPartition>(&_partitions);
+ZPartitionConstIterator ZPageAllocator::partition_iterator() const {
+  return ZPartitionConstIterator(&_partitions);
 }
 
-ZPerNUMAIterator<ZPartition> ZPageAllocator::partition_iterator() {
-  return ZPerNUMAIterator<ZPartition>(&_partitions);
+ZPartitionIterator ZPageAllocator::partition_iterator() {
+  return ZPartitionIterator(&_partitions);
 }
 
 void ZPageAllocator::threads_do(ThreadClosure* tc) const {
-  ZPerNUMAConstIterator<ZPartition> iter = partition_iterator();
+  ZPartitionConstIterator iter = partition_iterator();
   for (const ZPartition* partition; iter.next(&partition);) {
     partition->threads_do(tc);
   }
@@ -2385,7 +2386,7 @@ void ZPageAllocator::print_extended_on_error(outputStream* st) const {
 
   // Print each partition's cache content
   st->print_cr("ZMappedCache:");
-  ZPerNUMAConstIterator<ZPartition> iter = partition_iterator();
+  ZPartitionConstIterator iter = partition_iterator();
   for (const ZPartition* partition; iter.next(&partition);) {
     partition->print_extended_on_error(st);
   }
@@ -2415,7 +2416,7 @@ void ZPageAllocator::print_on_inner(outputStream* st) const {
 
   // Print per-partition
   streamIndentor indentor(st, 1);
-  ZPerNUMAConstIterator<ZPartition> iter = partition_iterator();
+  ZPartitionConstIterator iter = partition_iterator();
   for (const ZPartition* partition; iter.next(&partition);) {
     partition->print_on(st);
   }

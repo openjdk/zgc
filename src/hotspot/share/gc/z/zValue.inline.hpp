@@ -187,6 +187,11 @@ inline void ZValue<S, T>::set_all(const T& value) {
   }
 }
 
+template <typename S, typename T>
+uint32_t ZValue<S, T>::count() const {
+  return S::count();
+}
+
 //
 // Iterator
 //

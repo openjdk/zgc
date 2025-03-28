@@ -101,6 +101,8 @@ public:
 
   void set(const T& value, uint32_t value_id = S::id());
   void set_all(const T& value);
+
+  uint32_t count() const;
 };
 
 template <typename T> using ZContended = ZValue<ZContendedStorage, T>;

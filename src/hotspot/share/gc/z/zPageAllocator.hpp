@@ -143,6 +143,9 @@ public:
   void print_extended_on_error(outputStream* st) const;
 };
 
+using ZPartitionIterator = ZPerNUMAIterator<ZPartition>;
+using ZPartitionConstIterator = ZPerNUMAConstIterator<ZPartition>;
+
 class ZPageAllocator {
   friend class VMStructs;
   friend class ZPartition;
@@ -277,8 +280,8 @@ public:
   void handle_alloc_stalling_for_young();
   void handle_alloc_stalling_for_old(bool cleared_soft_refs);
 
-  ZPerNUMAConstIterator<ZPartition> partition_iterator() const;
-  ZPerNUMAIterator<ZPartition> partition_iterator();
+  ZPartitionConstIterator partition_iterator() const;
+  ZPartitionIterator partition_iterator();
 
   void threads_do(ThreadClosure* tc) const;
 

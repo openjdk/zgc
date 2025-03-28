@@ -27,7 +27,6 @@
 #include "gc/z/zVirtualMemoryManager.hpp"
 
 #include "gc/z/zMemory.inline.hpp"
-#include "gc/z/zNUMA.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 inline bool ZVirtualMemoryManager::is_multi_partition_enabled() const {
@@ -39,10 +38,10 @@ inline bool ZVirtualMemoryManager::is_in_multi_partition(const ZVirtualMemory& v
 }
 
 inline uint32_t ZVirtualMemoryManager::lookup_partition_id(const ZVirtualMemory& vmem) const {
-  const uint32_t numa_nodes = ZNUMA::count();
-  for (uint32_t numa_id = 0; numa_id < numa_nodes; numa_id++) {
-    if (_partitions.get(numa_id).limits_contain(vmem)) {
-      return numa_id;
+  const uint32_t num_partitions = _partitions.count();
+  for (uint32_t partition_id = 0; partition_id < num_partitions; partition_id++) {
+    if (_partitions.get(partition_id).limits_contain(vmem)) {
+      return partition_id;
     }
   }
 
