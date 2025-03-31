@@ -34,13 +34,13 @@
 
 class ZMappedCacheEntry {
 private:
-  zoffset                         _start;
+  ZVirtualMemory                  _vmem;
   ZMappedCache::TreeNode          _tree_node;
   ZMappedCache::SizeClassListNode _size_class_list_node;
 
 public:
-  ZMappedCacheEntry(zoffset start)
-    : _start(start),
+  ZMappedCacheEntry(ZVirtualMemory vmem)
+    : _vmem(vmem),
       _tree_node(),
       _size_class_list_node() {}
 
@@ -49,24 +49,25 @@ public:
   static ZMappedCacheEntry* cast_to_entry(ZMappedCache::SizeClassListNode* list_node);
 
   zoffset start() const {
-    return _start;
+    return _vmem.start();
   }
 
   zoffset_end end() const {
-    const uintptr_t this_addr = reinterpret_cast<uintptr_t>(this);
-    return zoffset_end(align_up(this_addr, ZGranuleSize) - ZAddressHeapBase);
+    return _vmem.end();
   }
 
   ZVirtualMemory vmem() const {
-    return ZVirtualMemory(start(), end() - start());
+    return _vmem;
   }
 
   ZMappedCache::TreeNode* node_addr() {
     return &_tree_node;
   }
 
-  void update_start(zoffset start) {
-    _start = start;
+  void update_start(ZVirtualMemory vmem) {
+    precond(vmem.end() == end());
+
+    _vmem = vmem;
   }
 
   ZMappedCache::ZSizeClassListNode* size_class_node() {
@@ -108,7 +109,7 @@ static ZMappedCacheEntry* create_entry(const ZVirtualMemory& vmem) {
   precond(vmem.size() >= ZGranuleSize);
 
   void* placement_addr = entry_address_for_zoffset_end(vmem.end());
-  ZMappedCacheEntry* entry = new (placement_addr) ZMappedCacheEntry(vmem.start());
+  ZMappedCacheEntry* entry = new (placement_addr) ZMappedCacheEntry(vmem);
 
   postcond(entry->start() == vmem.start());
   postcond(entry->end() == vmem.end());
@@ -252,7 +253,7 @@ void ZMappedCache::tree_update(ZMappedCacheEntry* entry, const ZVirtualMemory& v
   }
 
   // And update entry
-  entry->update_start(vmem.start());
+  entry->update_start(vmem);
 }
 
 template <ZMappedCache::RemovalStrategy strategy, typename SelectFunction>

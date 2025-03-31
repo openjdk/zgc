@@ -106,7 +106,7 @@ typedef ZValue<ZPerNUMAStorage, ZPartition> ZPerNUMAZPartition;
   nonstatic_field(ZForwardingTable,             _map,                 ZGranuleMapForForwarding)      \
                                                                                                      \
   nonstatic_field(ZVirtualMemory,               _start,               const zoffset_end)             \
-  nonstatic_field(ZVirtualMemory,               _end,                 const zoffset_end)             \
+  nonstatic_field(ZVirtualMemory,               _size,                const size_t)                  \
                                                                                                      \
   nonstatic_field(ZForwarding,                  _virtual,             const ZVirtualMemory)          \
   nonstatic_field(ZForwarding,                  _object_alignment_shift, const size_t)               \

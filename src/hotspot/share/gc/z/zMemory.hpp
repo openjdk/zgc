@@ -42,13 +42,14 @@ public:
   using offset_end = End;
 
 private:
-  End _start;
-  End _end;
+  End    _start;
+  size_t _size;
 
   // Used internally to create a ZRange.
-  // The size parameter is only used for verification and to distinguish
-  // the constructors if End = size_t
-  ZRange(End start, End end, size_t size);
+  //
+  // The end parameter is only used for verification and to distinguish
+  // the constructors if End == Start.
+  ZRange(End start, size_t size, End end);
 
 public:
   ZRange();

@@ -34,21 +34,21 @@
 #include "utilities/globalDefinitions.hpp"
 
 template <typename Start, typename End>
-inline ZRange<Start, End>::ZRange(End start, End end, size_t size)
+inline ZRange<Start, End>::ZRange(End start, size_t size, End end)
   : _start(start),
-    _end(end) {
-  postcond(this->size() == size);
+    _size(size) {
+  postcond(this->end() == end);
 }
 
 template <typename Start, typename End>
 inline ZRange<Start, End>::ZRange()
   : _start(End::invalid),
-    _end(End::invalid) {}
+    _size(0) {}
 
 template <typename Start, typename End>
 inline ZRange<Start, End>::ZRange(Start start, size_t size)
   : _start(to_end_type(start, 0)),
-    _end(to_end_type(start, size)) {}
+    _size(size) {}
 
 template <typename Start, typename End>
 inline bool ZRange<Start, End>::is_null() const {
@@ -62,12 +62,12 @@ inline Start ZRange<Start, End>::start() const {
 
 template <typename Start, typename End>
 inline End ZRange<Start, End>::end() const {
-  return _end;
+  return _start + _size;
 }
 
 template <typename Start, typename End>
 inline size_t ZRange<Start, End>::size() const {
-  return _end - _start;
+  return _size;
 }
 
 template <typename Start, typename End>
@@ -75,7 +75,7 @@ inline bool ZRange<Start, End>::operator==(const ZRange& other) const {
   precond(!is_null());
   precond(!other.is_null());
 
-  return _start == other._start && _end == other._end;
+  return _start == other._start && _size == other._size;
 }
 
 template <typename Start, typename End>
@@ -88,7 +88,7 @@ inline bool ZRange<Start, End>::contains(const ZRange& other) const {
   precond(!is_null());
   precond(!other.is_null());
 
-  return _start <= other._start && other._end <= _end;
+  return _start <= other._start && other.end() <= end();
 }
 
 template <typename Start, typename End>
@@ -96,11 +96,12 @@ inline void ZRange<Start, End>::grow_from_front(size_t size) {
   precond(size_t(start()) >= size);
 
   _start -= size;
+  _size  += size;
 }
 
 template <typename Start, typename End>
 inline void ZRange<Start, End>::grow_from_back(size_t size) {
-  _end += size;
+  _size += size;
 }
 
 template <typename Start, typename End>
@@ -108,22 +109,25 @@ inline ZRange<Start, End> ZRange<Start, End>::shrink_from_front(size_t size) {
   precond(this->size() >= size);
 
   _start += size;
-  return ZRange(_start - size, _start, size);
+  _size  -= size;
+
+  return ZRange(_start - size, size, _start);
 }
 
 template <typename Start, typename End>
 inline ZRange<Start, End> ZRange<Start, End>::shrink_from_back(size_t size) {
   precond(this->size() >= size);
 
-  _end -= size;
-  return ZRange(_end, _end + size, size);
+  _size -= size;
+
+  return ZRange(end(), size, end() + size);
 }
 
 template <typename Start, typename End>
 inline ZRange<Start, End> ZRange<Start, End>::partition(size_t offset, size_t partition_size) const {
   precond(size() - offset >= partition_size);
 
-  return ZRange(_start + offset, _start + offset + partition_size, partition_size);
+  return ZRange(_start + offset, partition_size, _start + offset + partition_size);
 }
 
 template <typename Start, typename End>
