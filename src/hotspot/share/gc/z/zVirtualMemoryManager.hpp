@@ -51,6 +51,7 @@ private:
   size_t reserve_discontiguous(size_t size);
 
   size_t reserve(size_t size);
+  void unreserve(const ZVirtualMemory& vmem);
 
   DEBUG_ONLY(size_t force_reserve_discontiguous(size_t size);)
 

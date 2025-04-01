@@ -96,8 +96,8 @@ public:
     _vmr->unreserve();
 
     // Make sure that we still can unreserve the memory before and after
-    ZMapper::unreserve(ZOffset::address_unsafe(bottom.start()), bottom.size());
-    ZMapper::unreserve(ZOffset::address_unsafe(top.start()), top.size());
+    _vmr->unreserve(bottom);
+    _vmr->unreserve(top);
   }
 
   void test_remove_from_low() {

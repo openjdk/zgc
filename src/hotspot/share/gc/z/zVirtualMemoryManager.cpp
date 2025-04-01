@@ -51,15 +51,19 @@ void ZVirtualMemoryReserver::initialize_partition(ZMemoryManager* partition, siz
   partition->anchor_limits();
 }
 
+void ZVirtualMemoryReserver::unreserve(const ZVirtualMemory& vmem) {
+  const zaddress_unsafe addr = ZOffset::address_unsafe(vmem.start());
+
+  // Unregister the reserved memory from NMT
+  ZNMT::unreserve(addr, vmem.size());
+
+  // Unreserve address space
+  pd_unreserve(addr, vmem.size());
+}
+
 void ZVirtualMemoryReserver::unreserve() {
   for (ZVirtualMemory vmem; _virtual_memory_reservation.unregister_first(&vmem);) {
-    const zaddress_unsafe addr = ZOffset::address_unsafe(vmem.start());
-
-    // Unregister the reserved memory from NMT
-    ZNMT::unreserve(addr, vmem.size());
-
-    // Unreserve address space
-    pd_unreserve(addr, vmem.size());
+    unreserve(vmem);
   }
 }
 
