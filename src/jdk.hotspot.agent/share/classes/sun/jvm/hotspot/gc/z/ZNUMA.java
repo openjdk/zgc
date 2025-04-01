@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,39 +19,34 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-#ifndef SHARE_GC_Z_ZNUMA_HPP
-#define SHARE_GC_Z_ZNUMA_HPP
+package sun.jvm.hotspot.gc.z;
 
-#include "gc/z/zGlobals.hpp"
-#include "memory/allStatic.hpp"
-#include "utilities/globalDefinitions.hpp"
+import sun.jvm.hotspot.runtime.VM;
+import sun.jvm.hotspot.types.CIntegerField;
+import sun.jvm.hotspot.types.Type;
+import sun.jvm.hotspot.types.TypeDataBase;
 
-class ZNUMA : public AllStatic {
-  friend class VMStructs;
-  friend class ZNUMATest;
+// Mirror class for ZNUMA
 
-private:
-  static bool     _enabled;
-  static uint32_t _count;
+public class ZNUMA {
 
-  static void pd_initialize();
+    private static CIntegerField countField;
 
-public:
-  static void initialize();
+    static {
+        VM.registerVMInitializedObserver((o, d) -> initialize(VM.getVM().getTypeDataBase()));
+    }
 
-  static bool is_enabled();
-  static bool is_faked();
+    private static synchronized void initialize(TypeDataBase db) {
+        Type type = db.lookupType("ZNUMA");
 
-  static uint32_t count();
-  static uint32_t id();
+        countField = type.getCIntegerField("_count");
+    }
 
-  static uint32_t memory_id(uintptr_t addr);
+    public static long count() {
+        return countField.getValue();
+    }
+}
 
-  static size_t calculate_share(uint32_t numa_id, size_t total, size_t granule = ZGranuleSize, uint32_t ignore_count = 0);
-
-  static const char* to_string();
-};
-
-#endif // SHARE_GC_Z_ZNUMA_HPP
