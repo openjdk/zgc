@@ -1160,7 +1160,7 @@
     <Field type="ulong" contentType="bytes" name="harvested" label="Harvested" />
     <Field type="ulong" contentType="bytes" name="committed" label="Committed" />
     <Field type="uint" name="numHarvested" label="Number of harvested vmems" />
-    <Field type="boolean" name="multiNode" label="Multi-node allocation" />
+    <Field type="boolean" name="multiPartition" label="Multi-partition allocation" />
     <Field type="boolean" name="successful" label="Successful allocation" />
     <Field type="boolean" name="nonBlocking" label="Non-blocking" />
   </Event>
