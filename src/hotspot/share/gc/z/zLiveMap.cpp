@@ -34,14 +34,8 @@
 static const ZStatCounter ZCounterMarkSeqNumResetContention("Contention", "Mark SeqNum Reset Contention", ZStatUnitOpsPerSecond);
 static const ZStatCounter ZCounterMarkSegmentResetContention("Contention", "Mark Segment Reset Contention", ZStatUnitOpsPerSecond);
 
-static size_t bitmap_size(uint32_t size, size_t NumSegments) {
-  // We need at least one bit per segment
-  return MAX2<size_t>(size, NumSegments) * 2;
-}
-
-ZLiveMap::ZLiveMap(uint32_t size)
-  : _bitmap_size(bitmap_size(size, NumSegments)),
-    _segment_size(_bitmap_size / NumSegments),
+ZLiveMap::ZLiveMap(uint32_t object_max_count)
+  : _segment_size((object_max_count == 1 ? 1u : (object_max_count / NumSegments)) * BitsPerObject),
     _segment_shift(log2i_exact(_segment_size)),
     _seqnum(0),
     _live_objects(0),
@@ -51,8 +45,8 @@ ZLiveMap::ZLiveMap(uint32_t size)
     _bitmap(0) {}
 
 void ZLiveMap::initialize_bitmap() {
-  if (_bitmap.size() != _bitmap_size) {
-    _bitmap.initialize(_bitmap_size, false /* clear */);
+  if (_bitmap.size() == 0) {
+    _bitmap.initialize(size_t(_segment_size) * size_t(NumSegments), false /* clear */);
   }
 }
 

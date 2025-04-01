@@ -35,10 +35,10 @@ class ZLiveMap {
   friend class ZLiveMapTest;
 
 private:
-  static const size_t NumSegments = 64;
+  static const uint32_t NumSegments = 64;
+  static const uint32_t BitsPerObject = 2;
 
-  const size_t      _bitmap_size;
-  const size_t      _segment_size;
+  const uint32_t    _segment_size;
   const int         _segment_shift;
 
   volatile uint32_t _seqnum;
@@ -77,7 +77,7 @@ private:
   void iterate_segment(BitMap::idx_t segment, Function function);
 
 public:
-  ZLiveMap(uint32_t size);
+  ZLiveMap(uint32_t object_max_count);
   ZLiveMap(const ZLiveMap& other) = delete;
 
   void reset();
