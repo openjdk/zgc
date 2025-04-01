@@ -141,16 +141,14 @@ inline bool ZArrayIteratorImpl<T, Parallel>::next_parallel(size_t* index) {
 }
 
 template <typename T, bool Parallel>
-inline ZArrayIteratorImpl<T, Parallel>::ZArrayIteratorImpl(const T* array, size_t length, size_t start_index)
-  : _next(start_index),
+inline ZArrayIteratorImpl<T, Parallel>::ZArrayIteratorImpl(const T* array, size_t length)
+  : _next(0),
     _end(length),
-    _array(array) {
-  assert(start_index <= length, "start index out of bounds");
-}
+    _array(array) {}
 
 template <typename T, bool Parallel>
-inline ZArrayIteratorImpl<T, Parallel>::ZArrayIteratorImpl(const ZArray<T>* array, int start_index)
-  : ZArrayIteratorImpl<T, Parallel>(array->is_empty() ? nullptr : array->adr_at(0), (size_t)array->length(), (size_t)start_index) {}
+inline ZArrayIteratorImpl<T, Parallel>::ZArrayIteratorImpl(const ZArray<T>* array)
+  : ZArrayIteratorImpl<T, Parallel>(array->is_empty() ? nullptr : array->adr_at(0), (size_t)array->length()) {}
 
 template <typename T, bool Parallel>
 inline bool ZArrayIteratorImpl<T, Parallel>::next(T* elem) {

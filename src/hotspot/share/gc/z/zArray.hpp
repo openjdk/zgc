@@ -87,8 +87,8 @@ private:
   bool next_parallel(size_t* index);
 
 public:
-  ZArrayIteratorImpl(const T* array, size_t length, size_t start_index = 0);
-  ZArrayIteratorImpl(const ZArray<T>* array, int start_index = 0);
+  ZArrayIteratorImpl(const T* array, size_t length);
+  ZArrayIteratorImpl(const ZArray<T>* array);
 
   bool next(T* elem);
   bool next_index(size_t* index);
