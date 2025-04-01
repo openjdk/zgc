@@ -72,10 +72,6 @@ void ZLiveMap::reset(ZGenerationId id) {
       _live_bytes = 0;
       _live_objects = 0;
 
-      // We lazily initialize the bitmap the first time the page is
-      // marked, i.e. a bit is about to be set for the first time.
-      initialize_bitmap();
-
       // Clear segment claimed/live bits
       segment_live_bits().clear();
       segment_claim_bits().clear();

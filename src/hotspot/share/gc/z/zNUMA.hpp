@@ -40,8 +40,8 @@ private:
 public:
   static void initialize();
 
-  static bool is_faked();
   static bool is_enabled();
+  static bool is_faked();
 
   static uint32_t count();
   static uint32_t id();

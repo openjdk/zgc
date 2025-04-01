@@ -230,7 +230,7 @@ void ZPhysicalMemoryBacking::warn_commit_limits(size_t max_capacity) const {
   // Does nothing
 }
 
-size_t ZPhysicalMemoryBacking::commit(zbacking_offset offset, size_t length, uint32_t /* ignored, no NUMA */) {
+size_t ZPhysicalMemoryBacking::commit(zbacking_offset offset, size_t length, uint32_t /* numa_id - ignored */) {
   log_trace(gc, heap)("Committing memory: %zuM-%zuM (%zuM)",
                       untype(offset) / M, untype(to_zbacking_offset_end(offset, length)) / M, length / M);
 

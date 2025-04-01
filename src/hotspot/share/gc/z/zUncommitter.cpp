@@ -36,7 +36,6 @@ ZUncommitter::ZUncommitter(uint32_t id, ZPartition* partition)
     _partition(partition),
     _lock(),
     _stop(false) {
-
   set_name("ZUncommitter#%u", id);
   create_and_start();
 }
@@ -65,27 +64,27 @@ void ZUncommitter::run_thread() {
 
   while (wait(timeout)) {
     EventZUncommit event;
-    size_t uncommitted = 0;
+    size_t total_uncommitted = 0;
 
     while (should_continue()) {
       // Uncommit chunk
-      const size_t flushed = _partition->uncommit(&timeout);
-      if (flushed == 0) {
+      const size_t uncommitted = _partition->uncommit(&timeout);
+      if (uncommitted == 0) {
         // Done
         break;
       }
 
-      uncommitted += flushed;
+      total_uncommitted += uncommitted;
     }
 
-    if (uncommitted > 0) {
+    if (total_uncommitted > 0) {
       // Update statistics
-      ZStatInc(ZCounterUncommit, uncommitted);
+      ZStatInc(ZCounterUncommit, total_uncommitted);
       log_info(gc, heap)("Uncommitter (%u) Uncommitted: %zuM(%.0f%%)",
-                         _id, uncommitted / M, percent_of(uncommitted, ZHeap::heap()->max_capacity()));
+                         _id, total_uncommitted / M, percent_of(total_uncommitted, ZHeap::heap()->max_capacity()));
 
       // Send event
-      event.commit(uncommitted);
+      event.commit(total_uncommitted);
     }
   }
 }

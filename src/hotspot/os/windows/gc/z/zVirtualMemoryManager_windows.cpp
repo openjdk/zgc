@@ -57,7 +57,7 @@ private:
       ZMapper::coalesce_placeholders(ZOffset::address_unsafe(start), size);
     }
 
-    // Turn the single placeholder covering the memory range into granule
+    // Turn the single placeholder covering the memory area into granule
     // sized placeholders.
     static void split_into_granule_sized_placeholders(zoffset start, size_t size) {
       assert(size >= ZGranuleSize, "Must be at least one granule");
@@ -74,7 +74,7 @@ private:
     static void coalesce_into_one_placeholder(zoffset start, size_t size) {
       assert(is_aligned(size, ZGranuleSize), "Must be granule aligned");
 
-      // Granule sized ranges are already covered by a single placeholder
+      // Granule sized areas are already covered by a single placeholder
       if (size > ZGranuleSize) {
         coalesce_placeholders(start, size);
       }
@@ -82,24 +82,24 @@ private:
 
     // Callback implementations
 
-    // Called when a memory range is returned to the memory manager.
-    // Make sure this range is covered by a single placeholder.
-    static void insert_callback(const ZVirtualMemory& range) {
-      assert(is_aligned(range.size(), ZGranuleSize), "Must be granule aligned");
+    // Called when a memory area is returned to the memory manager.
+    // Make sure this area is covered by a single placeholder.
+    static void insert_callback(const ZVirtualMemory& area) {
+      assert(is_aligned(area.size(), ZGranuleSize), "Must be granule aligned");
 
-      coalesce_into_one_placeholder(range.start(), range.size());
+      coalesce_into_one_placeholder(area.start(), area.size());
     }
 
-    // Called when a memory range is going to be handed out to be used.
-    // This splits the memory range into granule sized placeholders.
-    static void remove_callback(const ZVirtualMemory& range) {
-      assert(is_aligned(range.size(), ZGranuleSize), "Must be granule aligned");
+    // Called when a memory area is going to be handed out to be used.
+    // This splits the memory area into granule sized placeholders.
+    static void remove_callback(const ZVirtualMemory& area) {
+      assert(is_aligned(area.size(), ZGranuleSize), "Must be granule aligned");
 
-      split_into_granule_sized_placeholders(range.start(), range.size());
+      split_into_granule_sized_placeholders(area.start(), area.size());
     }
 
-    // Called when inserting a memory range and it can be merged at the start of an
-    // existing range. Coalesce the underlying placeholders into one.
+    // Called when inserting a memory area and it can be merged at the start of an
+    // existing area. Coalesce the underlying placeholders into one.
     static void grow_callback(const ZVirtualMemory& from, const ZVirtualMemory& to) {
       assert(is_aligned(from.size(), ZGranuleSize), "Must be granule aligned");
       assert(is_aligned(to.size(), ZGranuleSize), "Must be granule aligned");
@@ -109,8 +109,8 @@ private:
       coalesce_into_one_placeholder(to.start(), to.size());
     }
 
-    // Called when a memory range is removed at the front of an existing memory range.
-    // Turn the first part of the memory range into granule sized placeholders.
+    // Called when a memory area is removed at the front of an existing memory area.
+    // Turn the first part of the memory area into granule sized placeholders.
     static void shrink_callback(const ZVirtualMemory& from, const ZVirtualMemory& to) {
       assert(is_aligned(from.size(), ZGranuleSize), "Must be granule aligned");
       assert(is_aligned(to.size(), ZGranuleSize), "Must be granule aligned");
@@ -119,23 +119,23 @@ private:
       assert(from.start() == to.start() || from.end() == to.end(),
              "Only verified to work if we split a placeholder into two placeholders");
 
-      // Split the range into two placeholders
+      // Split the area into two placeholders
       split_placeholder(to.start(), to.size());
     }
 
   public:
     static ZVirtualMemoryManager::ZMemoryManager::Callbacks callbacks() {
-      // Each reserved virtual memory address range registered in _manager is
+      // Each reserved virtual memory address area registered in _manager is
       // exactly covered by a single placeholder. Callbacks are installed so
-      // that whenever a memory range changes, the corresponding placeholder
+      // that whenever a memory area changes, the corresponding placeholder
       // is adjusted.
       //
       // The insert callback is called when virtual memory is returned to the
-      // memory manager. The returned memory range is then covered by a new
+      // memory manager. The returned memory area is then covered by a new
       // single placeholder.
       //
       // The remove callback is called when virtual memory is removed and
-      // handed out to callers. The memory range is split into granule-sized
+      // handed out to callers. The memory area is split into granule-sized
       // placeholders.
       //
       // The grow callback is called when a virtual memory area grows. The

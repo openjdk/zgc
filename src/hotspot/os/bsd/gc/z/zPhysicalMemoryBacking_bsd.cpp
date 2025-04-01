@@ -115,7 +115,7 @@ bool ZPhysicalMemoryBacking::commit_inner(zbacking_offset offset, size_t length)
   return true;
 }
 
-size_t ZPhysicalMemoryBacking::commit(zbacking_offset offset, size_t length, uint32_t /* ignored, no NUMA */) const {
+size_t ZPhysicalMemoryBacking::commit(zbacking_offset offset, size_t length, uint32_t /* numa_id - ignored */) const {
   // Try to commit the whole region
   if (commit_inner(offset, length)) {
     // Success

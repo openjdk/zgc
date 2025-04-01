@@ -30,12 +30,12 @@
 #include "gc/z/zGlobals.hpp"
 #include "utilities/align.hpp"
 
-inline bool ZNUMA::is_faked() {
-  return ZFakeNUMA > 1;
-}
-
 inline bool ZNUMA::is_enabled() {
   return _enabled;
+}
+
+inline bool ZNUMA::is_faked() {
+  return ZFakeNUMA > 1;
 }
 
 inline uint32_t ZNUMA::count() {

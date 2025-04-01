@@ -156,10 +156,10 @@ void ZPage::print_on_msg(outputStream* st, const char* msg) const {
                 type_to_string(), untype(start()), untype(top()), untype(end()),
                 is_young() ? "Y" : "O",
                 seqnum(),
-                is_allocating()  ? " Allocating"  : "",
                 is_relocatable() ? " Relocatable" : "",
-                msg != nullptr && is_allocating() ? " " : "",
-                msg == nullptr ? "" : msg);
+                is_allocating()  ? " Allocating"  : "",
+                is_allocating() && msg != nullptr ? " " : "",
+                msg != nullptr ? msg : "");
 }
 
 void ZPage::print_on(outputStream* st) const {
