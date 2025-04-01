@@ -41,7 +41,7 @@
 #include <type_traits>
 
 // Offset Operator Macro
-// Used to operators for the offset, offset_end style types
+// Creates operators for the offset, offset_end style types
 
 #define CREATE_ZOFFSET_OPERATORS(offset_type)                                             \
                                                                                           \
@@ -75,6 +75,17 @@ inline offset_type& operator-=(offset_type& offset, size_t size) {              
                                                                                           \
   /* Arithmetic operators for offset_type##_end */                                        \
                                                                                           \
+inline offset_type##_end operator+(offset_type##_end offset, size_t size) {               \
+  const auto size_value = checked_cast<std::underlying_type_t<offset_type##_end>>(size);  \
+  return to_##offset_type##_end(untype(offset) + size_value);                             \
+}                                                                                         \
+                                                                                          \
+inline offset_type##_end& operator+=(offset_type##_end& offset, size_t size) {            \
+  const auto size_value = checked_cast<std::underlying_type_t<offset_type##_end>>(size);  \
+  offset = to_##offset_type##_end(untype(offset) + size_value);                           \
+  return offset;                                                                          \
+}                                                                                         \
+                                                                                          \
 inline offset_type##_end operator-(offset_type##_end first, size_t size) {                \
   const auto size_value = checked_cast<std::underlying_type_t<offset_type##_end>>(size);  \
   return to_##offset_type##_end(untype(first) - size_value);                              \
@@ -87,17 +98,6 @@ inline size_t operator-(offset_type##_end first, offset_type##_end second) {    
 inline offset_type##_end& operator-=(offset_type##_end& offset, size_t size) {            \
   const auto size_value = checked_cast<std::underlying_type_t<offset_type##_end>>(size);  \
   offset = to_##offset_type##_end(untype(offset) - size_value);                           \
-  return offset;                                                                          \
-}                                                                                         \
-                                                                                          \
-inline offset_type##_end operator+(offset_type##_end offset, size_t size) {               \
-  const auto size_value = checked_cast<std::underlying_type_t<offset_type##_end>>(size);  \
-  return to_##offset_type##_end(untype(offset) + size_value);                             \
-}                                                                                         \
-                                                                                          \
-inline offset_type##_end& operator+=(offset_type##_end& offset, size_t size) {            \
-  const auto size_value = checked_cast<std::underlying_type_t<offset_type##_end>>(size);  \
-  offset = to_##offset_type##_end(untype(offset) + size_value);                           \
   return offset;                                                                          \
 }                                                                                         \
                                                                                           \
