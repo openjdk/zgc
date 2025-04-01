@@ -50,7 +50,7 @@ TEST(ZVirtualMemory, is_null) {
   EXPECT_TRUE(mem.is_null());
 }
 
-TEST(ZMemoryRange, accessors) {
+TEST(ZVirtualMemory, accessors) {
   ZAddressOffsetMaxSetter setter;
 
   {
@@ -82,7 +82,7 @@ TEST(ZMemoryRange, accessors) {
   }
 }
 
-TEST(ZMemoryRange, resize) {
+TEST(ZVirtualMemory, resize) {
   ZAddressOffsetMaxSetter setter;
 
   ZVirtualMemory mem(zoffset(ZGranuleSize * 2), ZGranuleSize * 2) ;
@@ -112,7 +112,7 @@ TEST(ZMemoryRange, resize) {
   mem.shrink_from_back(ZGranuleSize);
 }
 
-TEST(ZMemoryRange, shrink_from_front) {
+TEST(ZVirtualMemory, shrink_from_front) {
   ZAddressOffsetMaxSetter setter;
 
   ZVirtualMemory mem(zoffset(0), ZGranuleSize * 10);
@@ -133,7 +133,7 @@ TEST(ZMemoryRange, shrink_from_front) {
   EXPECT_EQ(mem3.size(), 0u);
 }
 
-TEST(ZMemoryRange, shrink_from_back) {
+TEST(ZVirtualMemory, shrink_from_back) {
   ZAddressOffsetMaxSetter setter;
 
   ZVirtualMemory mem(zoffset(0), ZGranuleSize * 10);
@@ -147,7 +147,7 @@ TEST(ZMemoryRange, shrink_from_back) {
   EXPECT_EQ(mem.size(), 0u);
 }
 
-TEST(ZMemoryRange, adjacent_to) {
+TEST(ZVirtualMemory, adjacent_to) {
   ZAddressOffsetMaxSetter setter;
 
   ZVirtualMemory mem0(zoffset(0), ZGranuleSize);

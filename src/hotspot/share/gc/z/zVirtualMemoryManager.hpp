@@ -31,6 +31,7 @@
 
 class ZVirtualMemoryReserver {
   friend class ZMapperTest;
+  friend class ZVitualMemoryReserverTest;
 
 private:
   using ZMemoryManager = ZMemoryManagerImpl<ZVirtualMemory>;
