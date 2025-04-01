@@ -163,11 +163,6 @@ inline ZMultiPartitionTracker* ZPage::multi_partition_tracker() const {
   return _multi_partition_tracker;
 }
 
-inline void ZPage::set_multi_partition_tracker(ZMultiPartitionTracker* tracker) {
-  assert(_multi_partition_tracker == nullptr, "only set once");
-  _multi_partition_tracker = tracker;
-}
-
 inline ZPageAge ZPage::age() const {
   return _age;
 }

@@ -41,16 +41,16 @@ class ZPage : public CHeapObj<mtGC> {
   friend class ZForwardingTest;
 
 private:
-  ZPageType               _type;
-  ZGenerationId           _generation_id;
-  ZPageAge                _age;
-  uint32_t                _seqnum;
-  uint32_t                _seqnum_other;
-  ZVirtualMemory          _virtual;
-  volatile zoffset_end    _top;
-  ZLiveMap                _livemap;
-  ZRememberedSet          _remembered_set;
-  ZMultiPartitionTracker* _multi_partition_tracker;
+  const ZPageType               _type;
+  ZGenerationId                 _generation_id;
+  ZPageAge                      _age;
+  uint32_t                      _seqnum;
+  uint32_t                      _seqnum_other;
+  const ZVirtualMemory          _virtual;
+  volatile zoffset_end          _top;
+  ZLiveMap                      _livemap;
+  ZRememberedSet                _remembered_set;
+  ZMultiPartitionTracker* const _multi_partition_tracker;
 
   const char* type_to_string() const;
 
@@ -96,7 +96,6 @@ public:
 
   bool is_multi_partition() const;
   ZMultiPartitionTracker* multi_partition_tracker() const;
-  void set_multi_partition_tracker(ZMultiPartitionTracker* tracker);
 
   ZPageAge age() const;
 
