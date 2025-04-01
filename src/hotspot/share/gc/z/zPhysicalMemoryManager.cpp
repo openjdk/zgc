@@ -56,13 +56,13 @@ ZPhysicalMemoryManager::ZPhysicalMemoryManager(size_t max_capacity)
   const size_t num_segments_total = max_capacity >> ZGranuleSizeShift;
   zbacking_index_end next_index = zbacking_index_end::zero;
   uint32_t numa_id;
-  ZPerNUMAIterator<ZMemoryManager> iter(&_nodes);
+  ZPerNUMAIterator<ZMemoryManager> iter(&_partitions);
   for (ZMemoryManager* manager; iter.next(&manager, &numa_id);) {
     const size_t num_segments = ZNUMA::calculate_share(numa_id, num_segments_total, 1 /* granule */);
 
     if (num_segments == 0) {
-      // If the capacity consist of less granules than the number of nodes some
-      // nodes will be empty.
+      // If the capacity consist of less granules than the number of partitions,
+      // some partitions will be empty.
       break;
     }
 
@@ -127,7 +127,7 @@ void ZPhysicalMemoryManager::alloc(const ZVirtualMemory& vmem, uint32_t numa_id)
 
   while (remaining_segments != 0) {
     // Allocate a range of backing segment indices
-    const ZBackingIndexRange range = _nodes.get(numa_id).remove_from_low_at_most(remaining_segments);
+    const ZBackingIndexRange range = _partitions.get(numa_id).remove_from_low_at_most(remaining_segments);
     assert(!range.is_null(), "Allocation should never fail");
 
     // Insert backing segment indices in pmem
@@ -201,7 +201,7 @@ void ZPhysicalMemoryManager::free(const ZVirtualMemory& vmem, uint32_t numa_id) 
     const zbacking_index index = to_zbacking_index(segment_start);
 
     // Insert the free segment indices
-    _nodes.get(numa_id).insert({index, num_segments});
+    _partitions.get(numa_id).insert({index, num_segments});
   });
 }
 

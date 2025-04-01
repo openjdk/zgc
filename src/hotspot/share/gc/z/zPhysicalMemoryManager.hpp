@@ -37,7 +37,7 @@ private:
   using ZMemoryManager = ZMemoryManagerImpl<ZBackingIndexRange>;
 
   ZPhysicalMemoryBacking      _backing;
-  ZPerNUMA<ZMemoryManager>    _nodes;
+  ZPerNUMA<ZMemoryManager>    _partitions;
   ZGranuleMap<zbacking_index> _physical_mappings;
 
   void copy_to_stash(ZArraySlice<zbacking_index> stash, const ZVirtualMemory& vmem) const;
