@@ -31,6 +31,7 @@
 #include "gc/z/zNMT.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zPhysicalMemoryManager.hpp"
+#include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zValue.inline.hpp"
 #include "logging/log.hpp"
 #include "runtime/globals.hpp"
@@ -43,7 +44,8 @@
 #include "utilities/powerOfTwo.hpp"
 
 ZPhysicalMemoryManager::ZPhysicalMemoryManager(size_t max_capacity)
-  : _backing(max_capacity) {
+  : _backing(max_capacity),
+    _physical_mappings(ZAddressOffsetMax) {
   assert(is_aligned(max_capacity, ZGranuleSize), "must be granule aligned");
 
   // Setup backing storage limits
@@ -103,8 +105,8 @@ void ZPhysicalMemoryManager::try_enable_uncommit(size_t min_capacity, size_t max
 
   // Test if uncommit is supported by the operating system by committing
   // and then uncommitting a granule.
-  const zbacking_index offset{};
-  if (!commit(&offset, ZGranuleSize, (uint32_t)-1) || !uncommit(&offset, ZGranuleSize)) {
+  const ZVirtualMemory vmem(zoffset{}, ZGranuleSize);
+  if (!commit(vmem, (uint32_t)-1) || !uncommit(vmem)) {
     log_info_p(gc, init)("Uncommit: Implicitly Disabled (Not supported by operating system)");
     FLAG_SET_ERGO(ZUncommit, false);
     return;
@@ -114,7 +116,10 @@ void ZPhysicalMemoryManager::try_enable_uncommit(size_t min_capacity, size_t max
   log_info_p(gc, init)("Uncommit Delay: %zus", ZUncommitDelay);
 }
 
-void ZPhysicalMemoryManager::alloc(zbacking_index* pmem, size_t size, uint32_t numa_id) {
+void ZPhysicalMemoryManager::alloc(const ZVirtualMemory& vmem, uint32_t numa_id) {
+  zbacking_index* const pmem = _physical_mappings.addr(vmem.start());
+  const size_t size = vmem.size();
+
   assert(is_aligned(size, ZGranuleSize), "Invalid size");
 
   size_t current_segment = 0;
@@ -186,7 +191,10 @@ bool for_each_segment_apply(const zbacking_index* pmem, size_t size, Function fu
   return true;
 }
 
-void ZPhysicalMemoryManager::free(const zbacking_index* pmem, size_t size, uint32_t numa_id) {
+void ZPhysicalMemoryManager::free(const ZVirtualMemory& vmem, uint32_t numa_id) {
+  zbacking_index* const pmem = _physical_mappings.addr(vmem.start());
+  const size_t size = vmem.size();
+
   // Free segments
   for_each_segment_apply(pmem, size, [&](zbacking_offset segment_start, size_t segment_size) {
     const size_t num_segments = segment_size >> ZGranuleSizeShift;
@@ -197,7 +205,10 @@ void ZPhysicalMemoryManager::free(const zbacking_index* pmem, size_t size, uint3
   });
 }
 
-size_t ZPhysicalMemoryManager::commit(const zbacking_index* pmem, size_t size, uint32_t numa_id) {
+size_t ZPhysicalMemoryManager::commit(const ZVirtualMemory& vmem, uint32_t numa_id) {
+  zbacking_index* const pmem = _physical_mappings.addr(vmem.start());
+  const size_t size = vmem.size();
+
   size_t total_committed = 0;
   // Commit segments
   for_each_segment_apply(pmem, size, [&](zbacking_offset segment_start, size_t segment_size) {
@@ -217,7 +228,10 @@ size_t ZPhysicalMemoryManager::commit(const zbacking_index* pmem, size_t size, u
   return total_committed;
 }
 
-size_t ZPhysicalMemoryManager::uncommit(const zbacking_index* pmem, size_t size) {
+size_t ZPhysicalMemoryManager::uncommit(const ZVirtualMemory& vmem) {
+  zbacking_index* const pmem = _physical_mappings.addr(vmem.start());
+  const size_t size = vmem.size();
+
   size_t total_uncommitted = 0;
   // Uncommit segments
   for_each_segment_apply(pmem, size, [&](zbacking_offset segment_start, size_t segment_size) {
@@ -237,8 +251,10 @@ size_t ZPhysicalMemoryManager::uncommit(const zbacking_index* pmem, size_t size)
 }
 
 // Map virtual memory to physical memory
-void ZPhysicalMemoryManager::map(zoffset offset, const zbacking_index* pmem, size_t size, uint32_t numa_id) const {
-  const zaddress_unsafe addr = ZOffset::address_unsafe(offset);
+void ZPhysicalMemoryManager::map(const ZVirtualMemory& vmem, uint32_t numa_id) const {
+  const zbacking_index* const pmem = _physical_mappings.addr(vmem.start());
+  const zaddress_unsafe addr = ZOffset::address_unsafe(vmem.start());
+  const size_t size = vmem.size();
 
   size_t mapped = 0;
   for_each_segment_apply(pmem, size, [&](zbacking_offset segment_start, size_t segment_size) {
@@ -254,7 +270,91 @@ void ZPhysicalMemoryManager::map(zoffset offset, const zbacking_index* pmem, siz
 }
 
 // Unmap virtual memory from physical memory
-void ZPhysicalMemoryManager::unmap(zoffset offset, const zbacking_index* /* ignored until anon memory support */, size_t size) const {
-  const zaddress_unsafe addr = ZOffset::address_unsafe(offset);
+void ZPhysicalMemoryManager::unmap(const ZVirtualMemory& vmem) const {
+  const zaddress_unsafe addr = ZOffset::address_unsafe(vmem.start());
+  const size_t size = vmem.size();
   _backing.unmap(addr, size);
+}
+
+void ZPhysicalMemoryManager::copy_physical_segments(const ZVirtualMemory& to, const ZVirtualMemory& from) {
+  assert(to.size() == from.size(), "must be of the same size");
+  zbacking_index* const dest = _physical_mappings.addr(to.start());
+  const zbacking_index* const src = _physical_mappings.addr(from.start());
+  const int granule_count = from.granule_count();
+
+  ZUtils::copy_disjoint(dest, src, granule_count);
+}
+
+static void sort_zbacking_index_array(zbacking_index* array, int count) {
+  ZUtils::sort(array, count, [](const zbacking_index* e1, const zbacking_index* e2) {
+    return *e1 < *e2 ? -1 : 1;
+  });
+}
+
+void ZPhysicalMemoryManager::sort_segments_physical(const ZVirtualMemory& vmem) {
+  zbacking_index* const pmem = _physical_mappings.addr(vmem.start());
+  const int granule_count = vmem.granule_count();
+
+  // Sort physical segments
+  sort_zbacking_index_array(pmem, granule_count);
+}
+
+void ZPhysicalMemoryManager::copy_to_stash(ZArraySlice<zbacking_index> stash, const ZVirtualMemory& vmem) const {
+  zbacking_index* const dest = stash.adr_at(0);
+  const zbacking_index* const src = _physical_mappings.addr(vmem.start());
+  const int granule_count = vmem.granule_count();
+
+  // Check bounds
+  assert(granule_count <= stash.length(), "Copy overflow %d <= %d", granule_count, stash.length());
+
+  // Copy to stash
+  ZUtils::copy_disjoint(dest, src, granule_count);
+}
+
+void ZPhysicalMemoryManager::copy_from_stash(const ZArraySlice<const zbacking_index> stash, const ZVirtualMemory& vmem) {
+  zbacking_index* const dest = _physical_mappings.addr(vmem.start());
+  const zbacking_index* const src = stash.adr_at(0);
+  const int granule_count = vmem.granule_count();
+
+  // Check bounds
+  assert(granule_count <= stash.length(), "Copy overflow %d <= %d", granule_count, stash.length());
+
+  // Copy from stash
+  ZUtils::copy_disjoint(dest, src, granule_count);
+}
+
+void ZPhysicalMemoryManager::stash_segments(const ZVirtualMemory& vmem, ZArray<zbacking_index>* stash_out) const {
+  precond(stash_out->is_empty());
+
+  stash_out->at_grow(vmem.granule_count() - 1);
+  copy_to_stash(*stash_out, vmem);
+  sort_zbacking_index_array(stash_out->adr_at(0), stash_out->length());
+}
+
+void ZPhysicalMemoryManager::restore_segments(const ZVirtualMemory& vmem, const ZArray<zbacking_index>& stash) {
+  assert(vmem.granule_count() == stash.length(), "Must match stash size");
+  copy_from_stash(stash, vmem);
+}
+
+void ZPhysicalMemoryManager::stash_segments(const ZArraySlice<const ZVirtualMemory>& vmems, ZArray<zbacking_index>* stash_out) const {
+  precond(stash_out->is_empty());
+
+  int stash_index = 0;
+  for (const ZVirtualMemory& vmem : vmems) {
+    const int granule_count = vmem.granule_count();
+    stash_out->at_grow(stash_index + vmem.granule_count() - 1);
+    copy_to_stash(stash_out->slice_back(stash_index), vmem);
+    stash_index += granule_count;
+  }
+  sort_zbacking_index_array(stash_out->adr_at(0), stash_out->length());
+
+}
+
+void ZPhysicalMemoryManager::restore_segments(const ZArraySlice<const ZVirtualMemory>& vmems, const ZArray<zbacking_index>& stash) {
+  int stash_index = 0;
+  for (const ZVirtualMemory& vmem : vmems) {
+    copy_from_stash(stash.slice_back(stash_index), vmem);
+    stash_index += vmem.granule_count();
+  }
+  assert(stash_index == stash.length(), "Must have emptied the stash");
 }

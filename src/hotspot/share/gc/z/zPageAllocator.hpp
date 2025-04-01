@@ -85,18 +85,10 @@ private:
   const ZPhysicalMemoryManager& physical_memory_manager() const;
   ZPhysicalMemoryManager& physical_memory_manager();
 
-  const ZGranuleMap<zbacking_index>& physical_mappings() const;
-  ZGranuleMap<zbacking_index>& physical_mappings();
-
-  const zbacking_index* physical_mappings_addr(const ZVirtualMemory& vmem) const;
-  zbacking_index* physical_mappings_addr(const ZVirtualMemory& vmem);
-
   void verify_virtual_memory_multi_partition_association(const ZVirtualMemory& vmem) const NOT_DEBUG_RETURN;
   void verify_virtual_memory_association(const ZVirtualMemory& vmem, bool check_multi_partition = false) const NOT_DEBUG_RETURN;
   void verify_virtual_memory_association(const ZArray<ZVirtualMemory>* vmems) const NOT_DEBUG_RETURN;
   void verify_memory_allocation_association(const ZMemoryAllocation* allocation) const NOT_DEBUG_RETURN;
-
-  void copy_physical_segments(const ZVirtualMemory& to, const ZVirtualMemory& from);
 
 public:
   ZPartition(uint32_t numa_id, ZPageAllocator* page_allocator);
@@ -173,7 +165,6 @@ private:
   mutable ZLock               _lock;
   ZVirtualMemoryManager       _virtual;
   ZPhysicalMemoryManager      _physical;
-  ZGranuleMap<zbacking_index> _physical_mappings;
   const size_t                _min_capacity;
   const size_t                _initial_capacity;
   const size_t                _max_capacity;

@@ -40,11 +40,11 @@
 #include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageAllocator.inline.hpp"
 #include "gc/z/zPageType.hpp"
+#include "gc/z/zPhysicalMemoryManager.hpp"
 #include "gc/z/zSafeDelete.inline.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zUncommitter.hpp"
-#include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zValue.inline.hpp"
 #include "gc/z/zVirtualMemoryManager.inline.hpp"
 #include "gc/z/zWorkers.hpp"
@@ -69,12 +69,6 @@ static const ZStatCounter       ZCounterMutatorAllocationRate("Memory", "Allocat
 static const ZStatCounter       ZCounterDefragment("Memory", "Defragment", ZStatUnitOpsPerSecond);
 static const ZStatCriticalPhase ZCriticalPhaseAllocationStall("Allocation Stall");
 
-static void sort_zbacking_index_array(zbacking_index* array, int count) {
-  ZUtils::sort(array, count, [](const zbacking_index* e1, const zbacking_index* e2) {
-    return *e1 < *e2 ? -1 : 1;
-  });
-}
-
 static void check_numa_mismatch(const ZVirtualMemory& vmem, uint32_t desired_id) {
   if (ZNUMA::is_enabled()) {
     // Check if memory ended up on desired NUMA node or not
@@ -84,84 +78,6 @@ static void check_numa_mismatch(const ZVirtualMemory& vmem, uint32_t desired_id)
     }
   }
 }
-
-class ZSegmentStash {
-private:
-  ZGranuleMap<zbacking_index>* const _physical_mappings;
-  ZArray<zbacking_index>             _stash;
-
-  void sort_stashed_segments() {
-    sort_zbacking_index_array(_stash.adr_at(0), _stash.length());
-  }
-
-  void copy_to_stash(int index, const ZVirtualMemory& vmem) {
-    zbacking_index* const dest = _stash.adr_at(index);
-    const zbacking_index* const src = _physical_mappings->addr(vmem.start());
-    const int granule_count = vmem.granule_count();
-
-    // Check bounds
-    assert(index + granule_count <= _stash.length(),
-           "Copy overflow %d + %d <= %d", index, granule_count, _stash.length());
-
-    // Copy to stash
-    ZUtils::copy_disjoint(dest, src, granule_count);
-  }
-
-  void copy_from_stash(int index, const ZVirtualMemory& vmem) {
-    zbacking_index* const dest = _physical_mappings->addr(vmem.start());
-    const zbacking_index* const src = _stash.adr_at(index);
-    const int granule_count = vmem.granule_count();
-
-    // Check bounds
-    assert(index + granule_count <= _stash.length(),
-           "Copy overflow %d + %d <= %d", index, granule_count, _stash.length());
-
-    // Copy from stash
-    ZUtils::copy_disjoint(dest, src, granule_count);
-  }
-
-  void stash(const ZVirtualMemory& vmem) {
-    copy_to_stash(0, vmem);
-    sort_stashed_segments();
-  }
-
-  void stash(const ZArray<ZVirtualMemory>* vmems) {
-    int stash_index = 0;
-    for (const ZVirtualMemory& vmem : *vmems) {
-      const int granule_count = vmem.granule_count();
-      copy_to_stash(stash_index, vmem);
-      stash_index += granule_count;
-    }
-    sort_stashed_segments();
-  }
-
-public:
-  ZSegmentStash(ZGranuleMap<zbacking_index>* physical_mappings, const ZVirtualMemory& vmem)
-    : _physical_mappings(physical_mappings),
-      _stash(vmem.granule_count(), vmem.granule_count(), zbacking_index::zero) {
-    stash(vmem);
-  }
-
-  ZSegmentStash(ZGranuleMap<zbacking_index>* physical_mappings, const ZArray<ZVirtualMemory>* vmems, int granule_count)
-    : _physical_mappings(physical_mappings),
-      _stash(granule_count, granule_count, zbacking_index::zero) {
-    stash(vmems);
-  }
-
-  void pop_all(const ZArraySlice<const ZVirtualMemory>& vmems) {
-    int stash_index = 0;
-    for (const ZVirtualMemory& vmem : vmems) {
-      copy_from_stash(stash_index, vmem);
-      stash_index += vmem.granule_count();
-    }
-    assert(stash_index == _stash.length(), "Must have emptied the stash");
-  }
-
-  void pop_all(const ZVirtualMemory& vmem) {
-    assert(vmem.granule_count() == _stash.length(), "Must match stash size");
-    copy_from_stash(0, vmem);
-  }
-};
 
 class ZMemoryAllocation : public CHeapObj<mtGC> {
 private:
@@ -636,24 +552,6 @@ ZPhysicalMemoryManager& ZPartition::physical_memory_manager() {
   return _page_allocator->_physical;
 }
 
-const ZGranuleMap<zbacking_index>& ZPartition::physical_mappings() const {
-  return _page_allocator->_physical_mappings;
-}
-
-ZGranuleMap<zbacking_index>& ZPartition::physical_mappings() {
-  return _page_allocator->_physical_mappings;
-}
-
-const zbacking_index* ZPartition::physical_mappings_addr(const ZVirtualMemory& vmem) const {
-  const ZGranuleMap<zbacking_index>& mappings = physical_mappings();
-  return mappings.addr(vmem.start());
-}
-
-zbacking_index* ZPartition::physical_mappings_addr(const ZVirtualMemory& vmem) {
-  ZGranuleMap<zbacking_index>& mappings = physical_mappings();
-  return mappings.addr(vmem.start());
-}
-
 #ifdef ASSERT
 
 void ZPartition::verify_virtual_memory_multi_partition_association(const ZVirtualMemory& vmem) const {
@@ -689,15 +587,6 @@ void ZPartition::verify_memory_allocation_association(const ZMemoryAllocation* a
 }
 
 #endif // ASSERT
-
-void ZPartition::copy_physical_segments(const ZVirtualMemory& to, const ZVirtualMemory& from) {
-  assert(to.size() == from.size(), "must be of the same size");
-  zbacking_index* const dest = physical_mappings_addr(to);
-  const zbacking_index* const src = physical_mappings_addr(from);
-  const int granule_count = from.granule_count();
-
-  ZUtils::copy_disjoint(dest, src, granule_count);
-}
 
 ZPartition::ZPartition(uint32_t numa_id, ZPageAllocator* page_allocator)
   : _page_allocator(page_allocator),
@@ -980,44 +869,37 @@ size_t ZPartition::uncommit(uint64_t* timeout) {
 void ZPartition::sort_segments_physical(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem, true /* check_multi_partition */);
 
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const int granule_count = vmem.granule_count();
+  ZPhysicalMemoryManager& manager = physical_memory_manager();
 
   // Sort physical segments
-  sort_zbacking_index_array(pmem, granule_count);
+  manager.sort_segments_physical(vmem);
 }
 
 void ZPartition::claim_physical(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem, true /* check_multi_partition */);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
 
   // Alloc physical memory
-  manager.alloc(pmem, size, _numa_id);
+  manager.alloc(vmem, _numa_id);
 }
 
 void ZPartition::free_physical(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem, true /* check_multi_partition */);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
 
   // Free physical memory
-  manager.free(pmem, size, _numa_id);
+  manager.free(vmem, _numa_id);
 }
 
 size_t ZPartition::commit_physical(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem, true /* check_multi_partition */);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
 
   // Commit physical memory
-  return manager.commit(pmem, size, _numa_id);
+  return manager.commit(vmem, _numa_id);
 }
 
 size_t ZPartition::uncommit_physical(const ZVirtualMemory& vmem) {
@@ -1025,62 +907,47 @@ size_t ZPartition::uncommit_physical(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
-
   // Uncommit physical memory
-  return manager.uncommit(pmem, size);
+  return manager.uncommit(vmem);
 }
 
 void ZPartition::map_virtual(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  const zoffset offset = vmem.start();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
 
   // Map virtual memory to physical memory
-  manager.map(offset, pmem, size, _numa_id);
+  manager.map(vmem, _numa_id);
 }
 
 void ZPartition::unmap_virtual(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  const zoffset offset = vmem.start();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
 
   // Unmap virtual memory from physical memory
-  manager.unmap(offset, pmem, size);
+  manager.unmap(vmem);
 }
 
 void ZPartition::map_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
   verify_virtual_memory_multi_partition_association(vmem);
 
-  // Sort physical segments
-  sort_segments_physical(vmem);
-
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  const zoffset offset = vmem.start();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
+
+  // Sort physical segments
+  manager.sort_segments_physical(vmem);
 
   // Map virtual memory to physical memory
-  manager.map(offset, pmem, size, _numa_id);
+  manager.map(vmem, _numa_id);
 }
 
 void ZPartition::unmap_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
   verify_virtual_memory_multi_partition_association(vmem);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
-  const zoffset offset = vmem.start();
-  zbacking_index* const pmem = physical_mappings_addr(vmem);
-  const size_t size = vmem.size();
 
   // Unmap virtual memory from physical memory
-  manager.unmap(offset, pmem, size);
+  manager.unmap(vmem);
 }
 
 ZVirtualMemory ZPartition::claim_virtual(size_t size) {
@@ -1210,7 +1077,11 @@ ZVirtualMemory ZPartition::prepare_harvested_and_claim_virtual(ZMemoryAllocation
 
   const size_t harvested = allocation->harvested();
   const int granule_count = (int)(harvested >> ZGranuleSizeShift);
-  ZSegmentStash segments(&physical_mappings(), allocation->partial_vmems(), granule_count);
+  ZPhysicalMemoryManager& manager = physical_memory_manager();
+
+  // Stash segments
+  ZArray<zbacking_index> stash(granule_count);
+  manager.stash_segments(*allocation->partial_vmems(), &stash);
 
   // Shuffle virtual memory. We attempt to allocate enough memory to cover the entire
   // allocation size, not just for the harvested memory.
@@ -1219,10 +1090,10 @@ ZVirtualMemory ZPartition::prepare_harvested_and_claim_virtual(ZMemoryAllocation
   // Restore segments
   if (!result.is_null()) {
     // Got exact match. Restore stashed physical segments for the harvested part.
-    segments.pop_all(result.first_part(harvested));
+    manager.restore_segments(result.first_part(harvested), stash);
   } else {
     // Got many partial vmems
-    segments.pop_all(*allocation->partial_vmems());
+    manager.restore_segments(*allocation->partial_vmems(), stash);
   }
 
   if (result.is_null()) {
@@ -1239,16 +1110,21 @@ void ZPartition::copy_physical_segments_to_partition(const ZVirtualMemory& at, c
   verify_virtual_memory_association(at);
   verify_virtual_memory_association(from, true /* check_multi_partition */);
 
+  ZPhysicalMemoryManager& manager = physical_memory_manager();
+
   // Copy segments
-  copy_physical_segments(at, from);
+  manager.copy_physical_segments(at, from);
 }
 
 void ZPartition::copy_physical_segments_from_partition(const ZVirtualMemory& at, const ZVirtualMemory& to) {
   verify_virtual_memory_association(at);
   verify_virtual_memory_association(to, true /* check_multi_partition */);
 
+  ZPhysicalMemoryManager& manager = physical_memory_manager();
+
+
   // Copy segments
-  copy_physical_segments(to, at);
+  manager.copy_physical_segments(to, at);
 }
 
 void ZPartition::commit_increased_capacity(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem) {
@@ -1416,7 +1292,6 @@ ZPageAllocator::ZPageAllocator(size_t min_capacity,
   : _lock(),
     _virtual(max_capacity),
     _physical(max_capacity),
-    _physical_mappings(ZAddressOffsetMax),
     _min_capacity(min_capacity),
     _initial_capacity(initial_capacity),
     _max_capacity(max_capacity),
@@ -2305,7 +2180,8 @@ void ZPageAllocator::remap_and_defragment(const ZVirtualMemory& vmem, ZArray<ZVi
   partition.unmap_virtual(vmem);
 
   // Stash segments
-  ZSegmentStash segments(&_physical_mappings, vmem);
+  ZArray<zbacking_index> stash(vmem.granule_count());
+  _physical.stash_segments(vmem, &stash);
 
   // Shuffle vmem - put new vmems in vmems_out
   const int start_index = vmems_out->length();
@@ -2316,7 +2192,7 @@ void ZPageAllocator::remap_and_defragment(const ZVirtualMemory& vmem, ZArray<ZVi
   ZArraySlice<ZVirtualMemory> defragmented_vmems = vmems_out->slice_back(start_index);
 
   // Restore segments
-  segments.pop_all(defragmented_vmems);
+  _physical.restore_segments(defragmented_vmems, stash);
 
   // Map and pre-touch
   for (const ZVirtualMemory& claimed_vmem : defragmented_vmems) {

@@ -26,6 +26,7 @@
 
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zArray.hpp"
+#include "gc/z/zGranuleMap.hpp"
 #include "gc/z/zMemory.hpp"
 #include "gc/z/zValue.hpp"
 #include "memory/allocation.hpp"
@@ -35,8 +36,12 @@ class ZPhysicalMemoryManager {
 private:
   using ZMemoryManager = ZMemoryManagerImpl<ZBackingIndexRange>;
 
-  ZPhysicalMemoryBacking   _backing;
-  ZPerNUMA<ZMemoryManager> _nodes;
+  ZPhysicalMemoryBacking      _backing;
+  ZPerNUMA<ZMemoryManager>    _nodes;
+  ZGranuleMap<zbacking_index> _physical_mappings;
+
+  void copy_to_stash(ZArraySlice<zbacking_index> stash, const ZVirtualMemory& vmem) const;
+  void copy_from_stash(const ZArraySlice<const zbacking_index> stash, const ZVirtualMemory& vmem);
 
 public:
   ZPhysicalMemoryManager(size_t max_capacity);
@@ -46,14 +51,24 @@ public:
   void warn_commit_limits(size_t max_capacity) const;
   void try_enable_uncommit(size_t min_capacity, size_t max_capacity);
 
-  void alloc(zbacking_index* pmem, size_t size, uint32_t numa_id);
-  void free(const zbacking_index* pmem, size_t size, uint32_t numa_id);
+  void alloc(const ZVirtualMemory& vmem, uint32_t numa_id);
+  void free(const ZVirtualMemory& vmem, uint32_t numa_id);
 
-  size_t commit(const zbacking_index* pmem, size_t size, uint32_t numa_id);
-  size_t uncommit(const zbacking_index* pmem, size_t size);
+  size_t commit(const ZVirtualMemory& vmem, uint32_t numa_id);
+  size_t uncommit(const ZVirtualMemory& vmem);
 
-  void map(zoffset offset, const zbacking_index* pmem, size_t size, uint32_t numa_id) const;
-  void unmap(zoffset offset, const zbacking_index* pmem, size_t size) const;
+  void map(const ZVirtualMemory& vmem, uint32_t numa_id) const;
+  void unmap(const ZVirtualMemory& vmem) const;
+
+  void copy_physical_segments(const ZVirtualMemory& to, const ZVirtualMemory& from);
+
+  void sort_segments_physical(const ZVirtualMemory& vmem);
+
+  void stash_segments(const ZVirtualMemory& vmem, ZArray<zbacking_index>* stash_out) const;
+  void restore_segments(const ZVirtualMemory& vmem, const ZArray<zbacking_index>& stash);
+
+  void stash_segments(const ZArraySlice<const ZVirtualMemory>& vmems, ZArray<zbacking_index>* stash_out) const;
+  void restore_segments(const ZArraySlice<const ZVirtualMemory>& vmems, const ZArray<zbacking_index>& stash);
 };
 
 #endif // SHARE_GC_Z_ZPHYSICALMEMORYMANAGER_HPP
