@@ -68,11 +68,7 @@ private:
   volatile size_t       _current_max_capacity;
   volatile size_t       _capacity;
   volatile size_t       _claimed;
-  volatile size_t       _used;
-  struct {
-    size_t _used_high;
-    size_t _used_low;
-  }                     _collection_stats[2];
+  size_t                _used;
   double                _last_commit;
   double                _last_uncommit;
   size_t                _to_uncommit;
@@ -103,8 +99,6 @@ public:
   void decrease_used(size_t size);
 
   void free_memory(const ZVirtualMemory& vmem);
-
-  void reset_statistics(ZGenerationId id);
 
   void claim_from_cache_or_increase_capacity(ZMemoryAllocation* allocation);
   bool claim_capacity(ZMemoryAllocation* allocation);
@@ -162,7 +156,12 @@ private:
   const size_t                _min_capacity;
   const size_t                _initial_capacity;
   const size_t                _max_capacity;
+  volatile size_t             _total_used;
   volatile size_t             _used_generations[2];
+  struct {
+    size_t _used_high;
+    size_t _used_low;
+  }                           _collection_stats[2];
   ZPerNUMA<ZPartition>        _partitions;
   ZList<ZPageAllocation>      _stalled;
   mutable ZSafeDelete<ZPage>  _safe_destroy;
@@ -228,6 +227,9 @@ private:
 
   size_t sum_available() const;
 
+  void increase_total_used(size_t size);
+  void decrease_total_used(size_t size);
+
   void notify_out_of_memory();
   void restart_gc() const;
 
@@ -287,48 +289,45 @@ public:
 
 class ZPageAllocatorStats {
 private:
-  size_t _min_capacity;
-  size_t _max_capacity;
-  size_t _soft_max_capacity;
-  size_t _freed;
-  size_t _promoted;
-  size_t _compacted;
-  size_t _allocation_stalls;
-
-  size_t _capacity;
-  size_t _used;
-  size_t _used_high;
-  size_t _used_low;
-  size_t _used_generation;
+  const size_t _min_capacity;
+  const size_t _max_capacity;
+  const size_t _soft_max_capacity;
+  const size_t _capacity;
+  const size_t _used;
+  const size_t _used_high;
+  const size_t _used_low;
+  const size_t _used_generation;
+  const size_t _freed;
+  const size_t _promoted;
+  const size_t _compacted;
+  const size_t _allocation_stalls;
 
 public:
   ZPageAllocatorStats(size_t min_capacity,
                       size_t max_capacity,
                       size_t soft_max_capacity,
+                      size_t capacity,
+                      size_t used,
+                      size_t used_high,
+                      size_t used_low,
+                      size_t used_generation,
                       size_t freed,
                       size_t promoted,
                       size_t compacted,
-                      size_t allocation_stalls,
-                      size_t used_generation);
-
-  void increment_stats(size_t capacity,
-                       size_t used,
-                       size_t used_high,
-                       size_t used_low);
+                      size_t allocation_stalls);
 
   size_t min_capacity() const;
   size_t max_capacity() const;
   size_t soft_max_capacity() const;
-  size_t freed() const;
-  size_t promoted() const;
-  size_t compacted() const;
-  size_t allocation_stalls() const;
-
   size_t capacity() const;
   size_t used() const;
   size_t used_high() const;
   size_t used_low() const;
   size_t used_generation() const;
+  size_t freed() const;
+  size_t promoted() const;
+  size_t compacted() const;
+  size_t allocation_stalls() const;
 };
 
 #endif // SHARE_GC_Z_ZPAGEALLOCATOR_HPP
