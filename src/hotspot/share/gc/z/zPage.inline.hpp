@@ -155,6 +155,10 @@ inline const ZVirtualMemory& ZPage::virtual_memory() const {
   return _virtual;
 }
 
+inline uint32_t ZPage::single_partition_id() const {
+  return _single_partition_id;
+}
+
 inline bool ZPage::is_multi_partition() const {
   return _multi_partition_tracker != nullptr;
 }

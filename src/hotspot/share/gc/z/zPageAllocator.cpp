@@ -391,10 +391,11 @@ class ZPageAllocation : public StackObj {
   friend class ZList<ZPageAllocation>;
 
 private:
-  const Ticks                _start_timestamp;
   const ZPageType            _type;
   const size_t               _size;
   const ZAllocationFlags     _flags;
+  const ZPageAge             _age;
+  const Ticks                _start_timestamp;
   const uint32_t             _young_seqnum;
   const uint32_t             _old_seqnum;
   const uint32_t             _initiating_numa_id;
@@ -405,11 +406,12 @@ private:
   ZFuture<bool>              _stall_result;
 
 public:
-  ZPageAllocation(ZPageType type, size_t size, ZAllocationFlags flags)
-    : _start_timestamp(Ticks::now()),
-      _type(type),
+  ZPageAllocation(ZPageType type, size_t size, ZAllocationFlags flags, ZPageAge age)
+    : _type(type),
       _size(size),
       _flags(flags),
+      _age(age),
+      _start_timestamp(Ticks::now()),
       _young_seqnum(ZGeneration::young()->seqnum()),
       _old_seqnum(ZGeneration::old()->seqnum()),
       _initiating_numa_id(ZNUMA::id()),
@@ -435,6 +437,10 @@ public:
 
   ZAllocationFlags flags() const {
     return _flags;
+  }
+
+  ZPageAge age() const {
+    return _age;
   }
 
   uint32_t young_seqnum() const {
@@ -749,7 +755,7 @@ void ZPartition::claim_from_cache_or_increase_capacity(ZMemoryAllocation* alloca
   return;
 }
 
-bool ZPartition::claim_capacity(ZMemoryAllocation* allocation) {
+bool ZPartition::claim_capacity(ZMemoryAllocation* allocation, ZGenerationId generation_id) {
   const size_t size = allocation->size();
 
   if (available() < size) {
@@ -761,6 +767,7 @@ bool ZPartition::claim_capacity(ZMemoryAllocation* allocation) {
 
   // Updated used statistics
   increase_used(size);
+  increase_used_generation(generation_id, size);
 
   // Success
   return true;
@@ -1149,12 +1156,13 @@ void ZPartition::map_memory(ZMemoryAllocation* allocation, const ZVirtualMemory&
   check_numa_mismatch(vmem, allocation->partition().numa_id());
 }
 
-void ZPartition::free_memory_alloc_failed(ZMemoryAllocation* allocation) {
+void ZPartition::free_memory_alloc_failed(ZMemoryAllocation* allocation, ZGenerationId generation_id) {
   verify_memory_allocation_association(allocation);
 
   // Only decrease the overall used and not the generation used,
   // since the allocation failed and generation used wasn't bumped.
   decrease_used(allocation->size());
+  decrease_used_generation(generation_id, allocation->size());
 
   size_t freed = 0;
 
@@ -1472,13 +1480,11 @@ static void check_out_of_memory_during_initialization() {
 ZPage* ZPageAllocator::alloc_page(ZPageType type, size_t size, ZAllocationFlags flags, ZPageAge age) {
   EventZPageAllocation event;
 
-  ZPageAllocation allocation(type, size, flags);
+  ZPageAllocation allocation(type, size, flags, age);
   ZPage* const page = alloc_page_inner(&allocation);
   if (page == nullptr) {
     return nullptr;
   }
-
-  alloc_page_age_update(&allocation, page, age);
 
   // Update allocation statistics. Exclude gc relocations to avoid
   // artificial inflation of the allocation rate during relocation.
@@ -1555,7 +1561,7 @@ retry:
   // mapped cache then the allocation has been satisfied and we are done.
   const ZVirtualMemory cached_vmem = satisfied_from_cache_vmem(allocation);
   if (!cached_vmem.is_null()) {
-    return new ZPage(allocation->type(), cached_vmem);
+    return create_page(allocation, cached_vmem);
   }
 
   // We couldn't find a satisfying vmem in the cache, so we need to build one.
@@ -1579,12 +1585,7 @@ retry:
     goto retry;
   }
 
-  // We need to keep track of the physical memory's original partitions
-  ZMultiPartitionTracker* const tracker = allocation->is_multi_partition()
-      ? ZMultiPartitionTracker::create(allocation->multi_partition_allocation(), vmem)
-      : nullptr;
-
-  return new ZPage(allocation->type(), vmem, tracker);
+  return create_page(allocation, vmem);
 }
 
 bool ZPageAllocator::claim_capacity_or_stall(ZPageAllocation* allocation) {
@@ -1613,13 +1614,15 @@ bool ZPageAllocator::claim_capacity_or_stall(ZPageAllocation* allocation) {
 bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation) {
   const uint32_t start_node = allocation->initiating_numa_id();
   const uint32_t numa_nodes = ZNUMA::count();
+  const ZGenerationId generation_id = allocation->age() == ZPageAge::old
+    ? ZGenerationId::old : ZGenerationId::young;
 
   // Round robin single-partition claiming
 
   for (uint32_t i = 0; i < numa_nodes; ++i) {
     const uint32_t numa_id = (start_node + i) % numa_nodes;
 
-    if (claim_capacity_single_partition(allocation->single_partition_allocation(), numa_id)) {
+    if (claim_capacity_single_partition(allocation->single_partition_allocation(), numa_id, generation_id)) {
       return true;
     }
   }
@@ -1636,18 +1639,18 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation) {
 
   ZMultiPartitionAllocation* const multi_partition_allocation = allocation->multi_partition_allocation();
 
-  claim_capacity_multi_partition(multi_partition_allocation, start_node);
+  claim_capacity_multi_partition(multi_partition_allocation, start_node, generation_id);
 
   return true;
 }
 
-bool ZPageAllocator::claim_capacity_single_partition(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id) {
+bool ZPageAllocator::claim_capacity_single_partition(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id, ZGenerationId generation_id) {
   ZPartition& partition = _partitions.get(partition_id);
 
-  return partition.claim_capacity(single_partition_allocation->allocation());
+  return partition.claim_capacity(single_partition_allocation->allocation(), generation_id);
 }
 
-void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition) {
+void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition, ZGenerationId generation_id) {
   const size_t size = multi_partition_allocation->size();
   const uint32_t numa_nodes = ZNUMA::count();
   const size_t split_size = align_up(size / numa_nodes, ZGranuleSize);
@@ -1674,7 +1677,7 @@ void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* m
     ZMemoryAllocation partial_allocation(alloc_size);
 
     // Claim capacity for this allocation - this should succeed
-    const bool result = partition.claim_capacity(&partial_allocation);
+    const bool result = partition.claim_capacity(&partial_allocation, generation_id);
     assert(result, "Should have succeeded");
 
     // Register allocation
@@ -2061,10 +2064,13 @@ void ZPageAllocator::free_memory_alloc_failed(ZPageAllocation* allocation) {
   // The current max capacity may be decreased, store the value before freeing memory
   const size_t current_max_capacity_before = current_max_capacity();
 
+  const ZGenerationId generation_id = allocation->age() == ZPageAge::old
+    ? ZGenerationId::old : ZGenerationId::young;
+
   if (allocation->is_multi_partition()) {
-    free_memory_alloc_failed_multi_partition(allocation->multi_partition_allocation());
+    free_memory_alloc_failed_multi_partition(allocation->multi_partition_allocation(), generation_id);
   } else {
-    free_memory_alloc_failed_single_partition(allocation->single_partition_allocation());
+    free_memory_alloc_failed_single_partition(allocation->single_partition_allocation(), generation_id);
   }
 
   const size_t current_max_capacity_after = current_max_capacity();
@@ -2077,61 +2083,38 @@ void ZPageAllocator::free_memory_alloc_failed(ZPageAllocation* allocation) {
   }
 }
 
-void ZPageAllocator::free_memory_alloc_failed_single_partition(ZSinglePartitionAllocation* single_partition_allocation) {
-  free_memory_alloc_failed(single_partition_allocation->allocation());
+void ZPageAllocator::free_memory_alloc_failed_single_partition(ZSinglePartitionAllocation* single_partition_allocation, ZGenerationId generation_id) {
+  free_memory_alloc_failed(single_partition_allocation->allocation(), generation_id);
 }
 
-void ZPageAllocator::free_memory_alloc_failed_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation) {
+void ZPageAllocator::free_memory_alloc_failed_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, ZGenerationId generation_id) {
   for (ZMemoryAllocation* allocation : *multi_partition_allocation->allocations()) {
-    free_memory_alloc_failed(allocation);
+    free_memory_alloc_failed(allocation, generation_id);
   }
 }
 
-void ZPageAllocator::free_memory_alloc_failed(ZMemoryAllocation* allocation) {
+void ZPageAllocator::free_memory_alloc_failed(ZMemoryAllocation* allocation, ZGenerationId generation_id) {
   ZPartition& partition = allocation->partition();
 
-  partition.free_memory_alloc_failed(allocation);
+  partition.free_memory_alloc_failed(allocation, generation_id);
 }
 
-void ZPageAllocator::alloc_page_age_update(ZPageAllocation* allocation, ZPage* page, ZPageAge age) {
-  // The generation's used is tracked here when the page is handed out
-  // to the allocating thread. The overall heap "used" is tracked in
-  // the lower-level allocation code.
-  const ZGenerationId id = age == ZPageAge::old ? ZGenerationId::old : ZGenerationId::young;
-
-  increase_used_generation(allocation, id);
-
-  // Reset page. This updates the page's sequence number and must
-  // be done after we potentially blocked in a safepoint (stalled)
-  // where the global sequence number was updated.
-  page->reset(age);
-  if (age == ZPageAge::old) {
-    page->remset_alloc();
-  }
-}
-
-void ZPageAllocator::increase_used_generation(const ZPageAllocation* allocation, ZGenerationId id) {
+ZPage* ZPageAllocator::create_page(ZPageAllocation* allocation, const ZVirtualMemory& vmem) {
   if (allocation->is_multi_partition()) {
-    increase_used_generation_multi_partition(allocation->multi_partition_allocation(), id);
+    return create_page_multi_partition(allocation->multi_partition_allocation(), vmem, allocation->type(), allocation->age());
   } else {
-    increase_used_generation_single_partition(allocation->single_partition_allocation(), id);
+    return create_page_single_partition(allocation->single_partition_allocation(), vmem, allocation->type(), allocation->age());
   }
 }
 
-void ZPageAllocator::increase_used_generation_multi_partition(const ZMultiPartitionAllocation* multi_partition_allocation, ZGenerationId id) {
-  for (ZMemoryAllocation* allocation : *multi_partition_allocation->allocations()) {
-    increase_used_generation(allocation, id);
-  }
+ZPage* ZPageAllocator::create_page_single_partition(ZSinglePartitionAllocation* single_partition_allocation, const ZVirtualMemory& vmem, ZPageType type, ZPageAge age) {
+  const uint32_t partition_id = single_partition_allocation->allocation()->partition().numa_id();
+  return new ZPage(type, age, vmem, partition_id);
 }
 
-void ZPageAllocator::increase_used_generation_single_partition(const ZSinglePartitionAllocation* single_mode_allocation, ZGenerationId id) {
-  increase_used_generation(single_mode_allocation->allocation(), id);
-}
-
-void ZPageAllocator::increase_used_generation(const ZMemoryAllocation* allocation, ZGenerationId id) {
-  ZPartition& partition = allocation->partition();
-  const size_t size = allocation->size();
-  partition.increase_used_generation(id, size);
+ZPage* ZPageAllocator::create_page_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, const ZVirtualMemory& vmem, ZPageType type, ZPageAge age) {
+  ZMultiPartitionTracker* const tracker = ZMultiPartitionTracker::create(multi_partition_allocation, vmem);
+  return new ZPage(type, age, vmem, tracker);
 }
 
 void ZPageAllocator::prepare_memory_for_free(ZPage* page, ZArray<ZVirtualMemory>* vmems) {

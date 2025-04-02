@@ -111,7 +111,7 @@ public:
   void reset_statistics(ZGenerationId id);
 
   void claim_from_cache_or_increase_capacity(ZMemoryAllocation* allocation);
-  bool claim_capacity(ZMemoryAllocation* allocation);
+  bool claim_capacity(ZMemoryAllocation* allocation, ZGenerationId id);
 
   void promote_used(size_t size);
 
@@ -147,7 +147,7 @@ public:
   void commit_increased_capacity(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem);
   void map_memory(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem);
 
-  void free_memory_alloc_failed(ZMemoryAllocation* allocation);
+  void free_memory_alloc_failed(ZMemoryAllocation* allocation, ZGenerationId generation_id);
 
   void threads_do(ThreadClosure* tc) const;
 
@@ -178,8 +178,8 @@ private:
 
   bool claim_capacity_or_stall(ZPageAllocation* allocation);
   bool claim_capacity(ZPageAllocation* allocation);
-  bool claim_capacity_single_partition(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id);
-  void claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition);
+  bool claim_capacity_single_partition(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id, ZGenerationId generation_id);
+  void claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition, ZGenerationId generation_id);
 
   ZVirtualMemory satisfied_from_cache_vmem(const ZPageAllocation* allocation) const;
 
@@ -213,16 +213,13 @@ private:
   void free_after_alloc_page_failed(ZPageAllocation* allocation);
 
   void free_memory_alloc_failed(ZPageAllocation* allocation);
-  void free_memory_alloc_failed_single_partition(ZSinglePartitionAllocation* single_partition_allocation);
-  void free_memory_alloc_failed_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation);
-  void free_memory_alloc_failed(ZMemoryAllocation* allocation);
+  void free_memory_alloc_failed_single_partition(ZSinglePartitionAllocation* single_partition_allocation, ZGenerationId generation_id);
+  void free_memory_alloc_failed_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, ZGenerationId generation_id);
+  void free_memory_alloc_failed(ZMemoryAllocation* allocation, ZGenerationId generation_id);
 
-  void alloc_page_age_update(ZPageAllocation* allocation, ZPage* page, ZPageAge age);
-
-  void increase_used_generation(const ZPageAllocation* allocation, ZGenerationId id);
-  void increase_used_generation_single_partition(const ZSinglePartitionAllocation* single_mode_allocation, ZGenerationId id);
-  void increase_used_generation_multi_partition(const ZMultiPartitionAllocation* multi_partition_allocation, ZGenerationId id);
-  void increase_used_generation(const ZMemoryAllocation* allocation, ZGenerationId id);
+  ZPage* create_page(ZPageAllocation* allocation, const ZVirtualMemory& vmem);
+  ZPage* create_page_single_partition(ZSinglePartitionAllocation* single_partition_allocation, const ZVirtualMemory& vmem, ZPageType type, ZPageAge age);
+  ZPage* create_page_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, const ZVirtualMemory& vmem, ZPageType type, ZPageAge age);
 
   void prepare_memory_for_free(ZPage* page, ZArray<ZVirtualMemory>* vmems);
   void remap_and_defragment(const ZVirtualMemory& vmem, ZArray<ZVirtualMemory>* vmems_out);

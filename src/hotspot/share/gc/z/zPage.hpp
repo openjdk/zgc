@@ -46,6 +46,7 @@ private:
   ZPageAge                      _age;
   uint32_t                      _seqnum;
   uint32_t                      _seqnum_other;
+  const uint32_t                _single_partition_id;
   const ZVirtualMemory          _virtual;
   volatile zoffset_end          _top;
   ZLiveMap                      _livemap;
@@ -66,11 +67,13 @@ private:
 
   void reset_seqnum();
 
-public:
-  ZPage(ZPageType type, const ZVirtualMemory& vmem);
-  ZPage(ZPageType type, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker);
+  ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id);
 
-  ZPage* clone_limited() const;
+public:
+  ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t partition_id);
+  ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker);
+
+  ZPage* clone_for_promotion() const;
 
   uint32_t object_max_count() const;
   size_t object_alignment_shift() const;
@@ -94,6 +97,7 @@ public:
 
   const ZVirtualMemory& virtual_memory() const;
 
+  uint32_t single_partition_id() const;
   bool is_multi_partition() const;
   ZMultiPartitionTracker* multi_partition_tracker() const;
 
@@ -103,7 +107,7 @@ public:
   bool is_allocating() const;
   bool is_relocatable() const;
 
-  void reset(ZPageAge age);
+  ZPage* reset(ZPageAge age);
   void reset_livemap();
   void reset_top_for_allocation();
 

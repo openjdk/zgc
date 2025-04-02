@@ -24,19 +24,18 @@
 #include "gc/shared/gc_globals.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
+#include "gc/z/zPageAge.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
-ZPage::ZPage(ZPageType type, const ZVirtualMemory& vmem)
-  : ZPage(type, vmem, nullptr /* multi_partition_tracker */) {}
-
-ZPage::ZPage(ZPageType type, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker)
+ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id)
   : _type(type),
-    _generation_id(ZGenerationId::young),
-    _age(ZPageAge::eden),
-    _seqnum(0),
-    _seqnum_other(0),
+    _generation_id(/* set in reset */),
+    _age(/* set in reset */),
+    _seqnum(/* set in reset */),
+    _seqnum_other(/* set in reset */),
+    _single_partition_id(partition_id),
     _virtual(vmem),
     _top(to_zoffset_end(start())),
     _livemap(object_max_count()),
@@ -47,12 +46,24 @@ ZPage::ZPage(ZPageType type, const ZVirtualMemory& vmem, ZMultiPartitionTracker*
          (_type == ZPageType::medium && size() == ZPageSizeMedium) ||
          (_type == ZPageType::large && is_aligned(size(), ZGranuleSize)),
          "Page type/size mismatch");
+  reset(age);
+
+  if (is_old()) {
+    remset_alloc();
+  }
 }
 
-ZPage* ZPage::clone_limited() const {
+ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t partition_id)
+  : ZPage(type, age, vmem, nullptr /* multi_partition_tracker */, partition_id) {}
+
+ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker)
+  : ZPage(type, age, vmem, multi_partition_tracker, -1u /* partition_id */) {}
+
+ZPage* ZPage::clone_for_promotion() const {
+  assert(_age != ZPageAge::old, "must be used for promotion");
   // Only copy type and memory layouts, and also update _top. Let the rest be
   // lazily reconstructed when needed.
-  ZPage* const page = new ZPage(_type, _virtual, _multi_partition_tracker);
+  ZPage* const page = new ZPage(_type, ZPageAge::old, _virtual, _multi_partition_tracker, _single_partition_id);
   page->_top = _top;
 
   return page;
@@ -79,7 +90,7 @@ void ZPage::remset_alloc() {
   _remembered_set.initialize(size());
 }
 
-void ZPage::reset(ZPageAge age) {
+ZPage* ZPage::reset(ZPageAge age) {
   _age = age;
 
   _generation_id = age == ZPageAge::old
@@ -87,6 +98,8 @@ void ZPage::reset(ZPageAge age) {
       : ZGenerationId::young;
 
   reset_seqnum();
+
+  return this;
 }
 
 void ZPage::reset_livemap() {
