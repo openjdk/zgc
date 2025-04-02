@@ -568,8 +568,6 @@ size_t ZMappedCache::remove_from_min(size_t max_size, ZArray<ZVirtualMemory>* ou
 }
 
 void ZMappedCache::print_on(outputStream* st) const {
-  streamIndentor indentor(st, 1);
-
   st->print("Cache");
   st->fill_to(17);
   st->print_cr("size %zuM, entry count %zu", _size / M, _entry_count);
@@ -586,7 +584,7 @@ void ZMappedCache::print_on(outputStream* st) const {
   }
 
   // Print information on size classes
-  streamIndentor indentor_l2(st, 1);
+  streamIndentor indentor(st, 1);
 
   st->print("size classes");
   st->fill_to(17);
