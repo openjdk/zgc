@@ -69,7 +69,6 @@ private:
   volatile size_t       _capacity;
   volatile size_t       _claimed;
   volatile size_t       _used;
-  size_t                _used_generations[2];
   struct {
     size_t _used_high;
     size_t _used_low;
@@ -103,17 +102,12 @@ public:
   void increase_used(size_t size);
   void decrease_used(size_t size);
 
-  void increase_used_generation(ZGenerationId id, size_t size);
-  void decrease_used_generation(ZGenerationId id, size_t size);
-
-  void free_memory(ZGenerationId id, const ZVirtualMemory& vmem);
+  void free_memory(const ZVirtualMemory& vmem);
 
   void reset_statistics(ZGenerationId id);
 
   void claim_from_cache_or_increase_capacity(ZMemoryAllocation* allocation);
-  bool claim_capacity(ZMemoryAllocation* allocation, ZGenerationId id);
-
-  void promote_used(size_t size);
+  bool claim_capacity(ZMemoryAllocation* allocation);
 
   size_t uncommit(uint64_t* timeout);
 
@@ -147,7 +141,7 @@ public:
   void commit_increased_capacity(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem);
   void map_memory(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem);
 
-  void free_memory_alloc_failed(ZMemoryAllocation* allocation, ZGenerationId generation_id);
+  void free_memory_alloc_failed(ZMemoryAllocation* allocation);
 
   void threads_do(ThreadClosure* tc) const;
 
@@ -168,6 +162,7 @@ private:
   const size_t                _min_capacity;
   const size_t                _initial_capacity;
   const size_t                _max_capacity;
+  volatile size_t             _used_generations[2];
   ZPerNUMA<ZPartition>        _partitions;
   ZList<ZPageAllocation>      _stalled;
   mutable ZSafeDelete<ZPage>  _safe_destroy;
@@ -178,8 +173,8 @@ private:
 
   bool claim_capacity_or_stall(ZPageAllocation* allocation);
   bool claim_capacity(ZPageAllocation* allocation);
-  bool claim_capacity_single_partition(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id, ZGenerationId generation_id);
-  void claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition, ZGenerationId generation_id);
+  bool claim_capacity_single_partition(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id);
+  void claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition);
 
   ZVirtualMemory satisfied_from_cache_vmem(const ZPageAllocation* allocation) const;
 
@@ -213,17 +208,15 @@ private:
   void free_after_alloc_page_failed(ZPageAllocation* allocation);
 
   void free_memory_alloc_failed(ZPageAllocation* allocation);
-  void free_memory_alloc_failed_single_partition(ZSinglePartitionAllocation* single_partition_allocation, ZGenerationId generation_id);
-  void free_memory_alloc_failed_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, ZGenerationId generation_id);
-  void free_memory_alloc_failed(ZMemoryAllocation* allocation, ZGenerationId generation_id);
+  void free_memory_alloc_failed_single_partition(ZSinglePartitionAllocation* single_partition_allocation);
+  void free_memory_alloc_failed_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation);
+  void free_memory_alloc_failed(ZMemoryAllocation* allocation);
 
   ZPage* create_page(ZPageAllocation* allocation, const ZVirtualMemory& vmem);
-  ZPage* create_page_single_partition(ZSinglePartitionAllocation* single_partition_allocation, const ZVirtualMemory& vmem, ZPageType type, ZPageAge age);
-  ZPage* create_page_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, const ZVirtualMemory& vmem, ZPageType type, ZPageAge age);
 
   void prepare_memory_for_free(ZPage* page, ZArray<ZVirtualMemory>* vmems);
   void remap_and_defragment(const ZVirtualMemory& vmem, ZArray<ZVirtualMemory>* vmems_out);
-  void free_memory(ZGenerationId id, ZArray<ZVirtualMemory>* vmems);
+  void free_memory(ZArray<ZVirtualMemory>* vmems);
 
   void satisfy_stalled();
 
@@ -259,6 +252,9 @@ public:
   size_t used() const;
   size_t used_generation(ZGenerationId id) const;
   size_t unused() const;
+
+  void increase_used_generation(ZGenerationId id, size_t size);
+  void decrease_used_generation(ZGenerationId id, size_t size);
 
   void promote_used(const ZPage* from, const ZPage* to);
 
@@ -312,13 +308,13 @@ public:
                       size_t freed,
                       size_t promoted,
                       size_t compacted,
-                      size_t allocation_stalls);
+                      size_t allocation_stalls,
+                      size_t used_generation);
 
   void increment_stats(size_t capacity,
                        size_t used,
                        size_t used_high,
-                       size_t used_low,
-                       size_t used_generation);
+                       size_t used_low);
 
   size_t min_capacity() const;
   size_t max_capacity() const;

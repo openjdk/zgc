@@ -32,7 +32,8 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t min_capacity,
                                                 size_t freed,
                                                 size_t promoted,
                                                 size_t compacted,
-                                                size_t allocation_stalls)
+                                                size_t allocation_stalls,
+                                                size_t use_generation)
   : _min_capacity(min_capacity),
     _max_capacity(max_capacity),
     _soft_max_capacity(soft_max_capacity),
@@ -44,18 +45,16 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t min_capacity,
     _used(0),
     _used_high(0),
     _used_low(0),
-    _used_generation(0) {}
+    _used_generation(use_generation) {}
 
 inline void ZPageAllocatorStats::increment_stats(size_t capacity,
                                                  size_t used,
                                                  size_t used_high,
-                                                 size_t used_low,
-                                                 size_t used_generation) {
+                                                 size_t used_low) {
   _capacity += capacity;
   _used += used;
   _used_high += used_high;
   _used_low += used_low;
-  _used_generation += used_generation;
 }
 
 inline size_t ZPageAllocatorStats::min_capacity() const {
