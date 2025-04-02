@@ -106,6 +106,16 @@ ZArraySlice<const T> ZArray<T>::slice(int start, int end) const {
   return ZArraySlice<const T>(this->_data + start, end - start);
 }
 
+template <typename T>
+ZArray<T>::operator ZArraySlice<T>() {
+  return slice(0, this->_len);
+}
+
+template <typename T>
+ZArray<T>::operator ZArraySlice<const T>() const {
+  return slice(0, this->_len);
+}
+
 template <typename T, bool Parallel>
 inline bool ZArrayIteratorImpl<T, Parallel>::next_serial(size_t* index) {
   if (_next == _end) {
@@ -116,16 +126,6 @@ inline bool ZArrayIteratorImpl<T, Parallel>::next_serial(size_t* index) {
   _next++;
 
   return true;
-}
-
-template <typename T>
-ZArray<T>::operator ZArraySlice<T>() {
-  return slice(0, this->_len);
-}
-
-template <typename T>
-ZArray<T>::operator ZArraySlice<const T>() const {
-  return slice(0, this->_len);
 }
 
 template <typename T, bool Parallel>

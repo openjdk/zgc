@@ -113,7 +113,7 @@
                                                                             \
   develop(uint, ZFakeNUMA, 1,                                               \
           "ZFakeNUMA is used to test the internal NUMA memory support "     \
-          "without the need for UseNUMA (Linux Only)")                      \
+          "without the need for UseNUMA")                                   \
           range(1, 16)                                                      \
                                                                             \
   develop(size_t, ZForceDiscontiguousHeapReservations, 0,                   \

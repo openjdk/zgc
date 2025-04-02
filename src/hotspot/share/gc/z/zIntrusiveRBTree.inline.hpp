@@ -190,8 +190,8 @@ inline ZIntrusiveRBTreeNode::Color ZIntrusiveRBTreeNode::color() const {
   return _colored_parent.color();
 }
 
-inline bool ZIntrusiveRBTreeNode::is_black() const { return
-  _colored_parent.is_black();
+inline bool ZIntrusiveRBTreeNode::is_black() const {
+  return _colored_parent.is_black();
 }
 
 inline bool ZIntrusiveRBTreeNode::is_red() const {

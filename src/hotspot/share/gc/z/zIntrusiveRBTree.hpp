@@ -39,9 +39,12 @@ public:
 
 private:
   class ColoredNodePtr {
+  private:
     static constexpr uintptr_t COLOR_MASK = 0b1;
     static constexpr uintptr_t NODE_MASK = ~COLOR_MASK;
+
     uintptr_t _value;
+
   public:
     ColoredNodePtr(ZIntrusiveRBTreeNode* node = nullptr, Color color = RED);
 
@@ -126,6 +129,7 @@ class ZIntrusiveRBTree {
 public:
   class FindCursor {
     friend class ZIntrusiveRBTree<Key, Compare>;
+
   private:
     ZIntrusiveRBTreeNode** _insert_location;
     ZIntrusiveRBTreeNode* _parent;
