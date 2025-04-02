@@ -34,7 +34,7 @@ class ZTest : public testing::Test {
 private:
   unsigned int _rand_seed;
 
-public:
+protected:
   ZTest()
     : _rand_seed(static_cast<unsigned int>(::testing::UnitTest::GetInstance()->random_seed())) {
       // Initialize ZGC subsystems for gtests, may only be called once per process.
