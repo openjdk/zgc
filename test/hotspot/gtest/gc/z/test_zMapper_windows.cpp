@@ -34,15 +34,13 @@
 #include "gc/z/zValue.inline.hpp"
 #include "gc/z/zVirtualMemoryManager.hpp"
 #include "runtime/os.hpp"
-#include "unittest.hpp"
-
-void ZVirtualMemoryReserverImpl_initialize();
+#include "zunittest.hpp"
 
 using namespace testing;
 
 #define EXPECT_REMOVAL_OK(range) EXPECT_FALSE(range.is_null())
 
-class ZMapperTest : public Test {
+class ZMapperTest : public ZTest {
 public:
   virtual void SetUp() {
     // Only run test on supported Windows versions
@@ -50,12 +48,6 @@ public:
       GTEST_SKIP() << "Requires Windows version 1803 or later";
       return;
     }
-
-    static bool runs_once = [&]() {
-      ZInitialize::pd_initialize();
-      ZGlobalsPointers::initialize();
-      return true;
-    }();
   }
 
   virtual void TearDown() {

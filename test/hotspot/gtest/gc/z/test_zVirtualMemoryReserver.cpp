@@ -31,7 +31,7 @@
 #include "gc/z/zValue.inline.hpp"
 #include "gc/z/zVirtualMemoryManager.hpp"
 #include "runtime/os.hpp"
-#include "unittest.hpp"
+#include "zunittest.hpp"
 
 using namespace testing;
 
@@ -39,7 +39,7 @@ using namespace testing;
 
 using ZMemoryManager = ZMemoryManagerImpl<ZVirtualMemory>;
 
-class ZVitualMemoryReserverTest : public Test {
+class ZVitualMemoryReserverTest : public ZTest {
 private:
   static constexpr size_t ReservationSize = 32 * M;
 
@@ -53,13 +53,6 @@ public:
       GTEST_SKIP() << "OS not supported";
       return;
     }
-
-    static bool runs_once = [&]() {
-      ZInitialize::pd_initialize();
-      ZGlobalsPointers::initialize();
-      ZNUMA::initialize();
-      return true;
-    }();
 
     void* vmr_mem = os::malloc(sizeof(ZVirtualMemoryReserver), mtTest);
     _vmr = ::new (vmr_mem) ZVirtualMemoryReserver(ReservationSize);
