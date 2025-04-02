@@ -25,6 +25,7 @@
 #define ZUNITTEST_HPP
 
 #include "gc/z/zAddress.hpp"
+#include "gc/z/zArguments.hpp"
 #include "gc/z/zInitialize.hpp"
 #include "gc/z/zNUMA.hpp"
 #include "runtime/os.hpp"
@@ -37,19 +38,28 @@ private:
 protected:
   ZTest()
     : _rand_seed(static_cast<unsigned int>(::testing::UnitTest::GetInstance()->random_seed())) {
-      // Initialize ZGC subsystems for gtests, may only be called once per process.
-      static bool runs_once = [&]() {
-        ZInitialize::pd_initialize();
-        ZGlobalsPointers::initialize();
-        ZNUMA::initialize();
-        return true;
-      }();
+    if (!is_os_supported()) {
+      // If the OS does not support ZGC do not run initialization, as it may crash the VM.
+      return;
     }
+
+    // Initialize ZGC subsystems for gtests, may only be called once per process.
+    static bool runs_once = [&]() {
+      ZInitialize::pd_initialize();
+      ZGlobalsPointers::initialize();
+      ZNUMA::initialize();
+      return true;
+    }();
+  }
 
   int random() {
     const int next_seed = os::next_random(_rand_seed);
     _rand_seed = static_cast<unsigned int>(next_seed);
     return next_seed;
+  }
+
+  bool is_os_supported() {
+    return ZArguments::is_os_supported();
   }
 };
 
