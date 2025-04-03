@@ -2099,7 +2099,7 @@ void ZPageAllocator::prepare_memory_for_free(ZPage* page, ZArray<ZVirtualMemory>
     return;
   }
 
-  // Perhaps remap and defragment if page was a large page
+  // Try to remap and defragment if page is large
   if (page_type == ZPageType::large) {
     remap_and_defragment(vmem, vmems);
     return;
