@@ -872,6 +872,7 @@ size_t ZPartition::uncommit_physical(const ZVirtualMemory& vmem) {
   verify_virtual_memory_association(vmem);
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
+
   // Uncommit physical memory
   return manager.uncommit(vmem);
 }
