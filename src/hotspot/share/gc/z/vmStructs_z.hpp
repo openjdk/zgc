@@ -96,7 +96,7 @@ typedef ZValue<ZPerNUMAStorage, ZPartition> ZPerNUMAZPartition;
   nonstatic_field(ZPerNUMAZPartition,           _addr,                const uintptr_t)               \
                                                                                                      \
   volatile_nonstatic_field(ZPartition,          _capacity,            size_t)                        \
-  volatile_nonstatic_field(ZPartition,          _used,                size_t)                        \
+  nonstatic_field(ZPartition,                   _used,                size_t)                        \
                                                                                                      \
   nonstatic_field(ZPageTable,                   _map,                 ZGranuleMapForPageTable)       \
                                                                                                      \

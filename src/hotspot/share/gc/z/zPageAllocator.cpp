@@ -1247,7 +1247,7 @@ ZPageAllocator::ZPageAllocator(size_t min_capacity,
     _min_capacity(min_capacity),
     _initial_capacity(initial_capacity),
     _max_capacity(max_capacity),
-    _total_used(0),
+    _used(0),
     _used_generations{0,0},
     _collection_stats{{0, 0},{0, 0}},
     _partitions(ZValueIdTagType{}, this),
@@ -1337,7 +1337,7 @@ size_t ZPageAllocator::capacity() const {
 }
 
 size_t ZPageAllocator::used() const {
-  return Atomic::load(&_total_used);
+  return Atomic::load(&_used);
 }
 
 size_t ZPageAllocator::used_generation(ZGenerationId id) const {
@@ -1367,7 +1367,7 @@ ZPageAllocatorStats ZPageAllocator::stats(ZGeneration* generation) const {
                             _max_capacity,
                             soft_max_capacity(),
                             capacity(),
-                            _total_used,
+                            _used,
                             _collection_stats[gen_id]._used_high,
                             _collection_stats[gen_id]._used_low,
                             used_generation(generation->id()),
@@ -1391,12 +1391,12 @@ void ZPageAllocator::reset_statistics(ZGenerationId id) {
     for (ZPartition* partition; iter.next(&partition);) {
       total_used += partition->_used;
     }
-    assert(total_used == _total_used, "Must be consistent at safepoint %zu == %zu", total_used, _total_used);
+    assert(total_used == _used, "Must be consistent at safepoint %zu == %zu", total_used, _used);
   }
 #endif
 
   // Read once, we may have concurrent writers.
-  const size_t total_used = Atomic::load(&_total_used);
+  const size_t total_used = Atomic::load(&_used);
 
   _collection_stats[(int)id]._used_high = total_used;
   _collection_stats[(int)id]._used_low = total_used;
@@ -1545,8 +1545,8 @@ bool ZPageAllocator::claim_capacity_or_stall(ZPageAllocation* allocation) {
 
     // Try to claim memory
     if (claim_capacity(allocation)) {
-      // Keep track of total usage
-      increase_total_used(allocation->size());
+      // Keep track of usage
+      increase_used(allocation->size());
 
       return true;
     }
@@ -2005,8 +2005,8 @@ void ZPageAllocator::free_after_alloc_page_failed(ZPageAllocation* allocation) {
   // Free memory
   free_memory_alloc_failed(allocation);
 
-  // Keep track of total usage
-  decrease_total_used(allocation->size());
+  // Keep track of usage
+  decrease_used(allocation->size());
 
   // Reset allocation for a potential retry
   allocation->reset_for_retry();
@@ -2154,8 +2154,8 @@ void ZPageAllocator::free_memory(ZArray<ZVirtualMemory>* vmems) {
     // Free the vmem
     partition.free_memory(vmem);
 
-    // Keep track of total usage
-    decrease_total_used(vmem.size());
+    // Keep track of usage
+    decrease_used(vmem.size());
   }
 
   // Try satisfy stalled allocations
@@ -2175,8 +2175,8 @@ void ZPageAllocator::satisfy_stalled() {
       return;
     }
 
-    // Keep track of total usage
-    increase_total_used(allocation->size());
+    // Keep track of usage
+    increase_used(allocation->size());
 
     // Allocation succeeded, dequeue and satisfy allocation request.
     // Note that we must dequeue the allocation request first, since
@@ -2213,9 +2213,9 @@ size_t ZPageAllocator::sum_available() const {
   return total;
 }
 
-void ZPageAllocator::increase_total_used(size_t size) {
+void ZPageAllocator::increase_used(size_t size) {
   // Update atomically since we have concurrent readers
-  const size_t used = Atomic::add(&_total_used, size);
+  const size_t used = Atomic::add(&_used, size);
 
   // Update used high
   for (auto& stats : _collection_stats) {
@@ -2225,9 +2225,9 @@ void ZPageAllocator::increase_total_used(size_t size) {
   }
 }
 
-void ZPageAllocator::decrease_total_used(size_t size) {
+void ZPageAllocator::decrease_used(size_t size) {
   // Update atomically since we have concurrent readers
-  const size_t used = Atomic::sub(&_total_used, size);
+  const size_t used = Atomic::sub(&_used, size);
 
   // Update used low
   for (auto& stats : _collection_stats) {

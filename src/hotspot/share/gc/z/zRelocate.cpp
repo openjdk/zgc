@@ -842,13 +842,15 @@ private:
 
     // Promotions happen through a new cloned page
     ZPage* const to_page = promotion
-      ? from_page->clone_for_promotion() : from_page->reset(to_age);
+        ? from_page->clone_for_promotion()
+        : from_page->reset(to_age);
 
     // Reset page for in-place relocation
     to_page->reset_top_for_allocation();
 
-    // Verify that the inactive remset is clear for in-place relocation.
-    if (!promotion && to_page->age() == ZPageAge::old) {
+    // Verify that the inactive remset is clear when resetting the page for
+    // in-place relocation.
+    if (from_page->age() == ZPageAge::old) {
       if (ZGeneration::old()->active_remset_is_current()) {
         to_page->verify_remset_cleared_previous();
       } else {
@@ -1257,7 +1259,8 @@ public:
 
       // Setup to-space page
       ZPage* const new_page = promotion
-        ? prev_page->clone_for_promotion() : prev_page->reset(to_age);
+          ? prev_page->clone_for_promotion()
+          : prev_page->reset(to_age);
 
       // Reset page for flip aging
       new_page->reset_livemap();

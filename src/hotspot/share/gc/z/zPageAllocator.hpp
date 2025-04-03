@@ -156,7 +156,7 @@ private:
   const size_t                _min_capacity;
   const size_t                _initial_capacity;
   const size_t                _max_capacity;
-  volatile size_t             _total_used;
+  volatile size_t             _used;
   volatile size_t             _used_generations[2];
   struct {
     size_t _used_high;
@@ -227,8 +227,8 @@ private:
 
   size_t sum_available() const;
 
-  void increase_total_used(size_t size);
-  void decrease_total_used(size_t size);
+  void increase_used(size_t size);
+  void decrease_used(size_t size);
 
   void notify_out_of_memory();
   void restart_gc() const;
