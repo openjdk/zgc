@@ -89,7 +89,7 @@ public:
   bool is_multi_partition_enabled() const;
   bool is_in_multi_partition(const ZVirtualMemory& vmem) const;
 
-  uint32_t get_partition_id(const ZVirtualMemory& vmem) const;
+  uint32_t lookup_partition_id(const ZVirtualMemory& vmem) const;
   zoffset lowest_available_address(uint32_t partition_id) const;
 
   void insert(const ZVirtualMemory& vmem, uint32_t partition_id);

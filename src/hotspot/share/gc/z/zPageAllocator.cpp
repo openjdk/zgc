@@ -564,7 +564,7 @@ void ZPartition::verify_virtual_memory_multi_partition_association(const ZVirtua
   const ZVirtualMemoryManager& manager = virtual_memory_manager();
 
   assert(manager.is_in_multi_partition(vmem), "Virtual memory must be associated with the extra space "
-                                         "actual: %u", virtual_memory_manager().get_partition_id(vmem));
+                                         "actual: %u", virtual_memory_manager().lookup_partition_id(vmem));
 }
 
 void ZPartition::verify_virtual_memory_association(const ZVirtualMemory& vmem, bool check_multi_partition) const {
@@ -576,7 +576,7 @@ void ZPartition::verify_virtual_memory_association(const ZVirtualMemory& vmem, b
     return;
   }
 
-  const uint32_t vmem_numa_id = virtual_memory_manager().get_partition_id(vmem);
+  const uint32_t vmem_numa_id = virtual_memory_manager().lookup_partition_id(vmem);
   assert(_numa_id == vmem_numa_id, "Virtual memory must be associated with the current partition "
                                    "expected: %u, actual: %u", _numa_id, vmem_numa_id);
 }
@@ -2199,7 +2199,7 @@ ZPartition& ZPageAllocator::partition_from_partition_id(uint32_t numa_id) {
 }
 
 ZPartition& ZPageAllocator::partition_from_vmem(const ZVirtualMemory& vmem) {
-  return partition_from_partition_id(_virtual.get_partition_id(vmem));
+  return partition_from_partition_id(_virtual.lookup_partition_id(vmem));
 }
 
 size_t ZPageAllocator::sum_available() const {

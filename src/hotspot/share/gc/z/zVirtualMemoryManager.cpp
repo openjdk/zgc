@@ -310,7 +310,7 @@ zoffset ZVirtualMemoryManager::lowest_available_address(uint32_t partition_id) c
 }
 
 void ZVirtualMemoryManager::insert(const ZVirtualMemory& vmem, uint32_t partition_id) {
-  assert(partition_id == get_partition_id(vmem), "wrong partition_id for vmem");
+  assert(partition_id == lookup_partition_id(vmem), "wrong partition_id for vmem");
   _partitions.get(partition_id).insert(vmem);
 }
 
