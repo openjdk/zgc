@@ -156,7 +156,6 @@ private:
   ZVirtualMemoryManager       _virtual;
   ZPhysicalMemoryManager      _physical;
   const size_t                _min_capacity;
-  const size_t                _initial_capacity;
   const size_t                _max_capacity;
   volatile size_t             _used;
   volatile size_t             _used_generations[2];
@@ -247,7 +246,6 @@ public:
 
   bool prime_cache(ZWorkers* workers, size_t size);
 
-  size_t initial_capacity() const;
   size_t min_capacity() const;
   size_t max_capacity() const;
   size_t soft_max_capacity() const;

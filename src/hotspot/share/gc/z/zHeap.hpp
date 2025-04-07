@@ -67,7 +67,6 @@ public:
   void out_of_memory();
 
   // Heap metrics
-  size_t initial_capacity() const;
   size_t min_capacity() const;
   size_t max_capacity() const;
   size_t soft_max_capacity() const;

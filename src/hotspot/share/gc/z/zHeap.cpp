@@ -59,7 +59,7 @@ ZHeap::ZHeap()
     _page_table(),
     _allocator_eden(),
     _allocator_relocation(),
-    _serviceability(initial_capacity(), min_capacity(), max_capacity()),
+    _serviceability(InitialHeapSize, min_capacity(), max_capacity()),
     _old(&_page_table, &_page_allocator),
     _young(&_page_table, _old.forwarding_table(), &_page_allocator),
     _initialized(false) {
@@ -92,10 +92,6 @@ ZHeap::ZHeap()
 
 bool ZHeap::is_initialized() const {
   return _initialized;
-}
-
-size_t ZHeap::initial_capacity() const {
-  return _page_allocator.initial_capacity();
 }
 
 size_t ZHeap::min_capacity() const {

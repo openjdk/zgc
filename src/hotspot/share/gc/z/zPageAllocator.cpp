@@ -1245,7 +1245,6 @@ ZPageAllocator::ZPageAllocator(size_t min_capacity,
     _virtual(max_capacity),
     _physical(max_capacity),
     _min_capacity(min_capacity),
-    _initial_capacity(initial_capacity),
     _max_capacity(max_capacity),
     _used(0),
     _used_generations{0,0},
@@ -1296,10 +1295,6 @@ bool ZPageAllocator::prime_cache(ZWorkers* workers, size_t size) {
   }
 
   return true;
-}
-
-size_t ZPageAllocator::initial_capacity() const {
-  return _initial_capacity;
 }
 
 size_t ZPageAllocator::min_capacity() const {
