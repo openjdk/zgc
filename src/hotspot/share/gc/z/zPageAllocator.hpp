@@ -63,7 +63,6 @@ private:
   ZMappedCache          _cache;
   ZUncommitter          _uncommitter;
   const size_t          _min_capacity;
-  const size_t          _initial_capacity;
   const size_t          _max_capacity;
   volatile size_t       _current_max_capacity;
   volatile size_t       _capacity;

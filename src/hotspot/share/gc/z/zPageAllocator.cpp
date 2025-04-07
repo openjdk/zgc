@@ -599,7 +599,6 @@ ZPartition::ZPartition(uint32_t numa_id, ZPageAllocator* page_allocator)
     _cache(),
     _uncommitter(numa_id, this),
     _min_capacity(ZNUMA::calculate_share(numa_id, page_allocator->min_capacity())),
-    _initial_capacity(ZNUMA::calculate_share(numa_id, page_allocator->initial_capacity())),
     _max_capacity(ZNUMA::calculate_share(numa_id, page_allocator->max_capacity())),
     _current_max_capacity(_max_capacity),
     _capacity(0),
