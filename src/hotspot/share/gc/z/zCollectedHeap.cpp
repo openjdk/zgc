@@ -245,9 +245,9 @@ size_t ZCollectedHeap::unsafe_max_tlab_alloc(Thread* ignored) const {
 }
 
 MemoryUsage ZCollectedHeap::memory_usage() {
-  const size_t committed    = ZHeap::heap()->capacity();
-  const size_t used         = MIN2(ZHeap::heap()->used(), committed);
-  const size_t max_size     = ZHeap::heap()->max_capacity();
+  const size_t committed = ZHeap::heap()->capacity();
+  const size_t used      = MIN2(ZHeap::heap()->used(), committed);
+  const size_t max_size  = ZHeap::heap()->max_capacity();
 
   return MemoryUsage(InitialHeapSize, used, committed, max_size);
 }
