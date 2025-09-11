@@ -25,6 +25,9 @@
 #ifndef SHARE_RUNTIME_ARGUMENTS_HPP
 #define SHARE_RUNTIME_ARGUMENTS_HPP
 
+#include "gc/shared/gcArguments.hpp"
+#include "logging/logLevel.hpp"
+#include "logging/logTag.hpp"
 #include "jni.h"
 #include "memory/allocation.hpp"
 #include "memory/allStatic.hpp"
@@ -155,6 +158,7 @@ class Arguments : AllStatic {
   friend class JvmtiExport;
   friend class ArgumentsTest;
   friend class LargeOptionsTest;
+  friend class GCArguments;
  public:
   // Operation modi
   enum Mode {
@@ -277,8 +281,6 @@ class Arguments : AllStatic {
   // memory this process is currently allowed to use. It also takes
   // the virtual-to-physical ratio of the current GC into account.
   static size_t limit_heap_by_allocatable_memory(size_t size);
-  // Setup heap size
-  static void set_heap_size();
 
   // Bytecode rewriting
   static void set_bytecode_flags();
