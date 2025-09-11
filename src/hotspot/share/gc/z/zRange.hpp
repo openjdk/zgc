@@ -59,6 +59,7 @@ public:
   bool operator!=(const ZRange& other) const;
 
   bool contains(const ZRange& other) const;
+  bool overlaps(const ZRange& other) const;
 
   void grow_from_front(size_t size);
   void grow_from_back(size_t size);

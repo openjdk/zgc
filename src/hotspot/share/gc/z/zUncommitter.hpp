@@ -70,6 +70,8 @@ protected:
   virtual void terminate();
 
 public:
+  static bool is_enabled();
+
   ZUncommitter(uint32_t id, ZPartition* partition);
 
   void cancel_uncommit_cycle();
