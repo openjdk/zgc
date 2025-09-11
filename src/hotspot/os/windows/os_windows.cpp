@@ -1256,24 +1256,24 @@ FILETIME java_to_windows_time(jlong l) {
   return result;
 }
 
-double os::elapsed_process_cpu_time() {
+bool os::elapsed_process_cpu_time(double& value) {
   FILETIME create;
   FILETIME exit;
   FILETIME kernel;
   FILETIME user;
 
   if (GetProcessTimes(GetCurrentProcess(), &create, &exit, &kernel, &user) == 0) {
-    return -1;
+    return false;
   }
 
   SYSTEMTIME user_total;
   if (FileTimeToSystemTime(&user, &user_total) == 0) {
-    return -1;
+    return false;
   }
 
   SYSTEMTIME kernel_total;
   if (FileTimeToSystemTime(&kernel, &kernel_total) == 0) {
-    return -1;
+    return false;
   }
 
   double user_seconds =
@@ -1285,23 +1285,26 @@ double os::elapsed_process_cpu_time() {
                           double(kernel_total.wSecond) +
                           double(kernel_total.wMilliseconds) / 1000.0;
 
-  return user_seconds + kernel_seconds;
+  value = user_seconds + kernel_seconds;
+  return true;
 }
 
-double os::Machine::elapsed_system_cpu_time() {
+bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   FILETIME idle, kernel, user;
   if (GetSystemTimes(&idle, &kernel, &user) == 0) {
     assert(false, "this should not fail");
-    return 0.0;
+    return false;
   }
 
   // Kernel time includes idle time
-  jlong ticks = windows_to_time_ticks(user) +
-                windows_to_time_ticks(kernel) -
-                windows_to_time_ticks(idle);
+  jlong ticks = jlong_from(user.dwHighDateTime, user.dwLowDateTime) +
+                jlong_from(kernel.dwHighDateTime, kernel.dwLowDateTime) -
+                jlong_from(idle.dwHighDateTime, idle.dwLowDateTime);
 
   // Ticks are 100 ns
-  return double(ticks) / 1e7;
+  value._elapsed_time = double(ticks) / 1e7;
+  value._processor_count = double(os::processor_count());
+  return value._processor_count > 0.0;
 }
 
 jlong os::javaTimeMillis() {
