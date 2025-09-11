@@ -88,6 +88,14 @@ inline bool ZRange<Start, End>::contains(const ZRange& other) const {
 }
 
 template <typename Start, typename End>
+inline bool ZRange<Start, End>::overlaps(const ZRange& other) const {
+  precond(!is_null());
+  precond(!other.is_null());
+
+  return MAX2(_start, other._start) < MIN2(other.end(), end());
+}
+
+template <typename Start, typename End>
 inline void ZRange<Start, End>::grow_from_front(size_t size) {
   precond(size_t(start()) >= size);
 
