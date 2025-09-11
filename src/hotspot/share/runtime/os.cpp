@@ -2192,6 +2192,17 @@ bool os::used_memory(physical_memory_size_type& value) {
   return Machine::used_memory(value);
 }
 
+double os::elapsed_system_cpu_time() {
+  if (is_containerized()) {
+    double result;
+    if (Container::elapsed_system_cpu_time(result)) {
+      return result;
+    }
+  }
+
+  return Machine::elapsed_system_cpu_time();
+}
+
 bool os::Machine::used_memory(physical_memory_size_type& value) {
   physical_memory_size_type avail_mem = 0;
   // Return value ignored - defaulting to 0 on failure.
