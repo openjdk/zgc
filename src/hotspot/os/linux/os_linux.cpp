@@ -2981,6 +2981,15 @@ void os::pd_commit_memory_or_exit(char* addr, size_t size, bool exec,
   STATIC_ASSERT(MADV_POPULATE_WRITE == MADV_POPULATE_WRITE_value);
 #endif
 
+// Define MADV_COLLAPSE here so we can build HotSpot on old systems.
+#define MADV_COLLAPSE_value 25
+#ifndef MADV_COLLAPSE
+#define MADV_COLLAPSE MADV_COLLAPSE_value
+#else
+  // Sanity-check our assumed default value if we build with a new enough libc.
+  STATIC_ASSERT(MADV_COLLAPSE == MADV_COLLAPSE_value);
+#endif
+
 // Note that the value for MAP_FIXED_NOREPLACE differs between architectures, but all architectures
 // supported by OpenJDK share the same flag value.
 #define MAP_FIXED_NOREPLACE_value 0x100000
@@ -3021,6 +3030,22 @@ void os::Linux::madvise_transparent_huge_pages(void* addr, size_t bytes) {
   // We don't check the return value: madvise(MADV_HUGEPAGE) may not
   // be supported or the memory may already be backed by huge pages.
   ::madvise(addr, bytes, MADV_HUGEPAGE);
+}
+
+bool os::Linux::madvise_collapse_transparent_huge_pages(void* addr, size_t bytes) {
+  // When MADV_COLLAPSE races with THP khugepaged, you sometimes get
+  // EAGAIN. We just do it again then.
+  for (;;) {
+    const int result = ::madvise(addr, bytes, MADV_COLLAPSE);
+    if (result == 0) {
+      return true;
+    }
+    if (result == -1 && errno == EAGAIN) {
+      continue;
+    }
+
+    return false;
+  }
 }
 
 void os::pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint) {
