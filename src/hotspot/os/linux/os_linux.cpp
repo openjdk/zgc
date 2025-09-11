@@ -532,6 +532,24 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
   return true;
 }
 
+bool os::Container::elapsed_system_cpu_time(double& value) {
+  assert(is_containerized(), "must be");
+  uint64_t result;
+  if (OSContainer::cpu_usage_in_micros(result)) {
+    value = double(result) / 1000000;
+    return true;
+  }
+
+  return false;
+}
+
+double os::Machine::elapsed_system_cpu_time() {
+  os::Linux::CPUPerfTicks ticks;
+  os::Linux::get_tick_information(&ticks, -1);
+  uint64_t sum = ticks.used + ticks.usedKernel;
+  return double(sum) / os::Posix::clock_tics_per_second();
+}
+
 #ifndef SYS_gettid
 // i386: 224, amd64: 186
   #if defined(__i386__)
