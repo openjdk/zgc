@@ -172,6 +172,22 @@ bool os::Bsd::available_memory(physical_memory_size_type& value) {
   return true;
 }
 
+bool os::Bsd::compressed_memory(physical_memory_size_type& value) {
+#ifdef __APPLE__
+  mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+  vm_statistics64_data_t vmstat;
+  kern_return_t kerr = host_statistics64(mach_host_self(), HOST_VM_INFO64,
+                                         (host_info64_t)&vmstat, &count);
+  assert(kerr == KERN_SUCCESS,
+         "host_statistics64 failed - check mach_host_self() and count");
+  if (kerr == KERN_SUCCESS) {
+    value = vmstat.compressor_page_count * os::vm_page_size();
+    return true;
+  }
+#endif
+  return false;
+}
+
 // for more info see :
 // https://man.openbsd.org/sysctl.2
 void os::Bsd::print_uptime_info(outputStream* st) {
