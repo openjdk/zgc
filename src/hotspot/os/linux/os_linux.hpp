@@ -85,6 +85,7 @@ class os::Linux {
     uint64_t total;
     uint64_t steal;
     bool     has_steal_ticks;
+    int      processors;
   };
 
   static int active_processor_count();
@@ -208,6 +209,7 @@ class os::Linux {
   typedef int (*numa_node_to_cpus_v2_func_t)(int node, void *mask);
   typedef int (*numa_max_node_func_t)(void);
   typedef int (*numa_num_configured_nodes_func_t)(void);
+  typedef long long (*numa_node_size64_func_t)(int node, long long* freep);
   typedef int (*numa_available_func_t)(void);
   typedef int (*numa_tonode_memory_func_t)(void *start, size_t size, int node);
   typedef void (*numa_interleave_memory_func_t)(void *start, size_t size, unsigned long *nodemask);
@@ -230,6 +232,7 @@ class os::Linux {
   static numa_node_to_cpus_v2_func_t _numa_node_to_cpus_v2;
   static numa_max_node_func_t _numa_max_node;
   static numa_num_configured_nodes_func_t _numa_num_configured_nodes;
+  static numa_node_size64_func_t _numa_node_size64;
   static numa_available_func_t _numa_available;
   static numa_tonode_memory_func_t _numa_tonode_memory;
   static numa_interleave_memory_func_t _numa_interleave_memory;
@@ -259,6 +262,7 @@ class os::Linux {
   static void set_numa_node_to_cpus_v2(numa_node_to_cpus_v2_func_t func) { _numa_node_to_cpus_v2 = func; }
   static void set_numa_max_node(numa_max_node_func_t func) { _numa_max_node = func; }
   static void set_numa_num_configured_nodes(numa_num_configured_nodes_func_t func) { _numa_num_configured_nodes = func; }
+  static void set_numa_node_size64(numa_node_size64_func_t func) { _numa_node_size64 = func; }
   static void set_numa_available(numa_available_func_t func) { _numa_available = func; }
   static void set_numa_tonode_memory(numa_tonode_memory_func_t func) { _numa_tonode_memory = func; }
   static void set_numa_interleave_memory(numa_interleave_memory_func_t func) { _numa_interleave_memory = func; }
@@ -299,6 +303,9 @@ class os::Linux {
   static int numa_max_node() { return _numa_max_node != nullptr ? _numa_max_node() : -1; }
   static int numa_num_configured_nodes() {
     return _numa_num_configured_nodes != nullptr ? _numa_num_configured_nodes() : -1;
+  }
+  static long long numa_node_size64(int node, long long* freep) {
+    return _numa_node_size64 != nullptr ? _numa_node_size64(node, freep) : -1;
   }
   static int numa_available() { return _numa_available != nullptr ? _numa_available() : -1; }
   static int numa_tonode_memory(void *start, size_t size, int node) {

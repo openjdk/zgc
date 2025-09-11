@@ -2192,15 +2192,12 @@ bool os::used_memory(physical_memory_size_type& value) {
   return Machine::used_memory(value);
 }
 
-double os::elapsed_system_cpu_time() {
-  if (is_containerized()) {
-    double result;
-    if (Container::elapsed_system_cpu_time(result)) {
-      return result;
-    }
+bool os::elapsed_system_cpu_time(os::SystemCpuTime& value) {
+  if (is_containerized() && Container::elapsed_system_cpu_time(value)) {
+    return true;
   }
 
-  return Machine::elapsed_system_cpu_time();
+  return Machine::elapsed_system_cpu_time(value);
 }
 
 bool os::Machine::used_memory(physical_memory_size_type& value) {
@@ -2214,6 +2211,10 @@ bool os::Machine::used_memory(physical_memory_size_type& value) {
 
 #ifndef LINUX
 bool os::is_containerized() {
+  return false;
+}
+
+bool os::Container::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   return false;
 }
 
