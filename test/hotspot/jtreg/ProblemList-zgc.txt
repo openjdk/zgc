@@ -38,6 +38,8 @@ compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleCodeInstallatio
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/SimpleDebugInfoTest.java             8343233 generic-aarch64
 compiler/jvmci/jdk.vm.ci.code.test/src/jdk/vm/ci/code/test/VirtualObjectDebugInfoTest.java      8343233 generic-aarch64
 
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorVMEventsTest.java 8383421 generic-all
+
 #############################################################################
 
 # Preview project specific failures go here at the end of the file.

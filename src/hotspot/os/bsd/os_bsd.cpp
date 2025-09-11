@@ -60,6 +60,7 @@
 #include "services/runtimeService.hpp"
 #include "signals_posix.hpp"
 #include "utilities/align.hpp"
+#include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/events.hpp"
@@ -835,7 +836,7 @@ double os::Machine::elapsed_system_cpu_time() {
 }
 #else
 double os::Machine::elapsed_system_cpu_time() {
-  return 0.0;
+  Unimplemented();
 }
 #endif
 

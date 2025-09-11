@@ -918,6 +918,10 @@ void os::javaTimeNanos_info(jvmtiTimerInfo *info_ptr) {
   info_ptr->kind = JVMTI_TIMER_ELAPSED;    // elapsed not CPU time
 }
 
+double os::Machine::elapsed_system_cpu_time() {
+  Unimplemented();
+}
+
 intx os::current_thread_id() {
   return (intx)pthread_self();
 }
