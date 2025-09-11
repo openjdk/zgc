@@ -482,6 +482,7 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
   // control of the Linux kernel
   uint64_t      guestNiceTicks = 0;
   int           logical_cpu = -1;
+  int           processors = 0;
   const int     required_tickinfo_count = (which_logical_cpu == -1) ? 4 : 5;
   int           n;
 
@@ -498,6 +499,14 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
             &userTicks, &niceTicks, &systemTicks, &idleTicks,
             &iowTicks, &irqTicks, &sirqTicks,
             &stealTicks, &guestNiceTicks);
+
+    char line[1024];
+    while (fgets(line, sizeof(line), fh) != nullptr) {
+      int cpu_id;
+      if (sscanf(line, "cpu%d ", &cpu_id) == 1) {
+        processors++;
+      }
+    }
   } else {
     // Move to next line
     next_line(fh);
@@ -513,6 +522,7 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
                &logical_cpu, &userTicks, &niceTicks,
                &systemTicks, &idleTicks, &iowTicks, &irqTicks, &sirqTicks,
                &stealTicks, &guestNiceTicks);
+    processors = 1;
   }
 
   fclose(fh);
@@ -531,26 +541,36 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
     pticks->steal = 0;
     pticks->has_steal_ticks = false;
   }
+  pticks->processors = processors;
 
   return true;
 }
 
-bool os::Container::elapsed_system_cpu_time(double& value) {
+bool os::Container::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   assert(is_containerized(), "must be");
   uint64_t result;
-  if (OSContainer::cpu_usage_in_micros(result)) {
-    value = double(result) / 1000000;
+  double processors;
+  if (OSContainer::cpu_usage_in_micros(result) &&
+      os::Container::processor_count(processors)) {
+    value._elapsed_time = double(result) / 1000000;
+    value._processor_count = processors;
     return true;
   }
 
   return false;
 }
 
-double os::Machine::elapsed_system_cpu_time() {
+bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   os::Linux::CPUPerfTicks ticks;
-  os::Linux::get_tick_information(&ticks, -1);
+
+  if (!os::Linux::get_tick_information(&ticks, -1)) {
+    return false;
+  }
+
   uint64_t sum = ticks.used + ticks.usedKernel;
-  return double(sum) / os::Posix::clock_tics_per_second();
+  value._elapsed_time = double(sum) / os::Posix::clock_tics_per_second();
+  value._processor_count = double(ticks.processors);
+  return value._processor_count > 0.0;
 }
 
 #ifndef SYS_gettid
@@ -3370,6 +3390,8 @@ bool os::Linux::libnuma_init() {
                                                    libnuma_dlsym(handle, "numa_num_configured_nodes")));
       set_numa_available(CAST_TO_FN_PTR(numa_available_func_t,
                                         libnuma_dlsym(handle, "numa_available")));
+      set_numa_node_size64(CAST_TO_FN_PTR(numa_node_size64_func_t,
+                                          libnuma_dlsym(handle, "numa_node_size64")));
       set_numa_tonode_memory(CAST_TO_FN_PTR(numa_tonode_memory_func_t,
                                             libnuma_dlsym(handle, "numa_tonode_memory")));
       set_numa_interleave_memory(CAST_TO_FN_PTR(numa_interleave_memory_func_t,
@@ -3659,6 +3681,7 @@ os::Linux::numa_node_to_cpus_func_t os::Linux::_numa_node_to_cpus;
 os::Linux::numa_node_to_cpus_v2_func_t os::Linux::_numa_node_to_cpus_v2;
 os::Linux::numa_max_node_func_t os::Linux::_numa_max_node;
 os::Linux::numa_num_configured_nodes_func_t os::Linux::_numa_num_configured_nodes;
+os::Linux::numa_node_size64_func_t os::Linux::_numa_node_size64;
 os::Linux::numa_available_func_t os::Linux::_numa_available;
 os::Linux::numa_tonode_memory_func_t os::Linux::_numa_tonode_memory;
 os::Linux::numa_interleave_memory_func_t os::Linux::_numa_interleave_memory;
