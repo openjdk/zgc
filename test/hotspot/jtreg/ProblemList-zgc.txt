@@ -30,6 +30,9 @@
 
 vmTestbase/gc/gctests/MemoryEaterMT/MemoryEaterMT.java        8289582   windows-x64
 
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorVMEventsTest.java#id0 8383421 generic-all
+serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorVMEventsTest.java#id1 8383421 generic-all
+
 #############################################################################
 
 # Preview project specific failures go here at the end of the file.
