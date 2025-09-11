@@ -194,6 +194,7 @@ class os::Linux {
   static bool should_madvise_shmem_thps();
 
   static void madvise_transparent_huge_pages(void* addr, size_t bytes);
+  static bool madvise_collapse_transparent_huge_pages(void* addr, size_t bytes);
 
   // Stack repair handling
 
