@@ -84,12 +84,12 @@ void OSContainer::init() {
     // We can be in one of two cases:
     //  1.) On a physical Linux system without any limit
     //  2.) On a physical Linux system with a limit enforced by other means (like systemd slice)
-    physical_memory_size_type mem_limit_val = value_unlimited;
-    (void)memory_limit_in_bytes(mem_limit_val);  // discard error and use default
-    double host_cpus = os::Linux::active_processor_count();
-    double cpus = host_cpus;
-    (void)active_processor_count(cpus);  // discard error and use default
-    any_mem_cpu_limit_present = mem_limit_val != value_unlimited || host_cpus != cpus;
+    physical_memory_size_type mem_limit_val;
+    any_mem_cpu_limit_present = any_mem_cpu_limit_present || memory_limit_in_bytes(mem_limit_val);
+    any_mem_cpu_limit_present = any_mem_cpu_limit_present || memory_throttle_limit_in_bytes(mem_limit_val);
+    any_mem_cpu_limit_present = any_mem_cpu_limit_present || memory_soft_limit_in_bytes(mem_limit_val);
+    double cpus;
+    any_mem_cpu_limit_present = any_mem_cpu_limit_present || active_processor_count(cpus);
     if (any_mem_cpu_limit_present) {
       reason = " because either a cpu or a memory limit is present";
     } else {
