@@ -126,6 +126,7 @@ class os::Linux {
 
   static void libpthread_init();
   static void sched_getcpu_init();
+  static void libnuma_early_init();
   static bool libnuma_init();
   static void* libnuma_dlsym(void* handle, const char* name);
   // libnuma v2 (libnuma_1.2) symbols
@@ -195,6 +196,8 @@ class os::Linux {
 
   static void madvise_transparent_huge_pages(void* addr, size_t bytes);
   static bool madvise_collapse_transparent_huge_pages(void* addr, size_t bytes);
+
+  static bool safe_touch_memory(void* addr, size_t bytes, size_t page_size);
 
   // Stack repair handling
 
@@ -293,6 +296,8 @@ class os::Linux {
   static NumaAllocationPolicy _current_numa_policy;
 
  public:
+  static bool is_numa_system();
+
   static void numa_set_thread_affinity(pid_t tid, int node);
 
   static int sched_getcpu()  { return _sched_getcpu != nullptr ? _sched_getcpu() : -1; }
