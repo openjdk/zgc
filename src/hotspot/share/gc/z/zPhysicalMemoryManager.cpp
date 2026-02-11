@@ -290,11 +290,6 @@ void ZPhysicalMemoryManager::map(const ZVirtualMemory& vmem, uint32_t numa_id) c
   });
 
   postcond(mapped == size);
-
-  // Setup NUMA preferred for large pages
-  if (ZNUMA::is_enabled() && ZLargePages::is_explicit()) {
-    os::numa_make_local((char*)addr, size, ZNUMA::numa_id_to_node(numa_id));
-  }
 }
 
 // Unmap virtual memory from physical memory
