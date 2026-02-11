@@ -385,9 +385,9 @@ bool ZPhysicalMemoryBacking::tmpfs_supports_transparent_huge_pages() const {
   return access(ZFILENAME_SHMEM_ENABLED, R_OK) == 0;
 }
 
-ZErrno ZPhysicalMemoryBacking::fallocate_compat_mmap_hugetlbfs(zbacking_offset offset, size_t length, bool touch) const {
+ZErrno ZPhysicalMemoryBacking::fallocate_compat_mmap_hugetlbfs(zbacking_offset offset, size_t length, bool force_touch) const {
   // On hugetlbfs, mapping a file segment will fail immediately, without
-  // the need to touch the mapped pages first, if there aren't enough huge
+  // the need to touch the mapped pages first, if there aren't enough large
   // pages available to back the mapping.
   void* const addr = mmap(nullptr, length, PROT_READ|PROT_WRITE, MAP_SHARED, _fd, untype(offset));
   if (addr == MAP_FAILED) {
@@ -396,44 +396,34 @@ ZErrno ZPhysicalMemoryBacking::fallocate_compat_mmap_hugetlbfs(zbacking_offset o
   }
 
   // Once mapped, the huge pages are only reserved. We need to touch them
-  // to associate them with the file segment. Note that we can not punch
-  // hole in file segments which only have reserved pages.
-  if (touch) {
-    char* const start = (char*)addr;
-    char* const end = start + length;
-    os::pretouch_memory(start, end, _block_size);
+  // to associate them with the file segment. This needs to be done immediately
+  // if running on a NUMA system, where shared memory may overreserve the number
+  // of large pages available.
+  const bool should_touch = force_touch || ZNUMA::is_numa_system();
+  bool touched = false;
+
+  if (should_touch) {
+    // Touch the large pages safely
+    touched = os::Linux::safe_touch_memory(addr, length, ZGranuleSize);
   }
 
-  // Unmap again. From now on, the huge pages that were mapped are allocated
-  // to this file. There's no risk of getting a SIGBUS when mapping and
-  // touching these pages again.
+  // Unmap again
   if (munmap(addr, length) == -1) {
     // Failed
     return errno;
   }
 
-  // Success
-  return 0;
-}
-
-static bool safe_touch_mapping(void* addr, size_t length, size_t page_size) {
-  char* const start = (char*)addr;
-  char* const end = start + length;
-
-  // Touching a mapping that can't be backed by memory will generate a
-  // SIGBUS. By using SafeFetch32 any SIGBUS will be safely caught and
-  // handled. On tmpfs, doing a fetch (rather than a store) is enough
-  // to cause backing pages to be allocated (there's no zero-page to
-  // worry about).
-  for (char *p = start; p < end; p += page_size) {
-    if (SafeFetch32((int*)p, -1) == -1) {
-      // Failed
-      return false;
-    }
+  if (should_touch && !touched) {
+    // Failed to touch all large pages
+    return errno;
   }
 
+  // From now on, the large pages that were mapped are allocated to this file.
+  // There's no risk of getting a SIGBUS when mapping and touching these pages
+  // again.
+
   // Success
-  return true;
+  return 0;
 }
 
 ZErrno ZPhysicalMemoryBacking::fallocate_compat_mmap_tmpfs(zbacking_offset offset, size_t length) const {
@@ -451,7 +441,7 @@ ZErrno ZPhysicalMemoryBacking::fallocate_compat_mmap_tmpfs(zbacking_offset offse
   }
 
   // Touch the mapping (safely) to make sure it's backed by memory
-  const bool backed = safe_touch_mapping(addr, length, _block_size);
+  const bool backed = os::Linux::safe_touch_memory(addr, length, _block_size);
 
   // Unmap again. If successfully touched, the backing memory will
   // be allocated to this file. There's no risk of getting a SIGBUS
@@ -461,7 +451,7 @@ ZErrno ZPhysicalMemoryBacking::fallocate_compat_mmap_tmpfs(zbacking_offset offse
     return errno;
   }
 
-  // Success
+  // Success?
   return backed ? 0 : ENOMEM;
 }
 
@@ -486,7 +476,7 @@ ZErrno ZPhysicalMemoryBacking::fallocate_fill_hole_compat(zbacking_offset offset
   // mmap/munmap (for hugetlbfs and tmpfs with transparent huge pages) or pwrite
   // (for tmpfs without transparent huge pages and other filesystem types).
   if (ZLargePages::is_explicit()) {
-    return fallocate_compat_mmap_hugetlbfs(offset, length, false /* touch */);
+    return fallocate_compat_mmap_hugetlbfs(offset, length, false /* force_touch */);
   } else if (ZLargePages::is_transparent()) {
     return fallocate_compat_mmap_tmpfs(offset, length);
   } else {
@@ -534,14 +524,15 @@ ZErrno ZPhysicalMemoryBacking::fallocate_fill_hole(zbacking_offset offset, size_
 }
 
 ZErrno ZPhysicalMemoryBacking::fallocate_punch_hole(zbacking_offset offset, size_t length) const {
-  if (ZLargePages::is_explicit()) {
+  // On a NUMA system we have to touch all the large pages when committing, so
+  // there is no need to touch them again here.
+  if (ZLargePages::is_explicit() && !ZNUMA::is_numa_system()) {
     // We can only punch hole in pages that have been touched. Non-touched
     // pages are only reserved, and not associated with any specific file
     // segment. We don't know which pages have been previously touched, so
     // we always touch them here to guarantee that we can punch hole.
-    const ZErrno err = fallocate_compat_mmap_hugetlbfs(offset, length, true /* touch */);
+    const ZErrno err = fallocate_compat_mmap_hugetlbfs(offset, length, true /* force_touch */);
     if (err) {
-      // Failed
       return err;
     }
   }
@@ -665,9 +656,7 @@ size_t ZPhysicalMemoryBacking::commit_default(zbacking_offset offset, size_t len
 }
 
 size_t ZPhysicalMemoryBacking::commit(zbacking_offset offset, size_t length, uint32_t numa_id) const {
-  if (ZNUMA::is_enabled() && !ZLargePages::is_explicit()) {
-    // The memory is required to be preferred at the time it is paged in. As a
-    // consequence we must prefer the memory when committing non-large pages.
+  if (ZNUMA::is_enabled()) {
     return commit_numa_preferred(offset, length, numa_id);
   }
 

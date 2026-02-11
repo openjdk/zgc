@@ -30,6 +30,10 @@
 #include "gc/z/zGlobals.hpp"
 #include "utilities/align.hpp"
 
+inline bool ZNUMA::is_numa_system() {
+  return _is_numa_system;
+}
+
 inline bool ZNUMA::is_enabled() {
   return _enabled;
 }

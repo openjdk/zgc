@@ -26,6 +26,7 @@
 #include "gc/z/zNUMA.inline.hpp"
 #include "utilities/macros.hpp"
 
+bool ZNUMA::_is_numa_system;
 bool ZNUMA::_enabled;
 uint32_t ZNUMA::_count;
 

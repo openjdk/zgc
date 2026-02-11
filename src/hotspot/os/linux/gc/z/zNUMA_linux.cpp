@@ -36,6 +36,7 @@ static uint* z_numa_id_to_node = nullptr;
 static uint32_t* z_node_to_numa_id = nullptr;
 
 void ZNUMA::pd_initialize() {
+  _is_numa_system = os::Linux::is_numa_system();
   _enabled = UseNUMA;
 
   size_t configured_nodes = 0;
