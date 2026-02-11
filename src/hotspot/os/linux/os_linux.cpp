@@ -56,6 +56,7 @@
 #include "runtime/osInfo.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
+#include "runtime/safefetch.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/threads.hpp"
@@ -3052,6 +3053,36 @@ bool os::Linux::madvise_collapse_transparent_huge_pages(void* addr, size_t bytes
   }
 }
 
+bool os::Linux::safe_touch_memory(void* addr, size_t bytes, size_t page_size) {
+  const int result = ::madvise(addr, bytes, MADV_POPULATE_WRITE);
+  if (result == 0) {
+    // Success
+    return true;
+  } else if (errno != EINVAL) {
+    // Failed call to madvise for some other reason than EINVAL
+    return false;
+  }
+
+  // If we failed because of EINVAL it might be because MADV_POPULATE_WRITE is
+  // not supported. We then try touching the memory using SafeFetch.
+
+  char* const start = (char*)addr;
+  char* const end = start + bytes;
+
+  // Touching a mapping that can't be backed by memory will generate a
+  // SIGBUS. By using SafeFetch32 any SIGBUS will be safely caught and
+  // handled. A fetch is enough to cause backing pages to be allocated.
+  for (char *p = start; p < end; p += page_size) {
+    if (SafeFetch32((int*)p, -1) == -1) {
+      // Failed
+      return false;
+    }
+  }
+
+  // Success
+  return true;
+}
+
 void os::pd_realign_memory(char *addr, size_t bytes, size_t alignment_hint) {
   if (Linux::should_madvise_anonymous_thps() && alignment_hint > vm_page_size()) {
     Linux::madvise_transparent_huge_pages(addr, bytes);
@@ -3087,6 +3118,18 @@ size_t os::pd_pretouch_memory(void* first, void* last, size_t page_size) {
     return 0;
   }
   return page_size;
+}
+
+bool os::Linux::is_numa_system() {
+  if (numa_available() == -1) {
+    return false;
+  }
+
+  if (numa_max_node() < 1) {
+    return false;
+  }
+
+  return true;
 }
 
 void os::numa_set_thread_affinity(Thread* thread, int node) {
@@ -3250,6 +3293,19 @@ static bool numa_syscall_check() {
   return true;
 }
 
+void os::Linux::libnuma_early_init() {
+  // This function only sets up functionality that we need regardless of
+  // whether NUMA is enabled/disabled in the JVM via UseNUMA. This is a
+  // best effort, as libnuma is likely not available on all systems.
+  void *handle = dlopen("libnuma.so.1", RTLD_LAZY);
+  if (handle != nullptr) {
+    set_numa_available(CAST_TO_FN_PTR(numa_available_func_t,
+                                      libnuma_dlsym(handle, "numa_available")));
+    set_numa_max_node(CAST_TO_FN_PTR(numa_max_node_func_t,
+                                     libnuma_dlsym(handle, "numa_max_node")));
+  }
+}
+
 bool os::Linux::libnuma_init() {
   // Requires sched_getcpu() and numa dependent syscalls support
   if ((sched_getcpu() != -1) && numa_syscall_check()) {
@@ -3259,12 +3315,8 @@ bool os::Linux::libnuma_init() {
                                            libnuma_dlsym(handle, "numa_node_to_cpus")));
       set_numa_node_to_cpus_v2(CAST_TO_FN_PTR(numa_node_to_cpus_v2_func_t,
                                               libnuma_v2_dlsym(handle, "numa_node_to_cpus")));
-      set_numa_max_node(CAST_TO_FN_PTR(numa_max_node_func_t,
-                                       libnuma_dlsym(handle, "numa_max_node")));
       set_numa_num_configured_nodes(CAST_TO_FN_PTR(numa_num_configured_nodes_func_t,
                                                    libnuma_dlsym(handle, "numa_num_configured_nodes")));
-      set_numa_available(CAST_TO_FN_PTR(numa_available_func_t,
-                                        libnuma_dlsym(handle, "numa_available")));
       set_numa_tonode_memory(CAST_TO_FN_PTR(numa_tonode_memory_func_t,
                                             libnuma_dlsym(handle, "numa_tonode_memory")));
       set_numa_interleave_memory(CAST_TO_FN_PTR(numa_interleave_memory_func_t,
@@ -4249,6 +4301,20 @@ char* os::pd_reserve_memory_special(size_t bytes, size_t alignment, size_t page_
   if (addr != nullptr) {
     if (UseNUMAInterleaving) {
       numa_make_global(addr, bytes);
+    } else if (UseZGC && os::Linux::is_numa_system()) {
+      // Large pages are committed during reservation so that they are reserved for us.
+      // However, large pages may be overreserved on a NUMA system if using shared memory,
+      // which ZGC does. To make sure we can back the pages we need to fault them in
+      // immediately.
+      if (!os::Linux::safe_touch_memory(addr, bytes, page_size)) {
+        if (::munmap(addr, bytes) != 0) {
+          ErrnoPreserver ep;
+          log_trace(os, map)("munmap failed: " RANGEFMT " errno=(%s)",
+                             RANGEFMTARGS(addr, bytes),
+                             os::strerror(ep.saved_errno()));
+        }
+        return nullptr;
+      }
     }
   }
 
@@ -4657,6 +4723,10 @@ jint os::init_2(void) {
   // Check if we need to adjust the stack size for glibc guard pages.
   init_adjust_stacksize_for_guard_pages();
 #endif
+
+  // Sets up functionality that may be needed regardless of whether the
+  // JVM should enable NUMA optimizations or not.
+  Linux::libnuma_early_init();
 
   if (UseNUMA || UseNUMAInterleaving) {
     Linux::numa_init();

@@ -27,6 +27,7 @@
 #include "runtime/globals_extension.hpp"
 
 void ZNUMA::pd_initialize() {
+  _is_numa_system = false;
   _enabled = false;
   _count = !FLAG_IS_DEFAULT(ZFakeNUMA)
       ? ZFakeNUMA
