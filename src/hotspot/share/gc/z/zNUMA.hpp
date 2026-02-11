@@ -34,6 +34,7 @@ class ZNUMA : public AllStatic {
   friend class ZTest;
 
 private:
+  static bool     _is_numa_system;
   static bool     _enabled;
   static uint32_t _count;
 
@@ -42,6 +43,7 @@ private:
 public:
   static void initialize();
 
+  static bool is_numa_system();
   static bool is_enabled();
   static bool is_faked();
 

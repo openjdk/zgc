@@ -48,7 +48,7 @@ private:
   bool is_hugetlbfs() const;
   bool tmpfs_supports_transparent_huge_pages() const;
 
-  ZErrno fallocate_compat_mmap_hugetlbfs(zbacking_offset offset, size_t length, bool touch) const;
+  ZErrno fallocate_compat_mmap_hugetlbfs(zbacking_offset offset, size_t length, bool force_touch) const;
   ZErrno fallocate_compat_mmap_tmpfs(zbacking_offset offset, size_t length) const;
   ZErrno fallocate_compat_pwrite(zbacking_offset offset, size_t length) const;
   ZErrno fallocate_fill_hole_compat(zbacking_offset offset, size_t length) const;
