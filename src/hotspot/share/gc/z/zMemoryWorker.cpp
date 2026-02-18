@@ -483,10 +483,10 @@ void ZMemoryWorker::run_thread() {
         }
 
         // The secondary priority is uncommitting memory if requested
-        bool should_uncommit;
+        bool should_uncommit = false;
         const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
         const Ticks now = Ticks::now();
-        {
+        if (ZUncommit) {
           ZLocker<ZConditionLock> locker(&_lock);
           should_uncommit = committed == 0 && has_uncommit_matured(now, uncommit_delay, target_uncommit_capacity);
         }
