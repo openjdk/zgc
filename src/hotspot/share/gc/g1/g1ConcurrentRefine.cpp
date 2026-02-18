@@ -85,7 +85,7 @@ jint G1ConcurrentRefineThreadControl::initialize(G1ConcurrentRefine* cr) {
       return JNI_ENOMEM;
     }
     _workers = new WorkerThreads("G1 Refinement Workers", max_num_threads());
-    _workers->initialize_workers();
+    _workers->initialize_workers(true /* concurrent */);
   }
   return JNI_OK;
 }

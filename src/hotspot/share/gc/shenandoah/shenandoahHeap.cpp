@@ -269,12 +269,12 @@ jint ShenandoahHeap::initialize() {
   if (_workers == nullptr) {
     vm_exit_during_initialization("Failed necessary allocation.");
   } else {
-    _workers->initialize_workers();
+    _workers->initialize_workers(true /* concurrent */);
   }
 
   if (ParallelGCThreads > 1) {
     _safepoint_workers = new ShenandoahWorkerThreads("Safepoint Cleanup Thread", ParallelGCThreads);
-    _safepoint_workers->initialize_workers();
+    _safepoint_workers->initialize_workers(false /* concurrent */);
   }
 
   //
