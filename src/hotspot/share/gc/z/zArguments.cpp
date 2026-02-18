@@ -37,9 +37,6 @@
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 #include "utilities/globalDefinitions.hpp"
-#ifdef LINUX
-#include "os_linux.hpp"
-#endif
 
 void ZArguments::initialize_alignments() {
   SpaceAlignment = ZGranuleSize;
