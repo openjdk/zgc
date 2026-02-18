@@ -31,7 +31,7 @@
 
 static bool madv_collapse_available() {
   const size_t size = 2 * M;
-  void* const res = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void* const res = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
   if (res == MAP_FAILED) {
     return false;
