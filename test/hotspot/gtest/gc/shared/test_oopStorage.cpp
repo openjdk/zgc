@@ -899,7 +899,7 @@ WorkerThreads* OopStorageTestParIteration::_workers = nullptr;
 WorkerThreads* OopStorageTestParIteration::workers() {
   if (_workers == nullptr) {
     _workers = new WorkerThreads("OopStorageTestParIteration workers", _max_workers);
-    _workers->initialize_workers();
+    _workers->initialize_workers(false /* concurrent */);
     _workers->set_active_workers(_max_workers);
   }
   return _workers;

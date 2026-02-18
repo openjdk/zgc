@@ -32,7 +32,7 @@ ZRuntimeWorkers::ZRuntimeWorkers()
   log_info_p(gc, init)("Runtime Workers: %u", _workers.max_workers());
 
   // Initialize worker threads
-  _workers.initialize_workers();
+  _workers.initialize_workers(false /* concurrent */);
   _workers.set_active_workers(_workers.max_workers());
   if (_workers.active_workers() != _workers.max_workers()) {
     vm_exit_during_initialization("Failed to create ZRuntimeWorkers");

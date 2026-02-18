@@ -78,7 +78,7 @@ WorkerThreads* OopStorageParIterPerf::_workers = nullptr;
 WorkerThreads* OopStorageParIterPerf::workers() const {
   if (_workers == nullptr) {
     WorkerThreads* wg = new WorkerThreads("OopStorageParIterPerf workers", _num_workers);
-    wg->initialize_workers();
+    wg->initialize_workers(false /* concurrent */);
     wg->set_active_workers(_num_workers);
     _workers = wg;
   }
