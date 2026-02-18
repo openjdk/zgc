@@ -212,7 +212,7 @@ bool ZMemoryWorker::consume_shrink_request(size_t new_capacity, uint64_t uncommi
   return uncommit_delay <= ZAdaptiveHeap::urgent_uncommit_delay();
 }
 
-bool ZMemoryWorker::has_uncommit_matured(Ticks now, uint64_t uncommit_delay, uint64_t requested_capacity) {
+bool ZMemoryWorker::has_uncommit_matured(Ticks now, uint64_t uncommit_delay, size_t requested_capacity) {
   if (_uncommit_request_start.value() == 0) {
     // No current uncommit request.
     return false;

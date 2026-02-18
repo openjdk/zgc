@@ -131,10 +131,10 @@ public:
   static uint initial_young_worker_cap();
 
   // Uncommit support
-  static uintptr_t no_uncommit_delay();
-  static uintptr_t urgent_uncommit_delay();
-  static uintptr_t critical_uncommit_delay();
-  static uintptr_t uncommit_delay();
+  static uint64_t no_uncommit_delay();
+  static uint64_t urgent_uncommit_delay();
+  static uint64_t critical_uncommit_delay();
+  static uint64_t uncommit_delay();
 
   static uint64_t soft_ref_delay();
 

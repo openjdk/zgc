@@ -869,19 +869,19 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   return heuristic_max_capacity;
 }
 
-uintptr_t ZAdaptiveHeap::no_uncommit_delay() {
+uint64_t ZAdaptiveHeap::no_uncommit_delay() {
   return std::numeric_limits<uint64_t>::max();
 }
 
-uintptr_t ZAdaptiveHeap::urgent_uncommit_delay() {
+uint64_t ZAdaptiveHeap::urgent_uncommit_delay() {
   return 500;
 }
 
-uintptr_t ZAdaptiveHeap::critical_uncommit_delay() {
+uint64_t ZAdaptiveHeap::critical_uncommit_delay() {
   return 0;
 }
 
-static uintptr_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metrics, size_t capacity) {
+static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metrics, size_t capacity) {
   const size_t available_memory = metrics._max_memory - metrics._used_memory;
 
   const double capacity_fraction = clamp(double(capacity) / double(metrics._used_memory), 0.05, 1.0);
