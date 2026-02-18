@@ -385,15 +385,30 @@ public:
 
 class ZStatSystemMemoryUsage : public AllStatic {
 private:
-  static NumberSeq _highest_usages;
-  static Atomic<double> _highest_usage;
-  static Atomic<double> _memory_stability;
+  class ZSystemMemoryUsage {
+  private:
+    NumberSeq _highest_usages;
+    Atomic<double> _highest_usage;
+    Atomic<double> _memory_stability;
+
+  public:
+    ZSystemMemoryUsage();
+
+    void record_usage(double usage);
+    double memory_stability();
+    void sample_and_collect();
+  };
+
+  static ZSystemMemoryUsage _container_usage;
+  static ZSystemMemoryUsage _machine_usage;
 
 public:
-  static void record_usage(double usage);
+  static void record_container_usage(double usage);
+  static void record_machine_usage(double usage);
 
   // Returns 0.0 when memory usage is constant, and increases as memory spikes appear
-  static double memory_stability();
+  static double container_memory_stability();
+  static double machine_memory_stability();
 
   static void sample_and_collect();
 };

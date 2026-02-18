@@ -1034,11 +1034,18 @@ ZStatMutatorAllocRateStats ZStatMutatorAllocRate::stats() {
   return {_rate.avg(), _rate.predict_next(), _rate.sd(), _sampling_granule};
 }
 
-NumberSeq ZStatSystemMemoryUsage::_highest_usages(0.1 /* alpha */);
-Atomic<double> ZStatSystemMemoryUsage::_memory_stability(0.0);
-Atomic<double> ZStatSystemMemoryUsage::_highest_usage(0.0);
+//
+// Stat system memory usage stability
+//
+ZStatSystemMemoryUsage::ZSystemMemoryUsage::ZSystemMemoryUsage()
+  : _highest_usages(0.1 /* alpha */),
+    _highest_usage(0.0),
+    _memory_stability(0.0) {}
 
-void ZStatSystemMemoryUsage::record_usage(double usage) {
+ZStatSystemMemoryUsage::ZSystemMemoryUsage ZStatSystemMemoryUsage::_container_usage;
+ZStatSystemMemoryUsage::ZSystemMemoryUsage ZStatSystemMemoryUsage::_machine_usage;
+
+void ZStatSystemMemoryUsage::ZSystemMemoryUsage::record_usage(double usage) {
   double highest = _highest_usage.load_relaxed();
   if (highest < usage) {
     // No need to do anything if the CAS fails; then someone else filled in an update value
@@ -1046,17 +1053,38 @@ void ZStatSystemMemoryUsage::record_usage(double usage) {
   }
 }
 
-double ZStatSystemMemoryUsage::memory_stability() {
+double ZStatSystemMemoryUsage::ZSystemMemoryUsage::memory_stability() {
   return _memory_stability.load_relaxed();
 }
 
-void ZStatSystemMemoryUsage::sample_and_collect() {
+void ZStatSystemMemoryUsage::ZSystemMemoryUsage::sample_and_collect() {
   double highest = _highest_usage.exchange(0.0, memory_order_relaxed);
   if (highest != 0.0) {
     _highest_usages.add(highest);
   }
   double sd = _highest_usages.dsd();
   _memory_stability.store_relaxed(sd);
+}
+
+void ZStatSystemMemoryUsage::record_container_usage(double usage) {
+  _container_usage.record_usage(usage);
+}
+
+void ZStatSystemMemoryUsage::record_machine_usage(double usage) {
+  _machine_usage.record_usage(usage);
+}
+
+double ZStatSystemMemoryUsage::container_memory_stability() {
+  return _container_usage.memory_stability();
+}
+
+double ZStatSystemMemoryUsage::machine_memory_stability() {
+  return _machine_usage.memory_stability();
+}
+
+void ZStatSystemMemoryUsage::sample_and_collect() {
+  _container_usage.sample_and_collect();
+  _machine_usage.sample_and_collect();
 }
 
 //

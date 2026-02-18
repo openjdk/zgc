@@ -158,9 +158,9 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
   // When the machine memory usage is fluctuating and isn't stable, it's good to
   // increase the headroom to the memory limits, otherwise there is a higher risk
   // of an allocation stall.
-  const double memory_instability = ZStatSystemMemoryUsage::memory_stability();
+  const double machine_memory_instability = ZStatSystemMemoryUsage::machine_memory_stability();
 
-  const double memory_uncertainty = MAX2(memory_instability, machine_compression_rate);
+  const double memory_uncertainty = MAX2(machine_memory_instability, machine_compression_rate);
   const double machine_concerning_threshold = MIN2(ZMemoryConcerningThreshold + memory_uncertainty, 1.0);
 
   const double machine_concerning_vs_high_diff = ZMemoryConcerningThreshold - ZMemoryHighThreshold;
@@ -216,10 +216,10 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
     container_concerning_threshold = 1.0 - double(container_min_memory) / double(container_max_memory);
 
     // Adjust the threshold by how unstable the memory usage in the system is
-    const double instability_adjustment = MIN2(memory_instability, 1.0 - container_concerning_threshold);
+    const double container_memory_instability = ZStatSystemMemoryUsage::container_memory_stability();
+    const double instability_adjustment = MIN2(container_memory_instability, 1.0 - container_concerning_threshold);
     container_concerning_threshold += instability_adjustment;
     container_high_threshold += instability_adjustment;
-
   }
 
   bool is_containerized = can_read_container_memory && has_container_limit;
@@ -234,13 +234,12 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
 
   // Record sampled memory usage so we can measure memory stability
   const double machine_usage = double(machine_used_memory) / double(machine_max_memory);
-  double highest_usage = machine_usage;
+  ZStatSystemMemoryUsage::record_machine_usage(machine_usage);
+
   if (is_containerized) {
     const double container_usage = double(container_used_memory) / double(container_max_memory);
-    highest_usage = MAX2(machine_usage, container_usage);
+    ZStatSystemMemoryUsage::record_container_usage(container_usage);
   }
-
-  ZStatSystemMemoryUsage::record_usage(highest_usage);
 
   return {
     unscaled_gc_intensity,
