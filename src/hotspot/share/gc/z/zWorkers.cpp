@@ -57,7 +57,7 @@ ZWorkers::ZWorkers(ZGenerationId id, ZStatWorkers* stats)
                        UseDynamicNumberOfGCThreads ? "dynamic" : "static");
 
   // Initialize worker threads
-  _workers.initialize_workers();
+  _workers.initialize_workers(true /* concurrent */);
   _workers.set_active_workers(_workers.max_workers());
   if (_workers.active_workers() != _workers.max_workers()) {
     vm_exit_during_initialization("Failed to create ZWorkers");
