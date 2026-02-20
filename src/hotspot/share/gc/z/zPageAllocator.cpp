@@ -1113,8 +1113,8 @@ void ZPartition::map_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
 void ZPartition::unmap_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
   verify_virtual_memory_multi_partition_association(vmem);
 
-  // Remove any heating request before unmapping
   if (ZMemoryHeating) {
+    // Remove any heating request before unmapping
     _mem_worker.remove_heating_request(vmem);
   }
 
