@@ -1104,8 +1104,8 @@ void ZPartition::map_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
   // Map virtual memory to physical memory
   manager.map(vmem, _numa_id);
 
-  // Register a heating request for this mapping
   if (ZMemoryHeating) {
+    // Register a heating request for this mapping
     _mem_worker.register_heating_request(vmem);
   }
 }
