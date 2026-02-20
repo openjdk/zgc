@@ -35,7 +35,7 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/rbTree.inline.hpp"
 
-RBTreeOrdering ZHeatingRequestTreeComparator::cmp(zoffset first, zoffset second) {
+RBTreeOrdering ZMemoryWorker::ZHeatingRequestTreeComparator::cmp(zoffset first, zoffset second) {
   if (first < second) {
     // Start before second
     return RBTreeOrdering::LT;

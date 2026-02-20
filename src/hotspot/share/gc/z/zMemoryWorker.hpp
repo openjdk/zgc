@@ -37,14 +37,6 @@
 
 class ZPartition;
 
-class ZHeatingRequestTreeComparator : public AllStatic {
-public:
-  static RBTreeOrdering cmp(zoffset first, zoffset second);
-};
-
-using ZHeatingRequestTree = RBTreeCHeap<zoffset, size_t, ZHeatingRequestTreeComparator, mtGC>;
-using ZHeatingRequestNode = RBNode<zoffset, size_t>;
-
 // This worker is enabled with automatic heap sizing.
 // Its responsibilities are:
 // * Change heap capacity
@@ -58,6 +50,14 @@ using ZHeatingRequestNode = RBNode<zoffset, size_t>;
 
 class ZMemoryWorker : public ZThread {
 private:
+  class ZHeatingRequestTreeComparator : public AllStatic {
+  public:
+    static RBTreeOrdering cmp(zoffset first, zoffset second);
+  };
+
+  using ZHeatingRequestTree = RBTreeCHeap<zoffset, size_t, ZHeatingRequestTreeComparator, mtGC>;
+  using ZHeatingRequestNode = RBNode<zoffset, size_t>;
+
   const uint32_t      _id;
   ZPartition* const   _partition;
   ZConditionLock      _lock;
