@@ -92,6 +92,7 @@ public:
   static bool is_enabled();
 
   ZMemoryWorker(uint32_t id, ZPartition* partition);
+  ~ZMemoryWorker();
 
   // Heap resizing requests
   void stop_heap_resizing();

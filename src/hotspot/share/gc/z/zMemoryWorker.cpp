@@ -79,6 +79,8 @@ ZMemoryWorker::ZMemoryWorker(uint32_t id, ZPartition* partition)
   }
 }
 
+ZMemoryWorker::~ZMemoryWorker() {}
+
 bool ZMemoryWorker::is_stop_requested() {
   ZLocker<ZConditionLock> locker(&_lock);
   return _stop;
