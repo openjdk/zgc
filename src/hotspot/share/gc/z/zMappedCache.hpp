@@ -134,7 +134,7 @@ public:
   ZVirtualMemory remove_contiguous_power_of_2(size_t min_size, size_t max_size);
   size_t remove_discontiguous(size_t size, ZArray<ZVirtualMemory>* out);
 
-  // ZUncommitter support
+  // Uncommit support
   void reset_min_size_watermark();
   size_t min_size_watermark();
   size_t remove_for_uncommit(size_t size, ZArray<ZVirtualMemory>* out);
