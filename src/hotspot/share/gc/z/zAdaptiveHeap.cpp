@@ -43,11 +43,11 @@ bool ZAdaptiveHeap::_can_adapt;
 bool ZAdaptiveHeap::_initialized;
 TruncatedSeq ZAdaptiveHeap::_gc_intensities;
 
-volatile double ZAdaptiveHeap::_young_to_old_gc_time = 1.0;
+Atomic<double> ZAdaptiveHeap::_young_to_old_gc_time(0.0);
 double ZAdaptiveHeap::_accumulated_young_gc_time = 0.0;
 ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_young_data;
 ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_old_data;
-volatile uint ZAdaptiveHeap::_initial_young_worker_cap;
+Atomic<uint> ZAdaptiveHeap::_initial_young_worker_cap;
 
 static ZLock* _stat_lock;
 
@@ -71,12 +71,12 @@ void ZAdaptiveHeap::initialize(bool explicit_max_capacity, bool can_adapt) {
 
 double ZAdaptiveHeap::young_to_old_gc_time() {
   precond(_initialized);
-  return AtomicAccess::load(&_young_to_old_gc_time);
+  return _young_to_old_gc_time.load_relaxed();
 }
 
 uint ZAdaptiveHeap::initial_young_worker_cap() {
   precond(_initialized);
-  uint capacity = AtomicAccess::load(&_initial_young_worker_cap);
+  uint capacity = _initial_young_worker_cap.load_relaxed();
   if (capacity == 0) {
     // Not yet set; use one - there are barely any objects early on anyway
     return 1;
@@ -442,7 +442,7 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
 
   // Account for the overhead of old generation collections when evaluating
   // the heap efficiency for young generation collections.
-  const double avg_total_gc_cpu_overhead = MIN2(avg_generation_gc_cpu_overhead / (is_young ? AtomicAccess::load(&_young_to_old_gc_time) : 1.0), 1.0);
+  const double avg_total_gc_cpu_overhead = MIN2(avg_generation_gc_cpu_overhead / (is_young ? _young_to_old_gc_time.load_relaxed() : 1.0), 1.0);
 
   return {
     is_containerized,
@@ -736,7 +736,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const double avg_process_cpus = avg_process_time / avg_time_since_last;
   const double high_target_workers = avg_process_cpus * target_cpu_overhead;
   uint initial_young_worker_cap = clamp<uint>((uint)ceil(high_target_workers * 1.5), 1, ZYoungGCThreads);
-  AtomicAccess::store(&_initial_young_worker_cap, initial_young_worker_cap);
+  _initial_young_worker_cap.store_relaxed(initial_young_worker_cap);
 
   const double upper_cpu_overhead = MAX2(cpu_metrics._avg_total_gc_cpu_overhead, cpu_metrics._generation_gc_cpu_overhead);
   const double upper_cpu_overhead_error = upper_cpu_overhead - target_cpu_overhead;
@@ -756,7 +756,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
     _accumulated_young_gc_time += cpu_metrics._gc_time;
   } else {
     const double young_to_old_gc_time = _accumulated_young_gc_time / (_accumulated_young_gc_time + cycle_stats._last_total_vtime);
-    AtomicAccess::store(&_young_to_old_gc_time, young_to_old_gc_time);
+    _young_to_old_gc_time.store_relaxed(young_to_old_gc_time);
     _accumulated_young_gc_time = 0.0;
   }
 

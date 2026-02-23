@@ -110,11 +110,11 @@ private:
         _gc_times_since_last() {}
   };
 
-  static volatile double _young_to_old_gc_time;
+  static Atomic<double> _young_to_old_gc_time;
   static double _accumulated_young_gc_time;
   static ZGenerationOverhead _young_data;
   static ZGenerationOverhead _old_data;
-  static volatile uint _initial_young_worker_cap;
+  static Atomic<uint> _initial_young_worker_cap;
 
   static ZCpuPressureMetrics cpu_pressure_metrics(ZGenerationId generation);
 

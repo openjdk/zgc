@@ -229,7 +229,7 @@ private:
   ZPhysicalMemoryManager     _physical;
   const size_t               _min_capacity;
   const size_t               _static_max_capacity;
-  volatile size_t            _heuristic_max_capacity;
+  Atomic<size_t>             _heuristic_max_capacity;
   volatile size_t            _used;
   volatile size_t            _used_generations[2];
   struct {

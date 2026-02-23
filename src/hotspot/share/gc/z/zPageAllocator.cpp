@@ -1678,7 +1678,7 @@ static size_t clamp_to_soft_max_capacity(size_t value) {
 }
 
 size_t ZPageAllocator::heuristic_max_capacity() const {
-  const size_t heuristic_max_capacity = AtomicAccess::load(&_heuristic_max_capacity);
+  const size_t heuristic_max_capacity = _heuristic_max_capacity.load_relaxed();
 
   return clamp_to_soft_max_capacity(heuristic_max_capacity);
 }
@@ -1706,7 +1706,7 @@ void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
   const size_t selected_capacity = ZAdaptiveHeap::compute_heap_size(&metrics, generation);
 
   // Update heuristic max capacity
-  AtomicAccess::store(&_heuristic_max_capacity, selected_capacity);
+  _heuristic_max_capacity.store_relaxed(selected_capacity);
 
   heap_resized(selected_capacity);
 }
@@ -2537,7 +2537,7 @@ void ZPageAllocator::truncate_heuristic_max_after_capacity_decrease() {
   for (;;) {
     const size_t heuristic_max = heuristic_max_capacity();
     if (heuristic_max > capacity) {
-      if (AtomicAccess::cmpxchg(&_heuristic_max_capacity, heuristic_max, capacity) != heuristic_max) {
+      if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) != heuristic_max) {
         continue;
       }
       const size_t current_max = current_max_capacity();
