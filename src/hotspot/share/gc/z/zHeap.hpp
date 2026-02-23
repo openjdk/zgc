@@ -73,7 +73,7 @@ public:
   void out_of_memory() const;
 
   // Heap metrics
-  size_t min_capacity() const;
+  size_t static_min_capacity() const;
   size_t static_max_capacity() const;
   size_t dynamic_max_capacity() const;
   size_t current_max_capacity() const;

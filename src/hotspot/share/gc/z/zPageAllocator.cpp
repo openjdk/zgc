@@ -640,13 +640,13 @@ void ZPartition::verify_memory_allocation_association(const ZMemoryAllocation* a
 
 ZPartition::ZPartition(uint32_t numa_id,
                        ZPageAllocator* page_allocator,
-                       size_t min_capacity,
+                       size_t static_min_capacity,
                        size_t static_max_capacity)
   : _page_allocator(page_allocator),
     _cache(),
     _uncommitter(numa_id, this),
     _mem_worker(numa_id, this),
-    _min_capacity(ZNUMA::calculate_share(numa_id, min_capacity)),
+    _static_min_capacity(ZNUMA::calculate_share(numa_id, static_min_capacity)),
     _static_max_capacity(ZNUMA::calculate_share(numa_id, static_max_capacity)),
     _capacity(0),
     _claimed(0),
@@ -1470,7 +1470,7 @@ public:
   }
 };
 
-ZPageAllocator::ZPageAllocator(size_t min_capacity,
+ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
                                size_t initial_capacity,
                                size_t soft_max_capacity,
                                size_t initial_max_capacity,
@@ -1478,13 +1478,13 @@ ZPageAllocator::ZPageAllocator(size_t min_capacity,
   : _lock(),
     _virtual(static_max_capacity),
     _physical(static_max_capacity),
-    _min_capacity(min_capacity),
+    _static_min_capacity(static_min_capacity),
     _static_max_capacity(static_max_capacity),
     _heuristic_max_capacity(ZAdaptiveHeap::can_adapt() ? initial_capacity : static_max_capacity),
     _used(0),
     _used_generations{0,0},
     _collection_stats{{0, 0},{0, 0}},
-    _partitions(ZValueIdTagType{}, this, min_capacity, static_max_capacity),
+    _partitions(ZValueIdTagType{}, this, static_min_capacity, static_max_capacity),
     _stalled(),
     _safe_destroy(),
     _initialized(false) {
@@ -1493,7 +1493,7 @@ ZPageAllocator::ZPageAllocator(size_t min_capacity,
     return;
   }
 
-  log_info_p(gc, init)("Min Capacity: %zuM", min_capacity / M);
+  log_info_p(gc, init)("Min Capacity: %zuM", static_min_capacity / M);
   log_info_p(gc, init)("Initial Capacity: %zuM", initial_capacity / M);
   log_info_p(gc, init)("Max Capacity: %zuM", initial_max_capacity / M);
   if (soft_max_capacity != 0) {
@@ -1517,7 +1517,7 @@ ZPageAllocator::ZPageAllocator(size_t min_capacity,
   _physical.warn_commit_limits(expected_capacity, initial_max_capacity);
 
   // Check if uncommit should and can be enabled
-  _physical.try_enable_uncommit(min_capacity, static_max_capacity);
+  _physical.try_enable_uncommit(static_min_capacity, static_max_capacity);
 
   // Successfully initialized
   _initialized = true;
@@ -1542,8 +1542,8 @@ bool ZPageAllocator::prime_cache(ZWorkers* workers, size_t size) {
   return true;
 }
 
-size_t ZPageAllocator::min_capacity() const {
-  return _min_capacity;
+size_t ZPageAllocator::static_min_capacity() const {
+  return _static_min_capacity;
 }
 
 size_t ZPageAllocator::static_max_capacity() const {
@@ -1558,7 +1558,7 @@ size_t ZPageAllocator::dynamic_max_capacity() const {
   physical_memory_size_type result = os::Machine::physical_memory();
 
   if (!os::is_containerized()) {
-    return clamp(align_down(size_t(result), ZGranuleSize), _min_capacity, _static_max_capacity);
+    return clamp(align_down(size_t(result), ZGranuleSize), _static_min_capacity, _static_max_capacity);
   }
 
   physical_memory_size_type hard_container_limit;
@@ -1571,7 +1571,7 @@ size_t ZPageAllocator::dynamic_max_capacity() const {
     result = MIN2(result, throttle_container_limit);
   }
 
-  return clamp(align_down(size_t(result), ZGranuleSize), _min_capacity, _static_max_capacity);
+  return clamp(align_down(size_t(result), ZGranuleSize), _static_min_capacity, _static_max_capacity);
 }
 
 static size_t calculate_system_max_capacity(size_t system_used,
@@ -1627,7 +1627,7 @@ size_t ZPageAllocator::current_max_capacity() const {
   const size_t machine_max_capacity = calculate_system_max_capacity(size_t(machine_used_memory),
                                                                     machine_max_memory,
                                                                     cap,
-                                                                    _min_capacity,
+                                                                    _static_min_capacity,
                                                                     _static_max_capacity);
 
   if (!os::is_containerized()) {
@@ -1659,7 +1659,7 @@ size_t ZPageAllocator::current_max_capacity() const {
   const size_t container_max_capacity = calculate_system_max_capacity(size_t(container_used_memory),
                                                                       container_max_memory,
                                                                       cap,
-                                                                      _min_capacity,
+                                                                      _static_min_capacity,
                                                                       _static_max_capacity);
 
   return MIN2(machine_max_capacity, container_max_capacity);
@@ -1685,7 +1685,7 @@ size_t ZPageAllocator::heuristic_max_capacity() const {
 
 void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
   const size_t heuristic_max = heuristic_max_capacity();
-  const size_t min_capacity = _min_capacity;
+  const size_t static_min_capacity = _static_min_capacity;
   const size_t used = ZPageAllocator::used();
   const size_t capacity = MAX2(ZPageAllocator::capacity(), used);
   const size_t curr_max_capacity = MAX2(capacity, current_max_capacity());
@@ -1697,7 +1697,7 @@ void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
     highest_soft_capacity,
     curr_max_capacity,
     heuristic_max,
-    min_capacity,
+    static_min_capacity,
     capacity,
     used,
     alloc_rate
@@ -1852,8 +1852,7 @@ void ZPageAllocator::update_collection_stats(ZGenerationId id) {
 }
 
 ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
-  return ZPageAllocatorStats(_min_capacity,
-                             heuristic_max_capacity(),
+  return ZPageAllocatorStats(heuristic_max_capacity(),
                              capacity(),
                              _used,
                              _collection_stats[(int)generation->id()]._used_high,

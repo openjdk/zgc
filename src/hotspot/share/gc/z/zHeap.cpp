@@ -74,7 +74,7 @@ ZHeap::ZHeap()
   : _page_allocator(MinHeapSize, InitialHeapSize, SoftMaxHeapSize, MaxHeapSize, compute_static_max_capacity()),
     _page_table(),
     _object_allocator(),
-    _serviceability(InitialHeapSize, min_capacity(), static_max_capacity()),
+    _serviceability(InitialHeapSize, static_min_capacity(), static_max_capacity()),
     _old(&_page_table, &_page_allocator),
     _young(&_page_table, _old.forwarding_table(), &_page_allocator),
     _tlab_usage(),
@@ -99,8 +99,8 @@ ZHeap::ZHeap()
   }
 
   // Update statistics
-  _young.stat_heap()->at_initialize(_page_allocator.min_capacity(), MaxHeapSize);
-  _old.stat_heap()->at_initialize(_page_allocator.min_capacity(), MaxHeapSize);
+  _young.stat_heap()->at_initialize(_page_allocator.static_min_capacity(), MaxHeapSize);
+  _old.stat_heap()->at_initialize(_page_allocator.static_min_capacity(), MaxHeapSize);
 
   // Successfully initialized
   _initialized = true;
@@ -110,8 +110,8 @@ bool ZHeap::is_initialized() const {
   return _initialized;
 }
 
-size_t ZHeap::min_capacity() const {
-  return _page_allocator.min_capacity();
+size_t ZHeap::static_min_capacity() const {
+  return _page_allocator.static_min_capacity();
 }
 
 size_t ZHeap::static_max_capacity() const {

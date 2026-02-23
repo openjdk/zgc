@@ -582,7 +582,7 @@ size_t ZMemoryWorker::uncommit(size_t to_uncommit) {
     ZMappedCache& cache = _partition->_cache;
 
     // Never uncommit below min capacity.
-    const size_t retain = MAX2(_partition->_used, _partition->_min_capacity);
+    const size_t retain = MAX2(_partition->_used, _partition->_static_min_capacity);
     const size_t release = _partition->_capacity - retain;
     const size_t flush = MIN2(release, to_uncommit);
 

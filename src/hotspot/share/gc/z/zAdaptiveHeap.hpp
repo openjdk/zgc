@@ -33,7 +33,7 @@ struct ZHeapResizeMetrics {
   const size_t _soft_max_capacity;
   const size_t _current_max_capacity;
   const size_t _heuristic_max_capacity;
-  const size_t _min_capacity;
+  const size_t _static_min_capacity;
   const size_t _capacity;
   const size_t _used;
   const double _alloc_rate;

@@ -108,7 +108,7 @@ private:
   ZMappedCache          _cache;
   ZUncommitter          _uncommitter;
   ZMemoryWorker         _mem_worker;
-  const size_t          _min_capacity;
+  const size_t          _static_min_capacity;
   const size_t          _static_max_capacity;
   volatile size_t       _capacity;
   volatile size_t       _claimed;
@@ -227,7 +227,7 @@ private:
   mutable ZLock              _lock;
   ZVirtualMemoryManager      _virtual;
   ZPhysicalMemoryManager     _physical;
-  const size_t               _min_capacity;
+  const size_t               _static_min_capacity;
   const size_t               _static_max_capacity;
   Atomic<size_t>             _heuristic_max_capacity;
   volatile size_t            _used;
@@ -316,7 +316,7 @@ private:
   ZPageAllocatorStats stats_inner(ZGeneration* generation) const;
 
 public:
-  ZPageAllocator(size_t min_capacity,
+  ZPageAllocator(size_t static_min_capacity,
                  size_t initial_capacity,
                  size_t soft_max_capacity,
                  size_t initial_max_capacity,
@@ -326,7 +326,7 @@ public:
 
   bool prime_cache(ZWorkers* workers, size_t size);
 
-  size_t min_capacity() const;
+  size_t static_min_capacity() const;
   size_t static_max_capacity() const;
   size_t dynamic_max_capacity() const;
   size_t current_max_capacity() const;
@@ -377,7 +377,6 @@ public:
 
 class ZPageAllocatorStats {
 private:
-  const size_t _min_capacity;
   const size_t _heuristic_max_capacity;
   const size_t _capacity;
   const size_t _used;
@@ -390,8 +389,7 @@ private:
   const size_t _allocation_stalls;
 
 public:
-  ZPageAllocatorStats(size_t min_capacity,
-                      size_t heuristic_max_capacity,
+  ZPageAllocatorStats(size_t heuristic_max_capacity,
                       size_t capacity,
                       size_t used,
                       size_t used_high,
@@ -402,7 +400,6 @@ public:
                       size_t compacted,
                       size_t allocation_stalls);
 
-  size_t min_capacity() const;
   size_t heuristic_max_capacity() const;
   size_t capacity() const;
   size_t used() const;

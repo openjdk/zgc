@@ -686,14 +686,14 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const size_t current_max_capacity = heap_metrics->_current_max_capacity;
   const size_t heuristic_max_capacity = heap_metrics->_heuristic_max_capacity;
   const size_t capacity = heap_metrics->_capacity;
-  const size_t min_capacity = heap_metrics->_min_capacity;
+  const size_t static_min_capacity = heap_metrics->_static_min_capacity;
   const size_t used = heap_metrics->_used;
 
   if (is_heap_anti_pressure_gc) {
     // The GC is bored. The impact of shrinking should not cost a considerable amount of
     // CPU, or we would not get here.
     const size_t selected_capacity = MAX2(size_t(double(heuristic_max_capacity) * 0.95), used);
-    return clamp(align_down(selected_capacity, ZGranuleSize), min_capacity, current_max_capacity);
+    return clamp(align_down(selected_capacity, ZGranuleSize), static_min_capacity, current_max_capacity);
   }
 
   ZStatCycleStats cycle_stats = ZGeneration::generation(generation)->stat_cycle()->stats();
@@ -720,7 +720,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const size_t heuristic_low = align_down(size_t(double(MAX2(size_t(double(used) * 1.1), size_t(alloc_rate * alloc_rate_scaling))) / mem_pressure), ZGranuleSize);
 
   const size_t upper_bound = MIN2(soft_max_capacity, current_max_capacity);
-  const size_t lower_bound = clamp(heuristic_low, min_capacity, upper_bound);
+  const size_t lower_bound = clamp(heuristic_low, static_min_capacity, upper_bound);
 
   // When GC intensity is 10, the implication is that we want 25% of the
   // process CPU to be spent on doing GC when the process uses 100% of the

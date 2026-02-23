@@ -26,8 +26,7 @@
 
 #include "gc/z/zPageAllocator.hpp"
 
-inline ZPageAllocatorStats::ZPageAllocatorStats(size_t min_capacity,
-                                                size_t heuristic_max_capacity,
+inline ZPageAllocatorStats::ZPageAllocatorStats(size_t heuristic_max_capacity,
                                                 size_t capacity,
                                                 size_t used,
                                                 size_t used_high,
@@ -37,8 +36,7 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t min_capacity,
                                                 size_t promoted,
                                                 size_t compacted,
                                                 size_t allocation_stalls)
-  : _min_capacity(min_capacity),
-    _heuristic_max_capacity(heuristic_max_capacity),
+  : _heuristic_max_capacity(heuristic_max_capacity),
     _capacity(capacity),
     _used(used),
     _used_high(used_high),
@@ -48,10 +46,6 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t min_capacity,
     _promoted(promoted),
     _compacted(compacted),
     _allocation_stalls(allocation_stalls) {}
-
-inline size_t ZPageAllocatorStats::min_capacity() const {
-  return _min_capacity;
-}
 
 inline size_t ZPageAllocatorStats::heuristic_max_capacity() const {
   return _heuristic_max_capacity;

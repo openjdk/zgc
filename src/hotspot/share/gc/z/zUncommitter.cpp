@@ -238,7 +238,7 @@ bool ZUncommitter::activate_uncommit_cycle() {
   const size_t to_uncommit = align_up(size_t(double(uncommit_watermark) * 0.9), ZGranuleSize);
 
   // Never uncommit below min capacity
-  const size_t uncommit_limit = _partition->_capacity - _partition->_min_capacity;
+  const size_t uncommit_limit = _partition->_capacity - _partition->_static_min_capacity;
 
   _to_uncommit = MIN2(uncommit_limit, to_uncommit);
   _uncommitted = 0;
@@ -395,7 +395,7 @@ size_t ZUncommitter::uncommit() {
     const size_t to_uncommit = MIN2(_to_uncommit, allowed_to_uncommit);
 
     // Never uncommit below min capacity.
-    const size_t retain = MAX2(_partition->_used, _partition->_min_capacity);
+    const size_t retain = MAX2(_partition->_used, _partition->_static_min_capacity);
     const size_t release = _partition->_capacity - retain;
     const size_t flush = MIN3(release, limit, to_uncommit);
 
