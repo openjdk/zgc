@@ -48,9 +48,10 @@
 // handles a subset of the heap (or the whole heap in case of a single partition).
 //
 // The most important specific terms for capacity that we have are:
-//   - min             Lower bound. The heap must not shrink below this
+//   - static min      Absolute lower bound configured at startup (never changes).
+//                     The heap must not shrink below this.
 //   - capacity        Currently committed capacity
-//   - soft_max        Target limit; heuristics try to stay below this
+//   - soft max        Target limit; heuristics try to stay below this
 //   - heuristic max   Heuristic-derived upper bound used to guide resizing
 //   - current max     The effective maximum currently enfoced; based on system
 //                     memory usage
@@ -69,9 +70,9 @@
 //
 //                            soft max      current max
 //                               |               |
-// [--|--------------|-----------|-|-------------|---------]
-//    |              |             |                       |
-//   min          capacity   heuristic max             static max
+// [----|------------|-----------|-|-------------|---------]
+//      |            |             |                       |
+//  static min    capacity    heuristic max            static max
 //                                                    dynamic max
 //
 // Container:
@@ -80,9 +81,9 @@
 //              soft max
 //     capacity    |     current max
 //        |        |         |
-// [--|---|--------|-|-------|----|------------------------]
-//    |              |            |                        |
-//   min       heuristic_max   dynamic max             static max
+// [----|-|--------|-|-------|----|------------------------]
+//      |            |            |                        |
+//  static min  heuristic_max   dynamic max             static max
 
 class ThreadClosure;
 class ZGeneration;
