@@ -274,30 +274,60 @@ void ZMemoryWorker::register_heating_request(const ZVirtualMemory& vmem) {
     _lock.wait();
   }
 
-  zoffset insert_start = vmem.start();
-  zoffset_end insert_end = vmem.end();
+  ZHeatingRequestTree::Cursor current_cursor = _heating_requests.cursor(vmem.start());
+  ZHeatingRequestTree::Cursor next_cursor = _heating_requests.next(current_cursor);
 
-  // Merge adjacent on the left
-  ZHeatingRequestNode* left_node = _heating_requests.closest_leq(vmem.start());
-  if (left_node != nullptr) {
-    ZVirtualMemory closest_left(left_node->key(), left_node->val());
-    if (closest_left.end() == vmem.start()) {
-      insert_start = closest_left.start();
-      _heating_requests.remove(left_node);
-    }
+  const bool extends_left = current_cursor.found();
+  const bool extends_right = next_cursor.valid() && next_cursor.found() &&
+                             zoffset_end(next_cursor.node()->key()) == vmem.end();
+
+  if (extends_left && extends_right) {
+    const ZVirtualMemory left_vmem(current_cursor.node()->key(), current_cursor.node()->val());
+    const ZVirtualMemory right_vmem(next_cursor.node()->key(), next_cursor.node()->val());
+    assert(left_vmem.adjacent_to(vmem), "must be");
+    assert(vmem.adjacent_to(right_vmem), "must be");
+
+    const size_t new_size = left_vmem.size() + vmem.size() + right_vmem.size();
+
+    // Remove the right node
+    _heating_requests.remove(next_cursor.node());
+
+    // And update the left node's size
+    next_cursor.node()->set_val(new_size);
+    return;
   }
 
-  // Merge adjacent on the right
-  if (size_t(vmem.end()) < ZAddressOffsetMax) {
-    ZHeatingRequestNode* right_node = _heating_requests.find_node(vmem.start() + vmem.size());
-    if (right_node != nullptr) {
-      insert_end = zoffset_end(right_node->key()) + right_node->val();
-      _heating_requests.remove(right_node);
-    }
+  if (extends_left) {
+    const ZVirtualMemory left_vmem(current_cursor.node()->key(), current_cursor.node()->val());
+    assert(left_vmem.adjacent_to(vmem), "must be");
+
+    const size_t new_size = left_vmem.size() + vmem.size();
+    current_cursor.node()->set_val(new_size);
+
+    return;
   }
 
-  ZHeatingRequestNode* const new_node = _heating_requests.allocate_node(insert_start, size_t(insert_end) - size_t(insert_start));
-  _heating_requests.insert(insert_start, new_node);
+  if (extends_right) {
+    const ZVirtualMemory right_vmem(next_cursor.node()->key(), next_cursor.node()->val());
+    assert(vmem.adjacent_to(right_vmem), "must be");
+
+    ZVirtualMemory new_vmem = vmem;
+    new_vmem.grow_from_back(right_vmem.size());
+
+    // Right now we don't have a way to change the key of an inserted CHeap-allocated
+    // node, so we have to remove the right node and insert a new node with the updated
+    // key and size.
+    _heating_requests.remove(next_cursor.node());
+
+    ZHeatingRequestNode* const new_node = _heating_requests.allocate_node(new_vmem.start(), new_vmem.size());
+    _heating_requests.insert(new_node->key(), new_node);
+
+    return;
+  }
+
+  // The request does not extend another vmem to the left or right
+  ZHeatingRequestNode* const new_node = _heating_requests.allocate_node(vmem.start(), vmem.size());
+  _heating_requests.insert(new_node->key(), new_node);
 }
 
 ZVirtualMemory ZMemoryWorker::pop_heating_request() {
