@@ -147,7 +147,6 @@ void ZArguments::set_heap_size() {
   } else {
     // When ahs is not explicitly disabled we set the heap size ourselves
     assert(!FLAG_IS_ERGO(InitialHeapSize), "Who set my heap size ergo?");
-    assert(!FLAG_IS_ERGO(MaxRAM), "Who set my heap size ergo?");
     assert(!FLAG_IS_ERGO(MinHeapSize), "Who set my heap size ergo?");
     assert(!FLAG_IS_ERGO(MinRAMPercentage), "Who set my heap size ergo?");
 
@@ -158,12 +157,12 @@ void ZArguments::set_heap_size() {
       log_warning(gc, heap, init)("ZGC does not use HeapBaseMinAddress, the value is ignored");
     }
 
-    FLAG_SET_ERGO_IF_DEFAULT(MaxRAM, os::Machine::physical_memory());
+    const double phys_mem = checked_cast<double>(os::Machine::physical_memory());
     FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
     FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
-    FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2((size_t)(checked_cast<double>(MaxRAM) * (MaxRAMPercentage / 100.)), MinHeapSize));
+    FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2((size_t)(phys_mem * (MaxRAMPercentage / 100.)), MinHeapSize));
 
-    const size_t initial_size = (size_t)(checked_cast<double>(MaxRAM) * (InitialRAMPercentage / 100.));
+    const size_t initial_size = (size_t)(phys_mem * (InitialRAMPercentage / 100.));
     FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
   }
 
