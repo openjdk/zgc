@@ -1930,7 +1930,7 @@ void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_st
   _at_relocate_end.used_high = stats.used_high();
   _at_relocate_end.used_low = stats.used_low();
   _at_relocate_end.used_generation = stats.used_generation();
-  _at_relocate_end.live = _at_mark_end.live - stats.promoted();
+  _at_relocate_end.live = _at_mark_end.live - MIN2(stats.promoted(), _at_mark_end.live);
   _at_relocate_end.garbage = garbage(stats.freed(), stats.compacted(), stats.promoted());
   _at_relocate_end.mutator_allocated = mutator_allocated(stats.used_generation(), stats.freed(), stats.compacted());
   _at_relocate_end.reclaimed = reclaimed(stats.freed(), stats.compacted(), stats.promoted());
