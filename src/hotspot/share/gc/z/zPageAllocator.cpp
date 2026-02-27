@@ -1473,7 +1473,6 @@ public:
 ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
                                size_t initial_capacity,
                                size_t soft_max_capacity,
-                               size_t initial_max_capacity,
                                size_t static_max_capacity)
   : _lock(),
     _virtual(static_max_capacity),
@@ -1495,7 +1494,7 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
 
   log_info_p(gc, init)("Min Capacity: %zuM", static_min_capacity / M);
   log_info_p(gc, init)("Initial Capacity: %zuM", initial_capacity / M);
-  log_info_p(gc, init)("Max Capacity: %zuM", initial_max_capacity / M);
+  log_info_p(gc, init)("Max Capacity: %zuM", static_max_capacity / M);
   if (soft_max_capacity != 0) {
     log_info_p(gc, init)("Soft Max Capacity: %zuM", soft_max_capacity / M);
   }
@@ -1512,9 +1511,11 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
   ZAdaptiveHeap::print();
 
   // Warn if system limits could stop us from reaching max capacity
-  size_t expected_capacity = ZAdaptiveHeap::explicit_max_capacity() ? initial_max_capacity
-                                                                    : initial_capacity;
-  _physical.warn_commit_limits(expected_capacity, initial_max_capacity);
+  size_t expected_capacity = ZAdaptiveHeap::explicit_max_capacity()
+      ? static_max_capacity
+      : initial_capacity;
+
+  _physical.warn_commit_limits(expected_capacity, static_max_capacity);
 
   // Check if uncommit should and can be enabled
   _physical.try_enable_uncommit(static_min_capacity, static_max_capacity);

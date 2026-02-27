@@ -160,7 +160,12 @@ void ZArguments::set_heap_size() {
     const double phys_mem = checked_cast<double>(os::Machine::physical_memory());
     FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
     FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
-    FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2((size_t)(phys_mem * (MaxRAMPercentage / 100.)), MinHeapSize));
+
+    // When the user has not provided an explicit max heap size we might need to
+    // scale up to most of the underlying machine memory, so we set MaxHeapSize
+    // accordingly.
+    const size_t max_size = align_down((size_t)(phys_mem * (MaxRAMPercentage / 100.)), ZGranuleSize);
+    FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
 
     const size_t initial_size = (size_t)(phys_mem * (InitialRAMPercentage / 100.));
     FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));

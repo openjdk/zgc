@@ -60,18 +60,8 @@ static const ZStatCounter ZCounterUndoObjectAllocationFailed("Memory", "Undo Obj
 
 ZHeap* ZHeap::_heap = nullptr;
 
-// The maximum heap size ever achievable on this system, during its lifetime.
-static size_t compute_static_max_capacity() {
-  if (ZAdaptiveHeap::explicit_max_capacity()) {
-    return MaxHeapSize;
-  }
-
-  // We might need to scale up to most of the underlying machine memory.
-  return MAX2(align_down(size_t(os::Machine::physical_memory()), ZGranuleSize), MinHeapSize);
-}
-
 ZHeap::ZHeap()
-  : _page_allocator(MinHeapSize, InitialHeapSize, SoftMaxHeapSize, MaxHeapSize, compute_static_max_capacity()),
+  : _page_allocator(MinHeapSize, InitialHeapSize, SoftMaxHeapSize, MaxHeapSize),
     _page_table(),
     _object_allocator(),
     _serviceability(InitialHeapSize, static_min_capacity(), static_max_capacity()),
