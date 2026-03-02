@@ -157,7 +157,7 @@ void ZArguments::set_heap_size() {
       log_warning(gc, heap, init)("ZGC does not use HeapBaseMinAddress, the value is ignored");
     }
 
-    const double phys_mem = checked_cast<double>(os::Machine::physical_memory());
+    const double phys_mem = checked_cast<double>(os::physical_memory());
     FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
     FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
 
