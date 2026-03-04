@@ -157,13 +157,16 @@ void ZArguments::set_heap_size() {
       log_warning(gc, heap, init)("ZGC does not use HeapBaseMinAddress, the value is ignored");
     }
 
-    const double phys_mem = checked_cast<double>(os::physical_memory());
+    // When the user has specified MaxRAMPercentage explicitly, we dispatch to either
+    // the container or machine's limit. If not explicitly specified, we use the machine's
+    // limit as we might need to scale up to most of the underlying memory.
+    const double phys_mem = !FLAG_IS_DEFAULT(MaxRAMPercentage)
+        ? checked_cast<double>(os::physical_memory())
+        : checked_cast<double>(os::Machine::physical_memory());
+
     FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
     FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
 
-    // When the user has not provided an explicit max heap size we might need to
-    // scale up to most of the underlying machine memory, so we set MaxHeapSize
-    // accordingly.
     const size_t max_size = align_down((size_t)(phys_mem * (MaxRAMPercentage / 100.)), ZGranuleSize);
     FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
 
