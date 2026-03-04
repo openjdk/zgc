@@ -595,30 +595,42 @@ ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics&
 }
 
 static double compute_target_gc_interval(const ZSystemMemoryPressureMetrics& mem_metrics,
-                                         const ZSystemCpuPressureMetrics& cpu_metrics,
                                          const double gc_intensity) {
+  // As memory pressure gets high, heap must be pressed down
+  if (is_system_memory_pressure_high(mem_metrics)) {
+    return 0.0;
+  }
+
   // High GC frequencies lead to extra overheads such as barrier storms and
   // frequent cache invalidation of the heap.
   // Therefore, we add a factor that ensures there is at least some social
   // distancing between GCs, even when the GC overhead is small. The size of
   // the factor scales with the level of load induced on the machine, as well
   // as the scaled and unscaled GC intensities.
-  return 5.0 / gc_intensity;
+  const double gc_interval = 5.0 / gc_intensity;
+
+  // As memory pressure gets higher, heap must be pressed down
+  if (is_system_memory_pressure_concerning(mem_metrics)) {
+    // Calculate concerning progression towards high
+    const double availability = 1.0 - double(mem_metrics._used_memory) / double(mem_metrics._max_memory);
+    const double progression = calculate_progression(availability, mem_metrics._concerning_threshold, mem_metrics._high_threshold);
+
+    return (1.0 - progression) * gc_interval;
+  }
+
+  return gc_interval;
 }
 
 static double compute_target_gc_interval(const ZMemoryPressureMetrics& mem_metrics,
-                                         const ZCpuPressureMetrics& cpu_metrics,
                                          const double gc_intensity) {
   const double machine_target_gc_interval = compute_target_gc_interval(mem_metrics._machine,
-                                                                       cpu_metrics._machine,
                                                                        gc_intensity);
 
-  if (!mem_metrics._is_containerized && !cpu_metrics._is_containerized) {
+  if (!mem_metrics._is_containerized) {
     return machine_target_gc_interval;
   }
 
   const double container_target_gc_interval = compute_target_gc_interval(mem_metrics._container,
-                                                                         cpu_metrics._container,
                                                                          gc_intensity);
   return MIN2(machine_target_gc_interval, container_target_gc_interval);
 }
@@ -723,7 +735,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const double lower_cpu_overhead = MIN2(cpu_metrics._avg_total_gc_cpu_overhead, cpu_metrics._generation_gc_cpu_overhead);
   const double lower_cpu_overhead_error = lower_cpu_overhead - target_cpu_overhead;
 
-  const double target_gc_interval = compute_target_gc_interval(mem_metrics, cpu_metrics, gc_intensity);
+  const double target_gc_interval = compute_target_gc_interval(mem_metrics, gc_intensity);
   const double gc_interval_error = MAX2(target_gc_interval - avg_time_since_last, target_gc_interval - cpu_metrics._avg_gc_interval);
 
   const double upper_error_signal = MAX2(upper_cpu_overhead_error, gc_interval_error);
