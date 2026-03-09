@@ -2345,6 +2345,8 @@ size_t ZPageAllocator::allowed_to_commit(size_t about_to_commit) {
   const size_t current_max = current_max_capacity();
   const size_t capacity = ZPageAllocator::capacity();
 
+  // Capacity already accounts for the increase as part of this allocation,
+  // subtract it to get the already committed capacity.
   const size_t committed_capacity = capacity - about_to_commit;
 
   if (committed_capacity >= current_max) {
