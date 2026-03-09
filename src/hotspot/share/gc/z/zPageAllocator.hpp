@@ -150,8 +150,8 @@ public:
 
   uint32_t numa_id() const;
 
-  size_t available(size_t capacity_limit) const;
   size_t available(ZPageAllocationAttempt attempt, size_t capacity_limit) const;
+  size_t available(size_t capacity_limit) const;
   size_t available_from_increase_capacity(size_t capacity_limit) const;
   size_t available_from_cache(size_t capacity_limit) const;
 
@@ -202,7 +202,7 @@ public:
   void copy_physical_segments_to_partition(const ZVirtualMemory& at, const ZVirtualMemory& from);
   void copy_physical_segments_from_partition(const ZVirtualMemory& at, const ZVirtualMemory& to);
 
-  void commit_increased_capacity(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem);
+  void commit_increased_capacity(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem, size_t allowed_to_commit);
   void map_memory(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem);
 
   void free_memory_alloc_failed(ZMemoryAllocation* allocation);

@@ -1305,25 +1305,20 @@ void ZPartition::copy_physical_segments_from_partition(const ZVirtualMemory& at,
   manager.copy_physical_segments(to, at);
 }
 
-void ZPartition::commit_increased_capacity(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem) {
+void ZPartition::commit_increased_capacity(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem, size_t allowed_to_commit) {
   assert(allocation->increased_capacity() > 0, "Nothing to commit");
-
-  const size_t allowed_to_commit = _page_allocator->allowed_to_commit(allocation->increased_capacity());
-
-  if (allowed_to_commit == 0) {
-    allocation->set_committed_capacity(0);
-    return;
-  }
+  assert(allowed_to_commit > 0, "Not allowed to commit anything");
 
   const size_t already_committed = allocation->harvested();
   const ZVirtualMemory to_be_committed_vmem = vmem.last_part(already_committed);
+  assert(to_be_committed_vmem.size() == allocation->increased_capacity(), "must be the same size");
 
   const size_t should_commit = MIN2(to_be_committed_vmem.size(), allowed_to_commit);
   assert(should_commit > 0, "There must be something to commit");
 
   const ZVirtualMemory should_commit_vmem = to_be_committed_vmem.first_part(should_commit);
 
-  // Try to commit the uncommitted physical memory
+  // Try to commit the not-committed physical memory
   const size_t committed = commit_physical(should_commit_vmem);
 
   // Keep track of the committed amount
@@ -2361,10 +2356,13 @@ size_t ZPageAllocator::allowed_to_commit(size_t about_to_commit) {
 
 void ZPageAllocator::commit(ZMemoryAllocation* allocation, const ZVirtualMemory& vmem) {
   ZPartition& partition = allocation->partition();
+  const size_t allowed_to_commit = ZPageAllocator::allowed_to_commit(allocation->increased_capacity());
 
-  if (allocation->increased_capacity() > 0) {
+  // If we both have something to commit and we're allowed to commit something,
+  // then try to commit.
+  if (allocation->increased_capacity() > 0 && allowed_to_commit > 0) {
     // Commit memory
-    partition.commit_increased_capacity(allocation, vmem);
+    partition.commit_increased_capacity(allocation, vmem, allowed_to_commit);
   }
 }
 
