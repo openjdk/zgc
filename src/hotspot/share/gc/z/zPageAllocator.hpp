@@ -151,7 +151,7 @@ public:
   uint32_t numa_id() const;
 
   size_t available(ZPageAllocationAttempt attempt, size_t capacity_limit) const;
-  size_t available(size_t capacity_limit) const;
+  size_t available_from_any_capacity(size_t capacity_limit) const;
   size_t available_from_increase_capacity(size_t capacity_limit) const;
   size_t available_from_cache(size_t capacity_limit) const;
 

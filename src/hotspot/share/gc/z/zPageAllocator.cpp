@@ -689,7 +689,23 @@ uint32_t ZPartition::numa_id() const {
   return _numa_id;
 }
 
-size_t ZPartition::available(size_t capacity_limit) const {
+size_t ZPartition::available(ZPageAllocationAttempt attempt, size_t capacity_limit) const {
+  assert(_capacity == _used + _claimed + _cache.size(), "Should be consistent"
+         " _capacity: %zx _used: %zx _claimed: %zx _cache.size(): %zx",
+         _capacity, _used, _claimed, _cache.size());
+
+  if (attempt == ZPageAllocationAttempt::initial) {
+    return available_from_any_capacity(capacity_limit);
+  }
+
+  if (attempt == ZPageAllocationAttempt::retry || attempt == ZPageAllocationAttempt::stall) {
+    return available_from_cache(capacity_limit);
+  }
+
+  ShouldNotReachHere();
+}
+
+size_t ZPartition::available_from_any_capacity(size_t capacity_limit) const {
   assert(_capacity == _used + _claimed + _cache.size(), "Should be consistent"
          " _capacity: %zx _used: %zx _claimed: %zx _cache.size(): %zx",
          _capacity, _used, _claimed, _cache.size());
@@ -704,32 +720,16 @@ size_t ZPartition::available(size_t capacity_limit) const {
   return capacity_limit - unavailable;
 }
 
-size_t ZPartition::available(ZPageAllocationAttempt attempt, size_t capacity_limit) const {
-  assert(_capacity == _used + _claimed + _cache.size(), "Should be consistent"
-         " _capacity: %zx _used: %zx _claimed: %zx _cache.size(): %zx",
-         _capacity, _used, _claimed, _cache.size());
-
-  if (attempt == ZPageAllocationAttempt::initial) {
-    return available(capacity_limit);
-  }
-
-  if (attempt == ZPageAllocationAttempt::retry || attempt == ZPageAllocationAttempt::stall) {
-    return available_from_cache(capacity_limit);
-  }
-
-  ShouldNotReachHere();
-}
-
 size_t ZPartition::available_from_increase_capacity(size_t capacity_limit) const {
   precond(capacity_limit >= _capacity);
-  const size_t available = ZPartition::available(capacity_limit);
+  const size_t available = ZPartition::available_from_any_capacity(capacity_limit);
   const size_t cached = _cache.size();
 
   return available - cached;
 }
 
 size_t ZPartition::available_from_cache(size_t capacity_limit) const {
-  const size_t available = ZPartition::available(capacity_limit);
+  const size_t available = ZPartition::available_from_any_capacity(capacity_limit);
   const size_t cached = _cache.size();
 
   // The current allowed available may be below what is in the cache
