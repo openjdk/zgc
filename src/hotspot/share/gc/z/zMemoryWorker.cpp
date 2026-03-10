@@ -569,8 +569,7 @@ void ZMemoryWorker::run_thread() {
       // Last priority is to heat pages to optimize access speed
       if (ZMemoryHeating && should_heat()) {
         const size_t processed = process_heating_request();
-
-        heated += process_heating_request();
+        heated += processed;
 
         if (processed > 0) {
           continue;
