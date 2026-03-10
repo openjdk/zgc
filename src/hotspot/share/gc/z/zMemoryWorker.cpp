@@ -86,7 +86,7 @@ bool ZMemoryWorker::is_stop_requested() {
   return _stop;
 }
 
-size_t ZMemoryWorker::commit_granule(size_t capacity, size_t target_capacity) {
+size_t ZMemoryWorker::commit_granule(size_t target_capacity) {
   const size_t smallest_granule = ZGranuleSize;
   const size_t largest_granule = MAX2(ZPageSizeMediumMax, smallest_granule);
 
@@ -507,12 +507,10 @@ void ZMemoryWorker::run_thread() {
 
       if (ZAdaptiveHeap::can_adapt()) {
         capacity = _partition->capacity();
-        const size_t curr_max_capacity = _partition->current_max_capacity();
         const size_t target_commit_capacity = _target_commit_capacity.load_relaxed();
         const size_t target_uncommit_capacity = _target_uncommit_capacity.load_relaxed();
-        const size_t maybe_commit = commit_granule(capacity, target_commit_capacity);
+        const size_t maybe_commit = commit_granule(target_commit_capacity);
         const size_t maybe_uncommit = uncommit_granule();
-        const ZMemoryPressureMetrics metrics = ZAdaptiveHeap::memory_pressure_metrics();
 
         if (last_target_commit_capacity != 0 && last_target_commit_capacity != target_commit_capacity) {
           // Printouts look better when flushing across target commit capacity changes
