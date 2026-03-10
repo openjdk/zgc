@@ -143,6 +143,27 @@ bool ZMemoryWorker::peek() {
   }
 }
 
+void ZMemoryWorker::verify_heating_requests() {
+#ifdef ASSERT
+  // Don't verify the tree if its "too" large
+  if (_heating_requests.size() > 10) {
+    return;
+  }
+
+  const ZHeatingRequestNode* prev = nullptr;
+
+  _heating_requests.visit_range_in_order(zoffset(0), zoffset(ZAddressOffsetMax), [&](const ZHeatingRequestNode* node) {
+    // If there is a previous node, make sure that it is not adjacent to this
+    // node. Adjacent nodes should be merged when inserted to the tree.
+    if (prev != nullptr) {
+      assert(prev->key() + prev->val() != node->key(), "surely");
+    }
+    prev = node;
+    return true;
+  });
+#endif // ASSERT
+}
+
 void ZMemoryWorker::stop_heap_resizing() {
   // Remove requests to increase the capacity
   ZLocker<ZConditionLock> locker(&_lock);
@@ -274,35 +295,40 @@ void ZMemoryWorker::register_heating_request(const ZVirtualMemory& vmem) {
     _lock.wait();
   }
 
-  ZHeatingRequestTree::Cursor current_cursor = _heating_requests.cursor(vmem.start());
-  ZHeatingRequestTree::Cursor next_cursor = _heating_requests.next(current_cursor);
+  ZHeatingRequestTree::Cursor insert_cursor = _heating_requests.cursor(vmem.start());
+  assert(!insert_cursor.found(), "must not be in tree");
 
-  const bool extends_left = current_cursor.found();
+  ZHeatingRequestTree::Cursor prev_cursor = _heating_requests.prev(insert_cursor);
+  ZHeatingRequestTree::Cursor next_cursor = _heating_requests.next(insert_cursor);
+
+  const bool extends_left = prev_cursor.valid() && prev_cursor.found() &&
+                            zoffset_end(prev_cursor.node()->key() + prev_cursor.node()->val()) == vmem.start();
+
   const bool extends_right = next_cursor.valid() && next_cursor.found() &&
                              zoffset_end(next_cursor.node()->key()) == vmem.end();
 
   if (extends_left && extends_right) {
-    const ZVirtualMemory left_vmem(current_cursor.node()->key(), current_cursor.node()->val());
+    const ZVirtualMemory left_vmem(prev_cursor.node()->key(), prev_cursor.node()->val());
     const ZVirtualMemory right_vmem(next_cursor.node()->key(), next_cursor.node()->val());
     assert(left_vmem.adjacent_to(vmem), "must be");
     assert(vmem.adjacent_to(right_vmem), "must be");
 
     const size_t new_size = left_vmem.size() + vmem.size() + right_vmem.size();
+    // Update the left node's size
+    prev_cursor.node()->set_val(new_size);
 
-    // Remove the right node
+    // And remove the right node
     _heating_requests.remove(next_cursor.node());
 
-    // And update the left node's size
-    next_cursor.node()->set_val(new_size);
     return;
   }
 
   if (extends_left) {
-    const ZVirtualMemory left_vmem(current_cursor.node()->key(), current_cursor.node()->val());
+    const ZVirtualMemory left_vmem(prev_cursor.node()->key(), prev_cursor.node()->val());
     assert(left_vmem.adjacent_to(vmem), "must be");
 
     const size_t new_size = left_vmem.size() + vmem.size();
-    current_cursor.node()->set_val(new_size);
+    prev_cursor.node()->set_val(new_size);
 
     return;
   }
@@ -321,6 +347,7 @@ void ZMemoryWorker::register_heating_request(const ZVirtualMemory& vmem) {
 
     ZHeatingRequestNode* const new_node = _heating_requests.allocate_node(new_vmem.start(), new_vmem.size());
     _heating_requests.insert(new_node->key(), new_node);
+    verify_heating_requests();
 
     return;
   }
@@ -328,6 +355,7 @@ void ZMemoryWorker::register_heating_request(const ZVirtualMemory& vmem) {
   // The request does not extend another vmem to the left or right
   ZHeatingRequestNode* const new_node = _heating_requests.allocate_node(vmem.start(), vmem.size());
   _heating_requests.insert(new_node->key(), new_node);
+  verify_heating_requests();
 }
 
 ZVirtualMemory ZMemoryWorker::pop_heating_request() {

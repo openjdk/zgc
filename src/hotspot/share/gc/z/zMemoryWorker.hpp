@@ -84,6 +84,8 @@ private:
   size_t process_heating_request();
   bool peek();
 
+  void verify_heating_requests();
+
 protected:
   virtual void run_thread();
   virtual void terminate();
