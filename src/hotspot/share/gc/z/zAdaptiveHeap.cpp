@@ -780,7 +780,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
 
   // Grow if we experience short term *and* long term pressure on the heap
   const bool should_grow = lower_bounded_capacity > heuristic_max_capacity && upper_bounded_capacity > heuristic_max_capacity;
-  // Grow if we experience short term *and* long term reverse pressure on the heap
+  // Shrink if we experience short term *and* long term reverse pressure on the heap
   const bool should_shrink = lower_bounded_capacity < heuristic_max_capacity && upper_bounded_capacity < heuristic_max_capacity;
 
   const double cpu_pressure = pressures._cpu_pressure;
