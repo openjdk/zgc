@@ -145,7 +145,7 @@ bool ZMemoryWorker::peek() {
 
 void ZMemoryWorker::verify_heating_requests() {
 #ifdef ASSERT
-  // Don't verify the tree if its "too" large
+  // Don't verify the tree if it's "too" large
   if (_heating_requests.size() > 10) {
     return;
   }
