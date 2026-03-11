@@ -1020,12 +1020,12 @@ void ZAdaptiveHeap::print() {
   precond(_initialized);
   const char* status;
   if (!can_adapt()) {
-    status = "Manual";
+    status = "Fixed";
   } else {
     if (explicit_max_capacity() || MinHeapSize != DefaultMinHeapSize) {
-      status = "Bounded Automatic";
+      status = "Automatic (Explicit Boundaries)";
     } else {
-      status = "Automatic";
+      status = "Automatic (Implicit Boundaries)";
     }
   }
   log_info_p(gc, init)("Heap Sizing: %s", status);
