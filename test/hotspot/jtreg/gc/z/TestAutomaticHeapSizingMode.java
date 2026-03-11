@@ -24,11 +24,11 @@
 package gc.z;
 
 /**
- * @test TestHeapSizeFlagsAHSMode
+ * @test TestAutomaticHeapSizingMode
  * @requires vm.gc.Z
  * @summary Test that heap size flags affect ZGC Automatic Heap Sizing mode.
  * @library / /test/lib
- * @run driver gc.z.TestHeapSizeFlagsAHSMode
+ * @run driver gc.z.TestAutomaticHeapSizingMode
  */
 
 import jdk.test.lib.JDKToolFinder;
@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class TestHeapSizeFlagsAHSMode {
+public class TestAutomaticHeapSizingMode {
     private static List<String> createTestSpecificArgs(String... heapSizeArgs) {
       List<String> args = new ArrayList<>();
       args.add("-XX:+UseZGC");
@@ -60,7 +60,7 @@ public class TestHeapSizeFlagsAHSMode {
       }
     }
 
-    private static void assertHeapSizing(String expectedMode, String... heapSizeArgs) throws Exception {
+    private static void assertHeapSizingMode(String expectedMode, String... heapSizeArgs) throws Exception {
       List<String> args = createTestSpecificArgs(heapSizeArgs);
 
       // Launch child JVM
@@ -71,7 +71,7 @@ public class TestHeapSizeFlagsAHSMode {
       assertExpectedMode(out, args, expectedMode);
     }
 
-    private static void assertHeapSizingClean(String expectedMode, String... heapSizeArgs) throws Exception {
+    private static void assertHeapSizingModeClean(String expectedMode, String... heapSizeArgs) throws Exception {
       String java = JDKToolFinder.getJDKTool("java");
       List<String> args = createTestSpecificArgs(heapSizeArgs);
 
@@ -93,37 +93,37 @@ public class TestHeapSizeFlagsAHSMode {
 
     public static void main(String[] args) throws Exception {
       // No flags
-      assertHeapSizingClean(IMPLICIT_MODE);
+      assertHeapSizingModeClean(IMPLICIT_MODE);
 
       // Only lower-bound
-      assertHeapSizingClean(EXPLICIT_MODE,
+      assertHeapSizingModeClean(EXPLICIT_MODE,
                             "-XX:MinHeapSize=100m");
-      assertHeapSizingClean(EXPLICIT_MODE,
+      assertHeapSizingModeClean(EXPLICIT_MODE,
                             "-Xms100m");
 
       // Only upper-bound
-      assertHeapSizingClean(EXPLICIT_MODE,
+      assertHeapSizingModeClean(EXPLICIT_MODE,
                             "-XX:MaxRAMPercentage=10");
-      assertHeapSizingClean(EXPLICIT_MODE,
+      assertHeapSizingModeClean(EXPLICIT_MODE,
                             "-Xmx100m");
 
       // Xms == Xmx
-      assertHeapSizing(FIXED_MODE,
+      assertHeapSizingMode(FIXED_MODE,
                        "-Xms100m",
                        "-Xmx100m");
 
       // Xms != Xmx
-      assertHeapSizing(EXPLICIT_MODE,
+      assertHeapSizingMode(EXPLICIT_MODE,
                        "-Xms50m",
                        "-Xmx100m");
 
       // MinHeapSize == Xmx
-      assertHeapSizing(FIXED_MODE,
+      assertHeapSizingMode(FIXED_MODE,
                        "-XX:MinHeapSize=100m",
                        "-Xmx100m");
 
       // MinHeapSize < Xmx
-      assertHeapSizing(EXPLICIT_MODE,
+      assertHeapSizingMode(EXPLICIT_MODE,
                        "-XX:MinHeapSize=50m",
                        "-Xmx100m");
     }
