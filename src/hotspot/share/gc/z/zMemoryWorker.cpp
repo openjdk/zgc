@@ -482,6 +482,136 @@ void ZMemoryWorker::await_start() {
   }
 }
 
+class ZMemoryWorker::ZMemoryWorkerState {
+private:
+  ZMemoryWorker* const _worker;
+
+  size_t _committed;
+  size_t _uncommitted;
+  size_t _heated;
+  size_t _capacity;
+  size_t _last_target_commit_capacity;
+  size_t _last_target_uncommit_capacity;
+  size_t _current_target_commit_capacity;
+  size_t _current_target_uncommit_capacity;
+
+public:
+  explicit ZMemoryWorkerState(ZMemoryWorker* worker)
+    : _worker(worker),
+      _committed(0),
+      _uncommitted(0),
+      _heated(0),
+      _capacity(0),
+      _last_target_commit_capacity(0),
+      _last_target_uncommit_capacity(0),
+      _current_target_commit_capacity(0),
+      _current_target_uncommit_capacity(0) {}
+
+  ~ZMemoryWorkerState() {
+    if (_committed > 0) {
+      log_info(gc, heap)("Memory Worker (%d) Committed: %zuM(%.0f%%)",
+                         _worker->_id, _committed / M,
+                         percent_of(_committed, _last_target_commit_capacity));
+    }
+    if (_uncommitted > 0) {
+      log_info(gc, heap)("Memory Worker (%d) Uncommitted: %zuM(%.0f%%)",
+                         _worker->_id, _uncommitted / M,
+                         percent_of(_uncommitted, _last_target_uncommit_capacity));
+    }
+    if (_heated > 0) {
+      log_info(gc, heap)("Memory Worker (%d) Heated: %zuM(%.0f%%)",
+                         _worker->_id, _heated / M,
+                         percent_of(_heated, _capacity));
+    }
+  }
+
+  bool refresh_targets_or_break() {
+    _capacity = _worker->_partition->capacity();
+    _current_target_commit_capacity = _worker->_target_commit_capacity.load_relaxed();
+    _current_target_uncommit_capacity = _worker->_target_uncommit_capacity.load_relaxed();
+
+    // If the target commit or uncommit capacity changes we break so that we can
+    // report the work done in prints clearly
+
+    if (_last_target_commit_capacity != 0 &&
+        _last_target_commit_capacity != _current_target_commit_capacity) {
+      return true;
+    }
+    if (_last_target_uncommit_capacity != 0 &&
+        _last_target_uncommit_capacity != _current_target_uncommit_capacity) {
+      return true;
+    }
+
+    _last_target_commit_capacity   = _current_target_commit_capacity;
+    _last_target_uncommit_capacity = _current_target_uncommit_capacity;
+    return false;
+  }
+
+  bool try_commit() {
+    if (_uncommitted != 0) {
+      return false;
+    }
+
+    if (_current_target_commit_capacity == 0 || _current_target_commit_capacity <= _capacity) {
+      return false;
+    }
+
+    const size_t commit_size = _worker->commit_granule(_current_target_commit_capacity);
+    const size_t processed = _worker->_partition->increase_and_commit_capacity(commit_size, _current_target_commit_capacity);
+    const size_t new_capacity = _capacity + processed;
+
+    _committed += processed;
+
+    _worker->consume_grow_request(new_capacity);
+
+    return processed > 0;
+  }
+
+  bool try_uncommit() {
+    if (_committed != 0) {
+      return false;
+    }
+
+    const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
+    const Ticks now = Ticks::now();
+
+    bool should_uncommit = false;
+    if (ZUncommit) {
+      ZLocker<ZConditionLock> locker(&_worker->_lock);
+      should_uncommit = _worker->has_uncommit_matured(now, uncommit_delay, _current_target_uncommit_capacity);
+    }
+
+    if (!should_uncommit) {
+      return false;
+    }
+
+    const size_t uncommit_size = _worker->uncommit_granule();
+    const size_t processed = _worker->uncommit(uncommit_size);
+    const size_t new_capacity = _capacity - processed;
+
+    _uncommitted += processed;
+
+    if (processed > 0) {
+      if (_worker->consume_shrink_request(new_capacity, uncommit_delay)) {
+        _worker->request_shrink_capacity_granule();
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  bool try_heat() {
+    if (!(ZMemoryHeating && _worker->should_heat())) {
+      return false;
+    }
+
+    const size_t processed = _worker->process_heating_request();
+    _heated += processed;
+    return processed > 0;
+  }
+};
+
 void ZMemoryWorker::run_thread() {
   // Wait until started
   await_start();
@@ -492,104 +622,35 @@ void ZMemoryWorker::run_thread() {
       return;
     }
 
-    size_t committed = 0;
-    size_t uncommitted = 0;
-    size_t heated = 0;
-    size_t last_target_commit_capacity = 0;
-    size_t last_target_uncommit_capacity = 0;
-    size_t capacity = 0;
+    ZMemoryWorkerState worker_state(this);
 
     for (;;) {
-
       if (is_stop_requested()) {
         return;
       }
 
       if (ZAdaptiveHeap::can_adapt()) {
-        capacity = _partition->capacity();
-        const size_t target_commit_capacity = _target_commit_capacity.load_relaxed();
-        const size_t target_uncommit_capacity = _target_uncommit_capacity.load_relaxed();
-        const size_t maybe_commit = commit_granule(target_commit_capacity);
-        const size_t maybe_uncommit = uncommit_granule();
-
-        if (last_target_commit_capacity != 0 && last_target_commit_capacity != target_commit_capacity) {
-          // Printouts look better when flushing across target commit capacity changes
+        if (worker_state.refresh_targets_or_break()) {
           break;
         }
 
-        if (last_target_uncommit_capacity != 0 && last_target_uncommit_capacity != target_uncommit_capacity) {
-          // Printouts look better when flushing across target uncommit capacity changes
-          break;
+        // First priority is committing memory
+        if (worker_state.try_commit()) {
+          continue;
         }
 
-        last_target_commit_capacity = target_commit_capacity;
-        last_target_uncommit_capacity = target_uncommit_capacity;
-
-        // Prioritize committing memory if requested
-        if (uncommitted == 0 && target_commit_capacity != 0 && target_commit_capacity > capacity) {
-          const size_t processed = _partition->increase_and_commit_capacity(maybe_commit, target_commit_capacity);
-          const size_t new_capacity = capacity + processed;
-
-          committed += processed;
-
-          // Growing request has potentially been satisfied
-          consume_grow_request(new_capacity);
-
-          if (processed > 0) {
-            continue;
-          }
-        }
-
-        // The secondary priority is uncommitting memory if requested
-        bool should_uncommit = false;
-        const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
-        const Ticks now = Ticks::now();
-        if (ZUncommit) {
-          ZLocker<ZConditionLock> locker(&_lock);
-          should_uncommit = committed == 0 && has_uncommit_matured(now, uncommit_delay, target_uncommit_capacity);
-        }
-
-        if (should_uncommit) {
-          const size_t processed = uncommit(maybe_uncommit);
-          const size_t new_capacity = capacity - processed;
-
-          uncommitted += processed;
-
-          if (processed > 0) {
-            if (consume_shrink_request(new_capacity, uncommit_delay)) {
-              request_shrink_capacity_granule();
-            }
-            continue;
-          }
-        }
-      }
-
-      // Last priority is to heat pages to optimize access speed
-      if (ZMemoryHeating && should_heat()) {
-        const size_t processed = process_heating_request();
-        heated += processed;
-
-        if (processed > 0) {
+        // Second priority is uncommitting memory
+        if (worker_state.try_uncommit()) {
           continue;
         }
       }
 
+      // Third priority (or first and only if not adapting) is heating memory
+      if (worker_state.try_heat()) {
+        continue;
+      }
+
       break;
-    }
-
-    if (committed > 0) {
-      log_info(gc, heap)("Memory Worker (%d) Committed: %zuM(%.0f%%)",
-                         _id, committed / M, percent_of(committed, last_target_commit_capacity));
-    }
-
-    if (uncommitted > 0) {
-      log_info(gc, heap)("Memory Worker (%d) Uncommitted: %zuM(%.0f%%)",
-                         _id, uncommitted / M, percent_of(uncommitted, last_target_uncommit_capacity));
-    }
-
-    if (heated > 0) {
-      log_info(gc, heap)("Memory Worker (%d) Heated: %zuM(%.0f%%)",
-                         _id, heated / M, percent_of(heated, capacity));
     }
   }
 }

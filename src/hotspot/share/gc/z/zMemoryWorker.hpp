@@ -50,6 +50,8 @@ class ZPartition;
 
 class ZMemoryWorker : public ZThread {
 private:
+  class ZMemoryWorkerState;
+
   class ZHeatingRequestTreeComparator : public AllStatic {
   public:
     static RBTreeOrdering cmp(zoffset first, zoffset second);
