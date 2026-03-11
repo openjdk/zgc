@@ -45,7 +45,7 @@ public class TestAutomaticHeapSizingMode {
       List<String> args = new ArrayList<>();
       args.add("-XX:+UseZGC");
       args.add("-Xlog:gc+init");
-      args.addAll(Arrays.asList(heapSizeArgs));   // ok even if empty
+      args.addAll(Arrays.asList(heapSizeArgs));
       args.add("--version");
       return args;
     }
