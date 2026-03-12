@@ -1506,7 +1506,7 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
   ZAdaptiveHeap::print();
 
   // Warn if system limits could stop us from reaching max capacity
-  size_t expected_capacity = ZAdaptiveHeap::explicit_max_capacity()
+  const size_t expected_capacity = ZAdaptiveHeap::explicit_max_capacity()
       ? static_max_capacity
       : initial_capacity;
 
@@ -1760,7 +1760,6 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
 void ZPageAllocator::heap_truncated(size_t selected_capacity) {
   precond(ZAdaptiveHeap::can_adapt());
 
-  // Update per partition heuristic max capacity
   ZPerNUMAIterator<ZPartition> iter = partition_iterator();
   for (ZPartition* partition; iter.next(&partition);) {
     // Update memory worker target capacity

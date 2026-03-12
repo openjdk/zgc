@@ -165,7 +165,7 @@ void ZMemoryWorker::verify_heating_requests() {
 }
 
 void ZMemoryWorker::stop_heap_resizing() {
-  // Remove requests to increase the capacity
+  // Remove requests to resize the capacity
   ZLocker<ZConditionLock> locker(&_lock);
   _target_commit_capacity.store_relaxed(0u);
   _target_uncommit_capacity.store_relaxed(0u);
