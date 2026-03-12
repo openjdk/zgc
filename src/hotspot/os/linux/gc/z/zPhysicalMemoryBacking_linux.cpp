@@ -632,8 +632,8 @@ retry:
       goto retry;
     }
 
-    static volatile bool warned_failed_commit = false;
-    if (AtomicAccess::cmpxchg(&warned_failed_commit, false, true) == false) {
+    static Atomic<bool> warned_failed_commit{false};
+    if (warned_failed_commit.compare_exchange(false, true) == false) {
       log_error_p(gc)("Failed to commit memory (%s)", err.to_string());
     }
 
