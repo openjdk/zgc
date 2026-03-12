@@ -88,8 +88,8 @@ public class TestAutomaticHeapSizingMode {
     }
 
     private static final String FIXED_MODE = "Fixed";
-    private static final String EXPLICIT_MODE = "Automatic (Explicit Boundaries)";
     private static final String IMPLICIT_MODE = "Automatic (Implicit Boundaries)";
+    private static final String EXPLICIT_MODE = "Automatic (Explicit Boundaries)";
 
     public static void main(String[] args) throws Exception {
       // No flags
@@ -97,34 +97,34 @@ public class TestAutomaticHeapSizingMode {
 
       // Only lower-bound
       assertHeapSizingModeClean(EXPLICIT_MODE,
-                            "-XX:MinHeapSize=100m");
+                                "-XX:MinHeapSize=100m");
       assertHeapSizingModeClean(EXPLICIT_MODE,
-                            "-Xms100m");
+                                "-Xms100m");
 
       // Only upper-bound
       assertHeapSizingModeClean(EXPLICIT_MODE,
-                            "-XX:MaxRAMPercentage=10");
+                                "-XX:MaxRAMPercentage=10");
       assertHeapSizingModeClean(EXPLICIT_MODE,
-                            "-Xmx100m");
+                                "-Xmx100m");
 
       // Xms == Xmx
       assertHeapSizingMode(FIXED_MODE,
-                       "-Xms100m",
-                       "-Xmx100m");
+                           "-Xms100m",
+                           "-Xmx100m");
 
       // Xms != Xmx
       assertHeapSizingMode(EXPLICIT_MODE,
-                       "-Xms50m",
-                       "-Xmx100m");
+                           "-Xms50m",
+                           "-Xmx100m");
 
       // MinHeapSize == Xmx
       assertHeapSizingMode(FIXED_MODE,
-                       "-XX:MinHeapSize=100m",
-                       "-Xmx100m");
+                           "-XX:MinHeapSize=100m",
+                           "-Xmx100m");
 
       // MinHeapSize < Xmx
       assertHeapSizingMode(EXPLICIT_MODE,
-                       "-XX:MinHeapSize=50m",
-                       "-Xmx100m");
+                           "-XX:MinHeapSize=50m",
+                           "-Xmx100m");
     }
 }
