@@ -957,10 +957,10 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
   }
 
   // With automatic heap sizing, there is a risk for a feedback loop when the amount
-  // free memory decides how long soft references survive. More soft references will
-  // lead to the heap growing, hence creating more free memory and suddenly letting
-  // soft references live for longer. In order to cut this feedback loop, a more
-  // involved policy is used.
+  // of free memory decides how long soft references survive. More soft references
+  // will lead to the heap growing, hence creating more free memory and suddenly
+  // letting soft references live for longer. In order to cut this feedback loop,
+  // a more involved policy is used.
   //
   // The more involved strategy scales the delay with the time it would take for the
   // heap to get filled up by old generation allocations multiplied by a scaled
@@ -982,7 +982,6 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
 
   const double mem_pressure = free_ratio;
 
-  // No point to clear more soft references due to external memory pressure if the
   // Scale the SoftRefLRUPolicyMSPerMB as an nth root where n is the memory pressure.
   // The reason for using the nth root is that it might not necessarily be that
   // linearly decreasing the interval with memory pressure yields linearly more
@@ -992,7 +991,7 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
   // more aggressive nth root is used.
   const uint64_t scaled_interval = uint64_t(pow(SoftRefLRUPolicyMSPerMB, 1.0 / mem_pressure));
 
-  // Compute the potentially more aggressive delay that cuts the feedback loop.
+  // Compute the potentially more aggressive delay that cuts the feedback loop
   const uint64_t implicit_delay = uint64_t(time_to_old_oom * double(scaled_interval));
 
   // If the new policy yields earlier cut off points, then use that. Otherwise,
