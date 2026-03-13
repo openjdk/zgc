@@ -2534,7 +2534,7 @@ void ZPageAllocator::truncate_heuristic_max_after_capacity_decrease() {
   // Adjust heuristic max capacity to ensure GC tries to keep below current capacity
   const size_t capacity = ZPageAllocator::capacity();
   for (;;) {
-    const size_t heuristic_max = heuristic_max_capacity();
+    const size_t heuristic_max = _heuristic_max_capacity.load_relaxed();
     if (heuristic_max > capacity) {
       if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) != heuristic_max) {
         continue;
