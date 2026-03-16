@@ -661,8 +661,8 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
     cause == GCCause::_z_high_usage ||
     cause == GCCause::_z_warmup;
 
-  if (!is_heap_pressure_gc) {
-    // If this isn't a GC pressure triggered GC, don't resize or learn anything
+  if (!is_heap_anti_pressure_gc && !is_heap_pressure_gc) {
+    // If this GC isn't heuristically triggered, don't resize or learn anything
     return heap_metrics->_heuristic_max_capacity;
   }
 
