@@ -210,7 +210,7 @@ void ZMemoryWorker::request_shrink_capacity_granule() {
 void ZMemoryWorker::consume_grow_request(size_t new_capacity) {
   ZLocker<ZConditionLock> locker(&_lock);
 
-  const size_t target_capacity = _target_uncommit_capacity.load_relaxed();
+  const size_t target_capacity = _target_commit_capacity.load_relaxed();
 
   if (new_capacity >= target_capacity) {
     _target_commit_capacity.store_relaxed(0);
