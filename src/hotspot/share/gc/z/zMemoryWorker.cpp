@@ -200,7 +200,6 @@ void ZMemoryWorker::request_shrink_capacity_granule() {
   Ticks now = Ticks::now();
 
   ZLocker<ZConditionLock> locker(&_lock);
-  _target_commit_capacity.store_relaxed(0u);
   if (_uncommit_request_start.value() == 0) {
     _uncommit_request_start = now;
   }
@@ -573,23 +572,52 @@ public:
     }
 
     const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
+    const size_t uncommit_size = _worker->uncommit_granule();
     const Ticks now = Ticks::now();
 
+    bool uncommit_matured = false;
     bool should_uncommit = false;
+    size_t new_capacity = 0;
+    size_t processed = 0;
+
     if (ZUncommit) {
       ZLocker<ZConditionLock> locker(&_worker->_lock);
-      should_uncommit = _worker->has_uncommit_matured(now, uncommit_delay, _current_target_uncommit_capacity);
+
+      if (_worker->has_uncommit_matured(now, uncommit_delay, _current_target_uncommit_capacity)) {
+        // When an uncommit request matures, it usually results in uncommitting, but if there
+        // is a long-term request for growing, then we shrink that request instead of uncommitting.
+
+        if (_current_target_uncommit_capacity == 0 &&
+            _current_target_commit_capacity > 0 &&
+            _current_target_commit_capacity > _capacity) {
+          const size_t remaining_capacity = _current_target_commit_capacity - _capacity;
+          processed = MIN2(uncommit_size, remaining_capacity);
+          new_capacity = _current_target_commit_capacity - processed;
+
+          _worker->_target_commit_capacity.store_relaxed(new_capacity);
+          should_uncommit = false;
+        } else {
+          should_uncommit = true;
+        }
+        uncommit_matured = true;
+      }
     }
 
-    if (!should_uncommit) {
+    if (!uncommit_matured) {
       return false;
     }
 
-    const size_t uncommit_size = _worker->uncommit_granule();
-    const size_t processed = _worker->uncommit(uncommit_size);
-    const size_t new_capacity = _capacity - processed;
+    if (should_uncommit) {
+      processed = _worker->uncommit(uncommit_size);
+      new_capacity = _capacity - processed;
 
-    _uncommitted += processed;
+      _uncommitted += processed;
+    } else {
+      _worker->_partition->_page_allocator->shrink_heuristic_max(processed);
+      log_debug(gc, heap)("Memory Worker (%d) Prevented Commit: %zuM(%.0f%%)",
+                          _worker->_id, processed / M,
+                          percent_of(processed, _capacity));
+    }
 
     if (processed > 0) {
       if (_worker->consume_shrink_request(new_capacity, uncommit_delay)) {

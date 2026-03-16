@@ -73,6 +73,7 @@ private:
   void await_start();
   bool is_stop_requested();
   size_t commit_granule(size_t target_capacity);
+  size_t uncommit_granule();
 
   size_t uncommit(size_t to_uncommit);
 
@@ -104,7 +105,6 @@ public:
   void request_shrink_capacity(size_t requested_capacity);
   void request_shrink_capacity_granule();
   void wake_up_if_uncommit_matured();
-  size_t uncommit_granule();
 
   // Heating requests
   void register_heating_request(const ZVirtualMemory& vmem);

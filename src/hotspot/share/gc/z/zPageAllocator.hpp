@@ -337,6 +337,7 @@ public:
   size_t unused() const;
 
   // Automatic heap sizing
+  void shrink_heuristic_max(size_t shrink_amount);
   void truncate_heuristic_max_after_capacity_decrease();
   void adapt_heuristic_max_capacity(ZGenerationId generation);
   void heap_resized(size_t selected_capacity);

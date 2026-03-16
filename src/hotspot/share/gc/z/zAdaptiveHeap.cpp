@@ -285,10 +285,11 @@ static double system_memory_pressure(const ZSystemMemoryPressureMetrics& metrics
   }
 
   if (availability < concerning) {
-    // When memory pressure is "concerning", we linearly scale up memory pressure to the
-    // "high" pressure (i.e. unscaled GC intensity).
+    // When memory pressure is "concerning", we quadratically scale up memory
+    // pressure to the "high" pressure (i.e. unscaled GC intensity).
     const double progression = 1.0 - (availability - high) / (concerning - high);
-    const double pressure_factor = (pressure_rate - 1.0) * progression;
+    const double progression_squared = progression * progression;
+    const double pressure_factor = (pressure_rate - 1.0) * progression_squared;
 
     return 1.0 + pressure_factor;
   }
@@ -714,13 +715,19 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const size_t upper_bound = MIN2(soft_max_capacity, current_max_capacity);
   const size_t lower_bound = clamp(heuristic_low, static_min_capacity, upper_bound);
 
+  // We want strictly more GC activity on systems with proactive memory
+  // compression (Windows and MacOS). Otherwise, memory bloating leads to
+  // memory compression and decompression, which wastes more CPU than just
+  // doing more GC instead.
+  const double compression_gc_penalty = 1.0 MACOS_ONLY(* 2.0) WINDOWS_ONLY(* 2.0);
+
   // When GC intensity is 10, the implication is that we want ZConcurrentWorkersCPUShare
   // of the process CPU to be spent on doing GC when the process uses 100% of the
   // available CPU cores. The ConcGCThreads sizing by default goes up to a maximum
   // of ZConcurrentWorkersCPUShare of the available cores. So all ConcGCThreads
   // would be running back to back then.
   const double normalised_gc_intensity = gc_intensity / 10;
-  const double target_cpu_overhead = ZConcurrentWorkersCPUShare * normalised_gc_intensity;
+  const double target_cpu_overhead = ZConcurrentWorkersCPUShare * normalised_gc_intensity * compression_gc_penalty;
 
   // Save some breadcrumbs to the director to not use more conc GC threads
   // than we need to run back to back GC at the target GC CPU overhead limit.
@@ -737,7 +744,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const double lower_cpu_overhead = MIN2(cpu_metrics._avg_total_gc_cpu_overhead, cpu_metrics._generation_gc_cpu_overhead);
   const double lower_cpu_overhead_error = lower_cpu_overhead - target_cpu_overhead;
 
-  const double target_gc_interval = compute_target_gc_interval(mem_metrics, gc_intensity);
+  const double target_gc_interval = compute_target_gc_interval(mem_metrics, gc_intensity) / compression_gc_penalty;
   const double gc_interval_error = MAX2(target_gc_interval - avg_time_since_last, target_gc_interval - cpu_metrics._avg_gc_interval);
 
   const double upper_error_signal = MAX2(upper_cpu_overhead_error, gc_interval_error);

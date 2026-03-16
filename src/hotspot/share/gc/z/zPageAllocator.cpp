@@ -1711,8 +1711,6 @@ void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
 void ZPageAllocator::heap_resized(size_t selected_capacity) {
   precond(ZAdaptiveHeap::can_adapt());
 
-  const ZMemoryPressureMetrics mem_pressure = ZAdaptiveHeap::memory_pressure_metrics();
-
   // Update per partition heuristic max capacity
   ZPerNUMAIterator<ZPartition> iter = partition_iterator();
   for (ZPartition* partition; iter.next(&partition);) {
@@ -1723,13 +1721,8 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
     const size_t capacity = partition->capacity();
 
     if (capacity < heuristic_max_capacity) {
-      // Consider growing the heap if memory pressure isn't too high
-
-      if (ZAdaptiveHeap::is_memory_pressure_high(mem_pressure)) {
-        mem_worker.stop_heap_resizing();
-      } else {
-        mem_worker.request_grow_capacity(heuristic_max_capacity);
-      }
+      // Grow the heap
+      mem_worker.request_grow_capacity(heuristic_max_capacity);
     } else {
       // Consider shrinking the heap
 
@@ -2534,24 +2527,39 @@ void ZPageAllocator::cleanup_failed_commit_multi_partition(ZMultiPartitionAlloca
   _virtual.insert_multi_partition(vmem);
 }
 
+void ZPageAllocator::shrink_heuristic_max(size_t shrink_amount) {
+  for (;;) {
+    const size_t heuristic_max = _heuristic_max_capacity.load_relaxed();
+    const size_t capacity = MAX2(heuristic_max - MIN2(shrink_amount, heuristic_max), ZGranuleSize);
+    if (heuristic_max > capacity) {
+      if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) == heuristic_max) {
+        break;
+      }
+    }
+    return;
+  }
+}
+
 void ZPageAllocator::truncate_heuristic_max_after_capacity_decrease() {
   // Adjust heuristic max capacity to ensure GC tries to keep below current capacity
   const size_t capacity = ZPageAllocator::capacity();
+
   for (;;) {
     const size_t heuristic_max = _heuristic_max_capacity.load_relaxed();
-    if (heuristic_max > capacity) {
-      if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) != heuristic_max) {
-        continue;
-      }
-      const size_t current_max = current_max_capacity();
-      log_debug(gc)("Forced to lower heap size from "
-                    "%zuM(%.0f%%) to %zuM(%.0f%%)",
-                    heuristic_max / M, percent_of(heuristic_max, current_max),
-                    capacity / M, percent_of(capacity, current_max));
+    if (heuristic_max <= capacity) {
+      return;
+    }
+    if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) != heuristic_max) {
+      continue;
+    }
+    const size_t current_max = current_max_capacity();
+    log_debug(gc)("Forced to lower heap size from "
+                  "%zuM(%.0f%%) to %zuM(%.0f%%)",
+                  heuristic_max / M, percent_of(heuristic_max, current_max),
+                  capacity / M, percent_of(capacity, current_max));
 
-      if (ZAdaptiveHeap::can_adapt()) {
-        heap_truncated(capacity);
-      }
+    if (ZAdaptiveHeap::can_adapt()) {
+      heap_truncated(capacity);
     }
     return;
   }
