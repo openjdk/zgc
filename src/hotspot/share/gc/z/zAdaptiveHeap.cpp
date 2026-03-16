@@ -25,6 +25,7 @@
 #include "gc/shared/gcLogPrecious.hpp"
 #include "gc/z/zAdaptiveHeap.inline.hpp"
 #include "gc/z/zDriver.hpp"
+#include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
 #include "gc/z/zStat.hpp"
@@ -713,12 +714,13 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const size_t upper_bound = MIN2(soft_max_capacity, current_max_capacity);
   const size_t lower_bound = clamp(heuristic_low, static_min_capacity, upper_bound);
 
-  // When GC intensity is 10, the implication is that we want 25% of the
-  // process CPU to be spent on doing GC when the process uses 100% of the
-  // available CPU cores.. The ConcGCThreads sizing by default goes up to
-  // a maximum of 25% of the available cores. So all ConcGCThreads would
-  // be running back to back then.
-  const double target_cpu_overhead = gc_intensity / 40.0;
+  // When GC intensity is 10, the implication is that we want ZConcurrentWorkersCPUShare
+  // of the process CPU to be spent on doing GC when the process uses 100% of the
+  // available CPU cores. The ConcGCThreads sizing by default goes up to a maximum
+  // of ZConcurrentWorkersCPUShare of the available cores. So all ConcGCThreads
+  // would be running back to back then.
+  const double normalised_gc_intensity = gc_intensity / 10;
+  const double target_cpu_overhead = ZConcurrentWorkersCPUShare * normalised_gc_intensity;
 
   // Save some breadcrumbs to the director to not use more conc GC threads
   // than we need to run back to back GC at the target GC CPU overhead limit.
