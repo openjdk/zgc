@@ -101,7 +101,7 @@ private:
   size_t                 _harvested;
   size_t                 _increased_capacity;
   size_t                 _committed_capacity;
-  bool                   _commit_failed;
+  bool                   _has_set_committed_capacity;
 
   explicit ZMemoryAllocation(const ZMemoryAllocation& other)
     : ZMemoryAllocation(other._size) {
@@ -133,7 +133,7 @@ private:
 
   void transfer_claimed_capacity(const ZMemoryAllocation& from) {
     assert(from._committed_capacity == 0, "Unexpected value %zu", from._committed_capacity);
-    assert(!from._commit_failed, "Unexpected value");
+    assert(!_has_set_committed_capacity, "Should not have set committed capacity yet");
 
     // Transfer increased capacity
     _increased_capacity += from._increased_capacity;
@@ -162,7 +162,7 @@ public:
       _harvested(0),
       _increased_capacity(0),
       _committed_capacity(0),
-      _commit_failed(false) {}
+      _has_set_committed_capacity(false) {}
 
   void reset_for_retry() {
     assert(_satisfied_from_cache_vmem.is_null(), "Incompatible with reset");
@@ -173,7 +173,7 @@ public:
     _harvested = 0;
     _increased_capacity = 0;
     _committed_capacity = 0;
-    _commit_failed = false;
+    _has_set_committed_capacity = false;
   }
 
   size_t size() const {
@@ -247,13 +247,14 @@ public:
   }
 
   void set_committed_capacity(size_t committed_capacity) {
-    assert(_committed_capacity == 0, "Should only commit once");
+    precond(!_has_set_committed_capacity);
     _committed_capacity = committed_capacity;
-    _commit_failed = committed_capacity != _increased_capacity;
+    _has_set_committed_capacity = true;
   }
 
   bool commit_failed() const {
-    return _commit_failed;
+    precond(_has_set_committed_capacity);
+    return _committed_capacity != _increased_capacity;
   }
 
   static void destroy(ZMemoryAllocation* allocation) {
@@ -2364,6 +2365,9 @@ void ZPageAllocator::commit(ZMemoryAllocation* allocation, const ZVirtualMemory&
   if (allocation->increased_capacity() > 0 && allowed_to_commit > 0) {
     // Commit memory
     partition.commit_increased_capacity(allocation, vmem, allowed_to_commit);
+  } else {
+    // Record nothing to commit
+    allocation->set_committed_capacity(0);
   }
 }
 
