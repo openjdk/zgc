@@ -597,9 +597,10 @@ ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics&
 }
 
 static double compute_target_gc_interval(const ZSystemMemoryPressureMetrics& mem_metrics,
-                                         const double gc_intensity) {
+                                         double gc_intensity,
+                                         size_t process_used_memory) {
   // As memory pressure gets high, heap must be pressed down
-  if (is_system_memory_pressure_high(mem_metrics)) {
+  if (is_system_memory_pressure_critical(mem_metrics)) {
     return 0.0;
   }
 
@@ -609,31 +610,48 @@ static double compute_target_gc_interval(const ZSystemMemoryPressureMetrics& mem
   // distancing between GCs, even when the GC overhead is small. The size of
   // the factor scales with the level of load induced on the machine, as well
   // as the scaled and unscaled GC intensities.
-  const double gc_interval = 5.0 / gc_intensity;
+  const double gc_intensity_factor = 5.0 / gc_intensity;
 
-  // As memory pressure gets higher, heap must be pressed down
+  // As the process starts dominating the available system memory, linearly
+  // tone down the memory bloating.
+  const double other_processes_memory = clamp(1.0 - double(process_used_memory) / double(mem_metrics._max_memory), 0.0, 1.0);
+  const double process_progression = calculate_progression(other_processes_memory,
+                                                           1.0,
+                                                           mem_metrics._critical_threshold);
+
+  const double gc_interval = gc_intensity_factor * (1.0 - process_progression);
+
   if (is_system_memory_pressure_concerning(mem_metrics)) {
-    // Calculate concerning progression towards high
-    const double availability = 1.0 - double(mem_metrics._used_memory) / double(mem_metrics._max_memory);
-    const double progression = calculate_progression(availability, mem_metrics._concerning_threshold, mem_metrics._high_threshold);
+    // As memory availability drops low in the system, we want to further prevent
+    // memory bloating due to the interval target with another linear factor. If
+    // the only memory culprit is the current process, then the progression will
+    // now turn quadratic, which should help reduce the memory bloating further.
 
-    return (1.0 - progression) * gc_interval;
+    const double system_availability = 1.0 - double(mem_metrics._used_memory) / double(mem_metrics._max_memory);
+    const double system_progression = calculate_progression(system_availability,
+                                                            mem_metrics._concerning_threshold,
+                                                            mem_metrics._critical_threshold);
+
+    return gc_interval * (1.0 - system_progression);
   }
 
   return gc_interval;
 }
 
 static double compute_target_gc_interval(const ZMemoryPressureMetrics& mem_metrics,
-                                         const double gc_intensity) {
+                                         double gc_intensity,
+                                         size_t process_used_memory) {
   const double machine_target_gc_interval = compute_target_gc_interval(mem_metrics._machine,
-                                                                       gc_intensity);
+                                                                       gc_intensity,
+                                                                       process_used_memory);
 
   if (!mem_metrics._is_containerized) {
     return machine_target_gc_interval;
   }
 
   const double container_target_gc_interval = compute_target_gc_interval(mem_metrics._container,
-                                                                         gc_intensity);
+                                                                         gc_intensity,
+                                                                         process_used_memory);
   return MIN2(machine_target_gc_interval, container_target_gc_interval);
 }
 
@@ -744,7 +762,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const double lower_cpu_overhead = MIN2(cpu_metrics._avg_total_gc_cpu_overhead, cpu_metrics._generation_gc_cpu_overhead);
   const double lower_cpu_overhead_error = lower_cpu_overhead - target_cpu_overhead;
 
-  const double target_gc_interval = compute_target_gc_interval(mem_metrics, gc_intensity) / compression_gc_penalty;
+  const double target_gc_interval = compute_target_gc_interval(mem_metrics, gc_intensity, process_used_memory) / compression_gc_penalty;
   const double gc_interval_error = MAX2(target_gc_interval - avg_time_since_last, target_gc_interval - cpu_metrics._avg_gc_interval);
 
   const double upper_error_signal = MAX2(upper_cpu_overhead_error, gc_interval_error);
