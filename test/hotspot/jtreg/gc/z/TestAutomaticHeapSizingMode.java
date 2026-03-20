@@ -25,7 +25,7 @@ package gc.z;
 
 /**
  * @test TestAutomaticHeapSizingMode
- * @requires vm.gc.Z
+ * @requires vm.gc.Z & vm.flagless
  * @summary Test that heap size flags affect ZGC Automatic Heap Sizing mode.
  * @library / /test/lib
  * @run driver gc.z.TestAutomaticHeapSizingMode
@@ -64,7 +64,7 @@ public class TestAutomaticHeapSizingMode {
       List<String> args = createTestSpecificArgs(heapSizeArgs);
 
       // Launch child JVM
-      ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder(args);
+      ProcessBuilder pb = ProcessTools.createLimitedTestJavaProcessBuilder(args);
       OutputAnalyzer out = new OutputAnalyzer(pb.start());
       out.shouldHaveExitValue(0);
 
