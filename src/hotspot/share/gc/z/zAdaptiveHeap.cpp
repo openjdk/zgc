@@ -873,6 +873,14 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   }
 
   if (should_grow) {
+    if (capacity < heuristic_max_capacity) {
+      // We have not yet finished growing initiated in a previous GC, because the throughput of GCs
+      // is higher than the throughput of growing. The control system needs to feel the impact of the
+      // previous growth request before growing further. Therefore, we decide not to change the
+      // heuristic max capacity in this case.
+      return heuristic_max_capacity;
+    }
+
     const size_t selected_capacity = MIN2(upper_bounded_capacity, lower_bounded_capacity);
     const size_t capacity_resize = selected_capacity - heuristic_max_capacity;
 
