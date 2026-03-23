@@ -21,6 +21,7 @@
  * questions.
  */
 
+#include "gc/z/zAdaptiveHeap.inline.hpp"
 #include "gc/z/zLargePages.hpp"
 #include "hugepages.hpp"
 #include "os_linux.hpp"
@@ -62,8 +63,13 @@ void ZLargePages::pd_initialize() {
   }
 
   if (UseLargePages) {
-    _state = Explicit;
-    return;
+    if (!ZAdaptiveHeap::can_adapt() || ZAdaptiveHeap::explicit_max_capacity()) {
+      _state = Explicit;
+      return;
+    }
+
+    log_warning(gc, init)("UseLargePages requires a max heap size to be set (-Xmx) when running with Automatic Heap Sizing. "
+                          "Disabling the use of explicit large pages for the heap");
   }
 
   if (FLAG_IS_DEFAULT(UseTransparentHugePages) && can_collapse) {
