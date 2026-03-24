@@ -80,9 +80,16 @@ struct ZResourcePressure {
   const double _cpu_vs_latency_pressure;
 };
 
+struct ZMachineMemoryInfo {
+  physical_memory_size_type _physical_memory;
+  physical_memory_size_type _available_memory;
+  bool _is_valid;
+};
+
 class ZAdaptiveHeap : public AllStatic {
   friend class ZAdaptiveHeapTest;
 private:
+
   static bool _explicit_max_capacity;
   static bool _can_adapt;
   static bool _initialized;
@@ -129,6 +136,11 @@ private:
 public:
   static void initialize(bool explicit_max_heap_size, bool can_adapt);
   static void initialize_generation_data();
+
+  static ZMachineMemoryInfo machine_memory_info();
+  static bool machine_used_memory(physical_memory_size_type& value);
+  static bool machine_available_memory(physical_memory_size_type& value);
+  static physical_memory_size_type machine_physical_memory();
 
   static size_t compute_heap_size(ZHeapResizeMetrics* metrics, ZGenerationId generation);
   static double young_to_old_gc_time();

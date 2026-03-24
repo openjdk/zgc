@@ -29,6 +29,8 @@
 void ZNUMA::pd_initialize() {
   _is_numa_system = false;
   _enabled = false;
+  _node_count = 1;
+  _bound_node_count = 1;
   _count = !FLAG_IS_DEFAULT(ZFakeNUMA)
       ? ZFakeNUMA
       : 1;

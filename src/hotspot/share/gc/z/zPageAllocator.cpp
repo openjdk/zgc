@@ -1552,7 +1552,7 @@ size_t ZPageAllocator::dynamic_max_capacity() const {
     return _static_max_capacity;
   }
 
-  physical_memory_size_type result = os::Machine::physical_memory();
+  physical_memory_size_type result = ZAdaptiveHeap::machine_physical_memory();
 
   if (!os::is_containerized()) {
     return clamp(align_down(size_t(result), ZGranuleSize), _static_min_capacity, _static_max_capacity);
@@ -1611,17 +1611,17 @@ size_t ZPageAllocator::current_max_capacity() const {
     return _static_max_capacity;
   }
 
-  physical_memory_size_type machine_used_memory;
-
-  if (!os::Machine::used_memory(machine_used_memory)) {
+  ZMachineMemoryInfo machine_memory_info = ZAdaptiveHeap::machine_memory_info();
+  if (!machine_memory_info._is_valid) {
     return dynamic_max_capacity();
   }
 
-  const size_t machine_max_memory = size_t(os::Machine::physical_memory());
+  const size_t machine_used_memory = size_t(machine_memory_info._physical_memory - machine_memory_info._available_memory);
+  const size_t machine_max_memory = size_t(machine_memory_info._physical_memory);
 
   const size_t cap = capacity();
 
-  const size_t machine_max_capacity = calculate_system_max_capacity(size_t(machine_used_memory),
+  const size_t machine_max_capacity = calculate_system_max_capacity(machine_used_memory,
                                                                     machine_max_memory,
                                                                     cap,
                                                                     _static_min_capacity,

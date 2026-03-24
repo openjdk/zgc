@@ -28,6 +28,7 @@
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
+#include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zStat.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -82,6 +83,115 @@ void ZAdaptiveHeap::initialize_generation_data() {
   _young_data._last_time = time_now;
   _old_data._last_time = time_now;
   _initialized_generation_data = true;
+}
+
+ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
+#ifndef LINUX
+  ZMachineMemoryInfo info;
+  info._physical_memory = os::Machine::physical_memory();
+  info._is_valid = os::Machine::available_memory(info._available_memory);
+  return info;
+#else
+  ZMachineMemoryInfo info;
+  info._physical_memory = 0;
+  info._available_memory = 0;
+
+  if (!ZNUMA::is_bound()) {
+    info._physical_memory = os::Machine::physical_memory();
+    info._is_valid = os::Machine::available_memory(info._available_memory);
+    return info;
+  }
+
+  for (uint32_t numa_id = 0; numa_id < ZNUMA::count(); numa_id++) {
+    const int node = ZNUMA::numa_id_to_node(numa_id);
+    char path[128];
+    jio_snprintf(path, sizeof(path), "/sys/devices/system/node/node%d/meminfo", node);
+
+    FILE* f = os::fopen(path, "r");
+    if (!f) {
+      continue;
+    }
+
+    char line[256];
+    bool found_mem_total = false;
+    bool found_mem_available = false;
+    bool found_mem_free = false;
+    bool found_active_file = false;
+    bool found_inactive_file = false;
+    bool found_sreclaimable = false;
+    while (fgets(line, sizeof(line), f) != nullptr) {
+      int n = -1;
+      physical_memory_size_type read_value = 0;
+      if (sscanf(line, "Node %d MemTotal: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+        info._physical_memory += read_value * K;
+        found_mem_total = true;
+      } else if (sscanf(line, "Node %d MemAvailable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+        // If the Kernel has an approximation of MemAvailable, use it
+        info._available_memory = read_value * K;
+        found_mem_available = true;
+      } else if (!found_mem_available && sscanf(line, "Node %d MemFree: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+        info._available_memory += read_value * K;
+        found_mem_free = true;
+      } else if (!found_mem_available && sscanf(line, "Node %d Active(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+        info._available_memory += read_value * K;
+        found_active_file = true;
+      } else if (!found_mem_available && sscanf(line, "Node %d Inactive(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+        info._available_memory += read_value * K;
+        found_inactive_file = true;
+      } else if (!found_mem_available && sscanf(line, "Node %d SReclaimable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+        info._available_memory += read_value * K;
+        found_sreclaimable = true;
+      }
+
+      if (found_mem_total && (found_mem_available || (found_mem_free && found_active_file && found_inactive_file && found_sreclaimable))) {
+        break;
+      }
+    }
+
+    fclose(f);
+
+    if (!(found_mem_total && found_mem_free && found_active_file && found_inactive_file && found_sreclaimable)) {
+      static bool n = [&]() {
+        log_warning_p(gc, heap)("Failed to read one of the NUMA-node specific values: "
+                                "MemTotal: %d, MemFree: %d, Active(file): %d, Inactive(file): %d, SReclaimable: %d",
+                                found_mem_total, found_mem_free, found_active_file, found_inactive_file, found_sreclaimable);
+        return true;
+      }();
+      assert(false, "This should not happen");
+
+      info._physical_memory = os::Machine::physical_memory();
+      info._is_valid = os::Machine::available_memory(info._available_memory);
+      return info;
+    }
+  }
+
+  info._is_valid = true;
+  return info;
+#endif
+}
+
+bool ZAdaptiveHeap::machine_used_memory(physical_memory_size_type& value) {
+  const ZMachineMemoryInfo mem_info = machine_memory_info();
+  if (!mem_info._is_valid) {
+    return false;
+  }
+
+  value = mem_info._physical_memory - mem_info._available_memory;
+  return true;
+}
+
+bool ZAdaptiveHeap::machine_available_memory(physical_memory_size_type& value) {
+  const ZMachineMemoryInfo mem_info = machine_memory_info();
+  if (!mem_info._is_valid) {
+    return false;
+  }
+
+  value = mem_info._available_memory;
+  return true;
+}
+
+physical_memory_size_type ZAdaptiveHeap::machine_physical_memory() {
+  return machine_memory_info()._physical_memory;
 }
 
 double ZAdaptiveHeap::young_to_old_gc_time() {
@@ -149,15 +259,15 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
   precond(_initialized);
   const double unscaled_gc_intensity = AtomicAccess::load(&ZGCIntensity);
 
-  const physical_memory_size_type machine_max_memory = os::Machine::physical_memory();
+  const ZMachineMemoryInfo machine_memory_info = ZAdaptiveHeap::machine_memory_info();
 
-  physical_memory_size_type machine_used_memory;
+  const physical_memory_size_type machine_max_memory = machine_memory_info._physical_memory;
+
+  const physical_memory_size_type machine_used_memory = machine_memory_info._is_valid
+    ? machine_memory_info._physical_memory - machine_memory_info._available_memory
+    : os::rss(); // Approximation for faulty os
+
   physical_memory_size_type machine_compressed_memory;
-  if (!os::Machine::used_memory(machine_used_memory)) {
-    // Approximation for faulty OS
-    assert(false, "Why would this ever happen?");
-    machine_used_memory = os::rss();
-  }
   if (os::compressed_memory(machine_compressed_memory)) {
     machine_compressed_memory = MIN2(machine_compressed_memory, machine_used_memory);
   } else {
