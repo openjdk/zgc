@@ -92,6 +92,7 @@ private:
   struct ZGenerationOverhead {
     double       _last_machine_system_time;
     double       _last_container_system_time;
+    bool         _has_last_container_system_time;
     double       _last_process_time;
     double       _last_time;
     TruncatedSeq _process_times;
@@ -103,6 +104,7 @@ private:
     ZGenerationOverhead()
       : _last_machine_system_time(),
         _last_container_system_time(),
+        _has_last_container_system_time(),
         _last_process_time(),
         _process_times(),
         _machine_system_times(),
