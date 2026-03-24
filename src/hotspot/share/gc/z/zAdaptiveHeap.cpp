@@ -86,38 +86,43 @@ uint ZAdaptiveHeap::initial_young_worker_cap() {
   return capacity;
 }
 
-static double* generate_factorials(uint64_t max) {
-  double* result = NEW_C_HEAP_ARRAY(double, max + 1, mtGC);
+// For large machines we estimate their wait probability as if they have 128
+// processors available. This means that for machines with more than 128
+// available processors we may overestimate the impact of loads above 75%.
+static constexpr int ErlangCMaxProcessors = 128;
+
+static double* generate_factorials() {
+  static double result[ErlangCMaxProcessors + 1];
   result[0] = 1.0;
-  for (uint64_t i = 1; i <= max; ++i) {
-    result[i] = result[i - 1] * i;
+  for (uint64_t i = 1; i <= ErlangCMaxProcessors; ++i) {
+    result[i] = result[i - 1] * (double)i;
   }
   return result;
 }
 
 // Probability to have to wait in a queue given c servers and rho queue utilization
-static double erlang_c(int c, double rho, int max_processors) {
-  static double* factorials = nullptr;
-  if (factorials == nullptr) {
-    factorials = generate_factorials(max_processors);
-  }
+static double erlang_c(int c, double rho) {
+  // Cap c at ErlangCMaxProcessors to avoid problems with double precision.
+  c = MIN2(c, ErlangCMaxProcessors);
 
-  double unutilized_reciprocal = 1.0 / (1.0 - rho);
-  double offered_load = rho * c;
-  double nominator = unutilized_reciprocal * pow(offered_load, double(c)) / factorials[c];
+  static double* const factorials = generate_factorials();
+
+  const double unutilized_reciprocal = 1.0 / (1.0 - rho);
+  const double offered_load = rho * c;
+  const double nominator = unutilized_reciprocal * pow(offered_load, double(c)) / factorials[c];
 
   double sum = 0.0;
   for (int k = 0; k < c; ++k) {
     sum += pow(offered_load, double(k)) / factorials[k];
   }
 
-  double denominator = nominator + sum;
+  const double denominator = nominator + sum;
 
   return nominator / denominator;
 }
 
-static double cpu_latency_factor(int c, double rho, double unluckyness, int max_processors) {
-  double prob_join_queue = erlang_c(c, rho, max_processors);
+static double cpu_latency_factor(int c, double rho, double unluckyness) {
+  double prob_join_queue = erlang_c(c, rho);
 
   // P99 is approximately 100x more likely to join the queue
   double p99_prob_join_queue = MIN2(prob_join_queue * unluckyness, 1.0);
@@ -541,7 +546,7 @@ static double compute_cpu_vs_latency_pressure(const ZSystemCpuPressureMetrics& m
   // container level, things work differently, and CPU vs memory is considered
   // purely as a resource balancing exercise, which still helps latency as well.
   double rho = MIN2(machine_cpu_metrics._avg_system_load + 0.05, 0.99);
-  const double p99_response_time_scaling = cpu_latency_factor(os::Machine::active_processor_count(), rho, 100.0, os::processor_count());
+  const double p99_response_time_scaling = cpu_latency_factor(os::Machine::active_processor_count(), rho, 100.0);
   return 1.0 / MIN2(p99_response_time_scaling, 5.0);
 }
 
