@@ -86,6 +86,7 @@ private:
   static bool _explicit_max_capacity;
   static bool _can_adapt;
   static bool _initialized;
+  static bool _initialized_generation_data;
   static TruncatedSeq _gc_intensities;
 
   struct ZGenerationOverhead {
@@ -125,6 +126,7 @@ private:
 
 public:
   static void initialize(bool explicit_max_heap_size, bool can_adapt);
+  static void initialize_generation_data();
 
   static size_t compute_heap_size(ZHeapResizeMetrics* metrics, ZGenerationId generation);
   static double young_to_old_gc_time();

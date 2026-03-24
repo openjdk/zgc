@@ -92,6 +92,9 @@ ZHeap::ZHeap()
   _young.stat_heap()->at_initialize(_page_allocator.static_min_capacity(), MaxHeapSize);
   _old.stat_heap()->at_initialize(_page_allocator.static_min_capacity(), MaxHeapSize);
 
+  // Initialize Adaptive heap generation data
+  ZAdaptiveHeap::initialize_generation_data();
+
   // Successfully initialized
   _initialized = true;
 }

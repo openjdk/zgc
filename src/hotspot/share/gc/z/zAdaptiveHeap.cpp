@@ -42,6 +42,7 @@
 bool ZAdaptiveHeap::_explicit_max_capacity;
 bool ZAdaptiveHeap::_can_adapt;
 bool ZAdaptiveHeap::_initialized;
+bool ZAdaptiveHeap::_initialized_generation_data;
 TruncatedSeq ZAdaptiveHeap::_gc_intensities;
 
 Atomic<double> ZAdaptiveHeap::_young_to_old_gc_time(0.0);
@@ -54,8 +55,17 @@ static ZLock* _stat_lock;
 
 void ZAdaptiveHeap::initialize(bool explicit_max_capacity, bool can_adapt) {
   precond(!_initialized);
-  double process_time_now = os::elapsed_process_cpu_time();
-  double time_now = os::elapsedTime();
+  _explicit_max_capacity = explicit_max_capacity;
+  _can_adapt = can_adapt;
+  _stat_lock = new ZLock();
+  _initialized = true;
+}
+
+void ZAdaptiveHeap::initialize_generation_data() {
+  precond(_initialized);
+  precond(!_initialized_generation_data);
+  const double process_time_now = os::elapsed_process_cpu_time();
+  const double time_now = os::elapsedTime();
   _young_data._last_machine_system_time = process_time_now;
   _old_data._last_machine_system_time = process_time_now;
   _young_data._last_container_system_time = process_time_now;
@@ -64,10 +74,7 @@ void ZAdaptiveHeap::initialize(bool explicit_max_capacity, bool can_adapt) {
   _old_data._last_process_time = process_time_now;
   _young_data._last_time = time_now;
   _old_data._last_time = time_now;
-  _explicit_max_capacity = explicit_max_capacity;
-  _can_adapt = can_adapt;
-  _stat_lock = new ZLock();
-  _initialized = true;
+  _initialized_generation_data = true;
 }
 
 double ZAdaptiveHeap::young_to_old_gc_time() {
@@ -376,6 +383,7 @@ bool ZAdaptiveHeap::is_memory_pressure_critical(const ZMemoryPressureMetrics& me
 }
 
 ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation) {
+  precond(_initialized_generation_data);
   const bool is_young = generation == ZGenerationId::young;
   ZGenerationOverhead& generation_data = is_young ? _young_data : _old_data;
 
