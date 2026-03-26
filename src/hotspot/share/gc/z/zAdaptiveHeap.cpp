@@ -150,6 +150,16 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
 
     fclose(f);
 
+    if (!found_mem_total) {
+      // Some Kernels might not have "MemTotal" available in the node-specific file.
+      // Fall back to numa_node_size64 if that's the case.
+      long long res = os::Linux::numa_node_size64(node, nullptr);
+      if (res != -1) {
+        info._physical_memory = (physical_memory_size_type)res;
+        found_mem_total = true;
+      }
+    }
+
     if (!(found_mem_total && found_mem_free && found_active_file && found_inactive_file && found_sreclaimable)) {
       static bool n = [&]() {
         log_warning_p(gc, heap)("Failed to read one of the NUMA-node specific values: "
