@@ -150,6 +150,7 @@ public:
   static uint64_t no_uncommit_delay();
   static uint64_t urgent_uncommit_delay();
   static uint64_t critical_uncommit_delay();
+  static uint64_t uncommit_delay(const ZMemoryPressureMetrics& metrics, size_t capacity);
   static uint64_t uncommit_delay();
 
   static uint64_t soft_ref_delay();

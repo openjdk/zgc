@@ -253,10 +253,8 @@ bool ZMemoryWorker::has_uncommit_matured(Ticks now, uint64_t uncommit_delay, siz
   return elapsed >= uncommit_delay;
 }
 
-void ZMemoryWorker::wake_up_if_uncommit_matured() {
+void ZMemoryWorker::wake_up_if_uncommit_matured(uint64_t uncommit_delay) {
   Ticks now = Ticks::now();
-  const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
-
   ZLocker<ZConditionLock> locker(&_lock);
   if (has_uncommit_matured(now, uncommit_delay, _target_uncommit_capacity.load_relaxed())) {
     _lock.notify_all();

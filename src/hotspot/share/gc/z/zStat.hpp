@@ -46,6 +46,7 @@ class ZRelocationSetSelectorGroupStats;
 class ZStatSampler;
 class ZStatSamplerHistory;
 class ZStatWorkers;
+struct ZMemoryPressureMetrics;
 struct ZStatCounterData;
 struct ZStatSamplerData;
 
@@ -403,6 +404,7 @@ private:
   static ZSystemMemoryUsage _machine_usage;
 
 public:
+  static void record(const ZMemoryPressureMetrics& metrics);
   static void record_container_usage(double usage);
   static void record_machine_usage(double usage);
 

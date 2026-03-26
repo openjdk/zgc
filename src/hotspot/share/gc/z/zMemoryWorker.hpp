@@ -104,7 +104,7 @@ public:
   void request_grow_capacity(size_t requested_capacity);
   void request_shrink_capacity(size_t requested_capacity);
   void request_shrink_capacity_granule();
-  void wake_up_if_uncommit_matured();
+  void wake_up_if_uncommit_matured(uint64_t uncommit_delay);
 
   // Heating requests
   void register_heating_request(const ZVirtualMemory& vmem);

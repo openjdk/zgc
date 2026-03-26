@@ -1766,25 +1766,31 @@ void ZPageAllocator::heap_truncated(size_t selected_capacity) {
 }
 
 void ZPageAllocator::adjust_capacity(size_t used_soon) {
-  const ZMemoryPressureMetrics mem_pressure = ZAdaptiveHeap::memory_pressure_metrics();
+  const ZMemoryPressureMetrics mem_metrics = ZAdaptiveHeap::memory_pressure_metrics();
+  ZStatSystemMemoryUsage::record(mem_metrics);
+
+  const size_t total_capacity = capacity();
+  const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay(mem_metrics, total_capacity);
+
   ZPerNUMAIterator<ZPartition> iter = partition_iterator();
 
   for (ZPartition* partition; iter.next(&partition);) {
     ZMemoryWorker& mem_worker = partition->memory_worker();
-    const size_t cap = partition->capacity();
+    const size_t partition_capacity = partition->capacity();
 
-    if (ZAdaptiveHeap::is_memory_pressure_high(mem_pressure)) {
+    if (ZAdaptiveHeap::is_memory_pressure_high(mem_metrics)) {
       // When memory usage is high, request uncommitting if possible
       mem_worker.request_shrink_capacity_granule();
     } else {
       // When memory pressure is not high, try to commit memory ahead of mutators.
       const uint32_t numa_id = partition->numa_id();
       const size_t used_soon_share = ZNUMA::calculate_share(numa_id, used_soon);
-      if (used_soon_share > cap) {
+      if (used_soon_share > partition_capacity) {
         mem_worker.request_grow_capacity(used_soon_share);
       }
     }
-    mem_worker.wake_up_if_uncommit_matured();
+
+    mem_worker.wake_up_if_uncommit_matured(uncommit_delay);
   }
 }
 

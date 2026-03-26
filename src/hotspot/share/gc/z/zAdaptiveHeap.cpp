@@ -372,15 +372,6 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
     container_critical_threshold = machine_critical_threshold;
   }
 
-  // Record sampled memory usage so we can measure memory stability
-  const double machine_usage = double(machine_used_memory) / double(machine_max_memory);
-  ZStatSystemMemoryUsage::record_machine_usage(machine_usage);
-
-  if (is_containerized) {
-    const double container_usage = double(container_used_memory) / double(container_max_memory);
-    ZStatSystemMemoryUsage::record_container_usage(container_usage);
-  }
-
   return {
     unscaled_gc_intensity,
     is_containerized,
@@ -824,7 +815,8 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   }
 
   // System memory load
-  ZMemoryPressureMetrics mem_metrics = memory_pressure_metrics();
+  const ZMemoryPressureMetrics mem_metrics = memory_pressure_metrics();
+  ZStatSystemMemoryUsage::record(mem_metrics);
 
   // System CPU load
   ZCpuPressureMetrics cpu_metrics = cpu_pressure_metrics(generation);
@@ -1096,10 +1088,8 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
 // How long to wait until it is time to uncommit memory. This goes towards
 // infinity when there is no concerning memory pressure, then from ZUncommitDelay
 // when concerning down to 500 when high, and eventually 0 when critically low.
-uint64_t ZAdaptiveHeap::uncommit_delay() {
+uint64_t ZAdaptiveHeap::uncommit_delay(const ZMemoryPressureMetrics& metrics, size_t capacity) {
   precond(_initialized);
-  ZMemoryPressureMetrics metrics = memory_pressure_metrics();
-  const size_t capacity = ZHeap::heap()->capacity();
 
   const uint64_t machine_uncommit_delay = system_uncommit_delay(metrics._machine, capacity);
 
@@ -1109,6 +1099,17 @@ uint64_t ZAdaptiveHeap::uncommit_delay() {
 
   const uint64_t container_uncommit_delay = system_uncommit_delay(metrics._container, capacity);
   return MIN2(machine_uncommit_delay, container_uncommit_delay);
+}
+
+uint64_t ZAdaptiveHeap::uncommit_delay() {
+  precond(_initialized);
+
+  const ZMemoryPressureMetrics mem_metrics = memory_pressure_metrics();
+  ZStatSystemMemoryUsage::record(mem_metrics);
+
+  const size_t capacity = ZHeap::heap()->capacity();
+
+  return uncommit_delay(mem_metrics, capacity);
 }
 
 uint64_t ZAdaptiveHeap::soft_ref_delay() {

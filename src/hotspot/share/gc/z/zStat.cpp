@@ -1066,6 +1066,16 @@ void ZStatSystemMemoryUsage::ZSystemMemoryUsage::sample_and_collect() {
   _memory_stability.store_relaxed(sd);
 }
 
+void ZStatSystemMemoryUsage::record(const ZMemoryPressureMetrics& metrics) {
+  const double machine_usage = double(metrics._machine._used_memory) / double(metrics._machine._max_memory);
+  record_machine_usage(machine_usage);
+
+  if (metrics._is_containerized) {
+    const double container_usage = double(metrics._container._used_memory) / double(metrics._container._max_memory);
+    record_container_usage(container_usage);
+  }
+}
+
 void ZStatSystemMemoryUsage::record_container_usage(double usage) {
   _container_usage.record_usage(usage);
 }
