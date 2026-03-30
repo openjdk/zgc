@@ -97,7 +97,6 @@ size_t ZMemoryWorker::uncommit_granule() {
   const size_t smallest_granule = ZGranuleSize;
   const size_t largest_granule = MAX2(ZPageSizeMediumMax, smallest_granule);
 
-  // Don't allocate things that are larger than the largest medium page size, in the lower address space
   return largest_granule;
 }
 
