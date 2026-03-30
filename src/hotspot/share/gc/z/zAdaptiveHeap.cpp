@@ -1069,7 +1069,7 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
 
     // Scale the uncommit interval by memory urgency, so the pace of uncommitting
     // ramps up as the machine resources gets exhausted.
-    return uint64_t((1.0 - progression) * capacity_fraction * (ZUncommitDelay * 1000 - urgent_delay) + urgent_delay);
+    return uint64_t((1.0 - progression) * capacity_fraction * (ZUncommitDelay * MILLIUNITS - urgent_delay) + urgent_delay);
   }
 
   // We use a policy where the uncommit delay drops off fairly quickly
@@ -1174,15 +1174,15 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
   // forever, it might also be a bit pointless.
   const uint64_t delay = MIN2(implicit_delay, explicit_delay);
 
-  log_info(gc, ref)("Soft ref timeout: %.3fs", double(delay) / 1000);
+  log_info(gc, ref)("Soft ref timeout: %.3fs", double(delay) / MILLIUNITS);
 
   LogTarget(Debug, gc, ref) lt;
   if (lt.is_enabled()) {
     LogStream ls(lt);
 
     ls.print_cr("Soft ref time to old generation OOM: %.3fs", time_to_old_oom);
-    ls.print_cr("Soft ref explicit timeout: %.3fs", double(explicit_delay) / 1000);
-    ls.print_cr("Soft ref implicit timeout: %.3fs", double(implicit_delay) / 1000);
+    ls.print_cr("Soft ref explicit timeout: %.3fs", double(explicit_delay) / MILLIUNITS);
+    ls.print_cr("Soft ref implicit timeout: %.3fs", double(implicit_delay) / MILLIUNITS);
     ls.print_cr("Soft ref memory pressure: %.3f", mem_pressure);
   }
 
