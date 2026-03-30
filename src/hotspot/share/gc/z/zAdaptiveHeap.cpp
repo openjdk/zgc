@@ -856,8 +856,9 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const double alloc_rate = heap_metrics->_alloc_rate;
   // Since a GC cycle is obviously round, we can estimate the minimum bytes due to
   // a particular allocation rate and GC intensity by calculating GC intensity * pi.
-  const double alloc_rate_scaling = warmness_squared / (gc_intensity * M_PI);
-  const size_t heuristic_low = align_down(size_t(double(MAX2(size_t(double(used) * 1.1), size_t(alloc_rate * alloc_rate_scaling))) / mem_pressure), ZGranuleSize);
+  const double alloc_rate_window = warmness_squared / (gc_intensity * M_PI);
+  const size_t alloc_rate_window_bytes = size_t(alloc_rate * alloc_rate_window);
+  const size_t heuristic_low = align_down(size_t(double(MAX2(size_t(double(used) * 1.1), alloc_rate_window_bytes)) / mem_pressure), ZGranuleSize);
 
   const size_t upper_bound = MIN2(soft_max_capacity, current_max_capacity);
   const size_t lower_bound = clamp(heuristic_low, static_min_capacity, upper_bound);
