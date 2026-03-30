@@ -799,7 +799,7 @@ static double smoothing_function(double value, double warmness) {
   return sigmoid * warmness + aggressive * (1.0 - warmness);
 }
 
-size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGenerationId generation) {
+size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, ZGenerationId generation) {
   precond(_initialized);
 
   const bool is_major = Thread::current() == ZDriver::major();
@@ -811,7 +811,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
 
   if (!is_heap_anti_pressure_gc && !is_heap_pressure_gc) {
     // If this GC isn't heuristically triggered, don't resize or learn anything
-    return heap_metrics->_heuristic_max_capacity;
+    return heap_metrics._heuristic_max_capacity;
   }
 
   // System memory load
@@ -822,12 +822,12 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   ZCpuPressureMetrics cpu_metrics = cpu_pressure_metrics(generation);
 
   // Heap size metrics
-  const size_t soft_max_capacity = heap_metrics->_soft_max_capacity;
-  const size_t current_max_capacity = heap_metrics->_current_max_capacity;
-  const size_t heuristic_max_capacity = heap_metrics->_heuristic_max_capacity;
-  const size_t capacity = heap_metrics->_capacity;
-  const size_t static_min_capacity = heap_metrics->_static_min_capacity;
-  const size_t used = heap_metrics->_used;
+  const size_t soft_max_capacity = heap_metrics._soft_max_capacity;
+  const size_t current_max_capacity = heap_metrics._current_max_capacity;
+  const size_t heuristic_max_capacity = heap_metrics._heuristic_max_capacity;
+  const size_t capacity = heap_metrics._capacity;
+  const size_t static_min_capacity = heap_metrics._static_min_capacity;
+  const size_t used = heap_metrics._used;
 
   if (is_heap_anti_pressure_gc) {
     // The GC is bored. The impact of shrinking should not cost a considerable amount of
@@ -853,7 +853,7 @@ size_t ZAdaptiveHeap::compute_heap_size(ZHeapResizeMetrics* heap_metrics, ZGener
   const double avg_time_since_last = cpu_metrics._avg_gc_interval;
 
   // Calculate the heuristic lower bound for the heuristic heap
-  const double alloc_rate = heap_metrics->_alloc_rate;
+  const double alloc_rate = heap_metrics._alloc_rate;
   // Since a GC cycle is obviously round, we can estimate the minimum bytes due to
   // a particular allocation rate and GC intensity by calculating GC intensity * pi.
   const double alloc_rate_window = warmness_squared / (gc_intensity * M_PI);

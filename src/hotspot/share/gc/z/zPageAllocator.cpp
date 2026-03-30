@@ -1690,7 +1690,7 @@ void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
 
   const double alloc_rate = ZStatMutatorAllocRate::stats()._avg;
 
-  ZHeapResizeMetrics metrics = {
+  const ZHeapResizeMetrics metrics = {
     highest_soft_capacity,
     curr_max_capacity,
     heuristic_max,
@@ -1700,7 +1700,7 @@ void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
     alloc_rate
   };
 
-  const size_t selected_capacity = ZAdaptiveHeap::compute_heap_size(&metrics, generation);
+  const size_t selected_capacity = ZAdaptiveHeap::compute_heap_size(metrics, generation);
 
   // Update heuristic max capacity
   _heuristic_max_capacity.store_relaxed(selected_capacity);

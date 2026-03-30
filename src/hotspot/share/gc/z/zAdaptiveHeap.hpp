@@ -142,7 +142,7 @@ public:
   static bool machine_available_memory(physical_memory_size_type& value);
   static physical_memory_size_type machine_physical_memory();
 
-  static size_t compute_heap_size(ZHeapResizeMetrics* metrics, ZGenerationId generation);
+  static size_t compute_heap_size(const ZHeapResizeMetrics& metrics, ZGenerationId generation);
   static double young_to_old_gc_time();
   static uint initial_young_worker_cap();
 
