@@ -711,16 +711,9 @@ ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics&
   const double resource_pressure = mem_pressure * cpu_pressure;
 
   const double scaled_gc_intensity = mem_metrics._unscaled_gc_intensity * resource_pressure;
-  double gc_intensity;
-
-  {
-    ZLocker<ZLock> locker(_stat_lock);
-    _gc_intensities.add(scaled_gc_intensity);
-    gc_intensity = MAX2(_gc_intensities.avg(), scaled_gc_intensity);
-  }
 
   return {
-    gc_intensity,
+    scaled_gc_intensity,
     cpu_pressure,
     mem_pressure,
     cpu_vs_memory_pressure,
@@ -852,9 +845,16 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
 
   // Calculate the GC pressure that scales the rest of the heuristics
   ZResourcePressure pressures = compute_pressures(mem_metrics, cpu_metrics, projected_process_used_memory);
-  const double gc_intensity = pressures._gc_intensity;
+
   const double mem_pressure = pressures._mem_pressure;
   const double avg_time_since_last = cpu_metrics._avg_gc_interval;
+
+  double gc_intensity;
+  {
+    ZLocker<ZLock> locker(_stat_lock);
+    _gc_intensities.add(pressures._scaled_gc_intensity);
+    gc_intensity = MAX2(_gc_intensities.avg(), pressures._scaled_gc_intensity);
+  }
 
   // Calculate the heuristic lower bound for the heuristic heap
   const double alloc_rate = heap_metrics._alloc_rate;

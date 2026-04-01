@@ -73,7 +73,7 @@ struct ZCpuPressureMetrics {
 };
 
 struct ZResourcePressure {
-  const double _gc_intensity;
+  const double _scaled_gc_intensity;
   const double _cpu_pressure;
   const double _mem_pressure;
   const double _cpu_vs_memory_pressure;
