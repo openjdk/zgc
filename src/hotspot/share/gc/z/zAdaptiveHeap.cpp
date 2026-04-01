@@ -54,6 +54,11 @@ Atomic<uint> ZAdaptiveHeap::_initial_young_worker_cap;
 
 static ZLock* _stat_lock;
 
+// Calculate progression from 0 to 1 going down from a less critical availability to a more critical availability
+static double calculate_progression(double availability, double from, double to) {
+  return 1.0 - (availability - to) / (from - to);
+}
+
 void ZAdaptiveHeap::initialize(bool explicit_max_capacity, bool can_adapt) {
   precond(!_initialized);
   _explicit_max_capacity = explicit_max_capacity;
@@ -409,18 +414,22 @@ static double system_memory_pressure(const ZSystemMemoryPressureMetrics& metrics
   if (availability < high) {
     // When memory pressure is "high", we exponentially scale up memory pressure,
     // from the already "high" pressure induced by "concerning" memory pressure.
-    const double progression = 1.0 - (availability - critical) / (high - critical);
+    const double progression = calculate_progression(availability, high, critical);
     const double exponent = 1.0 + progression;
+
+    // Returns a value between pressure_rate and pressure_rate^3 (the exact exponent
+    // depends on the values of high and critical, but will not go above 3)
     return pow(pressure_rate, exponent);
   }
 
   if (availability < concerning) {
     // When memory pressure is "concerning", we quadratically scale up memory
-    // pressure to the "high" pressure (i.e. unscaled GC intensity).
-    const double progression = 1.0 - (availability - high) / (concerning - high);
+    // pressure to the "high" pressure (i.e., unscaled GC intensity).
+    const double progression = calculate_progression(availability, concerning, high);
     const double progression_squared = progression * progression;
     const double pressure_factor = (pressure_rate - 1.0) * progression_squared;
 
+    // Returns a value between 1 and pressure_rate
     return 1.0 + pressure_factor;
   }
 
@@ -436,11 +445,6 @@ double ZAdaptiveHeap::compute_memory_pressure(const ZMemoryPressureMetrics& metr
 
   const double container_mem_pressure = system_memory_pressure(metrics._container, metrics._unscaled_gc_intensity);
   return MAX2(machine_mem_pressure, container_mem_pressure);
-}
-
-// Calculate progression from 0 to 1 going down from a less critical availability to a more critical availability
-static double calculate_progression(double availability, double from, double to) {
-  return 1.0 - (availability - to) / (from - to);
 }
 
 static bool is_system_memory_pressure_concerning(const ZSystemMemoryPressureMetrics& metrics) {
