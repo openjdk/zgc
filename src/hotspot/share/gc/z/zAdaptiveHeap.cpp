@@ -44,7 +44,7 @@ bool ZAdaptiveHeap::_explicit_max_capacity;
 bool ZAdaptiveHeap::_can_adapt;
 bool ZAdaptiveHeap::_initialized;
 bool ZAdaptiveHeap::_initialized_generation_data;
-TruncatedSeq ZAdaptiveHeap::_gc_intensities;
+ZAdaptiveHeap::ZIntensitySmoother ZAdaptiveHeap::_gc_intensities;
 
 Atomic<double> ZAdaptiveHeap::_young_to_old_gc_time(0.0);
 double ZAdaptiveHeap::_accumulated_young_gc_time = 0.0;
@@ -52,19 +52,28 @@ ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_young_data;
 ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_old_data;
 Atomic<uint> ZAdaptiveHeap::_initial_young_worker_cap;
 
-static ZLock* _stat_lock;
-
 // Calculate progression from 0 to 1 going down from a less critical availability to a more critical availability
 static double calculate_progression(double availability, double from, double to) {
   return 1.0 - (availability - to) / (from - to);
+}
+
+void ZAdaptiveHeap::ZIntensitySmoother::initialize() {
+  _lock = new ZLock();
+}
+
+double ZAdaptiveHeap::ZIntensitySmoother::record_and_smooth_gc_intensity(double scaled_gc_intensity) {
+  precond(_lock != nullptr);
+  ZLocker<ZLock> locker(_lock);
+  _gc_intensities.add(scaled_gc_intensity);
+  return MAX2(_gc_intensities.avg(), scaled_gc_intensity);
 }
 
 void ZAdaptiveHeap::initialize(bool explicit_max_capacity, bool can_adapt) {
   precond(!_initialized);
   _explicit_max_capacity = explicit_max_capacity;
   _can_adapt = can_adapt;
-  _stat_lock = new ZLock();
   _initialized = true;
+  _gc_intensities.initialize();
 }
 
 void ZAdaptiveHeap::initialize_generation_data() {
@@ -721,6 +730,10 @@ ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics&
   };
 }
 
+double ZAdaptiveHeap::smoothed_gc_intensity(double scaled_gc_intensity) {
+  return _gc_intensities.record_and_smooth_gc_intensity(scaled_gc_intensity);
+}
+
 static double compute_target_gc_interval(const ZSystemMemoryPressureMetrics& mem_metrics,
                                          double gc_intensity,
                                          size_t process_used_memory) {
@@ -848,13 +861,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
 
   const double mem_pressure = pressures._mem_pressure;
   const double avg_time_since_last = cpu_metrics._avg_gc_interval;
-
-  double gc_intensity;
-  {
-    ZLocker<ZLock> locker(_stat_lock);
-    _gc_intensities.add(pressures._scaled_gc_intensity);
-    gc_intensity = MAX2(_gc_intensities.avg(), pressures._scaled_gc_intensity);
-  }
+  const double gc_intensity = smoothed_gc_intensity(pressures._scaled_gc_intensity);
 
   // Calculate the heuristic lower bound for the heuristic heap
   const double alloc_rate = heap_metrics._alloc_rate;

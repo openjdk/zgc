@@ -94,7 +94,20 @@ private:
   static bool _can_adapt;
   static bool _initialized;
   static bool _initialized_generation_data;
-  static TruncatedSeq _gc_intensities;
+
+  struct ZIntensitySmoother {
+  private:
+    ZLock* _lock;
+    TruncatedSeq _gc_intensities;
+
+  public:
+    ZIntensitySmoother()
+      : _lock(nullptr),
+        _gc_intensities() {}
+
+    void initialize();
+    double record_and_smooth_gc_intensity(double scaled_gc_intensity);
+  };
 
   struct ZGenerationOverhead {
     double       _last_machine_system_time;
@@ -125,6 +138,7 @@ private:
   static ZGenerationOverhead _young_data;
   static ZGenerationOverhead _old_data;
   static Atomic<uint> _initial_young_worker_cap;
+  static ZIntensitySmoother _gc_intensities;
 
   static ZCpuPressureMetrics cpu_pressure_metrics(ZGenerationId generation);
 
@@ -132,6 +146,7 @@ private:
                                              const ZCpuPressureMetrics& cpu_metrics,
                                              size_t projected_process_used_memory);
   static double compute_memory_pressure(const ZMemoryPressureMetrics& metrics);
+  static double smoothed_gc_intensity(double scaled_gc_intensity);
 
 public:
   static void initialize(bool explicit_max_heap_size, bool can_adapt);
