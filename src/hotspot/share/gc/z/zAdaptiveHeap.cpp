@@ -100,13 +100,30 @@ void ZAdaptiveHeap::initialize_generation_data() {
 }
 
 ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
-#ifndef LINUX
   ZMachineMemoryInfo info;
+
+  // Used to "latch" on to whatever validity we initially observe and make sure
+  // that the same validity is continued to be observed moving forward. Observating
+  // different validity during execution can lead to really bad heuristics.
+  struct ZBooleanStabilityRAII {
+    ZMachineMemoryInfo& _info;
+    ZBooleanStabilityRAII(ZMachineMemoryInfo& info) : _info(info) {}
+    ~ZBooleanStabilityRAII() {
+      static bool is_valid = _info._is_valid;
+      if (_info._is_valid != is_valid) {
+        log_warning(gc)("The data source for machine_memory_info is unstable (expected _is_valid to be %s, got %s). "
+                        "This behavior is unsupported for Automatic Heap Sizing. Please run without Automatic Heap Sizing using -XX:ZGCIntensity=0",
+                        BOOL_TO_STR(is_valid), BOOL_TO_STR(_info._is_valid));
+        os::exit(1);
+      }
+    }
+  } is_valid_stability(info);
+
+#ifndef LINUX
   info._physical_memory = os::Machine::physical_memory();
   info._is_valid = os::Machine::available_memory(info._available_memory);
   return info;
 #else
-  ZMachineMemoryInfo info;
   info._physical_memory = 0;
   info._available_memory = 0;
 
