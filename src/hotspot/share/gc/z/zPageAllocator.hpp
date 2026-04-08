@@ -337,11 +337,16 @@ public:
   size_t unused() const;
 
   // Automatic heap sizing
+  enum class TruncationReason {
+    Uncommit,
+    CommitFailure,
+  };
+
   void shrink_heuristic_max(size_t shrink_amount);
-  void truncate_heuristic_max_after_capacity_decrease();
+  void truncate_heuristic_max_after_capacity_decrease(TruncationReason reason);
   void adapt_heuristic_max_capacity(ZGenerationId generation);
   void heap_resized(size_t selected_capacity);
-  void heap_truncated(size_t selected_capacity);
+  void heap_truncated(size_t selected_capacity, TruncationReason reason);
   void adjust_capacity(size_t used_soon);
 
   void increase_used_generation(ZGenerationId id, size_t size);
