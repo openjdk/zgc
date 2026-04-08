@@ -111,7 +111,6 @@ bool ZMemoryWorker::has_heating_request() {
 
 bool ZMemoryWorker::peek() {
   for (;;) {
-    uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
     Ticks now = Ticks::now();
 
     ZLocker<ZConditionLock> locker(&_lock);
@@ -128,6 +127,7 @@ bool ZMemoryWorker::peek() {
         return true;
       }
 
+      const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
       if (has_uncommit_matured(now, uncommit_delay, target_uncommit_capacity)) {
         // Matured request to uncommit memory
         return true;
