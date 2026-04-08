@@ -63,7 +63,7 @@ void ZLargePages::pd_initialize() {
   }
 
   if (UseLargePages) {
-    if (!ZAdaptiveHeap::can_adapt() || ZAdaptiveHeap::explicit_max_capacity()) {
+    if (!ZAdaptive || ZAdaptiveHeap::explicit_max_capacity()) {
       _state = Explicit;
       return;
     }
