@@ -362,11 +362,11 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
     if (os::Container::memory_throttle_limit(container_high_memory)) {
       container_max_memory = MIN2(container_max_memory, container_high_memory);
       container_critical_memory = container_max_memory;
-      container_high_memory = MIN2(container_high_memory, container_critical_memory) * (medium_avoid / near_avoid);
+      container_high_memory = physical_memory_size_type(MIN2(container_high_memory, container_critical_memory) * (medium_avoid / near_avoid));
       has_container_limit = true;
     } else {
-      container_critical_memory = near_avoid * container_max_memory;
-      container_high_memory = container_critical_memory * (medium_avoid / near_avoid);
+      container_critical_memory = physical_memory_size_type(container_max_memory * near_avoid);
+      container_high_memory = physical_memory_size_type(container_critical_memory * (medium_avoid / near_avoid));
     }
 
     // Linear increase in pressure up to intensity squared
