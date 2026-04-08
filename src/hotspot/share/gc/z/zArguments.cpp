@@ -133,21 +133,24 @@ void ZArguments::set_heap_size() {
   // 100%, we will still satisfy it.
 
   const bool gc_intensity_was_zero = AtomicAccess::load(&ZGCIntensity) == 0.0;
+  const bool adaptive_is_explicit = !FLAG_IS_DEFAULT(ZAdaptive);
+  const bool intensity_is_explicit = !FLAG_IS_DEFAULT(ZGCIntensity);
+  const bool adaptive_matches_intensity = ZAdaptive != gc_intensity_was_zero;
 
-  if ((!FLAG_IS_DEFAULT(ZAdaptive) || !FLAG_IS_DEFAULT(ZGCIntensity)) &&
-      ZAdaptive == gc_intensity_was_zero) {
-
+  if ((adaptive_is_explicit || intensity_is_explicit) && !adaptive_matches_intensity) {
     // The user has set -XX:(+/-)ZAdaptive and/or -XX:ZGCIntensity=n.n AND
     // their state does not match. I.e, +ZAdaptive and ZGCIntensity = 0 OR
     // -ZAdaptive and ZGCIntensity != 0.
 
-    if (FLAG_IS_DEFAULT(ZAdaptive) && !FLAG_IS_DEFAULT(ZGCIntensity)) {
+    if (!adaptive_is_explicit && intensity_is_explicit) {
       FLAG_SET_ERGO(ZAdaptive, !ZAdaptive);
-    } else if (!FLAG_IS_DEFAULT(ZAdaptive) && FLAG_IS_DEFAULT(ZGCIntensity)) {
+    } else if (adaptive_is_explicit && !intensity_is_explicit) {
       AtomicAccess::store(&ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
-    } else if (!FLAG_IS_DEFAULT(ZAdaptive) && !FLAG_IS_DEFAULT(ZGCIntensity)) {
+    } else {
       const double old_intensity = AtomicAccess::load(&ZGCIntensity);
       AtomicAccess::store(&ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
+
+      // Both were set, log a warning for mismatching configuration
       log_warning(gc)("-XX:%cZAdaptive does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",
                       ZAdaptive ? '+' : '-',  old_intensity, ZGCIntensity);
     }
