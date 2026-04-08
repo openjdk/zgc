@@ -25,6 +25,7 @@
 #define SHARE_GC_Z_ZUTILS_HPP
 
 #include "gc/z/zAddress.hpp"
+#include "memory/allocation.hpp"
 #include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -57,6 +58,19 @@ public:
   static void sort(T* array, size_t count, Comparator comparator);
   template <typename T, typename Comparator>
   static void sort(T* array, int count, Comparator comparator);
+
+  template <typename CallableType>
+  class OnScopeExit : StackObj {
+    CallableType _call_on_scope_exit;
+
+  public:
+    NONCOPYABLE(OnScopeExit);
+    template <typename Callable>
+    OnScopeExit(Callable&& call_on_scope_exit);
+    ~OnScopeExit();
+  };
+
+  template <typename CallableType> OnScopeExit(CallableType) -> OnScopeExit<CallableType>;
 };
 
 #endif // SHARE_GC_Z_ZUTILS_HPP
