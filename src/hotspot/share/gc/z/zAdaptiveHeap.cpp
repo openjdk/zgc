@@ -70,8 +70,8 @@ double ZAdaptiveHeap::ZIntensitySmoother::record_and_smooth_gc_intensity(double 
 void ZAdaptiveHeap::initialize(bool explicit_max_capacity) {
   precond(!_initialized);
   _explicit_max_capacity = explicit_max_capacity;
-  _initialized = true;
   _gc_intensities.initialize();
+  _initialized = true;
 }
 
 void ZAdaptiveHeap::initialize_generation_data() {
@@ -234,12 +234,10 @@ physical_memory_size_type ZAdaptiveHeap::machine_physical_memory() {
 }
 
 double ZAdaptiveHeap::young_to_old_gc_time() {
-  precond(_initialized);
   return _young_to_old_gc_time.load_relaxed();
 }
 
 uint ZAdaptiveHeap::initial_young_worker_cap() {
-  precond(_initialized);
   uint capacity = _initial_young_worker_cap.load_relaxed();
   if (capacity == 0) {
     // Not yet set; use one - there are barely any objects early on anyway
@@ -295,7 +293,7 @@ static double cpu_latency_factor(int c, double rho, double unluckyness) {
 }
 
 ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
-  precond(_initialized);
+  precond(ZAdaptive);
   const double unscaled_gc_intensity = AtomicAccess::load(&ZGCIntensity);
 
   const ZMachineMemoryInfo machine_memory_info = ZAdaptiveHeap::machine_memory_info();
@@ -723,7 +721,8 @@ static double compute_cpu_vs_latency_pressure(const ZMemoryPressureMetrics& mem_
 }
 
 ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics& mem_metrics, const ZCpuPressureMetrics& cpu_metrics, size_t projected_process_used_memory) {
-  precond(_initialized);
+  precond(ZAdaptive);
+
   const double mem_pressure = compute_memory_pressure(mem_metrics);
   const double cpu_vs_memory_pressure = compute_cpu_vs_memory_pressure(mem_metrics, cpu_metrics, projected_process_used_memory);
   const double cpu_vs_latency_pressure = compute_cpu_vs_latency_pressure(mem_metrics, cpu_metrics);
@@ -746,6 +745,7 @@ ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics&
 }
 
 double ZAdaptiveHeap::smoothed_gc_intensity(double scaled_gc_intensity) {
+  precond(_initialized);
   return _gc_intensities.record_and_smooth_gc_intensity(scaled_gc_intensity);
 }
 
@@ -825,7 +825,7 @@ static double smoothing_function(double value, double warmness) {
 }
 
 size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, ZGenerationId generation) {
-  precond(_initialized);
+  precond(ZAdaptive);
 
   const bool is_major = Thread::current() == ZDriver::major();
   const GCCause::Cause cause = is_major ? ZDriver::major()->gc_cause() : ZDriver::minor()->gc_cause();
@@ -1116,7 +1116,7 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
 // infinity when there is no concerning memory pressure, then from ZUncommitDelay
 // when concerning down to 500 when high, and eventually 0 when critically low.
 uint64_t ZAdaptiveHeap::uncommit_delay(const ZMemoryPressureMetrics& metrics, size_t capacity) {
-  precond(_initialized);
+  precond(ZAdaptive);
 
   const uint64_t machine_uncommit_delay = system_uncommit_delay(metrics._machine, capacity);
 
@@ -1129,7 +1129,7 @@ uint64_t ZAdaptiveHeap::uncommit_delay(const ZMemoryPressureMetrics& metrics, si
 }
 
 uint64_t ZAdaptiveHeap::uncommit_delay() {
-  precond(_initialized);
+  precond(ZAdaptive);
 
   const ZMemoryPressureMetrics mem_metrics = memory_pressure_metrics();
   ZStatSystemMemoryUsage::record(mem_metrics);
@@ -1140,7 +1140,6 @@ uint64_t ZAdaptiveHeap::uncommit_delay() {
 }
 
 uint64_t ZAdaptiveHeap::soft_ref_delay() {
-  precond(_initialized);
   ZStatHeap* const stats = ZGeneration::old()->stat_heap();
   // Young generation should have mostly transient state;
   // consider it as basically free.
@@ -1216,7 +1215,6 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
 }
 
 void ZAdaptiveHeap::print() {
-  precond(_initialized);
   const char* status;
   if (!ZAdaptive) {
     status = "Fixed";
