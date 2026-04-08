@@ -41,7 +41,6 @@
 #include <limits>
 
 bool ZAdaptiveHeap::_explicit_max_capacity;
-bool ZAdaptiveHeap::_can_adapt;
 bool ZAdaptiveHeap::_initialized;
 bool ZAdaptiveHeap::_initialized_generation_data;
 ZAdaptiveHeap::ZIntensitySmoother ZAdaptiveHeap::_gc_intensities;
@@ -68,10 +67,9 @@ double ZAdaptiveHeap::ZIntensitySmoother::record_and_smooth_gc_intensity(double 
   return MAX2(_gc_intensities.avg(), scaled_gc_intensity);
 }
 
-void ZAdaptiveHeap::initialize(bool explicit_max_capacity, bool can_adapt) {
+void ZAdaptiveHeap::initialize(bool explicit_max_capacity) {
   precond(!_initialized);
   _explicit_max_capacity = explicit_max_capacity;
-  _can_adapt = can_adapt;
   _initialized = true;
   _gc_intensities.initialize();
 }
@@ -112,7 +110,7 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
       static bool is_valid = _info._is_valid;
       if (_info._is_valid != is_valid) {
         log_warning(gc)("The data source for machine_memory_info is unstable (expected _is_valid to be %s, got %s). "
-                        "This behavior is unsupported for Automatic Heap Sizing. Please run without Automatic Heap Sizing using -XX:ZGCIntensity=0",
+                        "This behavior is unsupported for Automatic Heap Sizing. Please run without Automatic Heap Sizing using -XX:-ZAdaptive/-XX:ZGCIntensity=0",
                         BOOL_TO_STR(is_valid), BOOL_TO_STR(_info._is_valid));
         os::exit(1);
       }
@@ -994,7 +992,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
                      cpu_metrics._machine._avg_system_load * 100.0, cpu_metrics._machine._avg_process_load * 100.0,
                      cpu_metrics._avg_total_gc_cpu_overhead * cpu_metrics._machine._avg_process_load * 100.0);
 
-  if (can_adapt()) {
+  if (ZAdaptive) {
     log_info(gc, heap)("Process GC CPU Overhead: %.1f%%, Target Process GC CPU Overhead: %.1f%%",
                        cpu_metrics._avg_total_gc_cpu_overhead * 100.0, target_cpu_overhead * 100.0);
 
@@ -1152,7 +1150,7 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
 
   const uint64_t explicit_delay = free_heap / M * uint64_t(SoftRefLRUPolicyMSPerMB);
 
-  if (!can_adapt()) {
+  if (!ZAdaptive) {
     // Use the good old policy we all know and love so much when automatic heap
     // sizing is not in use.
     return explicit_delay;
@@ -1220,7 +1218,7 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
 void ZAdaptiveHeap::print() {
   precond(_initialized);
   const char* status;
-  if (!can_adapt()) {
+  if (!ZAdaptive) {
     status = "Fixed";
   } else {
     if (explicit_max_capacity() || MinHeapSize != DefaultMinHeapSize) {

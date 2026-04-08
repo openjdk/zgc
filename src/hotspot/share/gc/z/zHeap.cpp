@@ -132,12 +132,12 @@ size_t ZHeap::used() const {
 }
 
 void ZHeap::adapt_heuristic_max_capacity(ZGenerationId generation) {
-  precond(ZAdaptiveHeap::can_adapt());
+  precond(ZAdaptive);
   _page_allocator.adapt_heuristic_max_capacity(generation);
 }
 
 void ZHeap::adjust_capacity(size_t used_soon) {
-  precond(ZAdaptiveHeap::can_adapt());
+  precond(ZAdaptive);
   _page_allocator.adjust_capacity(used_soon);
 }
 

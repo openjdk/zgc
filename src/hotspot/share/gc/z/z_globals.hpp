@@ -34,10 +34,13 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
+  product(bool, ZAdaptive, true,                                            \
+          "Enable Automatic Heap Sizing")                                   \
+                                                                            \
   product(double, ZAllocationSpikeTolerance, 2.0,                           \
           "Allocation spike tolerance factor")                              \
                                                                             \
-  product(double, ZGCIntensity, 5, MANAGEABLE,                              \
+  product(double, ZGCIntensity, ZGCIntensityDefault, MANAGEABLE,            \
           "Level of GC intensity, used for automatic heap sizing "          \
           "policies to use either more CPU or memory")                      \
           constraint(ZGCIntensityConstraintFunc, AfterErgo)                 \
@@ -120,11 +123,8 @@
           "Young generation tenuring threshold, -1 for dynamic computation")\
           range(-1, static_cast<int>(ZPageAgeCount) - 1)                    \
                                                                             \
-  product(bool, ZMemoryHeating, true, DIAGNOSTIC,                           \
+  product(bool, ZMemoryHeating, false, DIAGNOSTIC,                          \
           "Use concurrent memory worker(s) to optimize committed memory")   \
-                                                                            \
-  product(bool, ZAdaptWithExplicitMaxCapacity, true,                        \
-          "REMOVE ME")                                                      \
                                                                             \
   develop(bool, ZVerifyOops, false,                                         \
           "Verify accessed oops")                                           \

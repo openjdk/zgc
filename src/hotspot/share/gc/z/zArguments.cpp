@@ -46,7 +46,7 @@ void ZArguments::initialize_alignments() {
 void ZArguments::initialize_heap_flags_and_sizes() {
   precond(!FLAG_IS_ERGO(SoftMaxHeapSize));
 
-  if (!ZAdaptiveHeap::explicit_max_capacity() && !ZAdaptiveHeap::can_adapt()) {
+  if (!ZAdaptiveHeap::explicit_max_capacity() && !ZAdaptive) {
     // We are really just guessing how much memory the program needs.
     // When that is the case, we don't want the soft and hard limits to be the same
     // as it can cause flakiness in the number of GC threads used, in order to keep
@@ -132,16 +132,34 @@ void ZArguments::set_heap_size() {
   // will use up to the whole machine, so even if MinRAMPercentage is set to
   // 100%, we will still satisfy it.
 
+  const bool gc_intensity_was_zero = AtomicAccess::load(&ZGCIntensity) == 0.0;
+
+  if ((!FLAG_IS_DEFAULT(ZAdaptive) || !FLAG_IS_DEFAULT(ZGCIntensity)) &&
+      ZAdaptive == gc_intensity_was_zero) {
+
+    // The user has set -XX:(+/-)ZAdaptive and/or -XX:ZGCIntensity=n.n AND
+    // their state does not match. I.e, +ZAdaptive and ZGCIntensity = 0 OR
+    // -ZAdaptive and ZGCIntensity != 0.
+
+    if (FLAG_IS_DEFAULT(ZAdaptive) && !FLAG_IS_DEFAULT(ZGCIntensity)) {
+      FLAG_SET_ERGO(ZAdaptive, !ZAdaptive);
+    } else if (!FLAG_IS_DEFAULT(ZAdaptive) && FLAG_IS_DEFAULT(ZGCIntensity)) {
+      AtomicAccess::store(&ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
+    } else if (!FLAG_IS_DEFAULT(ZAdaptive) && !FLAG_IS_DEFAULT(ZGCIntensity)) {
+      const double old_intensity = AtomicAccess::load(&ZGCIntensity);
+      AtomicAccess::store(&ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
+      log_warning(gc)("-XX:%cZAdaptive does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",
+                      ZAdaptive ? '+' : '-',  old_intensity, ZGCIntensity);
+    }
+  }
+
   assert(!FLAG_IS_ERGO(MaxHeapSize), "Who set my heap size ergo?");
   assert(!FLAG_IS_ERGO(MaxRAMPercentage), "Who set my heap size ergo?");
 
   const bool explicit_max_heap_size = !FLAG_IS_DEFAULT(MaxHeapSize) ||
                                       !FLAG_IS_DEFAULT(MaxRAMPercentage);
 
-  const bool gc_intensity_was_zero = AtomicAccess::load(&ZGCIntensity) == 0.0;
-  const bool ahs_explicitly_disabled = gc_intensity_was_zero || (!ZAdaptWithExplicitMaxCapacity && explicit_max_heap_size);
-
-  if (ahs_explicitly_disabled) {
+  if (!ZAdaptive) {
     // Let the shared code setup the set the heap size
     GCArguments::set_heap_size();
   } else {
@@ -174,23 +192,21 @@ void ZArguments::set_heap_size() {
     FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
   }
 
-  const bool can_adapt = !ahs_explicitly_disabled && MaxHeapSize != MinHeapSize;
-
-  if (!can_adapt) {
-    // After setting the heap size we may have ended up with a configuration
-    // which we cannot adapt.
-
-    if (!gc_intensity_was_zero) {
-      if (FLAG_IS_CMDLINE(ZGCIntensity)) {
-        log_warning(gc)("Heap size is fixed, but ZGCIntensity is set. "
-                        "Adaptive heap sizing is not available.");
-      }
-      // If the heap size is fixed, set ZGCIntensity to 0.0
-      FLAG_SET_ERGO(ZGCIntensity, 0.0);
+  if (ZAdaptive && MaxHeapSize == MinHeapSize) {
+    if (!FLAG_IS_DEFAULT(ZAdaptive)) {
+      log_warning(gc)("Adaptive heap sizing was enabled, but heap size is fixed. Disabling adaptive heap sizing.");
     }
+
+    FLAG_SET_ERGO(ZAdaptive, false);
+    AtomicAccess::store(&ZGCIntensity, 0.0);
   }
 
-  ZAdaptiveHeap::initialize(explicit_max_heap_size, can_adapt);
+  if (ZAdaptive) {
+    // Enable concurrent heating if ZAdaptive is turned on
+    FLAG_SET_ERGO_IF_DEFAULT(ZMemoryHeating, true);
+  }
+
+  ZAdaptiveHeap::initialize(explicit_max_heap_size);
 }
 
 void ZArguments::initialize() {

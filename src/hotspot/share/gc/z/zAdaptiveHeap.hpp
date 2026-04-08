@@ -91,7 +91,6 @@ class ZAdaptiveHeap : public AllStatic {
 private:
 
   static bool _explicit_max_capacity;
-  static bool _can_adapt;
   static bool _initialized;
   static bool _initialized_generation_data;
 
@@ -149,7 +148,7 @@ private:
   static double smoothed_gc_intensity(double scaled_gc_intensity);
 
 public:
-  static void initialize(bool explicit_max_heap_size, bool can_adapt);
+  static void initialize(bool explicit_max_heap_size);
   static void initialize_generation_data();
 
   static ZMachineMemoryInfo machine_memory_info();
@@ -178,7 +177,6 @@ public:
 
   // How adaptive are we?
   static bool explicit_max_capacity();
-  static bool can_adapt();
 
   static constexpr double DefaultMaxRAMPercentage = 100.;
   static constexpr size_t DefaultMinHeapSize = 2 * M;

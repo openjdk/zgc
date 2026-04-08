@@ -1475,7 +1475,7 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
     _physical(static_max_capacity),
     _static_min_capacity(static_min_capacity),
     _static_max_capacity(static_max_capacity),
-    _heuristic_max_capacity(ZAdaptiveHeap::can_adapt() ? initial_capacity : static_max_capacity),
+    _heuristic_max_capacity(ZAdaptive ? initial_capacity : static_max_capacity),
     _used(0),
     _used_generations{0,0},
     _collection_stats{{0, 0},{0, 0}},
@@ -1505,6 +1505,7 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
   }
   log_info_p(gc, init)("Pre-touch: %s", AlwaysPreTouch ? "Enabled" : "Disabled");
   ZAdaptiveHeap::print();
+  log_info_p(gc, init)("Memory Heating: %s", ZMemoryHeating ? "Enabled" : "Disabled");
 
   // Warn if system limits could stop us from reaching max capacity
   const size_t expected_capacity = ZAdaptiveHeap::explicit_max_capacity()
@@ -1548,7 +1549,7 @@ size_t ZPageAllocator::static_max_capacity() const {
 }
 
 size_t ZPageAllocator::dynamic_max_capacity() const {
-  if (!ZAdaptiveHeap::can_adapt()) {
+  if (!ZAdaptive) {
     return _static_max_capacity;
   }
 
@@ -1606,7 +1607,7 @@ static size_t calculate_system_max_capacity(size_t system_used,
 }
 
 size_t ZPageAllocator::current_max_capacity() const {
-  if (!ZAdaptiveHeap::can_adapt()) {
+  if (!ZAdaptive) {
     // When not adapting use supplied max capacity
     return _static_max_capacity;
   }
@@ -1709,7 +1710,7 @@ void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
 }
 
 void ZPageAllocator::heap_resized(size_t selected_capacity) {
-  precond(ZAdaptiveHeap::can_adapt());
+  precond(ZAdaptive);
 
   // Update per partition heuristic max capacity
   ZPerNUMAIterator<ZPartition> iter = partition_iterator();
@@ -1752,7 +1753,7 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
 }
 
 void ZPageAllocator::heap_truncated(size_t selected_capacity) {
-  precond(ZAdaptiveHeap::can_adapt());
+  precond(ZAdaptive);
 
   ZPerNUMAIterator<ZPartition> iter = partition_iterator();
   for (ZPartition* partition; iter.next(&partition);) {
@@ -2564,7 +2565,7 @@ void ZPageAllocator::truncate_heuristic_max_after_capacity_decrease() {
                   heuristic_max / M, percent_of(heuristic_max, current_max),
                   capacity / M, percent_of(capacity, current_max));
 
-    if (ZAdaptiveHeap::can_adapt()) {
+    if (ZAdaptive) {
       heap_truncated(capacity);
     }
     return;

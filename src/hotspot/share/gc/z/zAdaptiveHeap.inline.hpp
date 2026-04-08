@@ -26,16 +26,9 @@
 
 #include "gc/z/zAdaptiveHeap.hpp"
 
-
 inline bool ZAdaptiveHeap::explicit_max_capacity() {
   precond(_initialized);
   return _explicit_max_capacity;
 }
-
-inline bool ZAdaptiveHeap::can_adapt() {
-  precond(_initialized);
-  return _can_adapt;
-}
-
 
 #endif // SHARE_GC_Z_ZADAPTIVEHEAP_INLINE_HPP

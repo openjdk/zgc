@@ -51,7 +51,7 @@ RBTreeOrdering ZMemoryWorker::ZHeatingRequestTreeComparator::cmp(zoffset first, 
 }
 
 bool ZMemoryWorker::is_enabled() {
-  return ZAdaptiveHeap::can_adapt() || ZMemoryHeating;
+  return ZAdaptive || ZMemoryHeating;
 }
 
 ZMemoryWorker::ZMemoryWorker(uint32_t id, ZPartition* partition)
@@ -119,7 +119,7 @@ bool ZMemoryWorker::peek() {
       return false;
     }
 
-    if (ZAdaptiveHeap::can_adapt()) {
+    if (ZAdaptive) {
       const size_t target_commit_capacity = _target_commit_capacity.load_relaxed();
       const size_t target_uncommit_capacity = _target_uncommit_capacity.load_relaxed();
 
@@ -171,7 +171,7 @@ void ZMemoryWorker::stop_heap_resizing() {
 }
 
 void ZMemoryWorker::request_grow_capacity(size_t requested_capacity) {
-  precond(ZAdaptiveHeap::can_adapt());
+  precond(ZAdaptive);
 
   ZLocker<ZConditionLock> locker(&_lock);
   _target_commit_capacity.store_relaxed(requested_capacity);
@@ -180,7 +180,7 @@ void ZMemoryWorker::request_grow_capacity(size_t requested_capacity) {
 }
 
 void ZMemoryWorker::request_shrink_capacity(size_t requested_capacity) {
-  precond(ZAdaptiveHeap::can_adapt());
+  precond(ZAdaptive);
 
   Ticks now = Ticks::now();
 
@@ -194,7 +194,7 @@ void ZMemoryWorker::request_shrink_capacity(size_t requested_capacity) {
 }
 
 void ZMemoryWorker::request_shrink_capacity_granule() {
-  precond(ZAdaptiveHeap::can_adapt());
+  precond(ZAdaptive);
 
   Ticks now = Ticks::now();
 
@@ -654,7 +654,7 @@ void ZMemoryWorker::run_thread() {
         return;
       }
 
-      if (ZAdaptiveHeap::can_adapt()) {
+      if (ZAdaptive) {
         if (worker_state.refresh_targets_or_break()) {
           break;
         }

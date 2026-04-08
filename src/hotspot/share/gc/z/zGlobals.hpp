@@ -86,6 +86,9 @@ const size_t      ZMarkPartialArrayMinLength    = ZMarkPartialArrayMinSize / oop
 // Max number of proactive/terminate flush attempts
 const size_t      ZMarkProactiveFlushMax        = 10;
 
+// Default value for ZGCIntensity
+const double      ZGCIntensityDefault           = 5.0;
+
 // Try complete mark timeout
 const uint64_t    ZMarkCompleteTimeout          = 200; // us
 
