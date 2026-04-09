@@ -58,19 +58,19 @@ public:
   static void sort(T* array, size_t count, Comparator comparator);
   template <typename T, typename Comparator>
   static void sort(T* array, int count, Comparator comparator);
-
-  template <typename CallableType>
-  class OnScopeExit : StackObj {
-    CallableType _call_on_scope_exit;
-
-  public:
-    NONCOPYABLE(OnScopeExit);
-    template <typename Callable>
-    OnScopeExit(Callable&& call_on_scope_exit);
-    ~OnScopeExit();
-  };
-
-  template <typename CallableType> OnScopeExit(CallableType) -> OnScopeExit<CallableType>;
 };
+
+template <typename CallableType>
+class ZOnScopeExit : StackObj {
+  CallableType _call_on_scope_exit;
+
+public:
+  NONCOPYABLE(ZOnScopeExit);
+  template <typename Callable>
+  ZOnScopeExit(Callable&& call_on_scope_exit);
+  ~ZOnScopeExit();
+};
+
+template <typename CallableType> ZOnScopeExit(CallableType) -> ZOnScopeExit<CallableType>;
 
 #endif // SHARE_GC_Z_ZUTILS_HPP

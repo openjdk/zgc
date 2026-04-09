@@ -104,10 +104,10 @@ inline void ZUtils::sort(T* array, int count, Comparator comparator) {
 
 template <typename CallableType>
 template <typename Callable>
-ZUtils::OnScopeExit<CallableType>::OnScopeExit(Callable&& call_on_scope_exit)
+ZOnScopeExit<CallableType>::ZOnScopeExit(Callable&& call_on_scope_exit)
   : _call_on_scope_exit(static_cast<Callable&&>(call_on_scope_exit)) {}
 
 template <typename CallableType>
-ZUtils::OnScopeExit<CallableType>::~OnScopeExit() { _call_on_scope_exit(); }
+ZOnScopeExit<CallableType>::~ZOnScopeExit() { _call_on_scope_exit(); }
 
 #endif // SHARE_GC_Z_ZUTILS_INLINE_HPP
