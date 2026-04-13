@@ -1838,7 +1838,13 @@ size_t ZStatHeap::capacity_low() const {
 }
 
 size_t ZStatHeap::free(size_t used, size_t capacity) const {
-  return capacity - used;
+  if (ZAdaptive) {
+    // When adapting, the max capacity is likely the whole machine/container,
+    // so we compare against the currently committed capacity instead.
+    return capacity - used;
+  }
+
+  return _at_initialize.max_capacity - used;
 }
 
 size_t ZStatHeap::mutator_allocated(size_t used_generation, size_t freed, size_t relocated) const {
