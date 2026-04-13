@@ -162,40 +162,43 @@ void ZArguments::set_heap_size() {
   const bool explicit_max_heap_size = !FLAG_IS_DEFAULT(MaxHeapSize) ||
                                       !FLAG_IS_DEFAULT(MaxRAMPercentage);
 
+  ZAdaptiveHeap::initialize(explicit_max_heap_size);
+
   if (!ZAdaptive) {
-    // Let the shared code setup the set the heap size
+    // Let the shared code setup the set the heap size when not adapting
     GCArguments::set_heap_size();
-  } else {
-    // When ahs is not explicitly disabled we set the heap size ourselves
-    assert(!FLAG_IS_ERGO(InitialHeapSize), "Who set my heap size ergo?");
-    assert(!FLAG_IS_ERGO(MinHeapSize), "Who set my heap size ergo?");
-    assert(!FLAG_IS_ERGO(MinRAMPercentage), "Who set my heap size ergo?");
-
-    if (!FLAG_IS_DEFAULT(ErgoHeapSizeLimit)) {
-      log_warning(gc, heap, init)("ZGC does not use ErgoHeapSizeLimit, the value is ignored");
-    }
-    if (!FLAG_IS_DEFAULT(HeapBaseMinAddress)) {
-      log_warning(gc, heap, init)("ZGC does not use HeapBaseMinAddress, the value is ignored");
-    }
-
-    // When the user has specified MaxRAMPercentage explicitly, we dispatch to either
-    // the container or machine's limit. If not explicitly specified, we use the machine's
-    // limit as we might need to scale up to most of the underlying memory.
-    const double phys_mem = !FLAG_IS_DEFAULT(MaxRAMPercentage)
-        ? checked_cast<double>(os::physical_memory())
-        : checked_cast<double>(os::Machine::physical_memory());
-
-    FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
-    FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
-
-    const size_t max_size = align_down((size_t)(phys_mem * (MaxRAMPercentage / 100.)), ZGranuleSize);
-    FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
-
-    const size_t initial_size = (size_t)(phys_mem * (InitialRAMPercentage / 100.));
-    FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
+    return;
   }
 
-  if (ZAdaptive && MaxHeapSize == MinHeapSize) {
+  // When adapting, we set the heap size ourselves
+  assert(!FLAG_IS_ERGO(InitialHeapSize), "Who set my heap size ergo?");
+  assert(!FLAG_IS_ERGO(MinHeapSize), "Who set my heap size ergo?");
+  assert(!FLAG_IS_ERGO(MinRAMPercentage), "Who set my heap size ergo?");
+
+  if (!FLAG_IS_DEFAULT(ErgoHeapSizeLimit)) {
+    log_warning(gc, heap, init)("ZGC does not use ErgoHeapSizeLimit, the value is ignored");
+  }
+  if (!FLAG_IS_DEFAULT(HeapBaseMinAddress)) {
+    log_warning(gc, heap, init)("ZGC does not use HeapBaseMinAddress, the value is ignored");
+  }
+
+  // When the user has specified MaxRAMPercentage explicitly, we dispatch to either
+  // the container or machine's limit. If not explicitly specified, we use the machine's
+  // limit as we might need to scale up to most of the underlying memory.
+  const double phys_mem = !FLAG_IS_DEFAULT(MaxRAMPercentage)
+      ? checked_cast<double>(os::physical_memory())
+      : checked_cast<double>(os::Machine::physical_memory());
+
+  FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
+  FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
+
+  const size_t max_size = align_down((size_t)(phys_mem * (MaxRAMPercentage / 100.)), ZGranuleSize);
+  FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
+
+  const size_t initial_size = (size_t)(phys_mem * (InitialRAMPercentage / 100.));
+  FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
+
+  if (MaxHeapSize == MinHeapSize) {
     if (!FLAG_IS_DEFAULT(ZAdaptive)) {
       log_warning(gc)("Adaptive heap sizing was enabled, but heap size is fixed. Disabling adaptive heap sizing.");
     }
@@ -204,12 +207,8 @@ void ZArguments::set_heap_size() {
     AtomicAccess::store(&ZGCIntensity, 0.0);
   }
 
-  if (ZAdaptive) {
-    // Enable concurrent heating if ZAdaptive is turned on
-    FLAG_SET_ERGO_IF_DEFAULT(ZMemoryHeating, true);
-  }
-
-  ZAdaptiveHeap::initialize(explicit_max_heap_size);
+  // Enable concurrent heating if ZAdaptive is turned on
+  FLAG_SET_ERGO_IF_DEFAULT(ZMemoryHeating, true);
 }
 
 void ZArguments::initialize() {
