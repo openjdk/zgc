@@ -70,7 +70,9 @@ double ZAdaptiveHeap::ZIntensitySmoother::record_and_smooth_gc_intensity(double 
 void ZAdaptiveHeap::initialize(bool explicit_max_capacity) {
   precond(!_initialized);
   _explicit_max_capacity = explicit_max_capacity;
-  _gc_intensities.initialize();
+  if (ZAdaptive) {
+    _gc_intensities.initialize();
+  }
   _initialized = true;
 }
 
