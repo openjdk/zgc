@@ -688,14 +688,13 @@ public:
       // or heating memory if available.
       const bool targetless_uncommit_matured = _worker->_targetless_uncommit && ZUncommit &&
           has_targetless_uncommit_matured(_init_time, _worker->_uncommit_request_time, _uncommit_delay);
-      const size_t heating_request_bytes = _worker->_heating_request_bytes;
 
       if (targetless_uncommit_matured && capacity != min_capacity) {
         postcond(ZAdaptive);
         _mode = Mode::UncommitTargetless;
-      } else if (heating_request_bytes > 0) {
+      } else if (_worker->has_heating_request()) {
         _mode = Mode::Heat;
-        _init_target_capacity = heating_request_bytes;
+        _init_target_capacity = _worker->_heating_request_bytes;
       } else {
         _mode = Mode::Wait;
       }
