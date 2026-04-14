@@ -84,6 +84,8 @@ compiler/c2/aarch64/TestStaticCallStub.java 8359963 linux-aarch64,macosx-aarch64
 
 compiler/unsafe/AlignmentGapAccess.java 8373487 generic-all
 
+compiler/exceptions/TestAccessErrorInCatch.java 8074292 generic-all
+
 #############################################################################
 
 # :hotspot_gc
