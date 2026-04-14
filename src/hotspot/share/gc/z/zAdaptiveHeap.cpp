@@ -1117,19 +1117,6 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
 // How long to wait until it is time to uncommit memory. This goes towards
 // infinity when there is no concerning memory pressure, then from ZUncommitDelay
 // when concerning down to 500 when high, and eventually 0 when critically low.
-uint64_t ZAdaptiveHeap::uncommit_delay(const ZMemoryPressureMetrics& metrics, size_t capacity) {
-  precond(ZAdaptive);
-
-  const uint64_t machine_uncommit_delay = system_uncommit_delay(metrics._machine, capacity);
-
-  if (!metrics._is_containerized) {
-    return machine_uncommit_delay;
-  }
-
-  const uint64_t container_uncommit_delay = system_uncommit_delay(metrics._container, capacity);
-  return MIN2(machine_uncommit_delay, container_uncommit_delay);
-}
-
 uint64_t ZAdaptiveHeap::uncommit_delay() {
   precond(ZAdaptive);
 
@@ -1138,7 +1125,14 @@ uint64_t ZAdaptiveHeap::uncommit_delay() {
 
   const size_t capacity = ZHeap::heap()->capacity();
 
-  return uncommit_delay(mem_metrics, capacity);
+  const uint64_t machine_uncommit_delay = system_uncommit_delay(mem_metrics._machine, capacity);
+
+  if (!mem_metrics._is_containerized) {
+    return machine_uncommit_delay;
+  }
+
+  const uint64_t container_uncommit_delay = system_uncommit_delay(mem_metrics._container, capacity);
+  return MIN2(machine_uncommit_delay, container_uncommit_delay);
 }
 
 uint64_t ZAdaptiveHeap::soft_ref_delay() {
