@@ -132,7 +132,7 @@ void ZArguments::set_heap_size() {
   // will use up to the whole machine, so even if MinRAMPercentage is set to
   // 100%, we will still satisfy it.
 
-  const bool gc_intensity_was_zero = AtomicAccess::load(&ZGCIntensity) == 0.0;
+  const bool gc_intensity_was_zero = ZGCIntensity == 0.0;
   const bool adaptive_is_explicit = !FLAG_IS_DEFAULT(ZAdaptive);
   const bool intensity_is_explicit = !FLAG_IS_DEFAULT(ZGCIntensity);
   const bool adaptive_matches_intensity = ZAdaptive != gc_intensity_was_zero;
@@ -145,10 +145,10 @@ void ZArguments::set_heap_size() {
     if (!adaptive_is_explicit && intensity_is_explicit) {
       FLAG_SET_ERGO(ZAdaptive, !ZAdaptive);
     } else if (adaptive_is_explicit && !intensity_is_explicit) {
-      AtomicAccess::store(&ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
+      FLAG_SET_ERGO(ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
     } else {
-      const double old_intensity = AtomicAccess::load(&ZGCIntensity);
-      AtomicAccess::store(&ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
+      const double old_intensity = ZGCIntensity;
+      FLAG_SET_ERGO(ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
 
       // Both were set, log a warning for mismatching configuration
       log_warning(gc)("-XX:%cZAdaptive does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",
@@ -204,7 +204,7 @@ void ZArguments::set_heap_size() {
     }
 
     FLAG_SET_ERGO(ZAdaptive, false);
-    AtomicAccess::store(&ZGCIntensity, 0.0);
+    FLAG_SET_ERGO(ZGCIntensity, 0.0);
   }
 
   // Enable concurrent heating if ZAdaptive is turned on
