@@ -144,6 +144,8 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
     }
 
     char line[256];
+    physical_memory_size_type node_physical_memory = 0;
+    physical_memory_size_type node_available_memory = 0;
     bool found_mem_total = false;
     bool found_mem_available = false;
     bool found_mem_free = false;
@@ -154,23 +156,23 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
       int n = -1;
       physical_memory_size_type read_value = 0;
       if (sscanf(line, "Node %d MemTotal: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        info._physical_memory += read_value * K;
+        node_physical_memory = read_value * K;
         found_mem_total = true;
       } else if (sscanf(line, "Node %d MemAvailable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
         // If the Kernel has an approximation of MemAvailable, use it
-        info._available_memory = read_value * K;
+        node_available_memory = read_value * K;
         found_mem_available = true;
       } else if (!found_mem_available && sscanf(line, "Node %d MemFree: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        info._available_memory += read_value * K;
+        node_available_memory += read_value * K;
         found_mem_free = true;
       } else if (!found_mem_available && sscanf(line, "Node %d Active(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        info._available_memory += read_value * K;
+        node_available_memory += read_value * K;
         found_active_file = true;
       } else if (!found_mem_available && sscanf(line, "Node %d Inactive(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        info._available_memory += read_value * K;
+        node_available_memory += read_value * K;
         found_inactive_file = true;
       } else if (!found_mem_available && sscanf(line, "Node %d SReclaimable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        info._available_memory += read_value * K;
+        node_available_memory += read_value * K;
         found_sreclaimable = true;
       }
 
@@ -186,16 +188,16 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
       // Fall back to numa_node_size64 if that's the case.
       long long res = os::Linux::numa_node_size64(node, nullptr);
       if (res != -1) {
-        info._physical_memory = (physical_memory_size_type)res;
+        node_physical_memory = (physical_memory_size_type)res;
         found_mem_total = true;
       }
     }
 
-    if (!(found_mem_total && found_mem_free && found_active_file && found_inactive_file && found_sreclaimable)) {
+    if (!(found_mem_total && (found_mem_available || (found_mem_free && found_active_file && found_inactive_file && found_sreclaimable)))) {
       static bool n = [&]() {
         log_warning_p(gc, heap)("Failed to read one of the NUMA-node specific values: "
-                                "MemTotal: %d, MemFree: %d, Active(file): %d, Inactive(file): %d, SReclaimable: %d",
-                                found_mem_total, found_mem_free, found_active_file, found_inactive_file, found_sreclaimable);
+                                "MemTotal: %d, MemAvailable: %d, MemFree: %d, Active(file): %d, Inactive(file): %d, SReclaimable: %d",
+                                found_mem_total, found_mem_available, found_mem_free, found_active_file, found_inactive_file, found_sreclaimable);
         return true;
       }();
       assert(false, "This should not happen");
@@ -204,6 +206,9 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
       info._is_valid = os::Machine::available_memory(info._available_memory);
       return info;
     }
+
+    info._physical_memory += node_physical_memory;
+    info._available_memory += node_available_memory;
   }
 
   info._is_valid = true;
