@@ -145,10 +145,10 @@ void ZArguments::set_heap_size() {
     if (!adaptive_is_explicit && intensity_is_explicit) {
       FLAG_SET_ERGO(ZAdaptive, !ZAdaptive);
     } else if (adaptive_is_explicit && !intensity_is_explicit) {
-      FLAG_SET_ERGO(ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
+      FLAG_SET_ERGO(ZGCIntensity, ZAdaptive ? ZAdaptiveHeap::DefaultGCIntensity : 0.0);
     } else {
       const double old_intensity = ZGCIntensity;
-      FLAG_SET_ERGO(ZGCIntensity, ZAdaptive ? ZGCIntensityDefault : 0.0);
+      FLAG_SET_ERGO(ZGCIntensity, ZAdaptive ? ZAdaptiveHeap::DefaultGCIntensity : 0.0);
 
       // Both were set, log a warning for mismatching configuration
       log_warning(gc)("-XX:%cZAdaptive does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",

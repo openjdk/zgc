@@ -177,6 +177,7 @@ public:
   // How adaptive are we?
   static bool explicit_max_capacity();
 
+  static constexpr double DefaultGCIntensity = 5.0;
   static constexpr double DefaultMaxRAMPercentage = 100.;
   static constexpr size_t DefaultMinHeapSize = 2 * M;
 
