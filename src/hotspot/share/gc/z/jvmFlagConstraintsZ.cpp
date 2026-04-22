@@ -50,13 +50,13 @@ JVMFlag::Error ZGCIntensityConstraintFunc(double value, bool verbose) {
     return JVMFlag::Error::VIOLATES_CONSTRAINT;
   }
 
-  if (ZAdaptive && value == 0.0) {
+  if (ZAutomaticHeapSizing && value == 0.0) {
     JVMFlag::printError(verbose,
                         "Cannot dynamically switch ZGCIntensity off.\n");
     return JVMFlag::Error::VIOLATES_CONSTRAINT;
   }
 
-  if (!ZAdaptive && value != 0.0) {
+  if (!ZAutomaticHeapSizing && value != 0.0) {
     JVMFlag::printError(verbose,
                         "Cannot dynamically switch ZGCIntensity on.\n");
     return JVMFlag::Error::VIOLATES_CONSTRAINT;

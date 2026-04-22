@@ -1475,7 +1475,7 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
     _physical(static_max_capacity),
     _static_min_capacity(static_min_capacity),
     _static_max_capacity(static_max_capacity),
-    _heuristic_max_capacity(ZAdaptive ? initial_capacity : static_max_capacity),
+    _heuristic_max_capacity(ZAutomaticHeapSizing ? initial_capacity : static_max_capacity),
     _used(0),
     _used_generations{0,0},
     _collection_stats{{0, 0},{0, 0}},
@@ -1549,7 +1549,7 @@ size_t ZPageAllocator::static_max_capacity() const {
 }
 
 size_t ZPageAllocator::dynamic_max_capacity() const {
-  if (!ZAdaptive) {
+  if (!ZAutomaticHeapSizing) {
     return _static_max_capacity;
   }
 
@@ -1607,7 +1607,7 @@ static size_t calculate_system_max_capacity(size_t system_used,
 }
 
 size_t ZPageAllocator::current_max_capacity() const {
-  if (!ZAdaptive) {
+  if (!ZAutomaticHeapSizing) {
     // When not adapting use supplied max capacity
     return _static_max_capacity;
   }
@@ -1710,7 +1710,7 @@ void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
 }
 
 void ZPageAllocator::heap_resized(size_t selected_capacity) {
-  precond(ZAdaptive);
+  precond(ZAutomaticHeapSizing);
 
   // Update per partition heuristic max capacity
   ZPerNUMAIterator<ZPartition> iter = partition_iterator();
@@ -1753,7 +1753,7 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
 }
 
 void ZPageAllocator::heap_truncated(size_t selected_capacity, ZPageAllocator::TruncationReason reason) {
-  precond(ZAdaptive);
+  precond(ZAutomaticHeapSizing);
 
   if (reason == TruncationReason::Uncommit) {
     // Uncommit heap truncation is part of heap resizing.
@@ -2571,7 +2571,7 @@ void ZPageAllocator::truncate_heuristic_max_after_capacity_decrease(TruncationRe
                     capacity / M, percent_of(capacity, current_max));
     }
 
-    if (ZAdaptive) {
+    if (ZAutomaticHeapSizing) {
       heap_truncated(capacity, reason);
     }
     return;

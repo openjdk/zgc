@@ -34,7 +34,7 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
-  product(bool, ZAdaptive, false,                                           \
+  product(bool, ZAutomaticHeapSizing, false,                                \
           "Enable Automatic Heap Sizing")                                   \
                                                                             \
   product(double, ZAllocationSpikeTolerance, 2.0,                           \

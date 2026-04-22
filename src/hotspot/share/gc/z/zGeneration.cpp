@@ -197,7 +197,7 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
 
 static double fragmentation_limit(ZGenerationId generation) {
   double min_fragmentation = 0.0;
-  if (ZAdaptive && ZHeap::heap()->is_alloc_stalling()) {
+  if (ZAutomaticHeapSizing && ZHeap::heap()->is_alloc_stalling()) {
     // It can be dangerous to defragment too much when the critical
     // reserve of machine memory is used.  When
     // stalling starts, there should be very limited amounts of
@@ -397,7 +397,7 @@ void ZGeneration::at_collection_start(ConcurrentGCTimer* gc_timer) {
 void ZGeneration::at_collection_end() {
   workers()->set_inactive();
   stat_cycle()->at_end(stat_workers(), should_record_stats());
-  if (should_record_stats() && ZAdaptive) {
+  if (should_record_stats() && ZAutomaticHeapSizing) {
     ZHeap::heap()->adapt_heuristic_max_capacity(_id);
   }
   // The heap at collection end data is gathered at relocate end

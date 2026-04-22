@@ -93,7 +93,7 @@ ZHeap::ZHeap()
   _old.stat_heap()->at_initialize(_page_allocator.static_min_capacity(), MaxHeapSize);
 
   // Initialize Adaptive heap generation data
-  if (ZAdaptive) {
+  if (ZAutomaticHeapSizing) {
     ZAdaptiveHeap::initialize_generation_data();
   }
 
@@ -134,12 +134,12 @@ size_t ZHeap::used() const {
 }
 
 void ZHeap::adapt_heuristic_max_capacity(ZGenerationId generation) {
-  precond(ZAdaptive);
+  precond(ZAutomaticHeapSizing);
   _page_allocator.adapt_heuristic_max_capacity(generation);
 }
 
 void ZHeap::adjust_capacity(size_t used_soon) {
-  precond(ZAdaptive);
+  precond(ZAutomaticHeapSizing);
   _page_allocator.adjust_capacity(used_soon);
 }
 
