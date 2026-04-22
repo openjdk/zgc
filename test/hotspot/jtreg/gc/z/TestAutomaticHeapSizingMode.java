@@ -44,7 +44,7 @@ public class TestAutomaticHeapSizingMode {
     private static List<String> createTestSpecificArgs(String... heapSizeArgs) {
       List<String> args = new ArrayList<>();
       args.add("-XX:+UseZGC");
-      args.add("-XX:+ZAdaptive");
+      args.add("-XX:+ZAutomaticHeapSizing");
       args.add("-Xlog:gc+init");
       args.addAll(Arrays.asList(heapSizeArgs));
       args.add("--version");
