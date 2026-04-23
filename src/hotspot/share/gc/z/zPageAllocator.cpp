@@ -1067,61 +1067,59 @@ size_t ZPartition::uncommit_physical(const ZVirtualMemory& vmem) {
 }
 
 void ZPartition::map_virtual(const ZVirtualMemory& vmem, bool heat_memory) {
-  verify_virtual_memory_association(vmem);
-
-  ZPhysicalMemoryManager& manager = physical_memory_manager();
-
-  // Map virtual memory to physical memory
-  manager.map(vmem, _numa_id);
-
-  if (heat_memory && ZMemoryHeating) {
-    // Register a heating request for this mapping
-    _mem_worker.register_heating_request(vmem);
-  }
+  map_virtual_inner(vmem, false /* multi_partition */, false /* sort_segments */, heat_memory);
 }
 
 void ZPartition::unmap_virtual(const ZVirtualMemory& vmem) {
-  verify_virtual_memory_association(vmem);
+  unmap_virtual_inner(vmem, false /* multi_partition */);
+}
 
-  if (ZMemoryHeating) {
-    // Remove any heating request before unmapping
-    _mem_worker.remove_heating_request(vmem);
+void ZPartition::map_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
+  map_virtual_inner(vmem, true /* multi_partition */, true /* sort_segments */, true /* register_heating */);
+}
+
+void ZPartition::unmap_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
+  unmap_virtual_inner(vmem, true /* multi_partition */);
+}
+
+void ZPartition::map_virtual_inner(const ZVirtualMemory& vmem, bool multi_partition, bool sort_segments, bool register_heating) {
+  if (multi_partition) {
+    verify_virtual_memory_multi_partition_association(vmem);
+  } else {
+    verify_virtual_memory_association(vmem);
   }
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
 
-  // Unmap virtual memory from physical memory
-  manager.unmap(vmem);
-}
+  if (sort_segments) {
+    // Sort physical segments before mapping multi-partition memory.
+    manager.sort_segments_physical(vmem);
+  }
 
-void ZPartition::map_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
-  verify_virtual_memory_multi_partition_association(vmem);
-
-  ZPhysicalMemoryManager& manager = physical_memory_manager();
-
-  // Sort physical segments
-  manager.sort_segments_physical(vmem);
-
-  // Map virtual memory to physical memory
+  // Map virtual memory to physical memory.
   manager.map(vmem, _numa_id);
 
-  if (ZMemoryHeating) {
-    // Register a heating request for this mapping
+  if (register_heating && ZMemoryHeating) {
+    // Register a heating request for this mapping.
     _mem_worker.register_heating_request(vmem);
   }
 }
 
-void ZPartition::unmap_virtual_from_multi_partition(const ZVirtualMemory& vmem) {
-  verify_virtual_memory_multi_partition_association(vmem);
+void ZPartition::unmap_virtual_inner(const ZVirtualMemory& vmem, bool multi_partition) {
+  if (multi_partition) {
+    verify_virtual_memory_multi_partition_association(vmem);
+  } else {
+    verify_virtual_memory_association(vmem);
+  }
 
   if (ZMemoryHeating) {
-    // Remove any heating request before unmapping
+    // Remove any heating request before unmapping.
     _mem_worker.remove_heating_request(vmem);
   }
 
   ZPhysicalMemoryManager& manager = physical_memory_manager();
 
-  // Unmap virtual memory from physical memory
+  // Unmap virtual memory from physical memory.
   manager.unmap(vmem);
 }
 

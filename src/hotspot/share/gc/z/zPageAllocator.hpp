@@ -130,6 +130,8 @@ private:
   void verify_memory_allocation_association(const ZMemoryAllocation* allocation) const NOT_DEBUG_RETURN;
 
   size_t increase_capacity(size_t size, size_t capacity_limit);
+  void map_virtual_inner(const ZVirtualMemory& vmem, bool multi_partition, bool sort_segments, bool register_heating);
+  void unmap_virtual_inner(const ZVirtualMemory& vmem, bool multi_partition);
 
 public:
   ZPartition(uint32_t numa_id,
