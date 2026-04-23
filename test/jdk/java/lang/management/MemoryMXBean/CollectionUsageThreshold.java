@@ -73,7 +73,7 @@ public class CollectionUsageThreshold {
     public static void main(String a[]) throws Throwable {
         final String main = "CollectionUsageThreshold$TestMain";
         // CollectionUsageThreshold$TestMain expects only System.gc() triggered
-        // GCs. ZGCs Adaptive heap sizing thus requires some buffer to not
+        // GCs. ZGC's Automatic Heap Sizing thus requires some buffer to not
         // trigger heuristic GCs. Similarly this test is incompatible with any
         // period GC heuristics / options like ZCollectionInterval.
         RunUtil.runTestKeepGcOpts(main, "-Xms128m", "-Xmx512m");
