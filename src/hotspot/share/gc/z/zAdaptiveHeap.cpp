@@ -311,13 +311,6 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
     ? machine_memory_info._physical_memory - machine_memory_info._available_memory
     : os::rss(); // Approximation for faulty os
 
-  physical_memory_size_type machine_compressed_memory;
-  if (os::compressed_memory(machine_compressed_memory)) {
-    machine_compressed_memory = MIN2(machine_compressed_memory, machine_used_memory);
-  } else {
-    machine_compressed_memory = 0;
-  }
-
   // The concerning threshold is after which memory utilization we start trying
   // harder to keep the memory down. There are multiple reasons for letting the GC
   // run hotter:
@@ -327,7 +320,7 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
   // 3) On systems that compress used memory, using compressed memory is not a
   //    free lunch as it leads to page faults that compress and decompress memory.
   //    This is extra painful for a tracing GC to traverse.
-  const double machine_compression_rate = double(machine_compressed_memory) / double(machine_max_memory);
+  const double machine_compression_rate = machine_memory_compression_ratio(machine_used_memory, machine_max_memory);
 
   // When the machine memory usage is fluctuating and isn't stable, it's good to
   // increase the headroom to the memory limits, otherwise there is a higher risk
@@ -754,6 +747,18 @@ ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics&
 double ZAdaptiveHeap::smoothed_gc_intensity(double scaled_gc_intensity) {
   precond(_initialized);
   return _gc_intensities.record_and_smooth_gc_intensity(scaled_gc_intensity);
+}
+
+double ZAdaptiveHeap::machine_memory_compression_ratio(physical_memory_size_type machine_used_memory,
+                                                       physical_memory_size_type machine_max_memory) {
+  physical_memory_size_type machine_compressed_memory;
+  if (pd_machine_compressed_memory(machine_compressed_memory)) {
+    machine_compressed_memory = MIN2(machine_compressed_memory, machine_used_memory);
+  } else {
+    machine_compressed_memory = 0;
+  }
+
+  return double(machine_compressed_memory) / double(machine_max_memory);
 }
 
 static double compute_target_gc_interval(const ZSystemMemoryPressureMetrics& mem_metrics,
