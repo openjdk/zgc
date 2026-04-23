@@ -51,6 +51,51 @@ RBTreeOrdering ZMemoryWorker::ZHeatingRequestTreeComparator::cmp(zoffset first, 
   return RBTreeOrdering::EQ;
 }
 
+enum class ZMemoryWorkerMode {
+  Uninitialized,
+  Commit,
+  Uncommit,
+  UncommitTargetless,
+  Heat,
+  Wait,
+};
+
+static const char* memory_worker_completed_mode_name(ZMemoryWorkerMode mode) {
+  switch (mode) {
+  case ZMemoryWorkerMode::Commit:
+    return "Committed";
+  case ZMemoryWorkerMode::Uncommit:
+  case ZMemoryWorkerMode::UncommitTargetless:
+    return "Uncommitted";
+  case ZMemoryWorkerMode::Heat:
+    return "Heated";
+  case ZMemoryWorkerMode::Wait:
+  case ZMemoryWorkerMode::Uninitialized:
+    break;
+  }
+
+  DEBUG_ONLY(ShouldNotReachHere();)
+  return "Unknown";
+}
+
+static const char* memory_worker_start_mode_name(ZMemoryWorkerMode mode) {
+  switch (mode) {
+  case ZMemoryWorkerMode::Commit:
+    return "Commit";
+  case ZMemoryWorkerMode::Uncommit:
+  case ZMemoryWorkerMode::UncommitTargetless:
+    return "Uncommit";
+  case ZMemoryWorkerMode::Heat:
+    return "Heat";
+  case ZMemoryWorkerMode::Wait:
+  case ZMemoryWorkerMode::Uninitialized:
+    break;
+  }
+
+  DEBUG_ONLY(ShouldNotReachHere();)
+  return "Unknown";
+}
+
 bool ZMemoryWorker::is_enabled() {
   return ZAutomaticHeapSizing || ZMemoryHeating;
 }
@@ -68,7 +113,7 @@ ZMemoryWorker::ZMemoryWorker(uint32_t id, ZPartition* partition)
     _stop(false),
     _currently_heating() {
   if (!is_enabled()) {
-    // Disabled, do not start.
+    // Disabled, do not start
     _stop = true;
     return;
   }
@@ -217,27 +262,37 @@ void ZMemoryWorker::request_shrink_capacity_granule() {
 
 static constexpr uint64_t TargetUncommitMinDelay = 10;
 
-static bool has_targetless_uncommit_matured(Ticks now, Ticks since, uint64_t uncommit_delay) {
+static bool has_uncommit_matured(Ticks now, Ticks since, uint64_t uncommit_delay) {
   precond(now != Ticks());
   precond(since != Ticks());
 
-  const uint64_t elapsed = (now - since).milliseconds();
+  return (now - since).milliseconds() >= uncommit_delay;
+}
 
+static uint64_t remaining_uncommit_wait_duration(Ticks since, uint64_t uncommit_delay) {
+  precond(since != Ticks());
+
+  const uint64_t elapsed = (Ticks::now() - since).milliseconds();
+  return elapsed >= uncommit_delay ? 0 : uncommit_delay - elapsed;
+}
+
+static uint64_t targeted_uncommit_delay(uint64_t uncommit_delay) {
+  return MIN2(TargetUncommitMinDelay, uncommit_delay);
+}
+
+static bool has_targetless_uncommit_matured(Ticks now, Ticks since, uint64_t uncommit_delay) {
   // Short term shrinking as requested by the director should shrink according
   // to the memory pressure based uncommit delay schedule.
-  return elapsed >= uncommit_delay;
+  return has_uncommit_matured(now, since, uncommit_delay);
 }
 
 static bool has_targeted_uncommit_matured(Ticks now, Ticks since, uint64_t uncommit_delay) {
   precond(ZUncommit);
-  precond(now != Ticks());
-  precond(since != Ticks());
-
-  const uint64_t elapsed = (now - since).milliseconds();
 
   // Long term shrinking as requested by a GC should shrink fairly quickly
   // regardless of memory pressure.
-  return elapsed >= MIN2(TargetUncommitMinDelay, uncommit_delay);
+  const uint64_t targeted_delay = targeted_uncommit_delay(uncommit_delay);
+  return has_uncommit_matured(now, since, targeted_delay);
 }
 
 void ZMemoryWorker::remove_heating_request_range(const ZVirtualMemory& vmem) {
@@ -376,7 +431,7 @@ ZVirtualMemory ZMemoryWorker::pop_heating_request() {
   const size_t size_remainder = size - max_heating;
   const ZVirtualMemory vmem(node->key() + size_remainder, max_heating);
 
-  // Update the value of the node to the new size.
+  // Update the value of the node to the new size
   node->set_val(size_remainder);
   _heating_request_bytes -= max_heating;
 
@@ -491,16 +546,8 @@ bool ZMemoryWorker::await_start() {
 
 class ZMemoryWorker::ZMemoryWorkerState {
 private:
-  enum class Mode {
-    Uninitialized,
-    Commit,
-    Uncommit,
-    UncommitTargetless,
-    Heat,
-    Wait,
-  };
+  using Mode = ZMemoryWorkerMode;
   ZMemoryWorker* const _worker;
-
   Ticks _init_time;
   Ticks _update_time;
   size_t _processed;
@@ -525,7 +572,7 @@ private:
         const size_t uncommit_size = _worker->uncommit_granule();
         const size_t shrink_amount = MIN2(_current_target_capacity - min_capacity, uncommit_size);
 
-        // Shrink heuristic max.
+        // Shrink heuristic max
         _worker->_partition->_page_allocator->shrink_heuristic_max(shrink_amount);
         log_debug(gc, heap)("Memory Worker (%d) Prevented Commit: %zuM(%.0f%%)",
                             _worker->_id, shrink_amount / M,
@@ -617,35 +664,21 @@ public:
 
     if (_processed > 0) {
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
-
-      const char* mode_string = [&]() {
-        switch (_mode) {
-        case Mode::Wait:
-        case Mode::Uninitialized:
-          DEBUG_ONLY(ShouldNotReachHere();)
-          return "Unknown";
-        case Mode::Commit:
-          return "Committed";
-        case Mode::Uncommit:
-        case Mode::UncommitTargetless:
-          return "Uncommitted";
-        case Mode::Heat:
-          return "Heated";
-        default:
-          ShouldNotReachHere();
-        };
-      }();
-
+      const char* const mode_string = memory_worker_completed_mode_name(_mode);
       const auto elapsed = Ticks::now() - _init_time;
       const size_t processed_mb = _processed / M;
-      const double percent_of_init_target = percent_of(_processed, _init_target_capacity);
       const double process_rate_mb_per_sec = double(processed_mb) / elapsed.seconds();
 
-      // TODO[Axel]: Currently _init_target_capacity is 0 when doing UncommitTargetless.
-      //             Should this have different logging?
-      log_info(gc, heap)("Memory Worker (%d) %s: %zuM(%.0f%%) in in %.3fms (%.2f MiB/s)",
-                         _worker->_id, mode_string, processed_mb, percent_of_init_target,
-                         elapsed.seconds() * MILLIUNITS, process_rate_mb_per_sec);
+      if (_mode == Mode::UncommitTargetless) {
+        log_info(gc, heap)("Memory Worker (%d) %s: %zuM in %.3fms (%.2f MiB/s)",
+                           _worker->_id, mode_string, processed_mb,
+                           elapsed.seconds() * MILLIUNITS, process_rate_mb_per_sec);
+      } else {
+        const double percent_of_init_target = percent_of(_processed, _init_target_capacity);
+        log_info(gc, heap)("Memory Worker (%d) %s: %zuM(%.0f%%) in %.3fms (%.2f MiB/s)",
+                           _worker->_id, mode_string, processed_mb, percent_of_init_target,
+                           elapsed.seconds() * MILLIUNITS, process_rate_mb_per_sec);
+      }
     }
   }
 
@@ -710,23 +743,7 @@ public:
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
 
       const size_t capacity = _worker->_partition->capacity();
-      const char* mode_string = [&]() {
-        switch (_mode) {
-        case Mode::Wait:
-        case Mode::Uninitialized:
-        case Mode::UncommitTargetless:
-          DEBUG_ONLY(ShouldNotReachHere();)
-          return "Unknown";
-        case Mode::Commit:
-          return "Commit";
-        case Mode::Uncommit:
-          return "Uncommit";
-        case Mode::Heat:
-          return "Heat";
-        default:
-          ShouldNotReachHere();
-        }
-      }();
+      const char* const mode_string = memory_worker_start_mode_name(_mode);
 
       lt.print("Memory Worker (%d) Start %s, Target: %zuM(%.0f%%)",
                _worker->_id, mode_string, _init_target_capacity / M,
@@ -773,7 +790,7 @@ public:
     }
     case Mode::Heat: {
       if (target_commit_capacity != 0 || target_uncommit_capacity != 0) {
-        // We have more important work to do.
+        // We have more important work to do
         return false;
       }
 
@@ -802,7 +819,7 @@ public:
       }
 
       // Failed to uncommit
-      // Reset uncommit target
+      // Reset the uncommit target
       _worker->clear_targeted_uncommit();
 
       return false;
@@ -840,21 +857,19 @@ public:
   bool await_work() {
     switch (_mode) {
     case Mode::Commit: {
-      // Commit immediately unless we have reached capacity.
+      // Commit immediately unless we have reached capacity
       return _worker->_partition->capacity() < _current_target_capacity;
     }
     case Mode::Uncommit: {
       precond(_current_target_capacity != 0);
 
       const auto get_wait_duration = [&]() -> uint64_t {
-        ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
-        const uint64_t uncommit_delay = MIN2(TargetUncommitMinDelay, ZAdaptiveHeap::uncommit_delay());
-        const uint64_t time_since_uncommit = (Ticks::now() - _worker->_uncommit_request_time).milliseconds();
-        if (uncommit_delay < time_since_uncommit) {
-          return 0;
-        }
+        // Read the _uncommit_request_time before releasing the lock
+        const Ticks request_time = _worker->_uncommit_request_time;
 
-        return uncommit_delay - time_since_uncommit;
+        ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
+        const uint64_t targeted_delay = targeted_uncommit_delay(ZAdaptiveHeap::uncommit_delay());
+        return remaining_uncommit_wait_duration(request_time, targeted_delay);
       };
 
       uint64_t wait_duration = get_wait_duration();
@@ -863,14 +878,14 @@ public:
         const size_t capacity = _worker->_partition->capacity();
         const size_t target_uncommit_capacity = _worker->_target_uncommit_capacity;
         if (target_uncommit_capacity == 0 || capacity <= target_uncommit_capacity) {
-          // We are no longer uncommitting.
+          // We are no longer uncommitting
           return false;
         }
 
         // Wait for uncommit
         _worker->_lock.wait(wait_duration);
 
-        // Get new wait duration
+        // Get the new wait duration
         wait_duration = get_wait_duration();
       }
 
@@ -881,34 +896,32 @@ public:
       return false;
     }
     case Mode::Heat: {
-      // Heat immediately if there are more requests.
+      // Heat immediately if there are more requests
       return _worker->has_heating_request();
     }
     case Mode::Wait: {
       const auto get_targetless_uncommit_wait_duration = [&]() -> uint64_t {
+        // Read the _uncommit_request_time before releasing the lock
+        const Ticks request_time = _worker->_uncommit_request_time;
+
         ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
         const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
-        const uint64_t time_since_uncommit = (Ticks::now() - _worker->_uncommit_request_time).milliseconds();
-        if (uncommit_delay < time_since_uncommit) {
-          return 0;
-        }
-
-        return uncommit_delay - time_since_uncommit;
+        return remaining_uncommit_wait_duration(request_time, uncommit_delay);
       };
 
       const auto check_for_work_non_targetless_uncommit = [&]() {
         if (_worker->_target_commit_capacity > 0) {
-          // There is commit work to be done.
+          // There is commit work to be done
           return true;
         }
 
         if (_worker->_target_uncommit_capacity > 0) {
-          // There is uncommit work to be done.
+          // There is uncommit work to be done
           return true;
         }
 
         if (_worker->_heating_request_bytes > 0) {
-          // There is heating work to be done.
+          // There is heating work to be done
           return true;
         }
 
@@ -925,18 +938,18 @@ public:
         const size_t min_capacity = _worker->_partition->_static_min_capacity;
 
         if (_worker->_targetless_uncommit && capacity != min_capacity) {
-          // There might be targetless uncommit work to be done.
+          // There might be targetless uncommit work to be done
           const uint64_t wait_duration = get_targetless_uncommit_wait_duration();
 
           if (check_for_work_non_targetless_uncommit() || wait_duration == 0 || _worker->is_stop_requested()) {
-            // There is targetless work to be done or the targetlesss uncommit has matured.
+          // There is targetless work to be done or the targetless uncommit has matured
             return false;
           }
 
           // Wait for notification or targetless maturity
           _worker->_lock.wait(wait_duration);
         } else {
-          // Wait for more work.
+          // Wait for more work
           _worker->_lock.wait();
         }
       }
@@ -954,7 +967,7 @@ void ZMemoryWorker::run_thread() {
 
   // Wait until started
   if (!await_start()) {
-    // GC initialisation failed.
+    // GC initialization failed
     return;
   }
 
@@ -991,7 +1004,7 @@ size_t ZMemoryWorker::uncommit(size_t to_uncommit) {
 
     ZMappedCache& cache = _partition->_cache;
 
-    // Never uncommit below min capacity.
+    // Never uncommit below min capacity
     const size_t retain = MAX2(_partition->_used, _partition->_static_min_capacity);
     const size_t release = _partition->_capacity - retain;
     const size_t flush = MIN2(release, to_uncommit);
