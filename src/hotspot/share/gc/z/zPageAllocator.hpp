@@ -62,8 +62,8 @@
 //
 // Notes:
 //   - Layouts below are illustrative. Values may move relative to each other.
-//   - min and static max never change during the program's execution.
-//   - The heap must stay within [min, static max].
+//   - static min and static max never change during the program's execution.
+//   - The heap must stay within [static min, static max].
 //
 // Not container:
 // LOW <-> HIGH
