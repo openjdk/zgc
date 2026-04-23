@@ -156,8 +156,6 @@ public:
   static void initialize_generation_data();
 
   static ZMachineMemoryInfo machine_memory_info();
-  static bool machine_used_memory(physical_memory_size_type& value);
-  static bool machine_available_memory(physical_memory_size_type& value);
   static physical_memory_size_type machine_physical_memory();
 
   static size_t compute_heap_size(const ZHeapResizeMetrics& metrics, ZGenerationId generation);

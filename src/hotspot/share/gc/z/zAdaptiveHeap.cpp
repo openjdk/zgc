@@ -216,26 +216,6 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
 #endif
 }
 
-bool ZAdaptiveHeap::machine_used_memory(physical_memory_size_type& value) {
-  const ZMachineMemoryInfo mem_info = machine_memory_info();
-  if (!mem_info._is_valid) {
-    return false;
-  }
-
-  value = mem_info._physical_memory - mem_info._available_memory;
-  return true;
-}
-
-bool ZAdaptiveHeap::machine_available_memory(physical_memory_size_type& value) {
-  const ZMachineMemoryInfo mem_info = machine_memory_info();
-  if (!mem_info._is_valid) {
-    return false;
-  }
-
-  value = mem_info._available_memory;
-  return true;
-}
-
 physical_memory_size_type ZAdaptiveHeap::machine_physical_memory() {
   return machine_memory_info()._physical_memory;
 }
