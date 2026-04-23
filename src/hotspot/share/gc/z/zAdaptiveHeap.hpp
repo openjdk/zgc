@@ -147,6 +147,7 @@ private:
   static double compute_memory_pressure(const ZMemoryPressureMetrics& metrics);
   static double smoothed_gc_intensity(double scaled_gc_intensity);
 
+  static void pd_machine_memory_info(ZMachineMemoryInfo& info);
   static bool pd_machine_compressed_memory(physical_memory_size_type& value);
   static double machine_memory_compression_ratio(physical_memory_size_type machine_used_memory,
                                                  physical_memory_size_type machine_max_memory);

@@ -22,6 +22,12 @@
  */
 
 #include "gc/z/zAdaptiveHeap.hpp"
+#include "runtime/os.hpp"
+
+void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
+  info._physical_memory = os::Machine::physical_memory();
+  info._is_valid = os::Machine::available_memory(info._available_memory);
+}
 
 bool ZAdaptiveHeap::pd_machine_compressed_memory(physical_memory_size_type& value) {
 #ifdef __APPLE__

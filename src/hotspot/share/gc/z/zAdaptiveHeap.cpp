@@ -28,7 +28,6 @@
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
-#include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zStat.hpp"
 #include "logging/log.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -100,7 +99,7 @@ void ZAdaptiveHeap::initialize_generation_data() {
 }
 
 ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
-  ZMachineMemoryInfo info{};
+  ZMachineMemoryInfo info = {};
 
   // Used to "latch" on to whatever validity we initially observe and make sure
   // that the same validity is continued to be observed moving forward. Observing
@@ -119,101 +118,8 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
     }
   } is_valid_stability(info);
 
-#ifndef LINUX
-  info._physical_memory = os::Machine::physical_memory();
-  info._is_valid = os::Machine::available_memory(info._available_memory);
+  pd_machine_memory_info(info);
   return info;
-#else
-  info._physical_memory = 0;
-  info._available_memory = 0;
-
-  if (!ZNUMA::is_bound()) {
-    info._physical_memory = os::Machine::physical_memory();
-    info._is_valid = os::Machine::available_memory(info._available_memory);
-    return info;
-  }
-
-  for (uint32_t numa_id = 0; numa_id < ZNUMA::count(); numa_id++) {
-    const int node = ZNUMA::numa_id_to_node(numa_id);
-    char path[128];
-    jio_snprintf(path, sizeof(path), "/sys/devices/system/node/node%d/meminfo", node);
-
-    FILE* f = os::fopen(path, "r");
-    if (!f) {
-      continue;
-    }
-
-    char line[256];
-    physical_memory_size_type node_physical_memory = 0;
-    physical_memory_size_type node_available_memory = 0;
-    bool found_mem_total = false;
-    bool found_mem_available = false;
-    bool found_mem_free = false;
-    bool found_active_file = false;
-    bool found_inactive_file = false;
-    bool found_sreclaimable = false;
-    while (fgets(line, sizeof(line), f) != nullptr) {
-      int parsed_node = -1;
-      physical_memory_size_type read_value = 0;
-      if (sscanf(line, "Node %d MemTotal: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
-        node_physical_memory = read_value * K;
-        found_mem_total = true;
-      } else if (sscanf(line, "Node %d MemAvailable: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
-        // If the Kernel has an approximation of MemAvailable, use it
-        node_available_memory = read_value * K;
-        found_mem_available = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d MemFree: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_mem_free = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d Active(file): " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_active_file = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d Inactive(file): " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_inactive_file = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d SReclaimable: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_sreclaimable = true;
-      }
-
-      if (found_mem_total && (found_mem_available || (found_mem_free && found_active_file && found_inactive_file && found_sreclaimable))) {
-        break;
-      }
-    }
-
-    fclose(f);
-
-    if (!found_mem_total) {
-      // Some Kernels might not have "MemTotal" available in the node-specific file.
-      // Fall back to numa_node_size64 if that's the case.
-      long long node_size_bytes = os::Linux::numa_node_size64(node, nullptr);
-      if (node_size_bytes != -1) {
-        node_physical_memory = (physical_memory_size_type)node_size_bytes;
-        found_mem_total = true;
-      }
-    }
-
-    if (!(found_mem_total && (found_mem_available || (found_mem_free && found_active_file && found_inactive_file && found_sreclaimable)))) {
-      static bool sentinel_warning = [&]() {
-        log_warning_p(gc, heap)("Failed to read one of the NUMA-node specific values: "
-                                "MemTotal: %d, MemAvailable: %d, MemFree: %d, Active(file): %d, Inactive(file): %d, SReclaimable: %d",
-                                found_mem_total, found_mem_available, found_mem_free, found_active_file, found_inactive_file, found_sreclaimable);
-        return true;
-      }();
-      assert(false, "This should not happen");
-
-      info._physical_memory = os::Machine::physical_memory();
-      info._is_valid = os::Machine::available_memory(info._available_memory);
-      return info;
-    }
-
-    info._physical_memory += node_physical_memory;
-    info._available_memory += node_available_memory;
-  }
-
-  info._is_valid = true;
-  return info;
-#endif
 }
 
 physical_memory_size_type ZAdaptiveHeap::machine_physical_memory() {
