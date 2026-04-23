@@ -41,7 +41,7 @@ static bool madv_collapse_available() {
   assert(size >= os::vm_page_size(), "Unexpected page size");
   os::pretouch_memory(res, (void*)(((char*)res) + os::vm_page_size()));
 
-  bool result = os::Linux::madvise_collapse_transparent_huge_pages(res, size);
+  const bool result = os::Linux::madvise_collapse_transparent_huge_pages(res, size);
 
   munmap(res, size);
 
@@ -49,7 +49,7 @@ static bool madv_collapse_available() {
 }
 
 void ZLargePages::pd_initialize() {
-  bool can_collapse = ZMemoryHeating && madv_collapse_available();
+  const bool can_collapse = ZMemoryHeating && madv_collapse_available();
 
   if (os::Linux::thp_requested()) {
     if (can_collapse) {

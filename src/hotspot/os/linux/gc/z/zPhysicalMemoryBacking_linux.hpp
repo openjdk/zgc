@@ -38,7 +38,7 @@ private:
 
   void warn_available_space(size_t max_capacity) const;
   void compute_max_map_count() const;
-  void warn_max_map_count(size_t warn_capacity, size_t max_capacity) const;
+  void warn_max_map_count(size_t expected_capacity, size_t max_capacity) const;
 
   int create_mem_fd(const char* name) const;
   int create_file_fd(const char* name) const;

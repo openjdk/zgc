@@ -153,25 +153,25 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
     bool found_inactive_file = false;
     bool found_sreclaimable = false;
     while (fgets(line, sizeof(line), f) != nullptr) {
-      int n = -1;
+      int parsed_node = -1;
       physical_memory_size_type read_value = 0;
-      if (sscanf(line, "Node %d MemTotal: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+      if (sscanf(line, "Node %d MemTotal: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
         node_physical_memory = read_value * K;
         found_mem_total = true;
-      } else if (sscanf(line, "Node %d MemAvailable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+      } else if (sscanf(line, "Node %d MemAvailable: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
         // If the Kernel has an approximation of MemAvailable, use it
         node_available_memory = read_value * K;
         found_mem_available = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d MemFree: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+      } else if (!found_mem_available && sscanf(line, "Node %d MemFree: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
         node_available_memory += read_value * K;
         found_mem_free = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d Active(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+      } else if (!found_mem_available && sscanf(line, "Node %d Active(file): " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
         node_available_memory += read_value * K;
         found_active_file = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d Inactive(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+      } else if (!found_mem_available && sscanf(line, "Node %d Inactive(file): " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
         node_available_memory += read_value * K;
         found_inactive_file = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d SReclaimable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+      } else if (!found_mem_available && sscanf(line, "Node %d SReclaimable: " PHYS_MEM_TYPE_FORMAT " kB", &parsed_node, &read_value) == 2) {
         node_available_memory += read_value * K;
         found_sreclaimable = true;
       }
@@ -186,9 +186,9 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
     if (!found_mem_total) {
       // Some Kernels might not have "MemTotal" available in the node-specific file.
       // Fall back to numa_node_size64 if that's the case.
-      long long res = os::Linux::numa_node_size64(node, nullptr);
-      if (res != -1) {
-        node_physical_memory = (physical_memory_size_type)res;
+      long long node_size_bytes = os::Linux::numa_node_size64(node, nullptr);
+      if (node_size_bytes != -1) {
+        node_physical_memory = (physical_memory_size_type)node_size_bytes;
         found_mem_total = true;
       }
     }
