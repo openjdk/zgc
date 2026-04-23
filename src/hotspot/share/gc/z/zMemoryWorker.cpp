@@ -286,14 +286,14 @@ void ZMemoryWorker::register_heating_request(const ZVirtualMemory& vmem) {
          untype(vmem.start()), untype(vmem.end()),
          untype(_currently_heating.start()), untype(_currently_heating.end()));
 
-  ZHeatingRequestTree::Cursor insert_cursor = _heating_requests.cursor(vmem.start());
+  const ZHeatingRequestTree::Cursor insert_cursor = _heating_requests.cursor(vmem.start());
   assert(!insert_cursor.found(), "must not be in tree");
 
   // Account for the new size upfront
   _heating_request_bytes += vmem.size();
 
-  ZHeatingRequestTree::Cursor prev_cursor = _heating_requests.prev(insert_cursor);
-  ZHeatingRequestTree::Cursor next_cursor = _heating_requests.next(insert_cursor);
+  const ZHeatingRequestTree::Cursor prev_cursor = _heating_requests.prev(insert_cursor);
+  const ZHeatingRequestTree::Cursor next_cursor = _heating_requests.next(insert_cursor);
 
   const bool extends_left = prev_cursor.valid() && prev_cursor.found() &&
                             zoffset_end(prev_cursor.node()->key() + prev_cursor.node()->val()) == vmem.start();
@@ -402,7 +402,7 @@ void ZMemoryWorker::remove_heating_request(const ZVirtualMemory& vmem) {
 
   // Cut off overlap on the left
   if (vmem.start() > zoffset(0)) {
-    ZHeatingRequestNode* left_node = _heating_requests.closest_leq(vmem.start() - ZGranuleSize);
+    ZHeatingRequestNode* const left_node = _heating_requests.closest_leq(vmem.start() - ZGranuleSize);
     if (left_node != nullptr) {
       const uintptr_t left_start = (uintptr_t)left_node->key();
       const size_t left_size = left_node->val();
@@ -427,7 +427,7 @@ void ZMemoryWorker::remove_heating_request(const ZVirtualMemory& vmem) {
   }
 
   // Cut off overlap on the right
-  ZHeatingRequestNode* right_node = _heating_requests.closest_leq(vmem.start() + vmem.size());
+  ZHeatingRequestNode* const right_node = _heating_requests.closest_leq(vmem.start() + vmem.size());
   if (right_node != nullptr) {
     const uintptr_t right_start = (uintptr_t)right_node->key();
     const size_t right_size = right_node->val();
@@ -620,19 +620,19 @@ public:
 
       const char* mode_string = [&]() {
         switch (_mode) {
-          case Mode::Wait:
-          case Mode::Uninitialized:
-            DEBUG_ONLY(ShouldNotReachHere();)
-            return "Unknown";
-          case Mode::Commit:
-            return "Committed";
-          case Mode::Uncommit:
-          case Mode::UncommitTargetless:
-            return "Uncommitted";
-          case Mode::Heat:
-            return "Heated";
-          default:
-            ShouldNotReachHere();
+        case Mode::Wait:
+        case Mode::Uninitialized:
+          DEBUG_ONLY(ShouldNotReachHere();)
+          return "Unknown";
+        case Mode::Commit:
+          return "Committed";
+        case Mode::Uncommit:
+        case Mode::UncommitTargetless:
+          return "Uncommitted";
+        case Mode::Heat:
+          return "Heated";
+        default:
+          ShouldNotReachHere();
         };
       }();
 
@@ -712,19 +712,19 @@ public:
       const size_t capacity = _worker->_partition->capacity();
       const char* mode_string = [&]() {
         switch (_mode) {
-          case Mode::Wait:
-          case Mode::Uninitialized:
-          case Mode::UncommitTargetless:
-            DEBUG_ONLY(ShouldNotReachHere();)
-            return "Unknown";
-          case Mode::Commit:
-            return "Commit";
-          case Mode::Uncommit:
-            return "Uncommit";
-          case Mode::Heat:
-            return "Heat";
-          default:
-            ShouldNotReachHere();
+        case Mode::Wait:
+        case Mode::Uninitialized:
+        case Mode::UncommitTargetless:
+          DEBUG_ONLY(ShouldNotReachHere();)
+          return "Unknown";
+        case Mode::Commit:
+          return "Commit";
+        case Mode::Uncommit:
+          return "Uncommit";
+        case Mode::Heat:
+          return "Heat";
+        default:
+          ShouldNotReachHere();
         }
       }();
 
@@ -758,29 +758,29 @@ public:
     const size_t target_uncommit_capacity = _worker->_target_uncommit_capacity;
 
     switch (_mode) {
-      case Mode::Commit: {
-        _current_target_capacity = target_commit_capacity;
-        return capacity < target_commit_capacity;
-      }
-      case Mode::Uncommit: {
-        _current_target_capacity = target_uncommit_capacity;
-        return target_uncommit_capacity != 0 && capacity > target_uncommit_capacity;
-      }
-      case Mode::UncommitTargetless: {
-        postcond(_init_target_capacity == 0);
-        postcond(_current_target_capacity == 0);
-        return target_commit_capacity == 0 && target_uncommit_capacity == 0 && targetless_uncommit;
-      }
-      case Mode::Heat: {
-        if (target_commit_capacity != 0 || target_uncommit_capacity != 0) {
-          // We have more important work to do.
-          return false;
-        }
-
-        return _processed < _init_target_capacity;
-      }
-      default:
+    case Mode::Commit: {
+      _current_target_capacity = target_commit_capacity;
+      return capacity < target_commit_capacity;
+    }
+    case Mode::Uncommit: {
+      _current_target_capacity = target_uncommit_capacity;
+      return target_uncommit_capacity != 0 && capacity > target_uncommit_capacity;
+    }
+    case Mode::UncommitTargetless: {
+      postcond(_init_target_capacity == 0);
+      postcond(_current_target_capacity == 0);
+      return target_commit_capacity == 0 && target_uncommit_capacity == 0 && targetless_uncommit;
+    }
+    case Mode::Heat: {
+      if (target_commit_capacity != 0 || target_uncommit_capacity != 0) {
+        // We have more important work to do.
         return false;
+      }
+
+      return _processed < _init_target_capacity;
+    }
+    default:
+      return false;
     }
   }
 
@@ -791,7 +791,7 @@ public:
     }
     case Mode::Uncommit: {
       if (!has_targeted_uncommit_matured(_update_time, _worker->_uncommit_request_time, _uncommit_delay)) {
-        // Await uncommit mature.
+        // Wait for the uncommit request to mature
         return true;
       }
 
@@ -809,7 +809,7 @@ public:
     }
     case Mode::UncommitTargetless: {
       if (!has_targetless_uncommit_matured(_update_time, _worker->_uncommit_request_time, _uncommit_delay)) {
-        // Await uncommit mature.
+        // Wait for the uncommit request to mature
         return true;
       }
 

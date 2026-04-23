@@ -27,7 +27,8 @@
 
 ZTask::Task::Task(ZTask* task, const char* name)
   : WorkerTask(name),
-    _task(task) {}
+    _task(task),
+    _workers(nullptr) {}
 
 void ZTask::Task::work(uint worker_id) {
   jlong start = os::current_thread_cpu_time(true /* user + sys */);

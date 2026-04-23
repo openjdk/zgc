@@ -1681,6 +1681,80 @@ size_t ZPageAllocator::heuristic_max_capacity() const {
   return clamp_to_soft_max_capacity(heuristic_max_capacity);
 }
 
+size_t ZPageAllocator::capacity() const {
+  size_t capacity = 0;
+
+  ZPartitionConstIterator iter = partition_iterator();
+  for (const ZPartition* partition; iter.next(&partition);) {
+    capacity += AtomicAccess::load(&partition->_capacity);
+  }
+
+  return capacity;
+}
+
+size_t ZPageAllocator::used() const {
+  return AtomicAccess::load(&_used);
+}
+
+size_t ZPageAllocator::used_generation(ZGenerationId id) const {
+  return AtomicAccess::load(&_used_generations[(int)id]);
+}
+
+size_t ZPageAllocator::unused() const {
+  const ssize_t used = (ssize_t)ZPageAllocator::used();
+  ssize_t capacity = 0;
+  ssize_t claimed = 0;
+
+  ZPartitionConstIterator iter = partition_iterator();
+  for (const ZPartition* partition; iter.next(&partition);) {
+    capacity += (ssize_t)AtomicAccess::load(&partition->_capacity);
+    claimed += (ssize_t)AtomicAccess::load(&partition->_claimed);
+  }
+
+  const ssize_t unused = capacity - used - claimed;
+  return unused > 0 ? (size_t)unused : 0;
+}
+
+void ZPageAllocator::shrink_heuristic_max(size_t shrink_amount) {
+  for (;;) {
+    const size_t heuristic_max = _heuristic_max_capacity.load_relaxed();
+    const size_t capacity = MAX2(heuristic_max - MIN2(shrink_amount, heuristic_max), ZGranuleSize);
+    if (heuristic_max > capacity) {
+      if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) == heuristic_max) {
+        break;
+      }
+    }
+    return;
+  }
+}
+
+void ZPageAllocator::truncate_heuristic_max_after_capacity_decrease(TruncationReason reason) {
+  // Adjust heuristic max capacity to ensure GC tries to keep below current capacity
+  const size_t capacity = ZPageAllocator::capacity();
+
+  for (;;) {
+    const size_t heuristic_max = _heuristic_max_capacity.load_relaxed();
+    if (heuristic_max <= capacity) {
+      return;
+    }
+    if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) != heuristic_max) {
+      continue;
+    }
+    const size_t current_max = current_max_capacity();
+    if (reason == TruncationReason::CommitFailure) {
+      log_debug(gc)("Forced to lower heap size from "
+                    "%zuM(%.0f%%) to %zuM(%.0f%%)",
+                    heuristic_max / M, percent_of(heuristic_max, current_max),
+                    capacity / M, percent_of(capacity, current_max));
+    }
+
+    if (ZAutomaticHeapSizing) {
+      heap_truncated(capacity, reason);
+    }
+    return;
+  }
+}
+
 void ZPageAllocator::adapt_heuristic_max_capacity(ZGenerationId generation) {
   const size_t heuristic_max = heuristic_max_capacity();
   const size_t static_min_capacity = _static_min_capacity;
@@ -1715,7 +1789,7 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
   // Update per partition heuristic max capacity
   ZPerNUMAIterator<ZPartition> iter = partition_iterator();
   for (ZPartition* partition; iter.next(&partition);) {
-    ZMemoryWorker& mem_worker = partition->memory_worker();
+    ZMemoryWorker& memory_worker = partition->memory_worker();
     const uint32_t numa_id = partition->numa_id();
 
     const size_t heuristic_max_capacity = ZNUMA::calculate_share(numa_id, selected_capacity);
@@ -1723,7 +1797,7 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
 
     if (capacity < heuristic_max_capacity) {
       // Grow the heap
-      mem_worker.request_grow_capacity(heuristic_max_capacity);
+      memory_worker.request_grow_capacity(heuristic_max_capacity);
     } else {
       // Consider shrinking the heap
 
@@ -1741,9 +1815,9 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
       // pointless fluctuation.
       if (ZUncommit && surplus_capacity > capacity / uncommit_fraction) {
         // Update memory worker target capacity
-        mem_worker.request_shrink_capacity(requested_capacity);
+        memory_worker.request_shrink_capacity(requested_capacity);
       } else {
-        mem_worker.stop_heap_resizing();
+        memory_worker.stop_heap_resizing();
       }
     }
   }
@@ -1797,40 +1871,6 @@ void ZPageAllocator::adjust_capacity(size_t used_soon) {
       }
     }
   }
-}
-
-size_t ZPageAllocator::capacity() const {
-  size_t capacity = 0;
-
-  ZPartitionConstIterator iter = partition_iterator();
-  for (const ZPartition* partition; iter.next(&partition);) {
-    capacity += AtomicAccess::load(&partition->_capacity);
-  }
-
-  return capacity;
-}
-
-size_t ZPageAllocator::used() const {
-  return AtomicAccess::load(&_used);
-}
-
-size_t ZPageAllocator::used_generation(ZGenerationId id) const {
-  return AtomicAccess::load(&_used_generations[(int)id]);
-}
-
-size_t ZPageAllocator::unused() const {
-  const ssize_t used = (ssize_t)ZPageAllocator::used();
-  ssize_t capacity = 0;
-  ssize_t claimed = 0;
-
-  ZPartitionConstIterator iter = partition_iterator();
-  for (const ZPartition* partition; iter.next(&partition);) {
-    capacity += (ssize_t)AtomicAccess::load(&partition->_capacity);
-    claimed += (ssize_t)AtomicAccess::load(&partition->_claimed);
-  }
-
-  const ssize_t unused = capacity - used - claimed;
-  return unused > 0 ? (size_t)unused : 0;
 }
 
 void ZPageAllocator::update_collection_stats(ZGenerationId id) {
@@ -2071,7 +2111,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
       return true;
     }
 
-    size_t partition_capacity = _partitions.get(partition_id).capacity();
+    const size_t partition_capacity = _partitions.get(partition_id).capacity();
     if (partition_capacity < lowest_capacity) {
       lowest_capacity_id = partition_id;
       lowest_capacity = partition_capacity;
@@ -2421,7 +2461,7 @@ void ZPageAllocator::map_committed_single_partition(ZSinglePartitionAllocation* 
 
   const size_t total_committed = allocation->harvested() + allocation->committed_capacity();
 
-  if (total_committed > 0)  {
+  if (total_committed > 0) {
     // Map all the committed memory
     const ZVirtualMemory total_committed_vmem = vmem.first_part(total_committed);
     partition.map_memory(allocation, total_committed_vmem);
@@ -2536,46 +2576,6 @@ void ZPageAllocator::cleanup_failed_commit_multi_partition(ZMultiPartitionAlloca
 
   // Free the unused virtual memory
   _virtual.insert_multi_partition(vmem);
-}
-
-void ZPageAllocator::shrink_heuristic_max(size_t shrink_amount) {
-  for (;;) {
-    const size_t heuristic_max = _heuristic_max_capacity.load_relaxed();
-    const size_t capacity = MAX2(heuristic_max - MIN2(shrink_amount, heuristic_max), ZGranuleSize);
-    if (heuristic_max > capacity) {
-      if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) == heuristic_max) {
-        break;
-      }
-    }
-    return;
-  }
-}
-
-void ZPageAllocator::truncate_heuristic_max_after_capacity_decrease(TruncationReason reason) {
-  // Adjust heuristic max capacity to ensure GC tries to keep below current capacity
-  const size_t capacity = ZPageAllocator::capacity();
-
-  for (;;) {
-    const size_t heuristic_max = _heuristic_max_capacity.load_relaxed();
-    if (heuristic_max <= capacity) {
-      return;
-    }
-    if (_heuristic_max_capacity.compare_exchange(heuristic_max, capacity) != heuristic_max) {
-      continue;
-    }
-    const size_t current_max = current_max_capacity();
-    if (reason == TruncationReason::CommitFailure) {
-      log_debug(gc)("Forced to lower heap size from "
-                    "%zuM(%.0f%%) to %zuM(%.0f%%)",
-                    heuristic_max / M, percent_of(heuristic_max, current_max),
-                    capacity / M, percent_of(capacity, current_max));
-    }
-
-    if (ZAutomaticHeapSizing) {
-      heap_truncated(capacity, reason);
-    }
-    return;
-  }
 }
 
 void ZPageAllocator::free_after_alloc_page_failed(ZPageAllocation* allocation) {

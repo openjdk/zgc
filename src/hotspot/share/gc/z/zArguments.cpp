@@ -58,7 +58,7 @@ void ZArguments::initialize_heap_flags_and_sizes() {
   }
 
   GCArguments::initialize_heap_flags_and_sizes();
-};
+}
 
 void ZArguments::select_max_gc_threads() {
   // Select number of parallel threads
@@ -185,17 +185,17 @@ void ZArguments::set_heap_size() {
   // When the user has specified MaxRAMPercentage explicitly, we dispatch to either
   // the container or machine's limit. If not explicitly specified, we use the machine's
   // limit as we might need to scale up to most of the underlying memory.
-  const double phys_mem = !FLAG_IS_DEFAULT(MaxRAMPercentage)
+  const double physical_memory = !FLAG_IS_DEFAULT(MaxRAMPercentage)
       ? checked_cast<double>(os::physical_memory())
       : checked_cast<double>(os::Machine::physical_memory());
 
   FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
   FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
 
-  const size_t max_size = align_down((size_t)(phys_mem * (MaxRAMPercentage / 100.)), ZGranuleSize);
+  const size_t max_size = align_down((size_t)(physical_memory * (MaxRAMPercentage / 100.)), ZGranuleSize);
   FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
 
-  const size_t initial_size = (size_t)(phys_mem * (InitialRAMPercentage / 100.));
+  const size_t initial_size = (size_t)(physical_memory * (InitialRAMPercentage / 100.));
   FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
 
   if (MaxHeapSize == MinHeapSize) {

@@ -100,10 +100,10 @@ void ZAdaptiveHeap::initialize_generation_data() {
 }
 
 ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
-  ZMachineMemoryInfo info;
+  ZMachineMemoryInfo info{};
 
   // Used to "latch" on to whatever validity we initially observe and make sure
-  // that the same validity is continued to be observed moving forward. Observating
+  // that the same validity is continued to be observed moving forward. Observing
   // different validity during execution can lead to really bad heuristics.
   struct ZBooleanStabilityRAII {
     ZMachineMemoryInfo& _info;
@@ -194,7 +194,7 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
     }
 
     if (!(found_mem_total && (found_mem_available || (found_mem_free && found_active_file && found_inactive_file && found_sreclaimable)))) {
-      static bool n = [&]() {
+      static bool sentinel_warning = [&]() {
         log_warning_p(gc, heap)("Failed to read one of the NUMA-node specific values: "
                                 "MemTotal: %d, MemAvailable: %d, MemFree: %d, Active(file): %d, Inactive(file): %d, SReclaimable: %d",
                                 found_mem_total, found_mem_available, found_mem_free, found_active_file, found_inactive_file, found_sreclaimable);
@@ -290,11 +290,11 @@ static double erlang_c(int c, double rho) {
 }
 
 static double cpu_latency_factor(int c, double rho, double unluckyness) {
-  double prob_join_queue = erlang_c(c, rho);
+  const double prob_join_queue = erlang_c(c, rho);
 
   // P99 is approximately 100x more likely to join the queue
-  double p99_prob_join_queue = MIN2(prob_join_queue * unluckyness, 1.0);
-  double p99_latency_factor = p99_prob_join_queue / (1.0 - rho);
+  const double p99_prob_join_queue = MIN2(prob_join_queue * unluckyness, 1.0);
+  const double p99_latency_factor = p99_prob_join_queue / (1.0 - rho);
 
   return 1.0 + p99_latency_factor;
 }
@@ -396,7 +396,7 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
     container_high_threshold += instability_adjustment;
   }
 
-  bool is_containerized = can_read_container_memory && has_container_limit;
+  const bool is_containerized = can_read_container_memory && has_container_limit;
 
   if (!is_containerized) {
     container_max_memory = machine_max_memory;
@@ -851,7 +851,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
   ZStatSystemMemoryUsage::record(mem_metrics);
 
   // System CPU load
-  ZCpuPressureMetrics cpu_metrics = cpu_pressure_metrics(generation);
+  const ZCpuPressureMetrics cpu_metrics = cpu_pressure_metrics(generation);
 
   // Heap size metrics
   const size_t soft_max_capacity = heap_metrics._soft_max_capacity;
@@ -868,7 +868,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
     return clamp(align_down(selected_capacity, ZGranuleSize), static_min_capacity, current_max_capacity);
   }
 
-  ZStatCycleStats cycle_stats = ZGeneration::generation(generation)->stat_cycle()->stats();
+  const ZStatCycleStats cycle_stats = ZGeneration::generation(generation)->stat_cycle()->stats();
 
   const double warmup_time_seconds = 3.0;
   const double warmness = MIN2(os::elapsedTime(), warmup_time_seconds) / warmup_time_seconds;
@@ -916,7 +916,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
   const double avg_process_time = cpu_metrics._avg_process_time;
   const double avg_process_cpus = avg_process_time / avg_time_since_last;
   const double high_target_workers = avg_process_cpus * target_cpu_overhead;
-  uint initial_young_worker_cap = clamp<uint>((uint)ceil(high_target_workers * 1.5), 1, ZYoungGCThreads);
+  const uint initial_young_worker_cap = clamp<uint>((uint)ceil(high_target_workers * 1.5), 1, ZYoungGCThreads);
   _initial_young_worker_cap.store_relaxed(initial_young_worker_cap);
 
   const double upper_cpu_overhead = MAX2(cpu_metrics._avg_total_gc_cpu_overhead, cpu_metrics._generation_gc_cpu_overhead);

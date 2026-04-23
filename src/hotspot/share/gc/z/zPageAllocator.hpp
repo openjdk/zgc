@@ -44,7 +44,7 @@
 #include "utilities/ostream.hpp"
 
 // The ZPageAllocator maintains the memory for the Java heap, represented by the
-// notion of capacity. The capacity is divided among one ore more partitions, which
+// notion of capacity. The capacity is divided among one or more partitions, which
 // handles a subset of the heap (or the whole heap in case of a single partition).
 //
 // The most important specific terms for capacity that we have are:
@@ -53,14 +53,14 @@
 //   - capacity        Currently committed capacity
 //   - soft max        Target limit; heuristics try to stay below this
 //   - heuristic max   Heuristic-derived upper bound used to guide resizing
-//   - current max     The effective maximum currently enfoced; based on system
+//   - current max     The effective maximum currently enforced; based on system
 //                     memory usage
 //   - dynamic max     Same as static max for non-container. Container limit
 //                     if in container.
 //   - static max      Absolute upper bound configured at startup (never changes).
 //                     This is the same value of -Xmx if set on the command-line.
 //
- // Notes:
+// Notes:
 //   - Layouts below are illustrative. Values may move relative to each other.
 //   - min and static max never change during the program's execution.
 //   - The heap must stay within [min, static max].
@@ -349,13 +349,13 @@ public:
   void heap_truncated(size_t selected_capacity, TruncationReason reason);
   void adjust_capacity(size_t used_soon);
 
+  ZPageAllocatorStats stats(ZGeneration* generation) const;
+  ZPageAllocatorStats update_and_stats(ZGeneration* generation);
+
   void increase_used_generation(ZGenerationId id, size_t size);
   void decrease_used_generation(ZGenerationId id, size_t size);
 
   void promote_used(const ZPage* from, const ZPage* to);
-
-  ZPageAllocatorStats stats(ZGeneration* generation) const;
-  ZPageAllocatorStats update_and_stats(ZGeneration* generation);
 
   ZPage* alloc_page(ZPageType type, size_t size, ZAllocationFlags flags, ZPageAge age, uint32_t preferred_partition);
   void safe_destroy_page(ZPage* page);
