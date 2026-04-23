@@ -338,7 +338,6 @@ class os: AllStatic {
   [[nodiscard]] static bool available_memory(physical_memory_size_type& value);
   [[nodiscard]] static bool used_memory(physical_memory_size_type& value);
   [[nodiscard]] static bool free_memory(physical_memory_size_type& value);
-  [[nodiscard]] static bool compressed_memory(physical_memory_size_type& value);
 
   [[nodiscard]] static bool total_swap_space(physical_memory_size_type& value);
   [[nodiscard]] static bool free_swap_space(physical_memory_size_type& value);

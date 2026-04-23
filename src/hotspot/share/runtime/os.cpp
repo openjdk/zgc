@@ -2212,14 +2212,6 @@ bool os::Machine::used_memory(physical_memory_size_type& value) {
   return true;
 }
 
-bool os::compressed_memory(physical_memory_size_type &value) {
-#ifdef __APPLE__
-  return os::Bsd::compressed_memory(value);
-#else
-  return false;
-#endif
-}
-
 #ifndef LINUX
 bool os::is_containerized() {
   return false;
