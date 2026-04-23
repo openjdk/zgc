@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,31 @@
 
 #include <sys/mman.h>
 
+// Define MADV_COLLAPSE here so we can build HotSpot on old systems.
+#define MADV_COLLAPSE_value 25
+#ifndef MADV_COLLAPSE
+#define MADV_COLLAPSE MADV_COLLAPSE_value
+#else
+  // Sanity-check our assumed default value if we build with a new enough libc.
+  STATIC_ASSERT(MADV_COLLAPSE == MADV_COLLAPSE_value);
+#endif
+
+bool ZLargePages::pd_collapse(void* addr, size_t bytes) {
+  // When MADV_COLLAPSE races with THP khugepaged, you sometimes get
+  // EAGAIN. We just do it again then.
+  for (;;) {
+    const int result = ::madvise(addr, bytes, MADV_COLLAPSE);
+    if (result == 0) {
+      return true;
+    }
+    if (result == -1 && errno == EAGAIN) {
+      continue;
+    }
+
+    return false;
+  }
+}
+
 static bool madv_collapse_available() {
   const size_t size = 2 * M;
   void* const res = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -41,7 +66,7 @@ static bool madv_collapse_available() {
   assert(size >= os::vm_page_size(), "Unexpected page size");
   os::pretouch_memory(res, (void*)(((char*)res) + os::vm_page_size()));
 
-  const bool result = os::Linux::madvise_collapse_transparent_huge_pages(res, size);
+  const bool result = ZLargePages::pd_collapse(res, size);
 
   munmap(res, size);
 

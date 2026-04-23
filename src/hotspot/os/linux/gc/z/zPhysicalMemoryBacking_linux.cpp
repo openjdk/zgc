@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -737,5 +737,5 @@ void ZPhysicalMemoryBacking::unmap(zaddress_unsafe addr, size_t size) const {
 }
 
 void ZPhysicalMemoryBacking::collapse(zaddress_unsafe addr, size_t size) const {
-  os::Linux::madvise_collapse_transparent_huge_pages((void*)untype(addr), size);
+  ZLargePages::pd_collapse((void*)untype(addr), size);
 }

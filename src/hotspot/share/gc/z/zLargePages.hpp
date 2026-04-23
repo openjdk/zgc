@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 #define SHARE_GC_Z_ZLARGEPAGES_HPP
 
 #include "memory/allStatic.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 class ZLargePages : public AllStatic {
 private:
@@ -47,6 +48,8 @@ public:
   static bool is_explicit();
   static bool is_transparent();
   static bool is_collapse();
+
+  static bool pd_collapse(void* addr, size_t bytes);
 
   static const char* to_string();
 };
