@@ -872,21 +872,32 @@ public:
         return remaining_uncommit_wait_duration(request_time, targeted_delay);
       };
 
-      uint64_t wait_duration = get_wait_duration();
-      while (wait_duration > 0 && !_worker->is_stop_requested()) {
-        // Is there other work?
+      const auto is_uncommit_done = [&]() {
         const size_t capacity = _worker->_partition->capacity();
         const size_t target_uncommit_capacity = _worker->_target_uncommit_capacity;
-        if (target_uncommit_capacity == 0 || capacity <= target_uncommit_capacity) {
-          // We are no longer uncommitting
+        return target_uncommit_capacity == 0 || capacity <= target_uncommit_capacity;
+      };
+
+      for (;;) {
+        // Is there more work?
+        if (_worker->is_stop_requested() || is_uncommit_done()) {
           return false;
+        }
+
+        const uint64_t wait_duration = get_wait_duration();
+
+        // Is there more work?
+        if (_worker->is_stop_requested() || is_uncommit_done()) {
+          return false;
+        }
+
+        if (wait_duration == 0) {
+          // We are done waiting
+          return true;
         }
 
         // Wait for uncommit
         _worker->_lock.wait(wait_duration);
-
-        // Get the new wait duration
-        wait_duration = get_wait_duration();
       }
 
       return true;
