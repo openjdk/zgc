@@ -48,7 +48,7 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/powerOfTwo.hpp"
 
-ZPhysicalMemoryManager::ZPhysicalMemoryManager(size_t max_capacity)
+ZPhysicalMemoryManager::ZPhysicalMemoryManager(size_t min_capacity, size_t max_capacity)
   : _backing(max_capacity),
     _physical_mappings(ZAddressOffsetMax) {
   assert(is_aligned(max_capacity, ZGranuleSize), "must be granule aligned");
@@ -79,6 +79,9 @@ ZPhysicalMemoryManager::ZPhysicalMemoryManager(size_t max_capacity)
     // Advance to next index by the inserted number of segment indices
     next_index += num_segments;
   }
+
+  // Check if uncommit should and can be enabled
+  try_enable_uncommit(min_capacity, max_capacity);
 
   assert(untype(next_index) == ZBackingIndexMax, "must insert all capacity");
 }

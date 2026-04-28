@@ -1470,7 +1470,7 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
                                size_t static_max_capacity)
   : _lock(),
     _virtual(static_max_capacity),
-    _physical(static_max_capacity),
+    _physical(static_min_capacity, static_max_capacity),
     _static_min_capacity(static_min_capacity),
     _static_max_capacity(static_max_capacity),
     _heuristic_max_capacity(ZAutomaticHeapSizing ? initial_capacity : static_max_capacity),
@@ -1511,9 +1511,6 @@ ZPageAllocator::ZPageAllocator(size_t static_min_capacity,
       : initial_capacity;
 
   _physical.warn_commit_limits(expected_capacity, static_max_capacity);
-
-  // Check if uncommit should and can be enabled
-  _physical.try_enable_uncommit(static_min_capacity, static_max_capacity);
 
   // Successfully initialized
   _initialized = true;
