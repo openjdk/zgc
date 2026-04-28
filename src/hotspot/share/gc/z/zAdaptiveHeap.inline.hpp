@@ -26,6 +26,10 @@
 
 #include "gc/z/zAdaptiveHeap.hpp"
 
+inline physical_memory_size_type ZSystemMemoryPressureMetrics::available_memory() const {
+  return _max_memory - MIN2(_used_memory, _max_memory);
+}
+
 inline bool ZAdaptiveHeap::explicit_max_capacity() {
   precond(_initialized);
   return _explicit_max_capacity;

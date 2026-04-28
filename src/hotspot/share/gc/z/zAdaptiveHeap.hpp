@@ -46,6 +46,8 @@ struct ZSystemMemoryPressureMetrics {
   const double _concerning_threshold;
   const double _high_threshold;
   const double _critical_threshold;
+
+  physical_memory_size_type available_memory() const;
 };
 
 struct ZMemoryPressureMetrics {

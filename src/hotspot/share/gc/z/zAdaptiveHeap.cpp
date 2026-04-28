@@ -264,9 +264,13 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
       container_min_memory = physical_memory_size_type(container_high_memory * (far_avoid / medium_avoid));
     }
 
-    container_critical_threshold = 1.0 - double(container_critical_memory) / double(container_max_memory);
-    container_high_threshold = 1.0 - double(container_high_memory) / double(container_max_memory);
-    container_concerning_threshold = 1.0 - double(container_min_memory) / double(container_max_memory);
+    const auto memory_threshold = [](physical_memory_size_type used_memory, physical_memory_size_type max_memory) {
+      return max_memory == 0 ? 1.0 : 1.0 - (double)used_memory / (double)max_memory;
+    };
+
+    container_critical_threshold = memory_threshold(container_critical_memory, container_max_memory);
+    container_high_threshold = memory_threshold(container_high_memory, container_max_memory);
+    container_concerning_threshold = memory_threshold(container_min_memory, container_max_memory);
 
     // Adjust the threshold by how unstable the memory usage in the system is
     const double container_memory_instability = ZStatSystemMemoryUsage::container_memory_stability();
@@ -306,10 +310,10 @@ ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
 }
 
 static double system_memory_pressure(const ZSystemMemoryPressureMetrics& metrics, double unscaled_gc_intensity) {
-  const physical_memory_size_type available_memory = metrics._max_memory - metrics._used_memory;
+  const physical_memory_size_type available_memory = metrics.available_memory();
 
   // The remaining memory reserve of the machine
-  const double availability = double(available_memory) / double(metrics._max_memory);
+  const double availability = percent_of(available_memory, metrics._max_memory) / 100.0;
 
   // A number indicating how much the memory pressure should grow as the
   // memory unavailability grows
@@ -356,7 +360,7 @@ double ZAdaptiveHeap::compute_memory_pressure(const ZMemoryPressureMetrics& metr
 }
 
 static bool is_system_memory_pressure_concerning(const ZSystemMemoryPressureMetrics& metrics) {
-  const physical_memory_size_type available_memory = metrics._max_memory - metrics._used_memory;
+  const physical_memory_size_type available_memory = metrics.available_memory();
   const double availability = double(available_memory) / double(metrics._max_memory);
 
   return availability < metrics._concerning_threshold;
@@ -375,7 +379,7 @@ bool ZAdaptiveHeap::is_memory_pressure_concerning(const ZMemoryPressureMetrics& 
 }
 
 static bool is_system_memory_pressure_high(const ZSystemMemoryPressureMetrics& metrics) {
-  const physical_memory_size_type available_memory = metrics._max_memory - metrics._used_memory;
+  const physical_memory_size_type available_memory = metrics.available_memory();
   const double availability = double(available_memory) / double(metrics._max_memory);
 
   return availability < metrics._high_threshold;
@@ -394,7 +398,7 @@ bool ZAdaptiveHeap::is_memory_pressure_high(const ZMemoryPressureMetrics& metric
 }
 
 static bool is_system_memory_pressure_critical(const ZSystemMemoryPressureMetrics& metrics) {
-  const physical_memory_size_type available_memory = metrics._max_memory - metrics._used_memory;
+  const physical_memory_size_type available_memory = metrics.available_memory();
   const double availability = double(available_memory) / double(metrics._max_memory);
 
   return availability < metrics._critical_threshold;
@@ -968,7 +972,7 @@ uint64_t ZAdaptiveHeap::critical_uncommit_delay() {
 }
 
 static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metrics, size_t capacity) {
-  const size_t available_memory = metrics._max_memory - metrics._used_memory;
+  const size_t available_memory = metrics.available_memory();
 
   const double capacity_fraction = clamp(double(capacity) / double(metrics._used_memory), 0.05, 1.0);
 
