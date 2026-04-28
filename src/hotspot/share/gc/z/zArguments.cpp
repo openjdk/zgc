@@ -138,9 +138,10 @@ void ZArguments::set_heap_size() {
   const bool adaptive_matches_intensity = ZAutomaticHeapSizing != gc_intensity_was_zero;
 
   if ((adaptive_is_explicit || intensity_is_explicit) && !adaptive_matches_intensity) {
-    // The user has set -XX:(+/-)ZAutomaticHeapSizing and/or -XX:ZGCIntensity=n.n AND
-    // their state does not match. I.e, +ZAutomaticHeapSizing and ZGCIntensity = 0 OR
-    // -ZAutomaticHeapSizing and ZGCIntensity != 0.
+    // The user has set ZAutomaticHeapSizing and/or ZGCIntensity AND their state
+    // does not match. For example:
+    // +ZAutomaticHeapSizing and ZGCIntensity  = 0 OR
+    // -ZAutomaticHeapSizing and ZGCIntensity != 0
 
     if (!adaptive_is_explicit && intensity_is_explicit) {
       FLAG_SET_ERGO(ZAutomaticHeapSizing, !ZAutomaticHeapSizing);
