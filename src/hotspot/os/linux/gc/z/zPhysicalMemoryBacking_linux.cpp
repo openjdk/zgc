@@ -205,6 +205,9 @@ ZPhysicalMemoryBacking::ZPhysicalMemoryBacking(size_t max_capacity)
     return;
   }
 
+  // Should we try to use fallocate
+  z_fallocate_supported = ZLargePages::should_try_fallocate();
+
   // Successfully initialized
   _initialized = true;
 }
@@ -539,21 +542,24 @@ ZErrno ZPhysicalMemoryBacking::fallocate_fill_hole(zbacking_offset offset, size_
   // some point touch these segments, otherwise we can not punch hole in them.
   // Also note that we need to use compat mode when using transparent huge pages,
   // since we need to use madvise(2) on the mapping before the page is allocated.
-  if (z_fallocate_supported && !ZLargePages::is_explicit()) {
-     const ZErrno err = fallocate_fill_hole_syscall(offset, length);
-     if (!err) {
-       // Success
-       return 0;
-     }
+  if (z_fallocate_supported) {
+    precond(ZLargePages::should_try_fallocate());
 
-     if (err != ENOSYS && err != EOPNOTSUPP) {
-       // Failed
-       return err;
-     }
+    const ZErrno err = fallocate_fill_hole_syscall(offset, length);
 
-     // Not supported
-     log_debug_p(gc)("Falling back to fallocate() compatibility mode");
-     z_fallocate_supported = false;
+    if (!err) {
+      // Success
+      return 0;
+    }
+
+    if (err != ENOSYS && err != EOPNOTSUPP) {
+      // Failed
+      return err;
+    }
+
+    // Not supported
+    log_debug_p(gc)("Falling back to fallocate() compatibility mode");
+    z_fallocate_supported = false;
   }
 
   return fallocate_fill_hole_compat(offset, length);
