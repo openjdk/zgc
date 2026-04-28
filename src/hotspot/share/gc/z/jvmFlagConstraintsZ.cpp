@@ -35,7 +35,7 @@ JVMFlag::Error ZGCIntensityConstraintFunc(double value, bool verbose) {
     return JVMFlag::Error::SUCCESS;
   }
 
-  if (!isfinite(value)) {
+  if (!g_isfinite(value)) {
     JVMFlag::printError(verbose,
                         "ZGCIntensityConstraint (%f) must be finite.\n",
                         value);
