@@ -45,7 +45,7 @@ bool ZAdaptiveHeap::_initialized_generation_data;
 ZAdaptiveHeap::ZIntensitySmoother ZAdaptiveHeap::_gc_intensities;
 
 Atomic<double> ZAdaptiveHeap::_young_to_old_gc_time(0.0);
-double ZAdaptiveHeap::_accumulated_young_gc_time = 0.0;
+Atomic<double> ZAdaptiveHeap::_accumulated_young_gc_time(0.0);
 ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_young_data;
 ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_old_data;
 Atomic<uint> ZAdaptiveHeap::_initial_young_worker_cap;
@@ -457,7 +457,7 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
 
   // Cycle metrics
   ZStatCycleStats cycle_stats = ZGeneration::generation(generation)->stat_cycle()->stats();
-  const double gc_time = cycle_stats._last_total_vtime + (is_young ? 0.0 : _accumulated_young_gc_time);
+  const double gc_time = cycle_stats._last_total_vtime + (is_young ? 0.0 : _accumulated_young_gc_time.load_relaxed());
 
   generation_data._gc_times.add(gc_time);
   generation_data._gc_times_since_last.add(time_since_last);
@@ -825,11 +825,18 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
   const bool is_young = generation == ZGenerationId::young;
 
   if (is_young) {
-    _accumulated_young_gc_time += cpu_metrics._gc_time;
+    const double accumulated_young_gc_time = _accumulated_young_gc_time.load_relaxed();
+    const double new_accumulated_young_gc_time = accumulated_young_gc_time + cpu_metrics._gc_time;
+    // The only race is with the old collection end's exchange bellow. So if the
+    // first CAS fails, the second must invariantly succeed.
+    const bool result = _accumulated_young_gc_time.compare_set(accumulated_young_gc_time, new_accumulated_young_gc_time, memory_order_relaxed) ||
+                        _accumulated_young_gc_time.compare_set(0.0, cpu_metrics._gc_time, memory_order_relaxed);
+    assert(result, "Should have succeded, unexpected _accumulated_young_gc_time mutation, expected: %f or 0.0, current: %f",
+           accumulated_young_gc_time, _accumulated_young_gc_time.load_relaxed());
   } else {
-    const double young_to_old_gc_time = _accumulated_young_gc_time / (_accumulated_young_gc_time + cycle_stats._last_total_vtime);
+    const double accumulated_young_gc_time = _accumulated_young_gc_time.exchange(0.0, memory_order_relaxed);
+    const double young_to_old_gc_time = accumulated_young_gc_time / (accumulated_young_gc_time + cycle_stats._last_total_vtime);
     _young_to_old_gc_time.store_relaxed(young_to_old_gc_time);
-    _accumulated_young_gc_time = 0.0;
   }
 
   const double upper_smoothened_error = smoothing_function(upper_error_signal, warmness);
