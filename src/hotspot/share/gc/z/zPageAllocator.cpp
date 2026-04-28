@@ -2138,7 +2138,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
 
   ZMultiPartitionAllocation* const multi_partition_allocation = allocation->multi_partition_allocation();
 
-  claim_capacity_multi_partition(multi_partition_allocation, lowest_capacity_id, attempt, hard_partition_limit);
+  claim_capacity_multi_partition(multi_partition_allocation, lowest_capacity_id, attempt);
 
   return true;
 }
@@ -2155,7 +2155,7 @@ bool ZPageAllocator::claim_capacity_single_partition(ZSinglePartitionAllocation*
   return partition.claim_capacity(single_partition_allocation->allocation(), attempt, capacity_limit);
 }
 
-void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition, ZPageAllocationAttempt attempt, size_t capacity_limit) {
+void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition, ZPageAllocationAttempt attempt) {
   const size_t size = multi_partition_allocation->size();
   const uint32_t num_partitions = _partitions.count();
   const size_t split_size = align_up(size / num_partitions, ZGranuleSize);
@@ -2167,6 +2167,9 @@ void ZPageAllocator::claim_capacity_multi_partition(ZMultiPartitionAllocation* m
       // All memory claimed
       return false;
     }
+
+    // Multi partition allocation, try to split evenly but at most static_max_capacity
+    const size_t capacity_limit = partition.static_max_capacity();
 
     const size_t max_alloc_size = claim_evenly ? MIN2(split_size, remaining) : remaining;
 

@@ -251,7 +251,7 @@ private:
   bool claim_capacity(ZPageAllocation* allocation, ZPageAllocationAttempt attempt);
   bool claim_capacity_single_partition_fast_medium(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id, size_t capacity_limit);
   bool claim_capacity_single_partition(ZSinglePartitionAllocation* single_partition_allocation, uint32_t partition_id, ZPageAllocationAttempt attempt, size_t capacity_limit);
-  void claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition, ZPageAllocationAttempt attempt, size_t capacity_limit);
+  void claim_capacity_multi_partition(ZMultiPartitionAllocation* multi_partition_allocation, uint32_t start_partition, ZPageAllocationAttempt attempt);
 
   ZVirtualMemory satisfied_from_cache_vmem(const ZPageAllocation* allocation) const;
 
