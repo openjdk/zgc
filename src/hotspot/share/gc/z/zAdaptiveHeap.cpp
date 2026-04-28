@@ -1076,7 +1076,7 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
   const size_t old_live = stats->live_at_mark_end();
   const size_t old_used = ZHeap::heap()->used_old();
   const double old_allocated = old_used - old_live;
-  const double old_alloc_rate = MAX2(old_allocated / M / avg_time_since_last, 1.0);
+  const double old_alloc_rate = MAX2(percent_of(old_allocated / M, avg_time_since_last) / 100.0, 1.0);
 
   const double time_to_old_oom = double(free_heap) / M / old_alloc_rate;
 
