@@ -151,7 +151,7 @@ void ZArguments::set_heap_size() {
       FLAG_SET_ERGO(ZGCIntensity, ZAutomaticHeapSizing ? ZAdaptiveHeap::DefaultGCIntensity : 0.0);
 
       // Both were set, log a warning for mismatching configuration
-      log_warning(gc)("-XX:%cZAdaptive does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",
+      log_warning(gc)("-XX:%cZAutomaticHeapSizing does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",
                       ZAutomaticHeapSizing ? '+' : '-',  old_intensity, ZGCIntensity);
     }
   }
