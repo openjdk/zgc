@@ -1811,7 +1811,7 @@ void ZPageAllocator::heap_resized(size_t selected_capacity) {
       // If the surplus capacity isn't over 5% of the capacity, the point of
       // uncommitting heuristically seems questionable and might just cause
       // pointless fluctuation.
-      if (ZUncommit && surplus_capacity > capacity / uncommit_fraction) {
+      if (surplus_capacity > capacity / uncommit_fraction) {
         // Update memory worker target capacity
         memory_worker.request_shrink_capacity(requested_capacity);
       } else {

@@ -182,6 +182,8 @@ void ZMemoryWorker::verify_heating_requests() {
 }
 
 void ZMemoryWorker::set_targetless_uncommit(Ticks now) {
+  precond(ZUncommit);
+
   _targetless_uncommit = true;
   if (_uncommit_request_time == Ticks()) {
     _uncommit_request_time = now;
@@ -189,6 +191,8 @@ void ZMemoryWorker::set_targetless_uncommit(Ticks now) {
 }
 
 void ZMemoryWorker::set_targeted_uncommit(size_t requested_capacity, Ticks now) {
+  precond(ZUncommit);
+
   _target_uncommit_capacity = requested_capacity;
   if (_uncommit_request_time == Ticks()) {
     _uncommit_request_time = now;
@@ -214,6 +218,8 @@ void ZMemoryWorker::clear_targeted_uncommit() {
 }
 
 void ZMemoryWorker::stop_heap_resizing() {
+  precond(ZAutomaticHeapSizing);
+
   // Remove requests to resize the capacity
   ZLocker<ZConditionLock> locker(&_lock);
   _target_commit_capacity = 0u;
@@ -221,6 +227,13 @@ void ZMemoryWorker::stop_heap_resizing() {
 }
 
 void ZMemoryWorker::stop_shrink_capacity_granule() {
+  precond(ZAutomaticHeapSizing);
+
+  if (!ZUncommit) {
+    // Uncommit turned off.
+    return;
+  }
+
   // Remove requests to resize the capacity
   ZLocker<ZConditionLock> locker(&_lock);
   clear_targetless_uncommit();
@@ -238,7 +251,11 @@ void ZMemoryWorker::request_grow_capacity(size_t requested_capacity) {
 
 void ZMemoryWorker::request_shrink_capacity(size_t requested_capacity) {
   precond(ZAutomaticHeapSizing);
-  precond(ZUncommit);
+
+  if (!ZUncommit) {
+    // Uncommit turned off.
+    return;
+  }
 
   const Ticks now = Ticks::now();
 
@@ -251,6 +268,11 @@ void ZMemoryWorker::request_shrink_capacity(size_t requested_capacity) {
 
 void ZMemoryWorker::request_shrink_capacity_granule() {
   precond(ZAutomaticHeapSizing);
+
+  if (!ZUncommit) {
+    // Uncommit turned off.
+    return;
+  }
 
   const Ticks now = Ticks::now();
 
