@@ -198,6 +198,17 @@ void ZArguments::set_heap_size() {
   const size_t initial_size = (size_t)(physical_memory * (InitialRAMPercentage / 100.));
   FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
 
+  // Ensure all heap sizes are ZGranuleSize aligned.
+  if (!is_aligned(MinHeapSize, ZGranuleSize)) {
+    FLAG_SET_ERGO(MinHeapSize, align_up(MinHeapSize, ZGranuleSize));
+  }
+  if (!is_aligned(InitialHeapSize, ZGranuleSize)) {
+    FLAG_SET_ERGO(InitialHeapSize, align_up(InitialHeapSize, ZGranuleSize));
+  }
+  if (!is_aligned(MaxHeapSize, ZGranuleSize)) {
+    FLAG_SET_ERGO(MaxHeapSize, align_up(MaxHeapSize, ZGranuleSize));
+  }
+
   if (MaxHeapSize == MinHeapSize) {
     if (!FLAG_IS_DEFAULT(ZAutomaticHeapSizing)) {
       log_warning(gc)("Adaptive heap sizing was enabled, but heap size is fixed. Disabling adaptive heap sizing.");
