@@ -997,6 +997,11 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
     // Progression until critical uncommitting starts
     const double progression = calculate_progression(available_fraction, metrics._concerning_threshold, metrics._high_threshold);
 
+    if (ZUncommitDelay == 0) {
+      // With no ZUncommitDelay, simply use the urgent delay
+      return urgent_delay;
+    }
+
     // Scale the uncommit interval by memory urgency, so the pace of uncommitting
     // ramps up as the machine resources gets exhausted.
     return uint64_t((1.0 - progression) * capacity_fraction * (ZUncommitDelay * MILLIUNITS - urgent_delay) + urgent_delay);
