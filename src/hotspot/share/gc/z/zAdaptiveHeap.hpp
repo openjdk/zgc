@@ -47,7 +47,10 @@ struct ZSystemMemoryPressureMetrics {
   const double _high_threshold;
   const double _critical_threshold;
 
+  double fraction_of_max(physical_memory_size_type memory) const;
   physical_memory_size_type available_memory() const;
+  double used_fraction() const;
+  double available_fraction() const;
 };
 
 struct ZMemoryPressureMetrics {

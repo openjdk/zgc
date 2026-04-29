@@ -25,9 +25,22 @@
 #define SHARE_GC_Z_ZADAPTIVEHEAP_INLINE_HPP
 
 #include "gc/z/zAdaptiveHeap.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 inline physical_memory_size_type ZSystemMemoryPressureMetrics::available_memory() const {
   return _max_memory - MIN2(_used_memory, _max_memory);
+}
+
+inline double ZSystemMemoryPressureMetrics::fraction_of_max(physical_memory_size_type memory) const {
+  return percent_of(memory, _max_memory) / 100.0;
+}
+
+inline double ZSystemMemoryPressureMetrics::used_fraction() const {
+  return fraction_of_max(_used_memory);
+}
+
+inline double ZSystemMemoryPressureMetrics::available_fraction() const {
+  return fraction_of_max(available_memory());
 }
 
 inline bool ZAdaptiveHeap::explicit_max_capacity() {

@@ -313,7 +313,7 @@ static double system_memory_pressure(const ZSystemMemoryPressureMetrics& metrics
   const physical_memory_size_type available_memory = metrics.available_memory();
 
   // The remaining memory reserve of the machine
-  const double availability = percent_of(available_memory, metrics._max_memory) / 100.0;
+  const double availability = metrics.available_fraction();
 
   // A number indicating how much the memory pressure should grow as the
   // memory unavailability grows
@@ -360,8 +360,7 @@ double ZAdaptiveHeap::compute_memory_pressure(const ZMemoryPressureMetrics& metr
 }
 
 static bool is_system_memory_pressure_concerning(const ZSystemMemoryPressureMetrics& metrics) {
-  const physical_memory_size_type available_memory = metrics.available_memory();
-  const double availability = double(available_memory) / double(metrics._max_memory);
+  const double availability = metrics.available_fraction();
 
   return availability < metrics._concerning_threshold;
 }
@@ -379,8 +378,7 @@ bool ZAdaptiveHeap::is_memory_pressure_concerning(const ZMemoryPressureMetrics& 
 }
 
 static bool is_system_memory_pressure_high(const ZSystemMemoryPressureMetrics& metrics) {
-  const physical_memory_size_type available_memory = metrics.available_memory();
-  const double availability = double(available_memory) / double(metrics._max_memory);
+  const double availability = metrics.available_fraction();
 
   return availability < metrics._high_threshold;
 }
@@ -398,8 +396,7 @@ bool ZAdaptiveHeap::is_memory_pressure_high(const ZMemoryPressureMetrics& metric
 }
 
 static bool is_system_memory_pressure_critical(const ZSystemMemoryPressureMetrics& metrics) {
-  const physical_memory_size_type available_memory = metrics.available_memory();
-  const double availability = double(available_memory) / double(metrics._max_memory);
+  const double availability = metrics.available_fraction();
 
   return availability < metrics._critical_threshold;
 }
@@ -478,8 +475,8 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
   generation_data._last_process_time = process_time_now;
   generation_data._process_times.add(process_time);
   const double avg_process_time = generation_data._process_times.avg();
-  const double avg_generation_gc_cpu_overhead = avg_gc_time / avg_process_time;
-  const double generation_gc_cpu_overhead = gc_time / process_time;
+  const double avg_generation_gc_cpu_overhead = percent_of(avg_gc_time, avg_process_time) / 100.0;
+  const double generation_gc_cpu_overhead = percent_of(gc_time, process_time) / 100.0;
 
   const double avg_machine_process_cpu_load = clamp((avg_process_time / avg_time_since_last) / machine_ncpus, 0.0, 1.0);
   const double avg_machine_system_cpu_load = clamp((avg_machine_system_time / avg_time_since_last) / machine_ncpus, 0.0, 1.0);
@@ -525,7 +522,7 @@ static double mem_urgency_scaled_cpu_pressure(const ZSystemMemoryPressureMetrics
   }
 
   // Calculate concerning progression towards high
-  const double availability = 1.0 - double(mem_metrics._used_memory) / double(mem_metrics._max_memory);
+  const double availability = mem_metrics.available_fraction();
   const double progression = calculate_progression(availability, mem_metrics._concerning_threshold, mem_metrics._high_threshold);
 
   // Scale back to 1 as we approach high mem pressure
@@ -552,7 +549,7 @@ static double compute_cpu_vs_memory_pressure(const ZSystemMemoryPressureMetrics&
   // the CPU vs memory resource availabilities. A separate cpu_vs_latency
   // calculation estimates the latency impact of too high CPU, and adjusts.
   const double system_cpu_usage = cpu_metrics._avg_system_load;
-  const double system_memory_usage = double(mem_metrics._used_memory) / double(mem_metrics._max_memory);
+  const double system_memory_usage = mem_metrics.used_fraction();
   const double system_cpu_pressure = system_memory_usage - system_cpu_usage;
 
   // Balance the forces of resource share imbalance across processes with the
@@ -669,7 +666,7 @@ static double compute_target_gc_interval(const ZSystemMemoryPressureMetrics& mem
 
   // As the process starts dominating the available system memory, linearly
   // tone down the memory bloating.
-  const double other_processes_memory = clamp(1.0 - double(process_used_memory) / double(mem_metrics._max_memory), 0.0, 1.0);
+  const double other_processes_memory = clamp(1.0 - mem_metrics.fraction_of_max(process_used_memory), 0.0, 1.0);
   const double process_progression = calculate_progression(other_processes_memory,
                                                            1.0,
                                                            mem_metrics._critical_threshold);
@@ -682,7 +679,7 @@ static double compute_target_gc_interval(const ZSystemMemoryPressureMetrics& mem
     // the only memory culprit is the current process, then the progression will
     // now turn quadratic, which should help reduce the memory bloating further.
 
-    const double system_availability = 1.0 - double(mem_metrics._used_memory) / double(mem_metrics._max_memory);
+    const double system_availability = mem_metrics.available_fraction();
     const double system_progression = calculate_progression(system_availability,
                                                             mem_metrics._concerning_threshold,
                                                             mem_metrics._critical_threshold);
@@ -972,12 +969,10 @@ uint64_t ZAdaptiveHeap::critical_uncommit_delay() {
 }
 
 static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metrics, size_t capacity) {
-  const size_t available_memory = metrics.available_memory();
-
   const double capacity_fraction = clamp(double(capacity) / double(metrics._used_memory), 0.05, 1.0);
 
   // The remaining memory reserve of the system
-  const double available_fraction = double(available_memory) / double(metrics._max_memory);
+  const double available_fraction = metrics.available_fraction();
 
   // If we are critically low on memory, aggressively free up memory
   if (available_fraction <= metrics._critical_threshold) {
