@@ -2093,8 +2093,8 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
   // Round robin soft single-partition claiming
   const size_t soft_limit = heuristic_max_capacity();
 
-  uint32_t lowest_capacity_id = num_partitions;
-  size_t lowest_capacity = std::numeric_limits<size_t>::max();
+  uint32_t highest_availiable_id = num_partitions;
+  size_t highest_availiable = 0;
 
   for (uint32_t i = 0; i < num_partitions; ++i) {
     const uint32_t partition_id = (start_partition + i) % num_partitions;
@@ -2108,18 +2108,19 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
       return true;
     }
 
-    const size_t partition_capacity = _partitions.get(partition_id).capacity();
-    if (partition_capacity < lowest_capacity) {
-      lowest_capacity_id = partition_id;
-      lowest_capacity = partition_capacity;
+    const ZPartition& partition = _partitions.get(partition_id);
+    const size_t partition_availiable = partition.available(attempt, partition.static_max_capacity());
+    if (partition_availiable > highest_availiable) {
+      highest_availiable_id = partition_id;
+      highest_availiable = partition_availiable;
     }
   }
 
-  // Hard single-partition claiming - only try from the lowest capacity partition
-  const size_t hard_partition_limit = _partitions.get(lowest_capacity_id).static_max_capacity();
+  // Hard single-partition claiming - only try from the highest availible partition
+  const size_t hard_partition_limit = _partitions.get(highest_availiable_id).static_max_capacity();
   const bool claim_result = is_fast_medium
-      ? claim_capacity_single_partition_fast_medium(single_partition_allocation, lowest_capacity_id, hard_partition_limit)
-      : claim_capacity_single_partition(single_partition_allocation, lowest_capacity_id, attempt, hard_partition_limit);
+      ? claim_capacity_single_partition_fast_medium(single_partition_allocation, highest_availiable_id, hard_partition_limit)
+      : claim_capacity_single_partition(single_partition_allocation, highest_availiable_id, attempt, hard_partition_limit);
 
   if (claim_result) {
     return true;
@@ -2137,7 +2138,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
 
   ZMultiPartitionAllocation* const multi_partition_allocation = allocation->multi_partition_allocation();
 
-  claim_capacity_multi_partition(multi_partition_allocation, lowest_capacity_id, attempt);
+  claim_capacity_multi_partition(multi_partition_allocation, highest_availiable_id, attempt);
 
   return true;
 }
