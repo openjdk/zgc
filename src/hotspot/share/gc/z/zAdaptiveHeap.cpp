@@ -811,7 +811,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
   const double avg_process_time = cpu_metrics._avg_process_time;
   const double avg_process_cpus = avg_process_time / avg_time_since_last;
   const double high_target_workers = avg_process_cpus * target_cpu_overhead;
-  const uint initial_young_worker_cap = clamp<uint>((uint)ceil(high_target_workers * 1.5), 1, ZYoungGCThreads);
+  const uint initial_young_worker_cap = (uint)clamp(ceil(high_target_workers * 1.5), 1.0, (double)ZYoungGCThreads);
   _initial_young_worker_cap.store_relaxed(initial_young_worker_cap);
 
   const double upper_cpu_overhead = MAX2(cpu_metrics._avg_total_gc_cpu_overhead, cpu_metrics._generation_gc_cpu_overhead);
