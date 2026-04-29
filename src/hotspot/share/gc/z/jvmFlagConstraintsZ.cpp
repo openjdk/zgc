@@ -42,14 +42,6 @@ JVMFlag::Error ZGCIntensityConstraintFunc(double value, bool verbose) {
     return JVMFlag::Error::VIOLATES_CONSTRAINT;
   }
 
-  if (value < 0.0) {
-    JVMFlag::printError(verbose,
-                        "ZGCIntensityConstraint (%f) must be greater than "
-                        "or equal to 0.0.\n",
-                        value);
-    return JVMFlag::Error::VIOLATES_CONSTRAINT;
-  }
-
   if (ZAutomaticHeapSizing && value == 0.0) {
     JVMFlag::printError(verbose,
                         "Cannot dynamically switch ZGCIntensity off.\n");
