@@ -49,6 +49,7 @@ public:
 
   static bool is_bound();
 
+  static uint32_t bound_count();
   static uint32_t count();
   static uint32_t id();
 

@@ -42,17 +42,17 @@ void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
     return;
   }
 
-  for (uint32_t numa_id = 0; numa_id < ZNUMA::count(); numa_id++) {
+  // In the case where the user has bound the process and -UseNUMA is provided,
+  // we must still gather information from all bound nodes. Even though our memory
+  // management does not try to do any NUMA optimizations when managing with memory.
+  assert(!ZNUMA::is_enabled() || ZNUMA::bound_count() == ZNUMA::count(),
+         "UseNUMA implies that bound_count(%u) == count(%u)", ZNUMA::bound_count(), ZNUMA::count());
+
+  for (uint32_t numa_id = 0; numa_id < ZNUMA::bound_count(); numa_id++) {
     const int node = ZNUMA::numa_id_to_node(numa_id);
     char path[128];
     jio_snprintf(path, sizeof(path), "/sys/devices/system/node/node%d/meminfo", node);
 
-    FILE* f = os::fopen(path, "r");
-    if (!f) {
-      continue;
-    }
-
-    char line[256];
     physical_memory_size_type node_physical_memory = 0;
     physical_memory_size_type node_available_memory = 0;
     bool found_mem_total = false;
@@ -61,44 +61,49 @@ void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
     bool found_active_file = false;
     bool found_inactive_file = false;
     bool found_sreclaimable = false;
-    while (fgets(line, sizeof(line), f) != nullptr) {
-      int n = -1;
-      physical_memory_size_type read_value = 0;
-      if (sscanf(line, "Node %d MemTotal: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        node_physical_memory = read_value * K;
-        found_mem_total = true;
-      } else if (sscanf(line, "Node %d MemAvailable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        // If the Kernel has an approximation of MemAvailable, use it
-        node_available_memory = read_value * K;
-        found_mem_available = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d MemFree: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_mem_free = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d Active(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_active_file = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d Inactive(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_inactive_file = true;
-      } else if (!found_mem_available && sscanf(line, "Node %d SReclaimable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
-        node_available_memory += read_value * K;
-        found_sreclaimable = true;
+
+    FILE* f = os::fopen(path, "r");
+    if (f) {
+      char line[256];
+      while (fgets(line, sizeof(line), f) != nullptr) {
+        int n = -1;
+        physical_memory_size_type read_value = 0;
+        if (sscanf(line, "Node %d MemTotal: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+          node_physical_memory = read_value * K;
+          found_mem_total = true;
+        } else if (sscanf(line, "Node %d MemAvailable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+          // If the Kernel has an approximation of MemAvailable, use it
+          node_available_memory = read_value * K;
+          found_mem_available = true;
+        } else if (!found_mem_available && sscanf(line, "Node %d MemFree: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+          node_available_memory += read_value * K;
+          found_mem_free = true;
+        } else if (!found_mem_available && sscanf(line, "Node %d Active(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+          node_available_memory += read_value * K;
+          found_active_file = true;
+        } else if (!found_mem_available && sscanf(line, "Node %d Inactive(file): " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+          node_available_memory += read_value * K;
+          found_inactive_file = true;
+        } else if (!found_mem_available && sscanf(line, "Node %d SReclaimable: " PHYS_MEM_TYPE_FORMAT " kB", &n, &read_value) == 2) {
+          node_available_memory += read_value * K;
+          found_sreclaimable = true;
+        }
+
+        if (found_mem_total && (found_mem_available || (found_mem_free && found_active_file && found_inactive_file && found_sreclaimable))) {
+          break;
+        }
       }
 
-      if (found_mem_total && (found_mem_available || (found_mem_free && found_active_file && found_inactive_file && found_sreclaimable))) {
-        break;
-      }
-    }
+      fclose(f);
 
-    fclose(f);
-
-    if (!found_mem_total) {
-      // Some Kernels might not have "MemTotal" available in the node-specific file.
-      // Fall back to numa_node_size64 if that's the case.
-      long long res = os::Linux::numa_node_size64(node, nullptr);
-      if (res != -1) {
-        node_physical_memory = (physical_memory_size_type)res;
-        found_mem_total = true;
+      if (!found_mem_total) {
+        // Some Kernels might not have "MemTotal" available in the node-specific file.
+        // Fall back to numa_node_size64 if that's the case.
+        long long res = os::Linux::numa_node_size64(node, nullptr);
+        if (res != -1) {
+          node_physical_memory = (physical_memory_size_type)res;
+          found_mem_total = true;
+        }
       }
     }
 
