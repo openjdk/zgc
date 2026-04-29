@@ -1661,13 +1661,15 @@ size_t ZPageAllocator::current_max_capacity() const {
 static size_t clamp_to_soft_max_capacity(size_t value) {
   assert(is_aligned(value, ZGranuleSize), "Must be granule aligned: 0x%08zx", value);
   // Note that SoftMaxHeapSize is a manageable flag
-  const size_t soft_max_capacity = align_down(AtomicAccess::load(&SoftMaxHeapSize), ZGranuleSize);
+  const size_t soft_max_capacity = AtomicAccess::load(&SoftMaxHeapSize);
 
   if (soft_max_capacity == 0) {
-    // SoftMaxHeapSize is disabled / unspecified.
+    // SoftMaxHeapSize is disabled / unspecified
     return value;
   }
-  return MIN2(soft_max_capacity, value);
+
+  // Clamp to SoftMaxHeapSize, but should not be less than MinHeapSize
+  return clamp(value, MinHeapSize, MAX2(MinHeapSize, align_down(soft_max_capacity, ZGranuleSize)));
 }
 
 size_t ZPageAllocator::heuristic_max_capacity() const {
