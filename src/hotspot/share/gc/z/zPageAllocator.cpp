@@ -2093,7 +2093,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
   // Round robin soft single-partition claiming
   const size_t soft_limit = heuristic_max_capacity();
 
-  uint32_t highest_available_id = num_partitions;
+  uint32_t highest_available_id = start_partition;
   size_t highest_availiable = 0;
 
   for (uint32_t i = 0; i < num_partitions; ++i) {
