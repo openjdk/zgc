@@ -47,6 +47,9 @@ public class ZPageAllocator extends VMObject {
     private static synchronized void initialize(TypeDataBase db) {
         Type type = db.lookupType("ZPageAllocator");
 
+        // This only represents the maximum posible capacity. Which may be different
+        // from what other servicability APIs (MXBeans, Runtime, etc.) reports.
+        // See ZPageAllocator::static_max_capacity() vs ZPageAllocator::dynamic_max_capacity()
         maxCapacityField = type.getCIntegerField("_static_max_capacity");
         partitionsOffset = type.getAddressField("_partitions").getOffset();
         numaCount = ZNUMA.count();
