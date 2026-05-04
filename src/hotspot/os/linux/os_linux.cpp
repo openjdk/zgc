@@ -545,11 +545,16 @@ bool os::Container::elapsed_system_cpu_time(double& value) {
   return false;
 }
 
-double os::Machine::elapsed_system_cpu_time() {
+bool os::Machine::elapsed_system_cpu_time(double& value) {
   os::Linux::CPUPerfTicks ticks;
-  os::Linux::get_tick_information(&ticks, -1);
+
+  if (!os::Linux::get_tick_information(&ticks, -1)) {
+    return false;
+  }
+
   uint64_t sum = ticks.used + ticks.usedKernel;
-  return double(sum) / os::Posix::clock_tics_per_second();
+  value = double(sum) / os::Posix::clock_tics_per_second();
+  return true;
 }
 
 #ifndef SYS_gettid

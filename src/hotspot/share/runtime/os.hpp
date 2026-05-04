@@ -295,8 +295,8 @@ class os: AllStatic {
   static jlong elapsed_counter();
   static jlong elapsed_frequency();
 
-  static double elapsed_process_cpu_time();
-  static double elapsed_system_cpu_time();
+  [[nodiscard]] static bool elapsed_process_cpu_time(double& value);
+  [[nodiscard]] static bool elapsed_system_cpu_time(double& value);
 
   // Return current local time in a string (YYYY-MM-DD HH:MM:SS).
   // It is MT safe, but not async-safe, as reading time zone
@@ -360,7 +360,8 @@ class os: AllStatic {
   class Machine : AllStatic {
   public:
     static int active_processor_count();
-    static double elapsed_system_cpu_time();
+
+    [[nodiscard]] static bool elapsed_system_cpu_time(double& value);
 
     [[nodiscard]] static bool available_memory(physical_memory_size_type& value);
     [[nodiscard]] static bool used_memory(physical_memory_size_type& value);

@@ -78,23 +78,48 @@ void ZAdaptiveHeap::initialize(bool explicit_max_capacity) {
 void ZAdaptiveHeap::initialize_generation_data() {
   precond(_initialized);
   precond(!_initialized_generation_data);
-  double container_system_time_now;
-  const bool has_container_system_time = os::is_containerized() && os::Container::elapsed_system_cpu_time(container_system_time_now);
-  const double machine_system_time_now = os::Machine::elapsed_system_cpu_time();
-  const double process_time_now = os::elapsed_process_cpu_time();
-  const double time_now = os::elapsedTime();
-  _young_data._last_machine_system_time = machine_system_time_now;
-  _old_data._last_machine_system_time = machine_system_time_now;
-  if (has_container_system_time) {
-    _young_data._last_container_system_time = container_system_time_now;
-    _old_data._last_container_system_time = container_system_time_now;
+
+  { // Setup initial os::Machine::elapsed_system_cpu_time
+    double machine_system_time_now;
+    const bool has_machine_system_time_now = os::Machine::elapsed_system_cpu_time(machine_system_time_now);
+    if (has_machine_system_time_now) {
+      _young_data._last_machine_system_time = machine_system_time_now;
+      _old_data._last_machine_system_time = machine_system_time_now;
+    }
+    _young_data._has_last_machine_system_time = has_machine_system_time_now;
+    _old_data._has_last_machine_system_time = has_machine_system_time_now;
   }
-  _young_data._has_last_container_system_time = has_container_system_time;
-  _old_data._has_last_container_system_time = has_container_system_time;
-  _young_data._last_process_time = process_time_now;
-  _old_data._last_process_time = process_time_now;
-  _young_data._last_time = time_now;
-  _old_data._last_time = time_now;
+
+  { // Setup initial os::Container::elapsed_system_cpu_time
+    double container_system_time_now;
+    const bool has_container_system_time = os::is_containerized() && os::Container::elapsed_system_cpu_time(container_system_time_now);
+    if (has_container_system_time) {
+      _young_data._last_container_system_time = container_system_time_now;
+      _old_data._last_container_system_time = container_system_time_now;
+    }
+    _young_data._has_last_container_system_time = has_container_system_time;
+    _old_data._has_last_container_system_time = has_container_system_time;
+
+  }
+
+  { // Setup initial os::elapsed_process_cpu_time
+    double process_time_now;
+    const bool has_process_time = os::elapsed_process_cpu_time(process_time_now);
+    if (has_process_time) {
+      _young_data._last_process_time = process_time_now;
+      _old_data._last_process_time = process_time_now;
+    }
+    _young_data._has_last_process_time = has_process_time;
+    _old_data._has_last_process_time = has_process_time;
+  }
+
+  { // Setup initial os::elapsedTime
+    const double time_now = os::elapsedTime();
+    _young_data._last_time = time_now;
+    _old_data._last_time = time_now;
+
+  }
+
   _initialized_generation_data = true;
 }
 
@@ -413,45 +438,78 @@ bool ZAdaptiveHeap::is_memory_pressure_critical(const ZMemoryPressureMetrics& me
   return false;
 }
 
+void ZAdaptiveHeap::sample_generation_data(ZGenerationOverhead& generation_data) {
+
+  { // Sample os::Machine::elapsed_system_cpu_time
+    double machine_system_time_now;
+    const bool has_machine_system_time = os::Machine::elapsed_system_cpu_time(machine_system_time_now);
+    if (has_machine_system_time) {
+      if (generation_data._has_last_machine_system_time) {
+        const double machine_system_time_last = generation_data._last_machine_system_time;
+        const double machine_system_time = machine_system_time_now - machine_system_time_last;
+        generation_data._machine_system_times.add(machine_system_time);
+      }
+
+      generation_data._last_machine_system_time = machine_system_time_now;
+    }
+    generation_data._has_last_machine_system_time = has_machine_system_time;
+  }
+
+  { // Sample os::Container::elapsed_system_cpu_time
+    double container_system_time_now;
+    const bool has_container_system_time = os::is_containerized() && os::Container::elapsed_system_cpu_time(container_system_time_now);
+    if (has_container_system_time) {
+      if (generation_data._has_last_container_system_time) {
+        const double container_system_time_last = generation_data._last_container_system_time;
+        const double container_system_time = container_system_time_now - container_system_time_last;
+        generation_data._container_system_times.add(container_system_time);
+      }
+
+      generation_data._last_container_system_time = container_system_time_now;
+    }
+    generation_data._has_last_container_system_time = has_container_system_time;
+  }
+
+  { // Sample os::elapsed_process_cpu_time
+    double process_time_now;
+    const bool has_process_time = os::elapsed_process_cpu_time(process_time_now);
+    if (has_process_time) {
+      if (generation_data._has_last_process_time) {
+        const double process_time_last = generation_data._last_process_time;
+        const double process_time = process_time_now - process_time_last;
+        generation_data._process_times.add(process_time);
+      }
+
+      generation_data._last_process_time = process_time_now;
+    }
+    generation_data._has_last_process_time = has_process_time;
+  }
+
+  { // Sample os::elapsedTime
+    const double time_now = os::elapsedTime();
+    const double time_last = generation_data._last_time;
+    const double time_since_last = time_now - time_last;
+    generation_data._last_time = time_now;
+    generation_data._gc_times_since_last.add(time_since_last);
+  }
+}
+
 ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation) {
   precond(_initialized_generation_data);
   const bool is_young = generation == ZGenerationId::young;
   ZGenerationOverhead& generation_data = is_young ? _young_data : _old_data;
 
   // Time metrics
-  const double machine_system_time_last = generation_data._last_machine_system_time;
   // Note that the system time might have poor accuracy early on; it typically
   // has 100 ms granularity. So take it with a large grain of salt early on...
-  const double machine_system_time_now = os::Machine::elapsed_system_cpu_time();
-  const double machine_system_time = machine_system_time_now - machine_system_time_last;
-
-  generation_data._last_machine_system_time = machine_system_time_now;
-  generation_data._machine_system_times.add(machine_system_time);
-
-  double container_system_time_now;
-
-  const bool has_container_system_time = os::is_containerized() && os::Container::elapsed_system_cpu_time(container_system_time_now);
-  if (has_container_system_time) {
-    if (generation_data._has_last_container_system_time) {
-      const double container_system_time_last = generation_data._last_container_system_time;
-      const double container_system_time = container_system_time_now - container_system_time_last;
-      generation_data._container_system_times.add(container_system_time);
-    }
-
-    generation_data._last_container_system_time = container_system_time_now;
-  }
-
-  generation_data._has_last_container_system_time = has_container_system_time;
-
-  const double time_now = os::elapsedTime();
-  const double time_last = generation_data._last_time;
-  const double time_since_last = time_now - time_last;
-  generation_data._last_time = time_now;
+  sample_generation_data(generation_data);
 
   // Processor metrics
   const int machine_ncpus = os::Machine::active_processor_count();
   double container_ncpus;
-  const bool has_container_ncpus = has_container_system_time && os::Container::processor_count(container_ncpus);
+  const bool has_container_ncpus =
+      generation_data._has_last_container_system_time &&
+      os::Container::processor_count(container_ncpus);
 
   // Processors used by this process
   const double ncpus = has_container_ncpus ? container_ncpus : double(machine_ncpus);
@@ -459,9 +517,7 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
   // Cycle metrics
   ZStatCycleStats cycle_stats = ZGeneration::generation(generation)->stat_cycle()->stats();
   const double gc_time = cycle_stats._last_total_vtime + (is_young ? 0.0 : _accumulated_young_gc_time.load_relaxed());
-
   generation_data._gc_times.add(gc_time);
-  generation_data._gc_times_since_last.add(time_since_last);
 
   const double avg_gc_time = generation_data._gc_times.avg();
   const double avg_time_since_last = generation_data._gc_times_since_last.avg();
@@ -469,11 +525,7 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
   const double avg_container_system_time = generation_data._container_system_times.avg();
 
   // Process times
-  const double process_time_last = generation_data._last_process_time;
-  const double process_time_now = os::elapsed_process_cpu_time();
-  const double process_time = process_time_now - process_time_last;
-  generation_data._last_process_time = process_time_now;
-  generation_data._process_times.add(process_time);
+  const double process_time = generation_data._process_times.last();
   const double avg_process_time = generation_data._process_times.avg();
   const double avg_generation_gc_cpu_overhead = percent_of(avg_gc_time, avg_process_time) / 100.0;
   const double generation_gc_cpu_overhead = percent_of(gc_time, process_time) / 100.0;

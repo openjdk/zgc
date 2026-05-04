@@ -119,8 +119,10 @@ private:
   struct ZGenerationOverhead {
     double       _last_machine_system_time;
     double       _last_container_system_time;
-    bool         _has_last_container_system_time;
     double       _last_process_time;
+    bool         _has_last_machine_system_time;
+    bool         _has_last_container_system_time;
+    bool         _has_last_process_time;
     double       _last_time;
     TruncatedSeq _process_times;
     TruncatedSeq _machine_system_times;
@@ -131,8 +133,10 @@ private:
     ZGenerationOverhead()
       : _last_machine_system_time(),
         _last_container_system_time(),
-        _has_last_container_system_time(),
         _last_process_time(),
+        _has_last_machine_system_time(),
+        _has_last_container_system_time(),
+        _has_last_process_time(),
         _process_times(),
         _machine_system_times(),
         _container_system_times(),
@@ -147,6 +151,7 @@ private:
   static Atomic<uint> _initial_young_worker_cap;
   static ZIntensitySmoother _gc_intensities;
 
+  static void sample_generation_data(ZGenerationOverhead& generation_data);
   static ZCpuPressureMetrics cpu_pressure_metrics(ZGenerationId generation);
 
   static ZResourcePressure compute_pressures(const ZMemoryPressureMetrics& mem_metrics,
