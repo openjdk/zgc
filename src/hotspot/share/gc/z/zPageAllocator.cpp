@@ -2093,7 +2093,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
   // Round robin soft single-partition claiming
   const size_t soft_limit = heuristic_max_capacity();
 
-  uint32_t highest_availiable_id = num_partitions;
+  uint32_t highest_available_id = num_partitions;
   size_t highest_availiable = 0;
 
   for (uint32_t i = 0; i < num_partitions; ++i) {
@@ -2111,16 +2111,16 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
     const ZPartition& partition = _partitions.get(partition_id);
     const size_t partition_availiable = partition.available(attempt, partition.static_max_capacity());
     if (partition_availiable > highest_availiable) {
-      highest_availiable_id = partition_id;
+      highest_available_id = partition_id;
       highest_availiable = partition_availiable;
     }
   }
 
   // Hard single-partition claiming - only try from the highest availible partition
-  const size_t hard_partition_limit = _partitions.get(highest_availiable_id).static_max_capacity();
+  const size_t hard_partition_limit = _partitions.get(highest_available_id).static_max_capacity();
   const bool claim_result = is_fast_medium
-      ? claim_capacity_single_partition_fast_medium(single_partition_allocation, highest_availiable_id, hard_partition_limit)
-      : claim_capacity_single_partition(single_partition_allocation, highest_availiable_id, attempt, hard_partition_limit);
+      ? claim_capacity_single_partition_fast_medium(single_partition_allocation, highest_available_id, hard_partition_limit)
+      : claim_capacity_single_partition(single_partition_allocation, highest_available_id, attempt, hard_partition_limit);
 
   if (claim_result) {
     return true;
@@ -2138,7 +2138,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
 
   ZMultiPartitionAllocation* const multi_partition_allocation = allocation->multi_partition_allocation();
 
-  claim_capacity_multi_partition(multi_partition_allocation, highest_availiable_id, attempt);
+  claim_capacity_multi_partition(multi_partition_allocation, highest_available_id, attempt);
 
   return true;
 }
