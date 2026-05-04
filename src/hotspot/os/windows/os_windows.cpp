@@ -1256,9 +1256,9 @@ double os::Machine::elapsed_system_cpu_time() {
   }
 
   // Kernel time includes idle time
-  jlong ticks = jlong_from(user) +
-                jlong_from(kernel) -
-                jlong_from(idle);
+  jlong ticks = jlong_from(user.dwHighDateTime, user.dwLowDateTime) +
+                jlong_from(kernel.dwHighDateTime, kernel.dwLowDateTime) -
+                jlong_from(idle.dwHighDateTime, idle.dwLowDateTime);
 
   // Ticks are 100 ns
   return double(ticks) / 1e7;
