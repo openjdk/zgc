@@ -505,14 +505,17 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
   sample_generation_data(generation_data);
 
   // Processor metrics
-  const int machine_ncpus = os::Machine::active_processor_count();
+  const int machine_ncpus = os::processor_count();
   double container_ncpus;
-  const bool has_container_ncpus =
+  const bool has_container_cpu_metrics =
       generation_data._has_last_container_system_time &&
       os::Container::processor_count(container_ncpus);
+  const bool has_container_cpu_capacity_limit =
+      has_container_cpu_metrics &&
+      container_ncpus < double(machine_ncpus);
 
   // Processors used by this process
-  const double ncpus = has_container_ncpus ? container_ncpus : double(machine_ncpus);
+  const double ncpus = has_container_cpu_metrics ? container_ncpus : double(machine_ncpus);
 
   // Cycle metrics
   ZStatCycleStats cycle_stats = ZGeneration::generation(generation)->stat_cycle()->stats();
@@ -532,15 +535,20 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
 
   const double avg_machine_process_cpu_load = clamp((avg_process_time / avg_time_since_last) / machine_ncpus, 0.0, 1.0);
   const double avg_machine_system_cpu_load = clamp((avg_machine_system_time / avg_time_since_last) / machine_ncpus, 0.0, 1.0);
-  const double avg_container_process_cpu_load = clamp((avg_process_time / avg_time_since_last) / ncpus, 0.0, 1.0);
-  const double avg_container_system_cpu_load = clamp((avg_container_system_time / avg_time_since_last) / ncpus, 0.0, 1.0);
+  const double avg_container_process_cpu_load = has_container_cpu_metrics
+    ? clamp((avg_process_time / avg_time_since_last) / ncpus, 0.0, 1.0)
+    : avg_machine_process_cpu_load;
+  const double avg_container_system_cpu_load = has_container_cpu_metrics
+    ? clamp((avg_container_system_time / avg_time_since_last) / ncpus, 0.0, 1.0)
+    : avg_machine_system_cpu_load;
 
   // Account for the overhead of old generation collections when evaluating
   // the heap efficiency for young generation collections.
   const double avg_total_gc_cpu_overhead = MIN2(avg_generation_gc_cpu_overhead / (is_young ? _young_to_old_gc_time.load_relaxed() : 1.0), 1.0);
 
   return {
-    ncpus < double(machine_ncpus),
+    has_container_cpu_metrics,
+    has_container_cpu_capacity_limit,
     generation_gc_cpu_overhead,
     avg_generation_gc_cpu_overhead,
     avg_total_gc_cpu_overhead,
@@ -616,7 +624,7 @@ static double compute_cpu_vs_memory_pressure(const ZSystemMemoryPressureMetrics&
 static double compute_cpu_vs_memory_pressure(const ZMemoryPressureMetrics& mem_metrics, const ZCpuPressureMetrics& cpu_metrics, physical_memory_size_type process_used_memory) {
   const double machine_cpu_pressure = compute_cpu_vs_memory_pressure(mem_metrics._machine, cpu_metrics._machine, process_used_memory);
 
-  if (!mem_metrics._is_containerized && !cpu_metrics._is_containerized) {
+  if (!mem_metrics._is_containerized && !cpu_metrics._has_container_cpu_capacity_limit) {
     return machine_cpu_pressure;
   }
 
@@ -634,7 +642,7 @@ static double compute_cpu_vs_latency_pressure(const ZSystemCpuPressureMetrics& m
   // container level, things work differently, and CPU vs memory is considered
   // purely as a resource balancing exercise, which still helps latency as well.
   double rho = MIN2(machine_cpu_metrics._avg_system_load + 0.05, 0.99);
-  const double p99_response_time_scaling = cpu_latency_factor(os::Machine::active_processor_count(), rho, 100.0);
+  const double p99_response_time_scaling = cpu_latency_factor(os::processor_count(), rho, 100.0);
   return 1.0 / MIN2(p99_response_time_scaling, 5.0);
 }
 
@@ -645,7 +653,7 @@ static double compute_cpu_vs_latency_pressure(const ZMemoryPressureMetrics& mem_
   // dominate the overall GC intensity; without memory the JVM dies.
   const double machine_scaled_pressure = mem_urgency_scaled_cpu_pressure(mem_metrics._machine, machine_cpu_vs_latency_pressure);
 
-  if (!mem_metrics._is_containerized && !cpu_metrics._is_containerized) {
+  if (!mem_metrics._is_containerized && !cpu_metrics._has_container_cpu_capacity_limit) {
     return machine_scaled_pressure;
   }
 
@@ -935,7 +943,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
                        double(heuristic_max_capacity) / double(mem_metrics._container._max_memory) * 100.0);
   }
 
-  if (cpu_metrics._is_containerized) {
+  if (cpu_metrics._has_container_cpu_metrics) {
     log_info(gc, load)("Container: System CPU Load: %.1f%%, Process CPU Load: %.1f%%, GC CPU Load: %.1f%%",
                        cpu_metrics._container._avg_system_load * 100.0, cpu_metrics._container._avg_process_load * 100.0,
                        cpu_metrics._avg_total_gc_cpu_overhead * cpu_metrics._container._avg_process_load * 100.0);

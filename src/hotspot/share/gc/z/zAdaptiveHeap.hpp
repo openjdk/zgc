@@ -66,7 +66,8 @@ struct ZSystemCpuPressureMetrics {
 };
 
 struct ZCpuPressureMetrics {
-  const bool _is_containerized;
+  const bool _has_container_cpu_metrics;
+  const bool _has_container_cpu_capacity_limit;
   const double _generation_gc_cpu_overhead;
   const double _avg_generation_gc_cpu_overhead;
   const double _avg_total_gc_cpu_overhead;
