@@ -2192,7 +2192,7 @@ bool os::used_memory(physical_memory_size_type& value) {
   return Machine::used_memory(value);
 }
 
-bool os::elapsed_system_cpu_time(double& value) {
+bool os::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   if (is_containerized() && Container::elapsed_system_cpu_time(value)) {
     return true;
   }
@@ -2214,7 +2214,7 @@ bool os::is_containerized() {
   return false;
 }
 
-bool os::Container::elapsed_system_cpu_time(double& value) {
+bool os::Container::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   return false;
 }
 

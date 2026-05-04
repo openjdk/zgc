@@ -80,22 +80,26 @@ void ZAdaptiveHeap::initialize_generation_data() {
   precond(!_initialized_generation_data);
 
   { // Setup initial os::Machine::elapsed_system_cpu_time
-    double machine_system_time_now;
+    os::SystemCpuTime machine_system_time_now;
     const bool has_machine_system_time_now = os::Machine::elapsed_system_cpu_time(machine_system_time_now);
     if (has_machine_system_time_now) {
-      _young_data._last_machine_system_time = machine_system_time_now;
-      _old_data._last_machine_system_time = machine_system_time_now;
+      _young_data._last_machine_system_time = machine_system_time_now._elapsed_time;
+      _old_data._last_machine_system_time = machine_system_time_now._elapsed_time;
+      _young_data._machine_processor_count = machine_system_time_now._processor_count;
+      _old_data._machine_processor_count = machine_system_time_now._processor_count;
     }
     _young_data._has_last_machine_system_time = has_machine_system_time_now;
     _old_data._has_last_machine_system_time = has_machine_system_time_now;
   }
 
   { // Setup initial os::Container::elapsed_system_cpu_time
-    double container_system_time_now;
+    os::SystemCpuTime container_system_time_now;
     const bool has_container_system_time = os::is_containerized() && os::Container::elapsed_system_cpu_time(container_system_time_now);
     if (has_container_system_time) {
-      _young_data._last_container_system_time = container_system_time_now;
-      _old_data._last_container_system_time = container_system_time_now;
+      _young_data._last_container_system_time = container_system_time_now._elapsed_time;
+      _old_data._last_container_system_time = container_system_time_now._elapsed_time;
+      _young_data._container_processor_count = container_system_time_now._processor_count;
+      _old_data._container_processor_count = container_system_time_now._processor_count;
     }
     _young_data._has_last_container_system_time = has_container_system_time;
     _old_data._has_last_container_system_time = has_container_system_time;
@@ -441,31 +445,33 @@ bool ZAdaptiveHeap::is_memory_pressure_critical(const ZMemoryPressureMetrics& me
 void ZAdaptiveHeap::sample_generation_data(ZGenerationOverhead& generation_data) {
 
   { // Sample os::Machine::elapsed_system_cpu_time
-    double machine_system_time_now;
+    os::SystemCpuTime machine_system_time_now;
     const bool has_machine_system_time = os::Machine::elapsed_system_cpu_time(machine_system_time_now);
     if (has_machine_system_time) {
       if (generation_data._has_last_machine_system_time) {
         const double machine_system_time_last = generation_data._last_machine_system_time;
-        const double machine_system_time = machine_system_time_now - machine_system_time_last;
+        const double machine_system_time = machine_system_time_now._elapsed_time - machine_system_time_last;
         generation_data._machine_system_times.add(machine_system_time);
       }
 
-      generation_data._last_machine_system_time = machine_system_time_now;
+      generation_data._last_machine_system_time = machine_system_time_now._elapsed_time;
+      generation_data._machine_processor_count = machine_system_time_now._processor_count;
     }
     generation_data._has_last_machine_system_time = has_machine_system_time;
   }
 
   { // Sample os::Container::elapsed_system_cpu_time
-    double container_system_time_now;
+    os::SystemCpuTime container_system_time_now;
     const bool has_container_system_time = os::is_containerized() && os::Container::elapsed_system_cpu_time(container_system_time_now);
     if (has_container_system_time) {
       if (generation_data._has_last_container_system_time) {
         const double container_system_time_last = generation_data._last_container_system_time;
-        const double container_system_time = container_system_time_now - container_system_time_last;
+        const double container_system_time = container_system_time_now._elapsed_time - container_system_time_last;
         generation_data._container_system_times.add(container_system_time);
       }
 
-      generation_data._last_container_system_time = container_system_time_now;
+      generation_data._last_container_system_time = container_system_time_now._elapsed_time;
+      generation_data._container_processor_count = container_system_time_now._processor_count;
     }
     generation_data._has_last_container_system_time = has_container_system_time;
   }
@@ -505,11 +511,11 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
   sample_generation_data(generation_data);
 
   // Processor metrics
-  const int machine_ncpus = os::processor_count();
-  double container_ncpus;
-  const bool has_container_cpu_metrics =
-      generation_data._has_last_container_system_time &&
-      os::Container::processor_count(container_ncpus);
+  const double machine_ncpus = generation_data._has_last_machine_system_time
+      ? generation_data._machine_processor_count
+      : double(os::processor_count());
+  const bool has_container_cpu_metrics = generation_data._has_last_container_system_time;
+  const double container_ncpus = generation_data._container_processor_count;
   const bool has_container_cpu_capacity_limit =
       has_container_cpu_metrics &&
       container_ncpus < double(machine_ncpus);
@@ -556,10 +562,12 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
     avg_process_time,
     gc_time,
     {
+      machine_ncpus,
       avg_machine_process_cpu_load,
       avg_machine_system_cpu_load
     },
     {
+      ncpus,
       avg_container_process_cpu_load,
       avg_container_system_cpu_load
     }
@@ -642,7 +650,8 @@ static double compute_cpu_vs_latency_pressure(const ZSystemCpuPressureMetrics& m
   // container level, things work differently, and CPU vs memory is considered
   // purely as a resource balancing exercise, which still helps latency as well.
   double rho = MIN2(machine_cpu_metrics._avg_system_load + 0.05, 0.99);
-  const double p99_response_time_scaling = cpu_latency_factor(os::processor_count(), rho, 100.0);
+  const int processor_count = MAX2(1, int(machine_cpu_metrics._processor_count));
+  const double p99_response_time_scaling = cpu_latency_factor(processor_count, rho, 100.0);
   return 1.0 / MIN2(p99_response_time_scaling, 5.0);
 }
 

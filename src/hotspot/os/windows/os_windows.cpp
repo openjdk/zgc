@@ -1249,7 +1249,7 @@ bool os::elapsed_process_cpu_time(double& value) {
   return true;
 }
 
-bool os::Machine::elapsed_system_cpu_time(double& value) {
+bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   FILETIME idle, kernel, user;
   if (GetSystemTimes(&idle, &kernel, &user) == 0) {
     assert(false, "this should not fail");
@@ -1262,8 +1262,9 @@ bool os::Machine::elapsed_system_cpu_time(double& value) {
                 jlong_from(idle.dwHighDateTime, idle.dwLowDateTime);
 
   // Ticks are 100 ns
-  value = double(ticks) / 1e7;
-  return true;
+  value._elapsed_time = double(ticks) / 1e7;
+  value._processor_count = double(os::processor_count());
+  return value._processor_count > 0.0;
 }
 
 jlong os::javaTimeMillis() {

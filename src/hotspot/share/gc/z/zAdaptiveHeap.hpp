@@ -61,6 +61,7 @@ struct ZMemoryPressureMetrics {
 };
 
 struct ZSystemCpuPressureMetrics {
+  const double _processor_count;
   const double _avg_process_load;
   const double _avg_system_load;
 };
@@ -120,6 +121,8 @@ private:
   struct ZGenerationOverhead {
     double       _last_machine_system_time;
     double       _last_container_system_time;
+    double       _machine_processor_count;
+    double       _container_processor_count;
     double       _last_process_time;
     bool         _has_last_machine_system_time;
     bool         _has_last_container_system_time;
@@ -134,6 +137,8 @@ private:
     ZGenerationOverhead()
       : _last_machine_system_time(),
         _last_container_system_time(),
+        _machine_processor_count(),
+        _container_processor_count(),
         _last_process_time(),
         _has_last_machine_system_time(),
         _has_last_container_system_time(),

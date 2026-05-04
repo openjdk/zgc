@@ -296,7 +296,12 @@ class os: AllStatic {
   static jlong elapsed_frequency();
 
   [[nodiscard]] static bool elapsed_process_cpu_time(double& value);
-  [[nodiscard]] static bool elapsed_system_cpu_time(double& value);
+
+  struct SystemCpuTime {
+    double _elapsed_time;
+    double _processor_count;
+  };
+  [[nodiscard]] static bool elapsed_system_cpu_time(SystemCpuTime& value);
 
   // Return current local time in a string (YYYY-MM-DD HH:MM:SS).
   // It is MT safe, but not async-safe, as reading time zone
@@ -361,7 +366,7 @@ class os: AllStatic {
   public:
     static int active_processor_count();
 
-    [[nodiscard]] static bool elapsed_system_cpu_time(double& value);
+    [[nodiscard]] static bool elapsed_system_cpu_time(SystemCpuTime& value);
 
     [[nodiscard]] static bool available_memory(physical_memory_size_type& value);
     [[nodiscard]] static bool used_memory(physical_memory_size_type& value);
@@ -382,7 +387,7 @@ class os: AllStatic {
   class Container : AllStatic {
   public:
     [[nodiscard]] static bool processor_count(double& value); // Returns the core-equivalent CPU quota
-    [[nodiscard]] static bool elapsed_system_cpu_time(double& value);
+    [[nodiscard]] static bool elapsed_system_cpu_time(SystemCpuTime& value);
 
     [[nodiscard]] static bool available_memory(physical_memory_size_type& value);
     [[nodiscard]] static bool used_memory(physical_memory_size_type& value);

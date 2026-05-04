@@ -818,7 +818,7 @@ void os::free_thread(OSThread* osthread) {
 // time support
 
 #ifdef __APPLE__
-bool os::Machine::elapsed_system_cpu_time(double& value) {
+bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
   host_cpu_load_info_data_t load_data;
 
@@ -832,11 +832,12 @@ bool os::Machine::elapsed_system_cpu_time(double& value) {
                     load_data.cpu_ticks[CPU_STATE_NICE] +
                     load_data.cpu_ticks[CPU_STATE_SYSTEM];
 
-  value = double(ticks) / CLK_TCK;
-  return true;
+  value._elapsed_time = double(ticks) / CLK_TCK;
+  value._processor_count = double(os::processor_count());
+  return value._processor_count > 0.0;
 }
 #else
-bool os::Machine::elapsed_system_cpu_time(double& value) {
+bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   Unimplemented();
 }
 #endif

@@ -481,6 +481,7 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
   // control of the Linux kernel
   uint64_t      guestNiceTicks = 0;
   int           logical_cpu = -1;
+  int           processors = 0;
   const int     required_tickinfo_count = (which_logical_cpu == -1) ? 4 : 5;
   int           n;
 
@@ -497,6 +498,14 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
             &userTicks, &niceTicks, &systemTicks, &idleTicks,
             &iowTicks, &irqTicks, &sirqTicks,
             &stealTicks, &guestNiceTicks);
+
+    char line[1024];
+    while (fgets(line, sizeof(line), fh) != nullptr) {
+      int cpu_id;
+      if (sscanf(line, "cpu%d ", &cpu_id) == 1) {
+        processors++;
+      }
+    }
   } else {
     // Move to next line
     next_line(fh);
@@ -512,6 +521,7 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
                &logical_cpu, &userTicks, &niceTicks,
                &systemTicks, &idleTicks, &iowTicks, &irqTicks, &sirqTicks,
                &stealTicks, &guestNiceTicks);
+    processors = 1;
   }
 
   fclose(fh);
@@ -530,22 +540,26 @@ bool os::Linux::get_tick_information(CPUPerfTicks* pticks, int which_logical_cpu
     pticks->steal = 0;
     pticks->has_steal_ticks = false;
   }
+  pticks->processors = processors;
 
   return true;
 }
 
-bool os::Container::elapsed_system_cpu_time(double& value) {
+bool os::Container::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   assert(is_containerized(), "must be");
   uint64_t result;
-  if (OSContainer::cpu_usage_in_micros(result)) {
-    value = double(result) / 1000000;
+  double processors;
+  if (OSContainer::cpu_usage_in_micros(result) &&
+      os::Container::processor_count(processors)) {
+    value._elapsed_time = double(result) / 1000000;
+    value._processor_count = processors;
     return true;
   }
 
   return false;
 }
 
-bool os::Machine::elapsed_system_cpu_time(double& value) {
+bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   os::Linux::CPUPerfTicks ticks;
 
   if (!os::Linux::get_tick_information(&ticks, -1)) {
@@ -553,8 +567,9 @@ bool os::Machine::elapsed_system_cpu_time(double& value) {
   }
 
   uint64_t sum = ticks.used + ticks.usedKernel;
-  value = double(sum) / os::Posix::clock_tics_per_second();
-  return true;
+  value._elapsed_time = double(sum) / os::Posix::clock_tics_per_second();
+  value._processor_count = double(ticks.processors);
+  return value._processor_count > 0.0;
 }
 
 #ifndef SYS_gettid

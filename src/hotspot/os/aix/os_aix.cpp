@@ -918,7 +918,7 @@ void os::javaTimeNanos_info(jvmtiTimerInfo *info_ptr) {
   info_ptr->kind = JVMTI_TIMER_ELAPSED;    // elapsed not CPU time
 }
 
-bool os::Machine::elapsed_system_cpu_time(double& value) {
+bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
   Unimplemented();
 }
 
