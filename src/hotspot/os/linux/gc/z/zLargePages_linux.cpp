@@ -42,6 +42,10 @@
 bool ZLargePages::pd_collapse(void* addr, size_t bytes) {
   // When MADV_COLLAPSE races with THP khugepaged, you sometimes get
   // EAGAIN. We just do it again then.
+  // Note: mlock, mlockall, DMA / GUP with FOLL_PIN/FOLL_LONGTERM can
+  //       can all cause EAGAIN to be persistent. We treat this as a
+  //       user error, an allow a calling thread to spin forever here.
+  //       We may need to evaluate potential live-locking here in the future.
   for (;;) {
     const int result = ::madvise(addr, bytes, MADV_COLLAPSE);
     if (result == 0) {
