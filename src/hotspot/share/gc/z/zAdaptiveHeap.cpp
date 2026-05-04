@@ -187,7 +187,7 @@ static double cpu_latency_factor(int c, double rho, double unluckyness) {
 
 ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
   precond(ZAutomaticHeapSizing);
-  const double unscaled_gc_intensity = AtomicAccess::load(&ZGCIntensity);
+  const double unscaled_gc_intensity = clamp(AtomicAccess::load(&ZGCIntensity), MinZGCIntensity, MaxZGCIntensity);
 
   const ZMachineMemoryInfo machine_memory_info = ZAdaptiveHeap::machine_memory_info();
 

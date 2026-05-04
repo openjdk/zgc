@@ -94,6 +94,9 @@ struct ZMachineMemoryInfo {
 class ZAdaptiveHeap : public AllStatic {
   friend class ZAdaptiveHeapTest;
 private:
+  // We clamp ZGCIntensity between thes values to avoid precision errors
+  static constexpr double MinZGCIntensity = 1e-12;
+  static constexpr double MaxZGCIntensity = 1e12;
 
   static bool _explicit_max_capacity;
   static bool _initialized;
