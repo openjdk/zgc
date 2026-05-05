@@ -1170,7 +1170,7 @@ private:
 
 public:
   ZPreHeatTask(ZPartition* partition, zoffset start, zoffset_end end)
-    : ZTask("ZPreHeatTask"),
+    : ZTask("ZPreHeatTask", false /* account_vtime */),
       _partition(partition),
       _current(untype(start)),
       _end(untype(end)) {}

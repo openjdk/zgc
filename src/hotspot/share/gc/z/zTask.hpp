@@ -44,13 +44,16 @@ private:
   };
 
   Task _worker_task;
+  const bool _account_vtime;
 
 public:
-  ZTask(const char* name);
+  ZTask(const char* name, bool account_vtime = true);
 
   const char* name() const;
   WorkerTask* worker_task();
   void set_workers(ZWorkers* workers);
+
+  bool account_vtime() const;
 
   virtual void work() = 0;
 };
