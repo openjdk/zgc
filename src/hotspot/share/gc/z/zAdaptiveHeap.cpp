@@ -103,7 +103,6 @@ void ZAdaptiveHeap::initialize_generation_data() {
     }
     _young_data._has_last_container_system_time = has_container_system_time;
     _old_data._has_last_container_system_time = has_container_system_time;
-
   }
 
   { // Setup initial os::elapsed_process_cpu_time
@@ -121,7 +120,6 @@ void ZAdaptiveHeap::initialize_generation_data() {
     const double time_now = os::elapsedTime();
     _young_data._last_time = time_now;
     _old_data._last_time = time_now;
-
   }
 
   _initialized_generation_data = true;
