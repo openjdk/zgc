@@ -42,6 +42,8 @@ private:
   const uint32_t    _segment_size;
   const int         _segment_shift;
 
+  // TODO: Maybe we can unify the seqnums?
+  Atomic<uint32_t>  _seqnum_young;
   Atomic<uint32_t>  _seqnum;
   Atomic<uint32_t>  _live_objects;
   Atomic<size_t>    _live_bytes;
@@ -67,22 +69,25 @@ private:
 
   bool claim_segment(BitMap::idx_t segment);
 
-  void initialize_bitmap();
-
+  void reset_death_row_pardonded();
   void reset(ZGenerationId id);
+  void reset(ZGenerationId id, bool live_map);
   void reset_segment(BitMap::idx_t segment);
 
   size_t do_object(ObjectClosure* cl, zaddress addr) const;
 
   template <typename Function>
-  void iterate_segment(BitMap::idx_t segment, Function function);
+  bool iterate_segment(BitMap::idx_t segment, Function function);
 
 public:
   ZLiveMap(uint32_t object_max_count);
   ZLiveMap(const ZLiveMap& other) = delete;
 
+  void initialize_bitmap(); // TODO: Lazyness; now mutators call this too
   void reset();
+  void clear_bits();
 
+  bool is_death_row_pardoned_reset() const;
   bool is_marked(ZGenerationId id) const;
 
   uint32_t live_objects() const;
@@ -98,6 +103,24 @@ public:
 
   BitMap::idx_t find_base_bit(BitMap::idx_t index);
   BitMap::idx_t find_base_bit_in_segment(BitMap::idx_t start, BitMap::idx_t index);
+
+  // TODO: This is horrible, separate the classes  somehow to have two views of the same underlying bits
+private:
+  void lazy_reset_death_row_pardonded();
+
+public:
+  BitMap::idx_t death_row_index(BitMap::idx_t object_index) const;
+  void set_death_row(BitMap::idx_t object_index);
+  void unset_death_row(BitMap::idx_t object_index);
+  template <typename Function>
+  void iterate_death_row(Function function);
+
+  BitMap::idx_t pardoned_index(BitMap::idx_t object_index) const;
+  void set_pardoned(BitMap::idx_t object_index);
+  void unset_pardoned(BitMap::idx_t object_index);
+  bool is_pardoned(BitMap::idx_t object_index) const;
+  template <typename Function>
+  void iterate_pardoned(Function function);
 };
 
 #endif // SHARE_GC_Z_ZLIVEMAP_HPP

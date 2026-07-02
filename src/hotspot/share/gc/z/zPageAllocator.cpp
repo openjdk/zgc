@@ -39,7 +39,7 @@
 #include "gc/z/zMemoryWorker.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageAllocator.inline.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zPhysicalMemoryManager.hpp"
@@ -1926,8 +1926,8 @@ void ZPageAllocator::decrease_used_generation(ZGenerationId id, size_t size) {
 void ZPageAllocator::promote_used(const ZPage* from, const ZPage* to) {
   assert(from->start() == to->start(), "pages start at same offset");
   assert(from->size() == to->size(),   "pages are the same size");
-  assert(from->age() != ZPageAge::old, "must be promotion");
-  assert(to->age() == ZPageAge::old,   "must be promotion");
+  assert(is_young(from->age()), "must be promotion");
+  assert(is_old(to->age()),   "must be promotion");
 
   decrease_used_generation(ZGenerationId::young, to->size());
   increase_used_generation(ZGenerationId::old, to->size());
@@ -2635,7 +2635,7 @@ ZPage* ZPageAllocator::create_page(ZPageAllocation* allocation, const ZVirtualMe
   // the generation statistics could se a decreasing used value between mark
   // start and mark end. At this point an allocation will be successful, so we
   // update the generation usage.
-  const ZGenerationId id = allocation->age() == ZPageAge::old ? ZGenerationId::old : ZGenerationId::young;
+  const ZGenerationId id = is_old(allocation->age()) ? ZGenerationId::old : ZGenerationId::young;
   increase_used_generation(id, allocation->size());
 
   const ZPageType type = allocation->type();

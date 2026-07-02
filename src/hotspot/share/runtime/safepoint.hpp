@@ -189,7 +189,7 @@ class ThreadSafepointState: public CHeapObj<mtThread> {
 
   ThreadSafepointState*           _next;
 
-  void account_safe_thread();
+  void account_safe_thread(uint64_t safepoint_counter);
 
  public:
   ThreadSafepointState(JavaThread *thread);

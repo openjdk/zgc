@@ -155,12 +155,24 @@ inline ZYoungType ZGenerationYoung::type() const {
   return _active_type;
 }
 
-inline void ZGenerationYoung::remember(volatile zpointer* p) {
-  _remembered.remember(p);
+inline bool ZGenerationYoung::remember(volatile zpointer* p) {
+  return _remembered.remember(p);
+}
+
+inline bool ZGenerationYoung::forget_previous(volatile zpointer* p) {
+  return _remembered.forget_previous(p);
+}
+
+inline void ZGenerationYoung::forget_current(volatile zpointer* p) {
+  _remembered.forget_current(p);
 }
 
 inline void ZGenerationYoung::scan_remembered_field(volatile zpointer* p) {
   _remembered.scan_field(p);
+}
+
+inline void ZGenerationYoung::scan_remembered_field(volatile zpointer* p, zpointer prev) {
+  _remembered.scan_field(p, prev);
 }
 
 inline bool ZGenerationYoung::is_remembered(volatile zpointer* p) const {
@@ -171,13 +183,26 @@ inline ReferenceDiscoverer* ZGenerationOld::reference_discoverer() {
   return &_reference_processor;
 }
 
-inline bool ZGenerationOld::active_remset_is_current() const {
-  assert(_young_seqnum_at_reloc_start != 0, "Must be set before used");
+inline uint32_t ZGenerationOld::young_marks_since_old_mark_end() const {
+  // TODO: Fix assert
+  // assert(_young_seqnum_at_reloc_start != 0, "Must be set before used");
 
   // The remembered set bits flip every time a new young collection starts
   const uint32_t seqnum = ZGeneration::young()->seqnum();
-  const uint32_t seqnum_diff = seqnum - _young_seqnum_at_reloc_start;
-  const bool in_current = (seqnum_diff & 1u) == 0u;
+  return seqnum - _young_seqnum_at_mark_end;
+}
+
+inline uint32_t ZGenerationOld::young_marks_since_old_reloc_start() const {
+  // TODO: Fix assert
+  // assert(_young_seqnum_at_reloc_start != 0, "Must be set before used");
+
+  // The remembered set bits flip every time a new young collection starts
+  const uint32_t seqnum = ZGeneration::young()->seqnum();
+  return seqnum - _young_seqnum_at_reloc_start;
+}
+
+inline bool ZGenerationOld::active_remset_is_current() const {
+  const bool in_current = (young_marks_since_old_reloc_start() & 1u) == 0u;
   return in_current;
 }
 
