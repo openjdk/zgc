@@ -26,6 +26,7 @@
 #define SHARE_OOPS_MARKWORD_HPP
 
 #include "cppstdlib/type_traits.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/compressedKlass.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -49,6 +50,10 @@
 //  -------------------------------
 //  klass:22   hash:31  valhalla:4  age:4  self-fwd:1  lock:2
 //
+//  64 bits (GC bits with ZGC):
+//  -------------------------------
+//                                  refc:5             lock:2
+//
 //  - lock bits are used to describe lock states: fast-locked/lock-neutral/inflated
 //    and to indicate that an object has been GC marked / forwarded.
 //
@@ -65,6 +70,8 @@
 //    set to false. Otherwise encode_pointer_as_mark() may have 'self-fwd' set.
 //
 //  - age - used by some GCs to track the age of objects.
+//
+//  - refc - used by some ZGC to track old to old reference counts.
 //
 //  - valhalla - only supported on 64-bit VMs
 //
@@ -125,6 +132,7 @@ class markWord {
   static const int lock_bits                      = 2;
   static const int self_fwd_bits                  = 1;
   static const int age_bits                       = 4;
+  static const int refc_bits                      = 5;
   static const int inline_type_bits               = LP64_ONLY(1) NOT_LP64(0);
   static const int null_free_array_bits           = LP64_ONLY(1) NOT_LP64(0);
   static const int flat_array_bits                = LP64_ONLY(1) NOT_LP64(0);
@@ -136,6 +144,8 @@ class markWord {
   static const int lock_shift                     = 0;
   static const int self_fwd_shift                 = lock_shift + lock_bits;
   static const int age_shift                      = self_fwd_shift + self_fwd_bits;
+  static const int refc_shift                     = self_fwd_shift;
+  static_assert(age_shift + age_bits == refc_shift + refc_bits);
   static const int inline_type_shift              = age_shift + age_bits;
   static const int null_free_array_shift          = inline_type_shift + inline_type_bits;
   static const int flat_array_shift               = null_free_array_shift + null_free_array_bits;
@@ -146,6 +156,7 @@ class markWord {
   static const uintptr_t lock_mask_in_place       = right_n_bits(lock_bits) << lock_shift;
   static const uintptr_t self_fwd_bit_in_place    = right_n_bits(self_fwd_bits) << self_fwd_shift;
   static const uintptr_t age_mask_in_place        = right_n_bits(age_bits) << age_shift;
+  static const uintptr_t refc_mask_in_place       = right_n_bits(refc_bits) << refc_shift;
   static const uintptr_t inline_type_bit_in_place = right_n_bits(inline_type_bits) << inline_type_shift;
   static const uintptr_t null_free_array_bit_in_place = right_n_bits(null_free_array_bits) << null_free_array_shift;
   static const uintptr_t flat_array_bit_in_place  = right_n_bits(flat_array_bits) << flat_array_shift;
@@ -164,6 +175,7 @@ class markWord {
   // Masks (unshifted)
   static const uintptr_t lock_mask                = lock_mask_in_place >> lock_shift;
   static const uintptr_t age_mask                 = age_mask_in_place >> age_shift;
+  static const uintptr_t refc_mask                = refc_mask_in_place >> refc_shift;
   static const uintptr_t hash_mask                = hash_mask_in_place >> hash_shift;
 
 #ifdef _LP64
@@ -217,6 +229,11 @@ class markWord {
   }
 
   bool is_forwarded() const {
+    if (UseZGC) {
+      // TODO: Maybe clean-up the few shared callsite which uses this API.
+      return false;
+    }
+
     // Returns true for normal forwarded (0b011) and self-forwarded (0b1xx).
     return mask_bits(value(), lock_mask_in_place | self_fwd_bit_in_place) >= static_cast<intptr_t>(marked_value);
   }
@@ -258,12 +275,29 @@ class markWord {
   markWord set_unmarked() { return markWord((value() & ~lock_mask_in_place) | lock_neutral_value); }
 
   // age operations
-  uint     age()           const { return (uint) mask_bits(value() >> age_shift, age_mask); }
+  uint age() const {
+    precond(!UseZGC);
+    return (uint)mask_bits(value() >> age_shift, age_mask);
+  }
   markWord set_age(uint v) const {
+    precond(!UseZGC);
     assert((v & ~age_mask) == 0, "shouldn't overflow age field");
     return markWord((value() & ~age_mask_in_place) | ((v & age_mask) << age_shift));
   }
-  markWord incr_age()      const { return age() == max_age ? markWord(_value) : set_age(age() + 1); }
+  markWord incr_age() const {
+    precond(!UseZGC);
+    return age() == max_age ? markWord(_value) : set_age(age() + 1);
+  }
+
+  uint refc() const {
+    precond(UseZGC);
+    return (uint)mask_bits(value() >> refc_shift, refc_mask);
+  }
+  markWord set_refc(uint v) const {
+    precond(UseZGC);
+    assert((v & ~refc_mask) == 0, "shouldn't overflow refc field");
+    return markWord((value() & ~refc_mask_in_place) | ((v & refc_mask) << refc_shift));
+  }
 
   // hash operations
   intptr_t hash() const {
@@ -345,14 +379,17 @@ class markWord {
   }
 
   inline markWord set_self_forwarded() const {
+    precond(!UseZGC);
     return markWord(value() | self_fwd_bit_in_place);
   }
 
   inline markWord unset_self_forwarded() const {
+    precond(!UseZGC);
     return markWord(value() & ~self_fwd_bit_in_place);
   }
 
   inline oop forwardee() const {
+    precond(!UseZGC);
     return cast_to_oop(decode_pointer());
   }
 };

@@ -28,6 +28,7 @@
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zLock.hpp"
 #include "memory/allocation.hpp"
+#include "runtime/atomic.hpp"
 #include "utilities/sizes.hpp"
 
 struct ZStoreBarrierEntry {
@@ -47,17 +48,10 @@ private:
 
   ZStoreBarrierEntry _buffer[BufferLength];
 
-  // Color from previous phase this buffer was processed
-  uintptr_t          _last_processed_color;
-
-  // Use as a claim mechanism for installing base pointers
-  uintptr_t          _last_installed_color;
-
-  ZLock              _base_pointer_lock;
-  zaddress_unsafe    _base_pointers[BufferLength];
-
   // sizeof(ZStoreBarrierEntry) scaled index growing downwards
   size_t             _current;
+
+  Atomic<uint64_t>   _flush_counter;
 
   void on_new_phase_relocate(size_t i);
   void on_new_phase_remember(size_t i);
@@ -65,8 +59,6 @@ private:
 
   void clear();
 
-  bool is_old_mark() const;
-  bool stored_during_old_mark() const;
   bool is_empty() const;
   size_t current() const;
 
@@ -83,12 +75,8 @@ public:
 
   static ZStoreBarrierBuffer* buffer_for_store(bool heal);
 
-  void initialize();
-  void on_new_phase();
-
-  void install_base_pointers();
-
   void flush();
+  void flush_for_safepoint(uint64_t safepoint_counter);
   void add(volatile zpointer* p, zpointer prev);
 
   // Check if p is contained in any store barrier buffer entry in the system

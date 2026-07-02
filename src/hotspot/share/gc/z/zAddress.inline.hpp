@@ -811,4 +811,14 @@ inline zpointer ZAddress::store_good_or_null(zaddress addr) {
   return is_null(addr) ? zpointer::null : store_good(addr);
 }
 
+inline RBTreeOrdering ZAddress::cmp(zaddress a, zaddress b) {
+  if (a < b) {
+    return RBTreeOrdering::LT;
+  }
+  if (b < a) {
+    return RBTreeOrdering::GT;
+  }
+  return RBTreeOrdering::EQ;
+}
+
 #endif // SHARE_GC_Z_ZADDRESS_INLINE_HPP

@@ -52,3 +52,13 @@ uint32_t ZNUMA::memory_id(uintptr_t addr) {
 int ZNUMA::numa_id_to_node(uint32_t numa_id) {
   ShouldNotCallThis();
 }
+
+uint32_t ZNUMA::cpu_id_to_numa_id(uint32_t cpu_id) {
+  if (is_faked()) {
+    // ZFakeNUMA testing
+    return cpu_id % ZFakeNUMA;
+  }
+
+  // NUMA support not enabled, assume everything belongs to node zero
+  return 0;
+}

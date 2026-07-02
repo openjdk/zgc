@@ -45,13 +45,6 @@ class ZForwarding {
   friend class VMStructs;
   friend class ZForwardingTest;
 
-  enum class ZPublishState : int8_t {
-    none,      // No publishing done yet
-    published, // OC published remset field info, which YC will reject or accept
-    reject,    // YC remset scanning accepted OC published remset field info
-    accept     // YC remset scanning rejected OC published remset field info
-  };
-
 private:
   typedef ZAttachedArray<ZForwarding, ZForwardingEntry> AttachedArray;
   typedef ZArray<volatile zpointer*> PointerArray;
@@ -69,9 +62,8 @@ private:
   Atomic<bool>           _done;
 
   // Relocated remembered set fields support
-  Atomic<ZPublishState>  _relocated_remembered_fields_state;
+  Atomic<bool>           _relocated_remembered_fields_state;
   PointerArray           _relocated_remembered_fields_array;
-  uint32_t               _relocated_remembered_fields_publish_young_seqnum;
 
   // In-place relocation support
   bool                   _in_place;
@@ -112,7 +104,9 @@ public:
 
   uint32_t partition_id() const;
 
+  bool is_young_to_young() const;
   bool is_promotion() const;
+  bool is_old_to_old() const;
 
   // Visit from-objects
   template <typename Function>
@@ -159,11 +153,10 @@ public:
   zaddress insert(zaddress from_addr, zaddress to_addr, ZForwardingCursor* cursor);
 
   // Relocated remembered set fields support
-  void relocated_remembered_fields_register(volatile zpointer* p);
+  void relocated_remembered_fields_register(volatile zpointer* p, zpointer prev);
   void relocated_remembered_fields_after_relocate();
   void relocated_remembered_fields_publish();
   void relocated_remembered_fields_notify_concurrent_scan_of();
-  bool relocated_remembered_fields_is_concurrently_scanned() const;
   template <typename Function>
   void relocated_remembered_fields_apply_to_published(Function function);
   bool relocated_remembered_fields_published_contains(volatile zpointer* p);
