@@ -307,6 +307,14 @@ public:
     Traits::assert_in_range(value, first(), last());
     return static_cast<size_t>(Traits::underlying_value(value) - _start);
   }
+
+  // Checks if value is part of the range
+  constexpr bool contains(T value) const {
+    if (size() > 0) {
+      return value >= first() && value <= last();
+    }
+    return false;
+  }
 };
 
 #endif // SHARE_UTILITIES_ENUMITERATOR_HPP

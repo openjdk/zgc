@@ -60,6 +60,8 @@ public:
   static const char* to_string();
 
   static int numa_id_to_node(uint32_t numa_id);
+
+  static uint32_t cpu_id_to_numa_id(uint32_t cpu_id);
 };
 
 #endif // SHARE_GC_Z_ZNUMA_HPP

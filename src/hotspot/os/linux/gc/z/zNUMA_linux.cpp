@@ -22,7 +22,6 @@
  */
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zCPU.inline.hpp"
 #include "gc/z/zErrno.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zSyscall_linux.hpp"
@@ -158,22 +157,6 @@ void ZNUMA::pd_initialize() {
             : 1; // No NUMA nodes
 }
 
-uint32_t ZNUMA::id() {
-  if (is_faked()) {
-    // ZFakeNUMA testing, ignores _enabled
-    return ZCPU::id() % ZFakeNUMA;
-  }
-
-  if (!_enabled) {
-    // NUMA support not enabled
-    return 0;
-  }
-
-  const uint32_t id = z_numa_converter.node_to_id(os::Linux::get_node_by_cpu(ZCPU::id()));
-  assert(id != (uint32_t)-1, "Unknown NUMA node");
-  return id;
-}
-
 uint32_t ZNUMA::memory_id(uintptr_t addr) {
   if (!_enabled) {
     // NUMA support not enabled, assume everything belongs to node zero
@@ -192,4 +175,19 @@ uint32_t ZNUMA::memory_id(uintptr_t addr) {
 
 int ZNUMA::numa_id_to_node(uint32_t numa_id) {
   return z_numa_converter.id_to_node(numa_id);
+}
+
+uint32_t ZNUMA::cpu_id_to_numa_id(uint32_t cpu_id) {
+  if (is_faked()) {
+    // ZFakeNUMA testing
+    return cpu_id % ZFakeNUMA;
+  }
+
+  if (!_enabled) {
+    // TODO: Maybe we need to be accurate here...
+    // NUMA support not enabled, assume everything belongs to node zero
+    return 0;
+  }
+
+  return z_numa_converter.node_to_id(os::Linux::get_node_by_cpu(integer_cast<int>(cpu_id)));
 }

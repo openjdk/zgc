@@ -27,6 +27,7 @@
 #include "gc/z/zNUMA.hpp"
 
 #include "gc/shared/gc_globals.hpp"
+#include "gc/z/zCPU.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "utilities/align.hpp"
 
@@ -48,6 +49,12 @@ inline bool ZNUMA::is_bound() {
 
 inline uint32_t ZNUMA::count() {
   return _count;
+}
+
+inline uint32_t ZNUMA::id() {
+  const uint32_t id = cpu_id_to_numa_id(ZCPU::id());
+  postcond(id != (uint32_t)-1);
+  return id;
 }
 
 inline size_t ZNUMA::calculate_share(uint32_t numa_id, size_t total, size_t granule, uint32_t ignore_count) {
