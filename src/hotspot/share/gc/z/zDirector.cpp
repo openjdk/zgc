@@ -462,7 +462,8 @@ static double calculate_extra_young_gc_time(const ZDirectorStats& stats) {
   // Calculate amount of free memory available. Note that we take the
   // relocation headroom into account to avoid in-place relocation.
   const size_t old_used = stats._old_stats._general._used;
-  const size_t old_live = stats._old_stats._stat_heap._live_at_mark_end;
+  const size_t old_live = ZFragmentationLimit >= 99.99 ? stats._old_stats._stat_heap._live_at_mark_end
+                                                       : MIN2(size_t(stats._old_stats._stat_heap._live_at_mark_end / (1.0 - (ZFragmentationLimit / 100.0))), old_used);
   const double old_garbage = double(old_used - old_live);
 
   const double young_gc_time = gc_time(stats._young_stats);

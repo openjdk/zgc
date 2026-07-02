@@ -42,26 +42,29 @@ enum class ZPageAge : uint8_t {
   survivor11,
   survivor12,
   survivor13,
+  // TODO: Not sure if we have 4 bit dependecy, we do have a
+  //       MaxTenuringThreshold dependency, we should probably decouple
+  //       ourselves from the markword bits here, gracefully.
   survivor14,
+  promotion,
   old
 };
 
-constexpr uint ZPageAgeCount = static_cast<uint>(ZPageAge::old) + 1;
-constexpr ZPageAge ZPageAgeLastPlusOne = static_cast<ZPageAge>(ZPageAgeCount);
-
-constexpr uint ZNumRelocationAges = ZPageAgeCount - 1;
-
-ENUMERATOR_RANGE(ZPageAge,
-                 ZPageAge::eden,
-                 ZPageAge::old);
+ENUMERATOR_RANGE(ZPageAge, ZPageAge::eden, ZPageAge::old);
 
 using ZPageAgeRange = EnumRange<ZPageAge>;
 
-constexpr ZPageAgeRange ZPageAgeRangeEden = ZPageAgeRange::create<ZPageAge::eden, ZPageAge::survivor1>();
-constexpr ZPageAgeRange ZPageAgeRangeYoung = ZPageAgeRange::create<ZPageAge::eden, ZPageAge::old>();
-constexpr ZPageAgeRange ZPageAgeRangeSurvivor = ZPageAgeRange::create<ZPageAge::survivor1, ZPageAge::old>();
-constexpr ZPageAgeRange ZPageAgeRangeRelocation = ZPageAgeRange::create<ZPageAge::survivor1, ZPageAgeLastPlusOne>();
-constexpr ZPageAgeRange ZPageAgeRangeOld = ZPageAgeRange::create<ZPageAge::old, ZPageAgeLastPlusOne>();
-constexpr ZPageAgeRange ZPageAgeRangeAll = ZPageAgeRange();
+constexpr ZPageAgeRange ZPageAgeRangeEden{ZPageAge::eden, ZPageAge::survivor1};
+constexpr ZPageAgeRange ZPageAgeRangeYoung{ZPageAge::eden, ZPageAge::promotion};
+constexpr ZPageAgeRange ZPageAgeRangeSurvivor{ZPageAge::survivor1, ZPageAge::promotion};
+constexpr ZPageAgeRange ZPageAgeRangeRelocation{ZPageAge::survivor1};
+constexpr ZPageAgeRange ZPageAgeRangeOld{ZPageAge::promotion};
+constexpr ZPageAgeRange ZPageAgeRangeAll{};
+
+constexpr uint ZPageAgeYoungCount = ZPageAgeRangeYoung.size();
+constexpr uint ZPageAgeOldCount = ZPageAgeRangeOld.size();
+constexpr uint ZPageAgeCount = ZPageAgeRangeAll.size();
+constexpr uint ZNumRelocationAges = ZPageAgeRangeRelocation.size();
+
 
 #endif // SHARE_GC_Z_ZPAGEAGE_HPP

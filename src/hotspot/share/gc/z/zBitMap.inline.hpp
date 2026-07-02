@@ -39,6 +39,14 @@ inline ZMovableBitMap::ZMovableBitMap(ZMovableBitMap&& bitmap)
   bitmap.update(nullptr, 0);
 }
 
+inline void ZMovableBitMap::init(ZMovableBitMap* other) {
+  update(other->map(), other->size());
+}
+
+inline void ZMovableBitMap::uninit() {
+  update(nullptr, 0);
+}
+
 inline ZBitMap::ZBitMap(idx_t size_in_bits)
   : CHeapBitMap(size_in_bits, mtGC, false /* clear */) {}
 

@@ -172,6 +172,7 @@ class outputStream;
   LOG_TAG(redact) \
   LOG_TAG(redefine) \
   LOG_TAG(ref) \
+  LOG_TAG(refcount) \
   LOG_TAG(refine) \
   LOG_TAG(region) \
   LOG_TAG(reloc) \

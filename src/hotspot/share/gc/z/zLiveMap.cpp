@@ -22,11 +22,13 @@
  */
 
 #include "gc/z/zGeneration.inline.hpp"
+#include "gc/z/zGenerationId.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLiveMap.inline.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zUtils.hpp"
 #include "logging/log.hpp"
+#include "utilities/bitMap.inline.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/spinYield.hpp"
@@ -37,6 +39,7 @@ static const ZStatCounter ZCounterMarkSegmentResetContention("Contention", "Mark
 ZLiveMap::ZLiveMap(uint32_t object_max_count)
   : _segment_size((object_max_count == 1 ? 1u : (object_max_count / NumSegments)) * BitsPerObject),
     _segment_shift(log2i_exact(_segment_size)),
+    _seqnum_young(0),
     _seqnum(0),
     _live_objects(0),
     _live_bytes(0),
@@ -50,22 +53,31 @@ void ZLiveMap::initialize_bitmap() {
   }
 }
 
+void ZLiveMap::reset_death_row_pardonded() {
+  reset(ZGenerationId::young, false /* live_map */);
+}
+
 void ZLiveMap::reset(ZGenerationId id) {
+  reset(id, true /* live_map */);
+}
+
+void ZLiveMap::reset(ZGenerationId id, bool live_map) {
   ZGeneration* const generation = ZGeneration::generation(id);
   const uint32_t seqnum_initializing = (uint32_t)-1;
   bool contention = false;
+  auto& seqnum_ref = live_map ? _seqnum : _seqnum_young;
 
   SpinYield yielder(0, 0, 1000);
 
   // Multiple threads can enter here, make sure only one of them
   // resets the marking information while the others busy wait.
-  for (uint32_t seqnum = _seqnum.load_acquire();
+  for (uint32_t seqnum = seqnum_ref.load_acquire();
        seqnum != generation->seqnum();
-       seqnum = _seqnum.load_acquire()) {
+       seqnum = seqnum_ref.load_acquire()) {
 
     if (seqnum != seqnum_initializing) {
       // No one has claimed initialization of the livemap yet
-      if (_seqnum.compare_set(seqnum, seqnum_initializing)) {
+      if (seqnum_ref.compare_set(seqnum, seqnum_initializing)) {
         // This thread claimed the initialization
 
         // Reset marking information
@@ -73,20 +85,37 @@ void ZLiveMap::reset(ZGenerationId id) {
         _live_objects.store_relaxed(0u);
 
         // Clear segment claimed/live bits
-        segment_live_bits().clear();
         segment_claim_bits().clear();
+        if (live_map) {
+          segment_live_bits().clear();
+        } else {
+          // Clear pardoned bits
+          const BitMap::idx_t pardoned_first_segment = index_to_segment(pardoned_index(0u));
+          segment_live_bits().clear_range(pardoned_first_segment, NumSegments);
+
+          // TODO: Unclear if this is worth doing.
+          // Transfer live death row segments
+          for (BitMap::idx_t segment = first_live_segment(); segment < NumSegments / 2; segment = next_live_segment(segment)) {
+            // If there is a bit in the segment keep it
+            if (iterate_segment(segment, [&](auto) { return false; })) {
+              // All bits are unset
+              segment_live_bits().clear_bit(segment);
+            }
+          }
+        }
+
 
         // We lazily initialize the bitmap the first time the page is marked, i.e.
         // a bit is about to be set for the first time.
         initialize_bitmap();
 
-        assert(_seqnum.load_relaxed() == seqnum_initializing, "Invalid");
+        assert(seqnum_ref.load_relaxed() == seqnum_initializing, "Invalid");
 
         // Make sure the newly reset marking information is ordered
         // before the update of the page seqnum, such that when the
         // up-to-date seqnum is load acquired, the bit maps will not
         // contain stale information.
-        _seqnum.release_store(generation->seqnum());
+        seqnum_ref.release_store(generation->seqnum());
         break;
       }
     }
@@ -139,4 +168,8 @@ void ZLiveMap::reset_segment(BitMap::idx_t segment) {
   // Set live bit
   const bool success = set_segment_live(segment);
   assert(success, "Should never fail");
+}
+
+void ZLiveMap::clear_bits() {
+  _bitmap.clear_large_range(0, _bitmap.size());
 }

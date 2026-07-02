@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,44 +21,19 @@
  * questions.
  */
 
-#include "gc/shared/gc_globals.hpp"
-#include "gc/z/zCPU.inline.hpp"
-#include "gc/z/zNUMA.inline.hpp"
-#include "runtime/globals_extension.hpp"
+#ifndef SHARE_GC_Z_ZDEFER_INLINE_HPP
+#define SHARE_GC_Z_ZDEFER_INLINE_HPP
 
-void ZNUMA::pd_initialize() {
-  _enabled = false;
-  _node_count = 1;
-  _bound_node_count = 1;
-  _count = !FLAG_IS_DEFAULT(ZFakeNUMA)
-      ? ZFakeNUMA
-      : 1;
+#include "gc/z/zDefer.hpp"
+
+template <typename CallableType>
+template <typename Callable>
+ZDefer<CallableType>::ZDefer(Callable&& callable)
+  : _callable(static_cast<Callable&&>(callable)) {}
+
+template <typename CallableType>
+ZDefer<CallableType>::~ZDefer() {
+  _callable();
 }
 
-uint32_t ZNUMA::id() {
-  if (is_faked()) {
-    // ZFakeNUMA testing, ignores _enabled
-    return ZCPU::id() % ZFakeNUMA;
-  }
-
-  return 0;
-}
-
-uint32_t ZNUMA::memory_id(uintptr_t addr) {
-  // NUMA support not enabled, assume everything belongs to node zero
-  return 0;
-}
-
-int ZNUMA::numa_id_to_node(uint32_t numa_id) {
-  ShouldNotCallThis();
-}
-
-uint32_t ZNUMA::cpu_id_to_numa_id(uint32_t cpu_id) {
-  if (is_faked()) {
-    // ZFakeNUMA testing
-    return cpu_id % ZFakeNUMA;
-  }
-
-  // NUMA support not enabled, assume everything belongs to node zero
-  return 0;
-}
+#endif // SHARE_GC_Z_ZDEFER_INLINE_HPP

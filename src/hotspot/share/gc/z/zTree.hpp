@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,44 +21,23 @@
  * questions.
  */
 
-#include "gc/shared/gc_globals.hpp"
-#include "gc/z/zCPU.inline.hpp"
-#include "gc/z/zNUMA.inline.hpp"
-#include "runtime/globals_extension.hpp"
+#ifndef SHARE_GC_Z_ZTREE_HPP
+#define SHARE_GC_Z_ZTREE_HPP
 
-void ZNUMA::pd_initialize() {
-  _enabled = false;
-  _node_count = 1;
-  _bound_node_count = 1;
-  _count = !FLAG_IS_DEFAULT(ZFakeNUMA)
-      ? ZFakeNUMA
-      : 1;
-}
+#include "gc/z/zLock.hpp"
+#include "memory/allocation.hpp"
+#include "utilities/rbTree.hpp"
 
-uint32_t ZNUMA::id() {
-  if (is_faked()) {
-    // ZFakeNUMA testing, ignores _enabled
-    return ZCPU::id() % ZFakeNUMA;
-  }
+template <typename KeyT, typename ValueT, typename CmpT>
+class ZTree : public CHeapObj<mtGC> {
+private:
+  ZLock _lock;
+  RBTreeCHeap<KeyT, ValueT, CmpT, mtGC> _rbtree;
 
-  return 0;
-}
+public:
+  template <typename FunctionT>
+  void update(KeyT key, FunctionT function);
+  bool find(KeyT key, ValueT* value);
+};
 
-uint32_t ZNUMA::memory_id(uintptr_t addr) {
-  // NUMA support not enabled, assume everything belongs to node zero
-  return 0;
-}
-
-int ZNUMA::numa_id_to_node(uint32_t numa_id) {
-  ShouldNotCallThis();
-}
-
-uint32_t ZNUMA::cpu_id_to_numa_id(uint32_t cpu_id) {
-  if (is_faked()) {
-    // ZFakeNUMA testing
-    return cpu_id % ZFakeNUMA;
-  }
-
-  // NUMA support not enabled, assume everything belongs to node zero
-  return 0;
-}
+#endif // SHARE_GC_Z_ZTREE_HPP

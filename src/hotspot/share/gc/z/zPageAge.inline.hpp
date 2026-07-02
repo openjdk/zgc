@@ -33,6 +33,47 @@ inline uint untype(ZPageAge age) {
   return static_cast<uint>(age);
 }
 
+inline const char* name(ZPageAge age) {
+  switch (age) {
+  case ZPageAge::eden:
+    return "eden";
+  case ZPageAge::survivor1:
+    return "survivor1";
+  case ZPageAge::survivor2:
+    return "survivor2";
+  case ZPageAge::survivor3:
+    return "survivor3";
+  case ZPageAge::survivor4:
+    return "survivor4";
+  case ZPageAge::survivor5:
+    return "survivor5";
+  case ZPageAge::survivor6:
+    return "survivor6";
+  case ZPageAge::survivor7:
+    return "survivor7";
+  case ZPageAge::survivor8:
+    return "survivor8";
+  case ZPageAge::survivor9:
+    return "survivor9";
+  case ZPageAge::survivor10:
+    return "survivor10";
+  case ZPageAge::survivor11:
+    return "survivor11";
+  case ZPageAge::survivor12:
+    return "survivor12";
+  case ZPageAge::survivor13:
+    return "survivor13";
+  case ZPageAge::survivor14:
+    return "survivor14";
+  case ZPageAge::promotion:
+    return "promotion";
+  case ZPageAge::old:
+    return "old";
+  }
+
+  return "unknown";
+}
+
 inline ZPageAge to_zpageage(uint age) {
   assert(age < ZPageAgeCount, "Invalid age");
   return static_cast<ZPageAge>(age);
@@ -46,6 +87,26 @@ inline ZPageAge operator+(ZPageAge age, size_t size) {
 inline ZPageAge operator-(ZPageAge age, size_t size) {
   const auto size_value = checked_cast<std::underlying_type_t<ZPageAge>>(size);
   return to_zpageage(untype(age) - size_value);
+}
+
+inline constexpr bool is_eden(ZPageAge age) {
+  return ZPageAgeRangeEden.contains(age);
+}
+
+inline constexpr bool is_young(ZPageAge age) {
+  return ZPageAgeRangeYoung.contains(age);
+}
+
+inline constexpr bool is_survivor(ZPageAge age) {
+  return ZPageAgeRangeSurvivor.contains(age);
+}
+
+inline constexpr bool is_relocation(ZPageAge age) {
+  return ZPageAgeRangeRelocation.contains(age);
+}
+
+inline constexpr bool is_old(ZPageAge age) {
+  return ZPageAgeRangeOld.contains(age);
 }
 
 #endif // SHARE_GC_Z_ZPAGEAGE_INLINE_HPP

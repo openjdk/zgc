@@ -58,6 +58,20 @@ public:
   size_t relocate() const;
 };
 
+class ZRelocationSetLiveStats {
+  friend class ZRelocationSetSelector;
+
+private:
+  size_t _small[ZPageAgeCount];
+  size_t _medium[ZPageAgeCount];
+  size_t _large[ZPageAgeCount];
+
+public:
+  size_t small(ZPageAge age) const;
+  size_t medium(ZPageAge age) const;
+  size_t large(ZPageAge age) const;
+
+};
 class ZRelocationSetSelectorStats {
   friend class ZRelocationSetSelector;
 
@@ -79,25 +93,41 @@ public:
 class ZRelocationSetSelectorGroup {
 private:
   static constexpr int NumPartitionsShift = 11;
-  static constexpr int NumPartitions = int(1) << NumPartitionsShift;
+  static constexpr int NumPartitions = (int(1) << NumPartitionsShift) + 1;
 
   const char* const                _name;
+  const ZGenerationId              _id;
   const ZPageType                  _page_type;
   const size_t                     _max_page_size;
   const size_t                     _object_size_limit;
-  const double                     _fragmentation_limit;
-  const size_t                     _page_fragmentation_limit;
+  const bool                       _promote_all;
+  ZPageAge                         _tenuring_threshold;
+  double                           _fragmentation_limit[ZPageAgeCount];
+  size_t                           _page_fragmentation_limit[ZPageAgeCount];
+  ZArray<ZPage*>                   _live_pages_young[ZPageAgeYoungCount];
   ZArray<ZPage*>                   _live_pages;
   ZArray<ZPage*>                   _not_selected_pages;
   size_t                           _forwarding_entries;
   ZRelocationSetSelectorGroupStats _stats[ZPageAgeCount];
 
-  bool is_disabled();
-  bool is_selectable();
+  bool is_disabled() const;
+  bool is_selectable() const;
 
   size_t partition_index(const ZPage* page) const;
-  void semi_sort();
+  bool is_young() const;
+
+  void semi_sort(ZArray<ZPage*>* pages);
+  int select_inner(ZPageAge age);
   void select_inner();
+
+  void calculate_fragmentation_limits();
+  void update_tenuring_threshold(ZPageAge tenuring_threshold);
+
+  double fragmentation_limit(ZPageAge age) const;
+  size_t page_fragmentation_limit(ZPageAge age) const;
+  ZRelocationSetSelectorGroupStats& stats(ZPageAge age);
+
+  ZArray<ZPage*>& live_pages(ZPageAge age);
 
   bool pre_filter_page(const ZPage* page, size_t live_bytes) const;
 
@@ -106,7 +136,8 @@ public:
                               ZPageType page_type,
                               size_t max_page_size,
                               size_t object_size_limit,
-                              double fragmentation_limit);
+                              ZGenerationId id,
+                              bool promote_all);
 
   void register_live_page(ZPage* page);
   void register_empty_page(ZPage* page);
@@ -122,6 +153,7 @@ public:
 
 class ZRelocationSetSelector : public StackObj {
 private:
+  ZRelocationSetLiveStats     _live_stats;
   ZRelocationSetSelectorGroup _small;
   ZRelocationSetSelectorGroup _medium;
   ZRelocationSetSelectorGroup _large;
@@ -132,7 +164,7 @@ private:
   size_t relocate() const;
 
 public:
-  ZRelocationSetSelector(double fragmentation_limit);
+  ZRelocationSetSelector(ZGenerationId id, bool promote_all);
 
   void register_live_page(ZPage* page);
   void register_empty_page(ZPage* page);
@@ -151,6 +183,7 @@ public:
   const ZArray<ZPage*>* not_selected_large() const;
   size_t forwarding_entries() const;
 
+  const ZRelocationSetLiveStats& live_stats() const;
   ZRelocationSetSelectorStats stats() const;
 };
 

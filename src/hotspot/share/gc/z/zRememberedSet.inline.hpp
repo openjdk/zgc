@@ -69,8 +69,13 @@ inline bool ZRememberedSet::at_previous(uintptr_t offset) const {
 }
 
 inline bool ZRememberedSet::set_current(uintptr_t offset) {
+  // We set current bits with acquire/release semantics that communicate the updated field value.
+  // This allows relocation code to assume that if we fail to set the current bit, that implies
+  // the prev value of the initial field value has already been relocated with a load barrier,
+  // meaning it may be simply remapped by the GC threads doing relocation, rather than triggering
+  // a dangerous relocation during relocation event.
   const BitMap::idx_t index = to_index(offset);
-  return current()->par_set_bit(index, memory_order_relaxed);
+  return current()->par_set_bit(index, memory_order_acq_rel);
 }
 
 inline void ZRememberedSet::unset_non_par_current(uintptr_t offset) {
@@ -78,10 +83,20 @@ inline void ZRememberedSet::unset_non_par_current(uintptr_t offset) {
   current()->clear_bit(index);
 }
 
+inline void ZRememberedSet::unset_current(uintptr_t offset) {
+  const BitMap::idx_t index = to_index(offset);
+  current()->par_clear_bit(index, memory_order_relaxed);
+}
+
 inline void ZRememberedSet::unset_range_non_par_current(uintptr_t offset, size_t size) {
   const BitMap::idx_t start_index = to_index(offset);
   const BitMap::idx_t end_index = to_index(offset + size);
   current()->clear_range(start_index, end_index);
+}
+
+inline bool ZRememberedSet::unset_previous(uintptr_t offset) {
+  const BitMap::idx_t index = to_index(offset);
+  return previous()->par_clear_bit(index);
 }
 
 template <typename Function>

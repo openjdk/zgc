@@ -123,6 +123,10 @@ void ZBarrierSet::store_barrier_on_native_oop_field(volatile zpointer* p, bool h
   ZBarrier::store_barrier_on_native_oop_field(p, heal);
 }
 
+void ZBarrierSet::no_keep_alive_store_barrier_on_native_oop_field(volatile zpointer* p) {
+  ZBarrier::no_keep_alive_store_barrier_on_native_oop_field(p);
+}
+
 zaddress ZBarrierSet::load_barrier_on_oop_field(volatile zpointer* p) {
   return ZBarrier::load_barrier_on_oop_field(p);
 }
@@ -185,6 +189,10 @@ public:
     const zaddress obj = ZBarrier::load_barrier_on_oop_field(src_p);
 
     // Store barrier
+    // TODO: Add ZBarrier::remember and do not use ZGenerationYoung::remember
+    //       directly. The prev value is supposed to be null, so we should not
+    //       have an issue, but we want to be uniform.
+    // ZBarrier::remember(dst_p, zaddress::null);
 
     // Store barrier over null (or uninitialized) requires only remembered-set handling
     if (_is_dst_old) {
@@ -263,7 +271,6 @@ void ZBarrierSet::on_thread_attach(Thread* thread) {
     JavaThread* const jt = JavaThread::cast(thread);
     StackWatermark* const watermark = new ZStackWatermark(jt);
     StackWatermarkSet::add_watermark(jt, watermark);
-    ZThreadLocalData::store_barrier_buffer(jt)->initialize();
   }
 }
 
