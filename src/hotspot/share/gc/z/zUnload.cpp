@@ -163,6 +163,7 @@ void ZUnload::purge() {
     ZNMethod::purge();
   }
 
+  SuspendibleThreadSetJoiner sts_joiner;
   ClassLoaderDataGraph::purge(/*at_safepoint*/false);
   CodeCache::purge_exception_caches();
 }

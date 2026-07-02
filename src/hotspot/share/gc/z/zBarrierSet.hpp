@@ -46,6 +46,7 @@ private:
   static void store_barrier_on_heap_oop_field(volatile zpointer* p, bool heal);
   static void no_keep_alive_store_barrier_on_heap_oop_field(volatile zpointer* p);
   static void store_barrier_on_native_oop_field(volatile zpointer* p, bool heal);
+  static void no_keep_alive_store_barrier_on_native_oop_field(volatile zpointer* p);
 
   static zaddress load_barrier_on_oop_field(volatile zpointer* p);
 
@@ -89,6 +90,7 @@ public:
 
     static void store_barrier_native_with_healing(zpointer* p);
     static void store_barrier_native_without_healing(zpointer* p);
+    static void no_keep_alive_store_barrier_native(zpointer* p);
 
     [[noreturn]]
     static void unsupported();

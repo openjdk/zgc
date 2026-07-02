@@ -28,6 +28,7 @@
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zNMethod.hpp"
+#include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageAllocator.hpp"
 #include "gc/z/zResurrection.hpp"
 #include "gc/z/zRootsIterator.hpp"
@@ -612,8 +613,15 @@ void ZVerify::before_relocation(ZForwarding* forwarding) {
     return;
   }
 
-  if (forwarding->from_age() != ZPageAge::old) {
+  if (!forwarding->is_old_to_old()) {
     // Only supports verification of old-to-old relocations now
+    return;
+  }
+
+  uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+  if (young_marks > 1) {
+    // Remsets completely processed already; entries could legitimately
+    // have been forgotten by now.
     return;
   }
 
@@ -727,8 +735,8 @@ void ZVerify::after_relocation_internal(ZForwarding* forwarding) {
   forwarding->address_unsafe_iterate_via_table([&](zaddress_unsafe from_addr) {
     // If no field in this object was in the store barrier buffer
     // when relocation started, we should be able to verify trivially
-    ZGeneration* const from_generation = forwarding->from_age() == ZPageAge::old ? (ZGeneration*)ZGeneration::old()
-                                                                           : (ZGeneration*)ZGeneration::young();
+    ZGeneration* const from_generation = forwarding->is_old_to_old() ? (ZGeneration*)ZGeneration::old()
+                                                                     : (ZGeneration*)ZGeneration::young();
     const zaddress to_addr = from_generation->remap_object(from_addr);
 
     cl.set_from_addr(from_addr);
@@ -743,13 +751,22 @@ void ZVerify::after_relocation(ZForwarding* forwarding) {
     return;
   }
 
-  if (forwarding->to_age() != ZPageAge::old) {
+  if (forwarding->is_young_to_young()) {
     // No remsets to verify in the young gen
     return;
   }
 
-  if (ZGeneration::young()->is_phase_mark() &&
-      forwarding->relocated_remembered_fields_is_concurrently_scanned()) {
+  uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+  if (young_marks > 1) {
+    // Remsets completely processed already; entries could legitimately
+    // have been forgotten by now.
+    return;
+  }
+
+  if (ZGeneration::young()->is_phase_mark()
+    // TODO: What's this all about?
+    // && forwarding->relocated_remembered_fields_is_concurrently_scanned()
+    ) {
     // Can't verify to-space objects if concurrent YC rejected published
     // remset information, because that data is incomplete. The YC might
     // not have finished scanning the forwarding, and might be about to
@@ -770,8 +787,10 @@ void ZVerify::after_scan(ZForwarding* forwarding) {
     return;
   }
 
-  if (!ZGeneration::old()->is_phase_relocate() ||
-      !forwarding->relocated_remembered_fields_is_concurrently_scanned()) {
+  if (!ZGeneration::old()->is_phase_relocate()
+      // TODO: What's this all about?
+      // || !forwarding->relocated_remembered_fields_is_concurrently_scanned()
+    ) {
     // Only verify remembered set from remembered set scanning, when the
     // remembered set scanning rejected the publishing information of concurrent
     // old generation relocation

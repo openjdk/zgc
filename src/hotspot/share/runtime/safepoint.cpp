@@ -68,6 +68,11 @@
 #include "utilities/systemMemoryBarrier.hpp"
 #include "utilities/vmError.hpp"
 
+#if INCLUDE_ZGC
+#include "gc/z/zStoreBarrierBuffer.hpp"
+#include "gc/z/zThreadLocalData.hpp"
+#endif // INCLUDE_ZGC
+
 static void post_safepoint_begin_event(EventSafepointBegin& event,
                                        uint64_t safepoint_id,
                                        int thread_count,
@@ -583,6 +588,11 @@ void SafepointSynchronize::block(JavaThread *thread) {
   // Load dependent store, it must not pass loading of safepoint_id.
   thread->safepoint_state()->set_safepoint_id(safepoint_id); // Release store
 
+  if (UseZGC && (safepoint_id & 1) == 1) {
+    // TODO: Proper interfacing
+    ZGC_ONLY(ZThreadLocalData::store_barrier_buffer(thread)->flush_for_safepoint(safepoint_id);)
+  }
+
   // This part we can skip if we notice we miss or are in a future safepoint.
   OrderAccess::storestore();
   // Load in wait barrier should not float up
@@ -720,7 +730,7 @@ void ThreadSafepointState::examine_state_of_thread(uint64_t safepoint_count) {
   }
 
   if (safepoint_safe_with(_thread, stable_state)) {
-    account_safe_thread();
+    account_safe_thread(safepoint_count);
     return;
   }
 
@@ -733,7 +743,7 @@ void ThreadSafepointState::examine_state_of_thread(uint64_t safepoint_count) {
   return;
 }
 
-void ThreadSafepointState::account_safe_thread() {
+void ThreadSafepointState::account_safe_thread(uint64_t safepoint_count) {
   SafepointSynchronize::decrement_waiting_to_block();
   if (_thread->in_critical()) {
     // Notice that this thread is in a critical section
@@ -747,6 +757,11 @@ void ThreadSafepointState::account_safe_thread() {
   // from keeping dead objects alive. Because these oops are always cleared
   // before safepoint operations they are not visited in JavaThread::oops_do.
   _thread->om_clear_monitor_cache();
+
+  if (UseZGC) {
+    // TODO: Proper interfacing
+    ZGC_ONLY(ZThreadLocalData::store_barrier_buffer(_thread)->flush_for_safepoint(safepoint_count);)
+  }
 }
 
 void ThreadSafepointState::restart() {

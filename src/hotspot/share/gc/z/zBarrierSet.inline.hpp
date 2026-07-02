@@ -167,6 +167,13 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::store_barrier_n
   }
 }
 
+template <DecoratorSet decorators, typename BarrierSetT>
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::no_keep_alive_store_barrier_native(zpointer* p) {
+  if (!HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value) {
+    ZBarrierSet::no_keep_alive_store_barrier_on_native_oop_field(p);
+  }
+}
+
 //
 // In heap
 //
@@ -261,6 +268,8 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_store_not_i
 
   if (!is_store_barrier_no_keep_alive<decorators>()) {
     store_barrier_native_without_healing(p);
+  } else {
+    no_keep_alive_store_barrier_native(p);
   }
 
   Raw::store(p, store_good(value));

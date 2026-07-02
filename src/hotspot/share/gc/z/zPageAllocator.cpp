@@ -39,7 +39,7 @@
 #include "gc/z/zMemoryWorker.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageAllocator.inline.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zPhysicalMemoryManager.hpp"
@@ -1889,15 +1889,52 @@ void ZPageAllocator::update_collection_stats(ZGenerationId id) {
 }
 
 ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
+  size_t freelist_available_at_start[ZPageTypeCount];
+  size_t freelist_promoted[ZPageTypeCount];
+  size_t mutator_freelist_promoted[ZPageTypeCount];
+  size_t freelist_compacted[ZPageTypeCount];
+  size_t mutator_freelist_compacted[ZPageTypeCount];
+  size_t promoted[ZPageTypeCount];
+  size_t mutator_promoted[ZPageTypeCount];
+  size_t flip_promoted[ZPageTypeCount];
+  size_t compacted[ZPageTypeCount];
+  size_t mutator_compacted[ZPageTypeCount];
+
+  for (uint i = 0; i < ZPageTypeCount; i++) {
+    const ZPageType type = static_cast<ZPageType>(i);
+    freelist_available_at_start[i] = generation->freelist_available_at_start(type);
+    freelist_promoted[i] = generation->freelist_promoted(type);
+    mutator_freelist_promoted[i] = generation->mutator_freelist_promoted(type);
+    freelist_compacted[i] = generation->freelist_compacted(type);
+    mutator_freelist_compacted[i] = generation->mutator_freelist_compacted(type);
+    mutator_promoted[i] = generation->mutator_promoted(type);
+    flip_promoted[i] = generation->flip_promoted(type);
+    mutator_compacted[i] = generation->mutator_compacted(type);
+
+    assert(mutator_freelist_promoted[i] <= freelist_promoted[i], "Invalid free-list statistics");
+    assert(mutator_freelist_compacted[i] <= freelist_compacted[i], "Invalid free-list statistics");
+
+    promoted[i] = generation->uncompensated_promoted(type) + freelist_promoted[i] - mutator_freelist_promoted[i];
+    compacted[i] = generation->uncompensated_compacted(type) + freelist_compacted[i] - mutator_freelist_compacted[i];
+  }
+
   return ZPageAllocatorStats(heuristic_max_capacity(),
                              capacity(),
                              _used,
                              _collection_stats[(int)generation->id()]._used_high,
                              _collection_stats[(int)generation->id()]._used_low,
                              used_generation(generation->id()),
+                             freelist_available_at_start,
+                             freelist_promoted,
+                             mutator_freelist_promoted,
+                             freelist_compacted,
+                             mutator_freelist_compacted,
                              generation->freed(),
-                             generation->promoted(),
-                             generation->compacted(),
+                             promoted,
+                             mutator_promoted,
+                             flip_promoted,
+                             compacted,
+                             mutator_compacted,
                              _stalled.size());
 }
 
@@ -1926,8 +1963,8 @@ void ZPageAllocator::decrease_used_generation(ZGenerationId id, size_t size) {
 void ZPageAllocator::promote_used(const ZPage* from, const ZPage* to) {
   assert(from->start() == to->start(), "pages start at same offset");
   assert(from->size() == to->size(),   "pages are the same size");
-  assert(from->age() != ZPageAge::old, "must be promotion");
-  assert(to->age() == ZPageAge::old,   "must be promotion");
+  assert(is_young(from->age()), "must be promotion");
+  assert(is_old(to->age()),   "must be promotion");
 
   decrease_used_generation(ZGenerationId::young, to->size());
   increase_used_generation(ZGenerationId::old, to->size());
@@ -2094,7 +2131,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
   const size_t soft_limit = heuristic_max_capacity();
 
   uint32_t highest_available_id = start_partition;
-  size_t highest_availiable = 0;
+  size_t highest_available = 0;
 
   for (uint32_t i = 0; i < num_partitions; ++i) {
     const uint32_t partition_id = (start_partition + i) % num_partitions;
@@ -2109,10 +2146,10 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
     }
 
     const ZPartition& partition = _partitions.get(partition_id);
-    const size_t partition_availiable = partition.available(attempt, partition.static_max_capacity());
-    if (partition_availiable > highest_availiable) {
+    const size_t partition_available = partition.available(attempt, partition.static_max_capacity());
+    if (partition_available > highest_available) {
       highest_available_id = partition_id;
-      highest_availiable = partition_availiable;
+      highest_available = partition_available;
     }
   }
 
@@ -2635,7 +2672,7 @@ ZPage* ZPageAllocator::create_page(ZPageAllocation* allocation, const ZVirtualMe
   // the generation statistics could se a decreasing used value between mark
   // start and mark end. At this point an allocation will be successful, so we
   // update the generation usage.
-  const ZGenerationId id = allocation->age() == ZPageAge::old ? ZGenerationId::old : ZGenerationId::young;
+  const ZGenerationId id = is_old(allocation->age()) ? ZGenerationId::old : ZGenerationId::young;
   increase_used_generation(id, allocation->size());
 
   const ZPageType type = allocation->type();
