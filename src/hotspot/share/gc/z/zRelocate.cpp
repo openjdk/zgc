@@ -712,19 +712,22 @@ private:
       // Add remset entry in the to-page
       const uintptr_t offset = field_local_offset - from_local_offset;
       const zaddress to_field = to_addr + offset;
+      const zaddress from_field = from_addr + offset;
       log_trace(gc, reloc)("Remember: from: " PTR_FORMAT " to: " PTR_FORMAT " current: %d marking: %d page: " PTR_FORMAT " remset: " PTR_FORMAT,
-          untype(from_page->start() + field_local_offset), untype(to_field), active_remset_is_current, ZGeneration::young()->is_phase_mark(), p2i(to_page), p2i(to_page->remset_current()));
+                           untype(from_page->start() + field_local_offset), untype(to_field), active_remset_is_current, ZGeneration::young()->is_phase_mark(), p2i(to_page), p2i(to_page->remset_current()));
 
-      volatile zpointer* const p = (volatile zpointer*)to_field;
+      volatile zpointer* const to_p = (volatile zpointer*)to_field;
+      volatile zpointer* const from_p = (volatile zpointer*)from_field;
+      zpointer prev = AtomicAccess::load(from_p);
 
       if (ZGeneration::young()->is_phase_mark()) {
         // Young generation remembered set scanning needs to know about this
         // field. It will take responsibility to add a new remember set entry if needed.
-        _forwarding->relocated_remembered_fields_register(p);
+        _forwarding->relocated_remembered_fields_register(to_p, prev); // TODO: Doesn't respect the flag right now
       } else {
-        to_page->remember(p);
+        to_page->remember(to_p);
         if (in_place) {
-          assert(to_page->is_remembered(p), "p: " PTR_FORMAT, p2i(p));
+          assert(to_page->is_remembered(to_p), "p: " PTR_FORMAT, p2i(to_p));
         }
       }
     }
@@ -795,7 +798,13 @@ private:
   }
 
   void update_remset_promoted(zaddress to_addr) const {
-    ZIterator::basic_oop_iterate(to_oop(to_addr), update_remset_promoted_filter_and_remap_per_field);
+    if (ZOldRefCount) {
+      // TODO: Bad smell
+      ZGeneration::young()->on_promotion(to_addr);
+      ZIterator::basic_oop_iterate(to_oop(to_addr), ZRelocate::add_remset); // TODO: Deal with mutator claiming curr remset first
+    } else {
+      ZIterator::basic_oop_iterate(to_oop(to_addr), update_remset_promoted_filter_and_remap_per_field);
+    }
   }
 
   void update_remset_for_fields(zaddress from_addr, zaddress to_addr) const {
@@ -828,6 +837,9 @@ private:
       return false;
     }
 
+    // TODO: When the to-space object is published before the current remset bits have been set
+    // below, it is possible for a racy thread to claim setting the curr remset, which would decrement
+    // the ref count to -1.
     update_remset_for_fields(from_addr, to_addr);
 
     maybe_string_dedup(to_addr);
@@ -980,6 +992,8 @@ public:
       return;
     }
 
+    // TODO: Probably remove
+    ShouldNotReachHere();
     // Clear 'previous' remset bits. For in-place relocated pages, the previous
     // remset bits are always used, even when active_remset_is_current().
     page->clear_remset_previous();
@@ -1272,6 +1286,7 @@ public:
     for (ZPage* page; _iter.next(&page);) {
       page->object_iterate([&](oop obj) {
         // Remap oops and add remset if needed
+        ZGeneration::young()->on_promotion(to_zaddress(obj));
         ZIterator::basic_oop_iterate_safe(obj, remap_and_maybe_add_remset);
 
         // String dedup

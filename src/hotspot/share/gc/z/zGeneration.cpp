@@ -517,6 +517,7 @@ ZGenerationYoung::ZGenerationYoung(ZPageTable* page_table,
     _active_type(ZYoungType::none),
     _tenuring_threshold(0),
     _remembered(page_table, old_forwarding_table, page_allocator),
+    _old_ref_count(),
     _jfr_tracer() {
   ZGeneration::_young = this;
 }
@@ -904,6 +905,8 @@ void ZGenerationYoung::mark_start() {
   // Flip remembered set bits
   _remembered.flip();
 
+  _old_ref_count.on_young_mark_start();
+
   // Update statistics
   stat_heap()->at_mark_start(_page_allocator->update_and_stats(this));
 }
@@ -917,6 +920,9 @@ void ZGenerationYoung::mark_follow() {
   // Combine following with scanning the remembered set
   ZStatTimerYoung timer(ZSubPhaseConcurrentMarkFollowYoung);
   _remembered.scan_and_follow(&_mark);
+
+  // Free up unreferenced acyclic garbage in the old generation
+  _old_ref_count.process_death_row();
 }
 
 bool ZGenerationYoung::mark_end() {
@@ -997,6 +1003,27 @@ ZRemembered* ZGenerationYoung::remembered() {
 
 void ZGenerationYoung::remap_current_remset(ZRemsetTableIterator* iter) {
   _remembered.remap_current(iter);
+}
+
+// TODO: Bother with inlining?
+void ZGenerationYoung::on_root(zaddress addr) {
+  _old_ref_count.on_root(addr);
+}
+
+void ZGenerationYoung::on_remember(volatile zpointer* p, zaddress addr) {
+  _old_ref_count.on_remember(p, addr);
+}
+
+void ZGenerationYoung::on_forget(volatile zpointer* p, zaddress addr) {
+  _old_ref_count.on_forget(p, addr);
+}
+
+void ZGenerationYoung::on_promotion(zaddress addr) {
+  _old_ref_count.on_promotion(addr);
+}
+
+void ZGenerationYoung::on_old_mark_start() {
+  _old_ref_count.on_old_mark_start();
 }
 
 ZGenerationTracer* ZGenerationYoung::jfr_tracer() {
@@ -1260,6 +1287,9 @@ void ZGenerationOld::mark_start() {
 
   // Reset marking information
   _mark.start();
+
+  // Clear the ref counting garbage candidates
+  ZGeneration::young()->on_old_mark_start(); // TODO: This seems to belong to ZHeap; it's in the border lands
 
   // Update statistics
   stat_heap()->at_mark_start(_page_allocator->update_and_stats(this));

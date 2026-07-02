@@ -70,10 +70,20 @@ inline zaddress ZUncoloredRoot::make_load_good(zaddress_unsafe addr, uintptr_t c
 
 inline void ZUncoloredRoot::mark_object(zaddress addr) {
   ZBarrier::mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+
+  // TODO: This stinks
+  if (ZOldRefCount && !is_null(addr) && ZHeap::heap()->is_old(addr)) {
+    ZGeneration::young()->on_root(addr);
+  }
 }
 
 inline void ZUncoloredRoot::mark_young_object(zaddress addr) {
   ZBarrier::mark_if_young<ZMark::DontResurrect, ZMark::GCThread, ZMark::Follow>(addr);
+
+  // TODO: This stinks
+  if (ZOldRefCount && !is_null(addr) && ZHeap::heap()->is_old(addr)) {
+    ZGeneration::young()->on_root(addr);
+  }
 }
 
 inline void ZUncoloredRoot::mark_invisible_object(zaddress addr) {

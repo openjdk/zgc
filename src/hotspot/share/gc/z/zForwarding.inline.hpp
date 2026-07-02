@@ -303,7 +303,7 @@ inline zaddress ZForwarding::insert(zaddress from_addr, zaddress to_addr, ZForwa
   return insert(ZAddress::offset(from_addr), to_addr, cursor);
 }
 
-inline void ZForwarding::relocated_remembered_fields_register(volatile zpointer* p) {
+inline void ZForwarding::relocated_remembered_fields_register(volatile zpointer* p, zpointer prev) {
   // Invariant: Page is being retained
   assert(ZGeneration::young()->is_phase_mark(), "Only called when");
 
@@ -318,6 +318,7 @@ inline void ZForwarding::relocated_remembered_fields_register(volatile zpointer*
 
   if (res == ZPublishState::none) {
     _relocated_remembered_fields_array.push(p);
+    _relocated_remembered_fields_array.push((volatile zpointer*)prev); // TODO: A bit hacky?
     return;
   }
 
@@ -349,7 +350,9 @@ inline void ZForwarding::relocated_remembered_fields_apply_to_published(Function
     // OC published relocated remembered fields
     ZArrayIterator<volatile zpointer*> iter(&_relocated_remembered_fields_array);
     for (volatile zpointer* to_field_addr; iter.next(&to_field_addr);) {
-      function(to_field_addr);
+      zpointer prev;
+      iter.next((volatile zpointer**)&prev); // TODO: Yes I know it's hacky
+      function(to_field_addr, prev);
     }
 
     // YC responsible for the array - eagerly deallocate

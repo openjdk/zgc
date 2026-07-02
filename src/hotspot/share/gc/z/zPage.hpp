@@ -35,6 +35,7 @@
 
 class ZGeneration;
 class ZMultiPartitionTracker;
+class ZFreeList;
 
 class ZPage : public CHeapObj<mtGC> {
   friend class VMStructs;
@@ -53,6 +54,7 @@ private:
   ZRememberedSet                _remembered_set;
   ZMultiPartitionTracker* const _multi_partition_tracker;
   volatile bool                 _relocate_promoted;
+  ZFreeList*                    _free_list;
 
   const char* type_to_string() const;
 
@@ -141,7 +143,9 @@ public:
   template <typename Function>
   void object_iterate(Function function);
 
-  void remember(volatile zpointer* p);
+  bool remember(volatile zpointer* p);
+  bool forget_previous(volatile zpointer* p);
+  void forget_current(volatile zpointer* p);
 
   // In-place relocation support
   void clear_remset_bit_non_par_current(uintptr_t l_offset);
@@ -179,6 +183,9 @@ public:
 
   zaddress alloc_object(size_t size);
   zaddress alloc_object_atomic(size_t size);
+
+  void free_object_to_free_list(zaddress addr);
+  zaddress alloc_object_from_free_list(size_t size);
 
   bool undo_alloc_object(zaddress addr, size_t size);
   bool undo_alloc_object_atomic(zaddress addr, size_t size);

@@ -27,6 +27,7 @@
 #include "gc/z/zForwardingTable.hpp"
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zMark.hpp"
+#include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zReferenceProcessor.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRelocationSet.hpp"
@@ -195,10 +196,11 @@ class ZGenerationYoung : public ZGeneration {
   friend class ZYoungTypeSetter;
 
 private:
-  ZYoungType   _active_type;
-  uint         _tenuring_threshold;
-  ZRemembered  _remembered;
-  ZYoungTracer _jfr_tracer;
+  ZYoungType         _active_type;
+  uint               _tenuring_threshold;
+  ZRemembered        _remembered;
+  ZReferenceCounting _old_ref_count;
+  ZYoungTracer       _jfr_tracer;
 
   void flip_mark_start();
   void flip_relocate_start();
@@ -246,7 +248,9 @@ public:
   uint compute_tenuring_threshold(ZRelocationSetSelectorStats stats);
 
   // Add remembered set entries
-  void remember(volatile zpointer* p);
+  bool remember(volatile zpointer* p);
+  bool forget_previous(volatile zpointer* p);
+  void forget_current(volatile zpointer* p);
   void remember_fields(zaddress addr);
 
   // Scan a remembered set entry
@@ -257,6 +261,13 @@ public:
 
   // Remap the oops of the current remembered set
   void remap_current_remset(ZRemsetTableIterator* iter);
+
+  // Old gen reference counting from young gen support
+  void on_root(zaddress addr);
+  void on_remember(volatile zpointer* p, zaddress addr);
+  void on_forget(volatile zpointer* p, zaddress addr);
+  void on_promotion(zaddress addr);
+  void on_old_mark_start(); // TODO yes this is a sign ref counting class shouldn't be here
 
   // Serviceability
   ZGenerationTracer* jfr_tracer();

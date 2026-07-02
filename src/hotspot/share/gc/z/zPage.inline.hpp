@@ -330,12 +330,25 @@ inline void ZPage::object_iterate(Function function) {
   _livemap.iterate(_generation_id, do_bit);
 }
 
-inline void ZPage::remember(volatile zpointer* p) {
+inline bool ZPage::remember(volatile zpointer* p) {
   const zaddress addr = to_zaddress((uintptr_t)p);
   const uintptr_t l_offset = local_offset(addr);
-  _remembered_set.set_current(l_offset);
+  return _remembered_set.set_current(l_offset);
 }
 
+inline bool ZPage::forget_previous(volatile zpointer* p) {
+  const zaddress addr = to_zaddress((uintptr_t)p);
+  const uintptr_t l_offset = local_offset(addr);
+  return _remembered_set.unset_previous(l_offset);
+}
+
+inline void ZPage::forget_current(volatile zpointer* p) {
+  const zaddress addr = to_zaddress((uintptr_t)p);
+  const uintptr_t l_offset = local_offset(addr);
+  _remembered_set.unset_current(l_offset);
+}
+
+// TODO: Look at callers of these guys; don't want double clearing
 inline void ZPage::clear_remset_bit_non_par_current(uintptr_t l_offset) {
   _remembered_set.unset_non_par_current(l_offset);
 }

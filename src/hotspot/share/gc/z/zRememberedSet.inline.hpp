@@ -78,10 +78,20 @@ inline void ZRememberedSet::unset_non_par_current(uintptr_t offset) {
   current()->clear_bit(index);
 }
 
+inline void ZRememberedSet::unset_current(uintptr_t offset) {
+  const BitMap::idx_t index = to_index(offset);
+  current()->par_clear_bit(index, memory_order_relaxed);
+}
+
 inline void ZRememberedSet::unset_range_non_par_current(uintptr_t offset, size_t size) {
   const BitMap::idx_t start_index = to_index(offset);
   const BitMap::idx_t end_index = to_index(offset + size);
   current()->clear_range(start_index, end_index);
+}
+
+inline bool ZRememberedSet::unset_previous(uintptr_t offset) {
+  const BitMap::idx_t index = to_index(offset);
+  return previous()->par_clear_bit(index);
 }
 
 template <typename Function>

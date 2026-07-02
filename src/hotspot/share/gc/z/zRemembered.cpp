@@ -73,7 +73,11 @@ void ZRemembered::oops_do_forwarded_via_containing(GrowableArrayView<ZRemembered
       // Calculate the corresponding address in the to-object
       const zaddress to_addr_field = to_addr + field_offset;
 
-      function((volatile zpointer*)untype(to_addr_field));
+      const zaddress from_addr_field = zaddress(from_addr) + field_offset; // TODO: Not needed without the JVM flag
+      volatile zpointer* const from_field = (volatile zpointer*)untype(from_addr_field);
+      zpointer prev = AtomicAccess::load(from_field);
+
+      function((volatile zpointer*)untype(to_addr_field), prev);
     }
   }
 }
@@ -156,6 +160,20 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
     // remset entries accurately.
     OrderAccess::storestore();
   }
+
+  // TODO: We don't really need to clear the prev remset, but if we don't,
+  // the dead objects after marking, will still have prev bits set. We might
+  // want to refine this a bit.
+  //if (ZOldRefCount) {
+  //  // With old ref counting, remset is cleared incrementally with atomics
+  //  // collaboratively with the mutator.
+  //  if (!can_trust_live_bits) {
+  //    page->verify_remset_cleared_previous();
+  //  } else if (page->is_marked()) {
+  //    page->verify_remset_cleared_previous();
+  //  }
+  //  return result;
+  //}
 
   // If we have consumed the remset entries above we also clear them.
   // The exception is if the page is completely empty/garbage, where we don't
@@ -302,8 +320,8 @@ bool ZRemembered::scan_forwarding(ZForwarding* forwarding, void* context_void) c
 
     // Relocate (and mark) while page is released, to prevent
     // retain deadlock when relocation threads in-place relocate.
-    oops_do_forwarded_via_containing(array, [&](volatile zpointer* p) {
-      result |= scan_field(p);
+    oops_do_forwarded_via_containing(array, [&](volatile zpointer* p, zpointer prev) {
+      result |= scan_field(p, prev);
     });
 
   } else {
@@ -312,8 +330,8 @@ bool ZRemembered::scan_forwarding(ZForwarding* forwarding, void* context_void) c
     // The page has been released. If the page was relocated while this young
     // generation collection was running, the old generation relocation will
     // have published all addresses of fields that had a remembered set entry.
-    forwarding->relocated_remembered_fields_apply_to_published([&](volatile zpointer* p) {
-      result |= scan_field(p);
+    forwarding->relocated_remembered_fields_apply_to_published([&](volatile zpointer* p, zpointer prev) {
+      result |= scan_field(p, prev);
     });
   }
 
@@ -575,14 +593,51 @@ void ZRemembered::scan_and_follow(ZMark* mark) {
   mark->mark_follow();
 }
 
+// TODO: Give this a less desceptive name?
+bool ZRemembered::scan_field(volatile zpointer* p, zpointer prev) const {
+  // Decode the location of the prev colored pointer snapshot
+  const zaddress addr = ZBarrier::remset_barrier_on_oop_field_preloaded(p, prev);
+
+  if (is_null(addr)) {
+    return false;
+  }
+
+  if (ZHeap::heap()->is_young(addr)) {
+    remember(p);
+    return true;
+  } else if (ZOldRefCount) {
+    // When we have old-to-old relocation, there is no need to claim the last
+    // increment from the mutator; it does not have access to the from-space
+    // object needed in order to claim it. Hence, the last increment is always
+    // processed by the GC thread.
+    ZGeneration::young()->on_forget(p, addr);
+  }
+
+  return false;
+}
+
 bool ZRemembered::scan_field(volatile zpointer* p) const {
   assert(ZGeneration::young()->is_phase_mark(), "Wrong phase");
 
-  const zaddress addr = ZBarrier::remset_barrier_on_oop_field(p);
+  const zpointer prev = AtomicAccess::load(p);
+  const zaddress addr = ZBarrier::remset_barrier_on_oop_field_preloaded(p, prev);
 
-  if (!is_null(addr) && ZHeap::heap()->is_young(addr)) {
+  if (is_null(addr)) {
+    return false;
+  }
+
+  if (ZHeap::heap()->is_young(addr)) {
     remember(p);
     return true;
+  } else if (ZOldRefCount) {
+    const bool first = !ZPointer::is_store_good(prev);
+    // If the mutator performs a concurrent store, and hence the prev value
+    // is store good, then we don't have the correct oop that increment, and
+    // hence we are going to have to let the mutator win with the job of
+    // clearing the prev entry in the remembered set.
+    if (first && ZGeneration::young()->forget_previous(p)) {
+      ZGeneration::young()->on_forget(p, addr);
+    }
   }
 
   return false;

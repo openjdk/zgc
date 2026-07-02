@@ -155,8 +155,16 @@ inline ZYoungType ZGenerationYoung::type() const {
   return _active_type;
 }
 
-inline void ZGenerationYoung::remember(volatile zpointer* p) {
-  _remembered.remember(p);
+inline bool ZGenerationYoung::remember(volatile zpointer* p) {
+  return _remembered.remember(p);
+}
+
+inline bool ZGenerationYoung::forget_previous(volatile zpointer* p) {
+  return _remembered.forget_previous(p);
+}
+
+inline void ZGenerationYoung::forget_current(volatile zpointer* p) {
+  _remembered.forget_current(p);
 }
 
 inline void ZGenerationYoung::scan_remembered_field(volatile zpointer* p) {

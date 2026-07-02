@@ -167,6 +167,10 @@ zaddress ZBarrier::mark_from_young_slow_path(zaddress addr) {
     return addr;
   }
 
+  if (ZOldRefCount) {
+    ZGeneration::young()->on_root(addr);
+  }
+
   if (ZGeneration::young()->type() == ZYoungType::major_full_roots ||
       ZGeneration::young()->type() == ZYoungType::major_partial_roots) {
     // The initial major young collection is responsible for finding roots

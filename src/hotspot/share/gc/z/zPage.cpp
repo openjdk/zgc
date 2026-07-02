@@ -22,11 +22,13 @@
  */
 
 #include "gc/shared/gc_globals.hpp"
+#include "gc/z/zFreeList.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageAge.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
+#include "gc/z/zUtils.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
@@ -42,7 +44,8 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _livemap(object_max_count()),
     _remembered_set(),
     _multi_partition_tracker(multi_partition_tracker),
-    _relocate_promoted(false) {
+    _relocate_promoted(false),
+    _free_list(ZOldRefCount ? new ZFreeList(ZOffset::address(start()), size(), object_alignment()) : nullptr) {
   assert(!_virtual.is_null(), "Should not be null");
   assert((_type == ZPageType::small && size() == ZPageSizeSmall) ||
          (_type == ZPageType::medium && ZPageSizeMediumMin <= size() && size() <= ZPageSizeMediumMax) ||
@@ -172,6 +175,20 @@ void ZPage::swap_remset_bitmaps() {
 
 void* ZPage::remset_current() {
   return _remembered_set.current();
+}
+
+void ZPage::free_object_to_free_list(zaddress addr) {
+  size_t size = ZUtils::object_size(addr);
+  //_free_list->free(addr, size); TODO: Switch this on again
+#ifdef ASSERT
+  // TODO: Use the right zap function instead.
+  int header_size = 0;
+  memset(((char*)addr) + header_size, 0xdeafbabe, size - header_size);
+#endif
+}
+
+zaddress ZPage::alloc_object_from_free_list(size_t size) {
+  return _free_list->allocate(size);
 }
 
 void ZPage::print_on_msg(outputStream* st, const char* msg) const {
