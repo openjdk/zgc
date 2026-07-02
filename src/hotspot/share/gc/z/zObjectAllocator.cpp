@@ -27,7 +27,9 @@
 #include "gc/z/zHeuristics.hpp"
 #include "gc/z/zLock.inline.hpp"
 #include "gc/z/zObjectAllocator.hpp"
+#include "gc/z/zPage.hpp"
 #include "gc/z/zPage.inline.hpp"
+#include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zValue.inline.hpp"
@@ -195,6 +197,32 @@ zaddress ZObjectAllocator::PerAge::alloc_object(size_t size, ZAllocationFlags fl
 
 void ZObjectAllocator::PerAge::retire_pages() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
+
+  if (ZOldRefCount && is_old(_age)) {
+    const auto free_tail = [&](ZPage* page) {
+      if (page != nullptr) {
+        precond(page->is_allocating() || page->remaining() == 0);
+        // Put the remainder in the freelist.
+        // TODO: For shared pages this has the same race as the used statistics
+        //       above, need the same last reference does the retire fix so we do
+        //       not allocate when the page is still useful. After that we can
+        //       remove atomicity and the loop.
+        for (size_t size = page->remaining(); size != 0; size = page->remaining()) {
+          zaddress addr = page->alloc_object_atomic(size);
+          if (addr != zaddress::null) {
+            page->free_tail_to_free_list(unsafe(addr), size);
+          }
+        }
+      }
+    };
+
+    free_tail(_shared_medium_page.get());
+
+    ZValueIterator iter(&_shared_small_page);
+    for (ZPage** page_addr; iter.next(&page_addr);) {
+      free_tail(*page_addr);
+    }
+  }
 
   // Reset allocation pages
   _shared_medium_page.set(nullptr);

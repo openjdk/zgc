@@ -29,13 +29,20 @@
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zBitMap.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
+#include "gc/z/zGenerationId.hpp"
 #include "gc/z/zMark.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/debug.hpp"
 
 inline void ZLiveMap::reset() {
+  // TODO: Should not care about it at this point.
+  _seqnum_young.store_relaxed(0u);
   _seqnum.store_relaxed(0u);
+}
+
+inline bool ZLiveMap::is_death_row_pardoned_reset() const {
+  return _seqnum_young.load_acquire() == ZGeneration::generation(ZGenerationId::young)->seqnum();
 }
 
 inline bool ZLiveMap::is_marked(ZGenerationId id) const {
@@ -139,13 +146,13 @@ inline size_t ZLiveMap::do_object(ObjectClosure* cl, zaddress addr) const {
 }
 
 template <typename Function>
-inline void ZLiveMap::iterate_segment(BitMap::idx_t segment, Function function) {
+inline bool ZLiveMap::iterate_segment(BitMap::idx_t segment, Function function) {
   assert(is_segment_live(segment), "Must be");
 
   const BitMap::idx_t start_index = segment_start(segment);
   const BitMap::idx_t end_index   = segment_end(segment);
 
-  _bitmap.iterate(function, start_index, end_index);
+  return _bitmap.iterate(function, start_index, end_index);
 }
 
 template <typename Function>
@@ -219,6 +226,121 @@ inline BitMap::idx_t ZLiveMap::find_base_bit_in_segment(BitMap::idx_t start, Bit
   // The bitmaps contain pairs of bits to deal with strongly marked vs only
   // finalizable marked. Align down to get the first bit position.
   return bit & ~BitMap::idx_t(1);
+}
+
+inline void ZLiveMap::lazy_reset_death_row_pardonded() {
+  if (!is_death_row_pardoned_reset()) {
+    reset_death_row_pardonded();
+  }
+}
+
+inline BitMap::idx_t ZLiveMap::death_row_index(BitMap::idx_t object_index) const {
+  precond(object_index < pardoned_index(0u));
+  return object_index;
+}
+
+inline void ZLiveMap::set_death_row(BitMap::idx_t object_index) {
+  lazy_reset_death_row_pardonded();
+
+  const BitMap::idx_t index = death_row_index(object_index);
+
+  const BitMap::idx_t segment = index_to_segment(index);
+  if (!is_segment_live(segment)) {
+    reset_segment(segment);
+  }
+
+  _bitmap.par_set_bit(index, memory_order_relaxed);
+}
+
+inline void ZLiveMap::unset_death_row(BitMap::idx_t object_index) {
+  // Death Row bits survive a reset.
+  lazy_reset_death_row_pardonded();
+
+  const BitMap::idx_t index = death_row_index(object_index);
+
+  const BitMap::idx_t segment = index_to_segment(index);
+  if (!is_segment_live(segment)) {
+    return;
+  }
+
+  _bitmap.par_clear_bit(index, memory_order_relaxed);
+}
+
+inline bool ZLiveMap::is_in_death_row(BitMap::idx_t object_index) {
+  if (!is_death_row_pardoned_reset()) {
+    return false;
+  }
+
+  const BitMap::idx_t index = death_row_index(object_index);
+  const BitMap::idx_t segment = index_to_segment(index);
+  return is_segment_live(segment) &&                  // Segment is live
+         _bitmap.par_at(index, memory_order_relaxed); // Object has death row bit
+}
+
+template <typename Function>
+inline void ZLiveMap::iterate_death_row(Function function) {
+  // Death Row bits survive a reset.
+  lazy_reset_death_row_pardonded();
+
+  for (BitMap::idx_t segment = first_live_segment(); segment < NumSegments / 2; segment = next_live_segment(segment)) {
+    // For each live segment
+    iterate_segment(segment, function);
+  }
+}
+
+inline BitMap::idx_t  ZLiveMap::pardoned_index(BitMap::idx_t object_index) const {
+  return _bitmap.size() / 2 + object_index;
+}
+
+inline void ZLiveMap::set_pardoned(BitMap::idx_t object_index) {
+  lazy_reset_death_row_pardonded();
+
+  const BitMap::idx_t index = pardoned_index(object_index);
+
+  const BitMap::idx_t segment = index_to_segment(index);
+  if (!is_segment_live(segment)) {
+    // First object to be pardoned in this segment during
+    // this cycle, reset segment bitmap.
+    reset_segment(segment);
+  }
+
+  _bitmap.par_set_bit(index, memory_order_relaxed);
+}
+
+inline void ZLiveMap::unset_pardoned(BitMap::idx_t object_index) {
+  const BitMap::idx_t index = pardoned_index(object_index);
+  if (is_death_row_pardoned_reset() && is_segment_live(index_to_segment(index))) {
+    _bitmap.par_clear_bit(index, memory_order_relaxed);
+  }
+}
+
+inline bool ZLiveMap::is_pardoned(BitMap::idx_t object_index) const {
+  const BitMap::idx_t index = pardoned_index(object_index);
+  const BitMap::idx_t segment = index_to_segment(index);
+  return is_death_row_pardoned_reset() &&             // Pardoned is initialized
+         is_segment_live(segment) &&                  // Segment is live
+         _bitmap.par_at(index, memory_order_relaxed); // Object is pardoned
+}
+
+template <typename Function>
+inline void ZLiveMap::iterate_pardoned(Function function) {
+  if (!is_death_row_pardoned_reset()) {
+    return;
+  }
+
+  const BitMap::idx_t start_index = _bitmap.size() / 2;
+
+  auto adapter = [&](BitMap::idx_t index) {
+    function(index - start_index);
+  };
+
+  const BitMap::idx_t last_death_row_segment = index_to_segment(start_index - 1);
+  postcond(last_death_row_segment != index_to_segment(start_index));
+
+  for (BitMap::idx_t segment = next_live_segment(last_death_row_segment); segment < NumSegments; segment = next_live_segment(segment)) {
+    // For each live segment
+    iterate_segment(segment, adapter);
+  }
 }
 
 #endif // SHARE_GC_Z_ZLIVEMAP_INLINE_HPP

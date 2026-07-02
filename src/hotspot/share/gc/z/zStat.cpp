@@ -1695,7 +1695,7 @@ void ZStatRelocation::print_age_table() {
     FormatBuffer<> age_str("");
     if (age == ZPageAge::eden) {
       age_str.append("Eden");
-    } else if (age != ZPageAge::old) {
+    } else if (is_survivor(age)) {
       age_str.append("Survivor %d", i);
     }
 

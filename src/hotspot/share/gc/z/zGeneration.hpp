@@ -27,6 +27,8 @@
 #include "gc/z/zForwardingTable.hpp"
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zMark.hpp"
+#include "gc/z/zPageType.hpp"
+#include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zReferenceProcessor.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRelocationSet.hpp"
@@ -72,6 +74,9 @@ protected:
   ZRelocationSet        _relocation_set;
 
   Atomic<size_t>        _freed;
+  Atomic<size_t>        _freelist_promoted;
+  Atomic<size_t>        _freelist_compacted;
+  Atomic<size_t>        _freelist_available;
   Atomic<size_t>        _promoted;
   Atomic<size_t>        _compacted;
 
@@ -122,6 +127,13 @@ public:
   virtual bool should_record_stats() = 0;
   size_t freed() const;
   void increase_freed(size_t size);
+  size_t freelist_promoted() const;
+  void increase_freelist_promoted(size_t size);
+  size_t freelist_compacted() const;
+  void increase_freelist_compacted(size_t size);
+  size_t freelist_available() const;
+  void increase_freelist_available(size_t size);
+  void set_freelist_available(size_t size);
   size_t promoted() const;
   void increase_promoted(size_t size);
   size_t compacted() const;
@@ -195,10 +207,11 @@ class ZGenerationYoung : public ZGeneration {
   friend class ZYoungTypeSetter;
 
 private:
-  ZYoungType   _active_type;
-  uint         _tenuring_threshold;
-  ZRemembered  _remembered;
-  ZYoungTracer _jfr_tracer;
+  ZYoungType         _active_type;
+  uint               _tenuring_threshold;
+  ZRemembered        _remembered;
+  ZReferenceCounting _old_ref_count;
+  ZYoungTracer       _jfr_tracer;
 
   void flip_mark_start();
   void flip_relocate_start();
@@ -207,6 +220,7 @@ private:
   void mark_roots();
   void mark_follow();
   bool mark_end();
+  void process_old_death_row();
   void relocate_start();
   void relocate();
 
@@ -215,6 +229,7 @@ private:
   bool pause_mark_end();
   void concurrent_mark_continue();
   void concurrent_mark_free();
+  void concurrent_process_old_death_row();
   void concurrent_reset_relocation_set();
   void concurrent_select_relocation_set();
   void pause_relocate_start();
@@ -242,21 +257,42 @@ public:
   void register_in_place_relocate_promoted(ZPage* page);
 
   uint tenuring_threshold();
-  void select_tenuring_threshold(ZRelocationSetSelectorStats stats, bool promote_all);
-  uint compute_tenuring_threshold(ZRelocationSetSelectorStats stats);
+  void select_tenuring_threshold(const ZRelocationSetLiveStats& stats, bool promote_all);
+  uint compute_tenuring_threshold(const ZRelocationSetLiveStats& stats);
 
   // Add remembered set entries
-  void remember(volatile zpointer* p);
+  bool remember(volatile zpointer* p);
+  bool forget_previous(volatile zpointer* p);
+  void forget_current(volatile zpointer* p);
   void remember_fields(zaddress addr);
 
   // Scan a remembered set entry
   void scan_remembered_field(volatile zpointer* p);
+  void scan_remembered_field(volatile zpointer* p, zpointer prev);
 
   // Register old pages with remembered set
   void register_with_remset(ZPage* page);
 
   // Remap the oops of the current remembered set
   void remap_current_remset(ZRemsetTableIterator* iter);
+
+  // Old gen reference counting from young gen support
+  void on_root(zaddress addr);
+  void on_remember(volatile zpointer* p, zaddress addr, bool remembered);
+  void on_failed_remember(zaddress addr);
+  void on_forget(volatile zpointer* p, zaddress addr);
+  void on_promotion(zaddress addr);
+
+  void on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator);
+  void on_old_to_old(zaddress addr, bool was_mutator);
+  void on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr);
+
+  ZReferenceCounting::FreeListAllocation free_list_alloc_object(size_t size, ZPageType type, ZPageAge to_age);
+
+  void on_free_list_insert(const ZPage* page);
+  void register_old_alloction_page(ZPage* page);
+  void construct_old_allocator();
+  void reset_old_allocator();
 
   // Serviceability
   ZGenerationTracer* jfr_tracer();
@@ -275,6 +311,8 @@ private:
   ZWeakRootsProcessor _weak_roots_processor;
   ZUnload             _unload;
   uint                _total_collections_at_start;
+  uint32_t            _young_seqnum_at_mark_start;
+  uint32_t            _young_seqnum_at_mark_end;
   uint32_t            _young_seqnum_at_reloc_start;
   ZOldTracer          _jfr_tracer;
 
@@ -301,6 +339,7 @@ private:
   void pause_relocate_start();
   void concurrent_relocate();
   void concurrent_remap_young_roots();
+  void concurrent_create_freelists();
 
 public:
   ZGenerationOld(ZPageTable* page_table, ZPageAllocator* page_allocator);
@@ -317,7 +356,12 @@ public:
 
   uint total_collections_at_start() const;
 
+  uint32_t young_marks_since_old_mark_start() const;
+  uint32_t young_marks_since_old_mark_end() const;
+  uint32_t young_marks_since_old_reloc_start() const;
   bool active_remset_is_current() const;
+
+  void flip_survive(ZPage* from_page, ZPage* to_page);
 
   ZRelocateQueue* relocate_queue();
 

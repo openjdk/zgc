@@ -48,4 +48,24 @@ inline ZPageAge operator-(ZPageAge age, size_t size) {
   return to_zpageage(untype(age) - size_value);
 }
 
+inline constexpr bool is_eden(ZPageAge age) {
+  return ZPageAgeRangeEden.contains(age);
+}
+
+inline constexpr bool is_young(ZPageAge age) {
+  return ZPageAgeRangeYoung.contains(age);
+}
+
+inline constexpr bool is_survivor(ZPageAge age) {
+  return ZPageAgeRangeSurvivor.contains(age);
+}
+
+inline constexpr bool is_relocation(ZPageAge age) {
+  return ZPageAgeRangeRelocation.contains(age);
+}
+
+inline constexpr bool is_old(ZPageAge age) {
+  return ZPageAgeRangeOld.contains(age);
+}
+
 #endif // SHARE_GC_Z_ZPAGEAGE_INLINE_HPP

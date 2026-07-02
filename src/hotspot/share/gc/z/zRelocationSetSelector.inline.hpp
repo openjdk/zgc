@@ -60,6 +60,18 @@ inline bool ZRelocationSetSelectorStats::has_relocatable_pages() const {
   return _has_relocatable_pages;
 }
 
+inline size_t ZRelocationSetLiveStats::small(ZPageAge age) const {
+  return _small[untype(age)];
+}
+
+inline size_t ZRelocationSetLiveStats::medium(ZPageAge age) const {
+  return _medium[untype(age)];
+}
+
+inline size_t ZRelocationSetLiveStats::large(ZPageAge age) const {
+  return _large[untype(age)];
+}
+
 inline const ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorStats::small(ZPageAge age) const {
   return _small[untype(age)];
 }
@@ -73,6 +85,13 @@ inline const ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorStats::larg
 }
 
 inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size_t live_bytes) const {
+  if (_is_young) {
+    // TODO: Do better?
+
+    // For now we simply do not pre-filter young pages as we do not want flip promotion
+    return !page->is_large();
+  }
+
   if (page->is_small()) {
     // Small pages are always the same size, so we can simply compare the
     // garbage pre-calculated _page_fragmentation_limit.
@@ -109,7 +128,7 @@ inline void ZRelocationSetSelectorGroup::register_live_page(ZPage* page) {
   // Pre-filter out pages that are guaranteed to not be selected
   if (pre_filter_page(page, live)) {
     _live_pages.append(page);
-  } else if (page->is_young()) {
+  } else {
     _not_selected_pages.append(page);
   }
 
@@ -149,13 +168,17 @@ inline void ZRelocationSetSelector::register_live_page(ZPage* page) {
   page->log_msg(" (relocation candidate)");
 
   const ZPageType type = page->type();
+  const ZPageAge age = page->age();
 
   if (type == ZPageType::small) {
     _small.register_live_page(page);
+    _live_stats._small[untype(age)] += page->live_bytes();
   } else if (type == ZPageType::medium) {
     _medium.register_live_page(page);
+    _live_stats._medium[untype(age)] += page->live_bytes();
   } else {
     _large.register_live_page(page);
+    _live_stats._large[untype(age)] += page->live_bytes();
   }
 }
 

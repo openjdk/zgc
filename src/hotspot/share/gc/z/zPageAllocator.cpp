@@ -39,7 +39,7 @@
 #include "gc/z/zMemoryWorker.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageAllocator.inline.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zPhysicalMemoryManager.hpp"
@@ -1926,8 +1926,8 @@ void ZPageAllocator::decrease_used_generation(ZGenerationId id, size_t size) {
 void ZPageAllocator::promote_used(const ZPage* from, const ZPage* to) {
   assert(from->start() == to->start(), "pages start at same offset");
   assert(from->size() == to->size(),   "pages are the same size");
-  assert(from->age() != ZPageAge::old, "must be promotion");
-  assert(to->age() == ZPageAge::old,   "must be promotion");
+  assert(is_young(from->age()), "must be promotion");
+  assert(is_old(to->age()),   "must be promotion");
 
   decrease_used_generation(ZGenerationId::young, to->size());
   increase_used_generation(ZGenerationId::old, to->size());
@@ -2094,7 +2094,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
   const size_t soft_limit = heuristic_max_capacity();
 
   uint32_t highest_available_id = start_partition;
-  size_t highest_availiable = 0;
+  size_t highest_available = 0;
 
   for (uint32_t i = 0; i < num_partitions; ++i) {
     const uint32_t partition_id = (start_partition + i) % num_partitions;
@@ -2109,10 +2109,10 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
     }
 
     const ZPartition& partition = _partitions.get(partition_id);
-    const size_t partition_availiable = partition.available(attempt, partition.static_max_capacity());
-    if (partition_availiable > highest_availiable) {
+    const size_t partition_available = partition.available(attempt, partition.static_max_capacity());
+    if (partition_available > highest_available) {
       highest_available_id = partition_id;
-      highest_availiable = partition_availiable;
+      highest_available = partition_available;
     }
   }
 
@@ -2635,7 +2635,7 @@ ZPage* ZPageAllocator::create_page(ZPageAllocation* allocation, const ZVirtualMe
   // the generation statistics could se a decreasing used value between mark
   // start and mark end. At this point an allocation will be successful, so we
   // update the generation usage.
-  const ZGenerationId id = allocation->age() == ZPageAge::old ? ZGenerationId::old : ZGenerationId::young;
+  const ZGenerationId id = is_old(allocation->age()) ? ZGenerationId::old : ZGenerationId::young;
   increase_used_generation(id, allocation->size());
 
   const ZPageType type = allocation->type();
