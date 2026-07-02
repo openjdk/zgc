@@ -46,7 +46,7 @@ ZLiveMap::ZLiveMap(uint32_t object_max_count)
 
 void ZLiveMap::initialize_bitmap() {
   if (_bitmap.size() == 0) {
-    _bitmap.initialize(size_t(_segment_size) * size_t(NumSegments), false /* clear */);
+    _bitmap.initialize(size_t(_segment_size) * size_t(NumSegments), true /* clear */); // TODO: Change true to false again
   }
 }
 
@@ -139,4 +139,8 @@ void ZLiveMap::reset_segment(BitMap::idx_t segment) {
   // Set live bit
   const bool success = set_segment_live(segment);
   assert(success, "Should never fail");
+}
+
+void ZLiveMap::clear_bits() {
+  _bitmap.clear_large_range(0, _bitmap.size());
 }

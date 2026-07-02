@@ -68,12 +68,6 @@ void ZForwarding::in_place_relocation_finish() {
 
   _page->log_msg(" In-place reloc finish - top at start: " PTR_FORMAT, untype(_in_place_top_at_start));
 
-  if (_from_age == ZPageAge::old || _to_age != ZPageAge::old) {
-    // Only do this for non-promoted pages, that still need to reset live map.
-    // Done with iterating over the "from-page" view, so can now drop the _livemap.
-    _page->reset_livemap();
-  }
-
   // Disable relaxed ZHeap::is_in checks
   _in_place_thread.store_relaxed(nullptr);
 }
@@ -273,7 +267,7 @@ bool ZForwarding::is_done() const {
 //
 
 void ZForwarding::relocated_remembered_fields_after_relocate() {
-  assert(from_age() == ZPageAge::old, "Only old pages have remsets");
+  assert(is_old(from_age()), "Only old pages have remsets");
 
   _relocated_remembered_fields_publish_young_seqnum = ZGeneration::young()->seqnum();
 

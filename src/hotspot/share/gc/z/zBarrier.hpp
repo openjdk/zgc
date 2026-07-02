@@ -87,8 +87,8 @@ private:
   static zaddress make_load_good_no_relocate(zpointer ptr);
   static zaddress relocate_or_remap(zaddress_unsafe addr, ZGeneration* generation);
   static zaddress remap(zaddress_unsafe addr, ZGeneration* generation);
-  static void remember(volatile zpointer* p);
-  static void mark_and_remember(volatile zpointer* p, zaddress addr);
+  static bool remember(volatile zpointer* p);
+  static bool mark_and_remember(volatile zpointer* p, zaddress addr, zpointer o);
 
   // Fast paths in increasing strength level
   static bool is_load_good_or_null_fast_path(zpointer ptr);
@@ -170,7 +170,7 @@ public:
   static void mark_barrier_on_old_oop_field(volatile zpointer* p, bool finalizable);
   static void mark_barrier_on_oop_field(volatile zpointer* p, bool finalizable);
   static void mark_young_good_barrier_on_oop_field(volatile zpointer* p);
-  static zaddress remset_barrier_on_oop_field(volatile zpointer* p);
+  static zaddress remset_barrier_on_oop_field_preloaded(volatile zpointer* p, zpointer o);
   static void promote_barrier_on_young_oop_field(volatile zpointer* p);
 
   // Store barrier

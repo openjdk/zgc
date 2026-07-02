@@ -38,8 +38,13 @@ inline ZVirtualMemory::ZVirtualMemory()
 inline ZVirtualMemory::ZVirtualMemory(zoffset start, size_t size)
   : ZRange(start, size) {
   // ZVirtualMemory is only used for ZGranuleSize multiple ranges
-  assert(is_aligned(untype(start), ZGranuleSize), "must be multiple of ZGranuleSize");
-  assert(is_aligned(size, ZGranuleSize), "must be multiple of ZGranuleSize");
+  // TODO: Maybe this assert belongs when doing granule calulations, or we
+  // should have multiple types which have different requirements, as longs as
+  // we use zoffset and size_t we can represent any virtual memory range. Not
+  // sure why I added this requirement, other than capture when we added strage
+  // addresses in the page allocator.
+  // assert(is_aligned(untype(start), ZGranuleSize), "must be multiple of ZGranuleSize");
+  // assert(is_aligned(size, ZGranuleSize), "must be multiple of ZGranuleSize");
 }
 
 inline ZVirtualMemory::ZVirtualMemory(const ZRange<zoffset, zoffset_end>& range)

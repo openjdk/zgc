@@ -32,6 +32,7 @@ class ZPage;
 
 struct ZRememberedSetContaining {
   zaddress_unsafe _field_addr;
+  zpointer _field_value;
   zaddress_unsafe _addr;
 };
 
@@ -118,6 +119,8 @@ public:
   bool at_current(uintptr_t offset) const;
   bool at_previous(uintptr_t offset) const;
   bool set_current(uintptr_t offset);
+  bool unset_previous(uintptr_t offset);
+  void unset_current(uintptr_t offset);
   void unset_non_par_current(uintptr_t offset);
   void unset_range_non_par_current(uintptr_t offset, size_t size);
 

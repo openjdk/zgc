@@ -112,7 +112,9 @@ public:
 
   uint32_t partition_id() const;
 
+  bool is_young_to_young() const;
   bool is_promotion() const;
+  bool is_old_to_old() const;
 
   // Visit from-objects
   template <typename Function>
@@ -159,7 +161,7 @@ public:
   zaddress insert(zaddress from_addr, zaddress to_addr, ZForwardingCursor* cursor);
 
   // Relocated remembered set fields support
-  void relocated_remembered_fields_register(volatile zpointer* p);
+  void relocated_remembered_fields_register(volatile zpointer* p, zpointer prev);
   void relocated_remembered_fields_after_relocate();
   void relocated_remembered_fields_publish();
   void relocated_remembered_fields_notify_concurrent_scan_of();

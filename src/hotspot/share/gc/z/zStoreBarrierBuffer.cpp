@@ -162,13 +162,16 @@ void ZStoreBarrierBuffer::on_new_phase_relocate(size_t i) {
 void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
   volatile zpointer* const p = _buffer[i]._p;
 
-  if (ZHeap::heap()->is_young(p)) {
+  ZPage* page = ZHeap::heap()->page(p);
+
+  if (page->is_young()) {
     // Only need remset entries for old objects
     return;
   }
 
   const uintptr_t last_mark_young_bits = _last_processed_color & (ZPointerMarkedYoung0 | ZPointerMarkedYoung1);
   const bool woke_up_in_young_mark = last_mark_young_bits != ZPointerMarkedYoung;
+  const zaddress_unsafe p_base = _base_pointers[i];
 
   if (woke_up_in_young_mark) {
     // When young mark starts we "flip" the remembered sets. The remembered
@@ -179,11 +182,36 @@ void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
     // were supposed to be part of the remembered sets that the GC scans.
     // However, it is too late to add those entries at this point, so instead
     // we perform the GC remembered set scanning up-front here.
+
     ZGeneration::young()->scan_remembered_field(p);
-  } else {
+    //const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+    //ZGeneration::young()->on_failed_remember(addr);
+
+    // TODO: WARNING Errrrrr no idea what to do here really.
+    //if (!is_null(p_base)) {
+    //  // Color with the last processed color
+    //  const zpointer ptr = ZAddress::color(p_base, _last_processed_color);
+
+    //  // Look up the generation that thinks that this pointer is not
+    //  // load good and check if the page is being relocated.
+    //  ZGeneration* const remap_generation = ZBarrier::remap_generation(ptr);
+    //  if (remap_generation == ZGeneration::old()) {
+    //    // Old-to-old movement
+    //    const zpointer prev = _buffer[i]._prev;
+    //    ZGeneration::young()->scan_remembered_field(p, prev);
+    //  }
+    //} else {
+    //  // Page is not part of the relocation set
+    //  ZGeneration::young()->scan_remembered_field(p);
+    //}
+  } else if (!page->is_flip_promoted_current_young_collection()) {
     // The remembered set wasn't flipped in this phase shift,
     // so just add the remembered set entry.
-    ZGeneration::young()->remember(p);
+    if (!ZGeneration::young()->remember(p) && !is_null(p_base)) {
+      const zpointer prev = _buffer[i]._prev;
+      const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+      ZGeneration::young()->on_failed_remember(addr);
+    }
   }
 }
 
@@ -278,7 +306,7 @@ void ZStoreBarrierBuffer::flush() {
   for (size_t i = current(); i < BufferLength; ++i) {
     const ZStoreBarrierEntry& entry = _buffer[i];
     const zaddress addr = ZBarrier::make_load_good(entry._prev);
-    ZBarrier::mark_and_remember(entry._p, addr);
+    ZBarrier::mark_and_remember(entry._p, addr, entry._prev);
   }
 
   clear();

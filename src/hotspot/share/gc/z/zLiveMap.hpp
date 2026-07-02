@@ -67,8 +67,6 @@ private:
 
   bool claim_segment(BitMap::idx_t segment);
 
-  void initialize_bitmap();
-
   void reset(ZGenerationId id);
   void reset_segment(BitMap::idx_t segment);
 
@@ -81,7 +79,9 @@ public:
   ZLiveMap(uint32_t object_max_count);
   ZLiveMap(const ZLiveMap& other) = delete;
 
+  void initialize_bitmap(); // TODO: Lazyness; now mutators call this too
   void reset();
+  void clear_bits();
 
   bool is_marked(ZGenerationId id) const;
 
@@ -98,6 +98,18 @@ public:
 
   BitMap::idx_t find_base_bit(BitMap::idx_t index);
   BitMap::idx_t find_base_bit_in_segment(BitMap::idx_t start, BitMap::idx_t index);
+
+  // TODO: This is horrible, separate the classes  somehow to have two views of the same underlying bits
+  void set_death_row(BitMap::idx_t index);
+  void unset_death_row(BitMap::idx_t index);
+  template <typename Function>
+  void iterate_death_row(Function function, BitMap::idx_t used);
+
+  void set_pardoned(BitMap::idx_t index);
+  void unset_pardoned(BitMap::idx_t index);
+  bool is_pardoned(BitMap::idx_t index);
+  template <typename Function>
+  void iterate_pardoned(Function function, BitMap::idx_t used);
 };
 
 #endif // SHARE_GC_Z_ZLIVEMAP_HPP

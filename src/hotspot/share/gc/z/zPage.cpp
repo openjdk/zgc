@@ -22,13 +22,23 @@
  */
 
 #include "gc/shared/gc_globals.hpp"
+#include "gc/z/zAddress.hpp"
+#include "gc/z/zAddress.inline.hpp"
+#include "gc/z/zFreeList.inline.hpp"
+#include "gc/z/zGeneration.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageAge.inline.hpp"
+#include "gc/z/zPageType.hpp"
+#include "gc/z/zRelocate.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
+#include "gc/z/zUtils.hpp"
+#include "gc/z/zUtils.inline.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id)
   : _type(type),
@@ -42,7 +52,16 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _livemap(object_max_count()),
     _remembered_set(),
     _multi_partition_tracker(multi_partition_tracker),
-    _relocate_promoted(false) {
+    _relocate_promoted(false),
+    _flip_aged(),
+    _free_list_unused() {
+  if (ZOldRefCount) {
+    if (_type == ZPageType::small) {
+      _free_list_small = new ZFreeList<ZPageType::small>(*this);
+    } else {
+      _free_list_medium = new ZFreeList<ZPageType::medium>(*this);
+    }
+  }
   assert(!_virtual.is_null(), "Should not be null");
   assert((_type == ZPageType::small && size() == ZPageSizeSmall) ||
          (_type == ZPageType::medium && ZPageSizeMediumMin <= size() && size() <= ZPageSizeMediumMax) ||
@@ -50,8 +69,13 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
          "Page type/size mismatch");
   reset(age);
 
+  // TODO: Debug info for now
+  const uintptr_t start_value = static_cast<uintptr_t>(start());
+  assert(start_value <= ZAddressOffsetMax, "Offset out of bounds (" PTR_FORMAT " <= " PTR_FORMAT ")", start_value, ZAddressOffsetMax);
+
   if (is_old()) {
     remset_alloc();
+    _livemap.initialize_bitmap(); // TODO: Check for redundancy
   }
 }
 
@@ -61,14 +85,73 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t 
 ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker)
   : ZPage(type, age, vmem, multi_partition_tracker, -1u /* partition_id */) {}
 
-ZPage* ZPage::clone_for_promotion() const {
-  assert(_age != ZPageAge::old, "must be used for promotion");
+ZPage* ZPage::clone(ZPageAge age) const {
+  precond(age >= this->age());
+
   // Only copy type and memory layouts, and also update _top. Let the rest be
   // lazily reconstructed when needed.
-  ZPage* const page = new ZPage(_type, ZPageAge::old, _virtual, _multi_partition_tracker, _single_partition_id);
+  ZPage* const page = new ZPage(_type, age, _virtual, _multi_partition_tracker, _single_partition_id);
   page->_top = _top;
 
   return page;
+}
+
+ZPage* ZPage::inplace_relocate_page() {
+  const ZPageAge to_age = ZRelocate::compute_to_age(age());
+
+  if (::is_old(to_age)) {
+    return clone(to_age);
+  }
+
+  reset(to_age);
+
+  return this;
+}
+
+ZPage* ZPage::flip_age() {
+  if (is_old()) {
+    // Old to Old
+    precond(ZRelocate::compute_to_age(age()) == ZPageAge::old);
+
+    // TODO: Check if this is safe or if we need a new ZPage.
+    clear_livemap_bits();
+    OrderAccess::release();
+    reset(ZPageAge::old);
+    AtomicAccess::store(&_flip_aged, true);
+
+    return this;
+  }
+
+  const ZPageAge to_age = ZRelocate::compute_to_age(age());
+
+  if (is_young() && to_age == ZPageAge::promotion) {
+    // Young to Old (Promotion)
+    ZPage* const page = clone(to_age);
+    AtomicAccess::store(&page->_flip_aged, true);
+
+    return page;
+  }
+
+  // Young to Young
+  precond(::is_young(to_age));
+
+  reset(to_age);
+
+  AtomicAccess::store(&_flip_aged, true);
+
+  return this;
+}
+
+
+bool ZPage::is_flip_aged() const {
+  return AtomicAccess::load(&_flip_aged);
+}
+
+bool ZPage::is_flip_promoted() const {
+  return age() == ZPageAge::promotion && is_flip_aged();
+}
+bool ZPage::is_flip_promoted_current_young_collection() const {
+  return is_flip_promoted() && _seqnum_other == ZGeneration::young()->seqnum();
 }
 
 bool ZPage::allows_raw_null() const {
@@ -87,10 +170,27 @@ const ZGeneration* ZPage::generation() const {
   return ZGeneration::generation(_generation_id);
 }
 
+ZGeneration* ZPage::generation_other() {
+  return ZGeneration::generation(_generation_id == ZGenerationId::young ? ZGenerationId::old : ZGenerationId::young);
+}
+
+const ZGeneration* ZPage::generation_other() const {
+  return ZGeneration::generation(_generation_id == ZGenerationId::young ? ZGenerationId::old : ZGenerationId::young);
+}
+
+void ZPage::reset(ZPageAge age) {
+  _age = age;
+
+  _generation_id = ::is_old(age) ? ZGenerationId::old : ZGenerationId::young;
+
+  reset_seqnum();
+}
+
 void ZPage::reset_seqnum() {
   AtomicAccess::store(&_seqnum, generation()->seqnum());
-  AtomicAccess::store(&_seqnum_other, ZGeneration::generation(_generation_id == ZGenerationId::young ? ZGenerationId::old : ZGenerationId::young)->seqnum());
+  AtomicAccess::store(&_seqnum_other, generation_other()->seqnum());
 }
+
 
 void ZPage::remset_alloc() {
   // Remsets should only be allocated/initialized once and only for old pages.
@@ -100,16 +200,8 @@ void ZPage::remset_alloc() {
   _remembered_set.initialize(size());
 }
 
-ZPage* ZPage::reset(ZPageAge age) {
-  _age = age;
-
-  _generation_id = age == ZPageAge::old
-      ? ZGenerationId::old
-      : ZGenerationId::young;
-
-  reset_seqnum();
-
-  return this;
+void ZPage::clear_livemap_bits() {
+  _livemap.clear_bits();
 }
 
 void ZPage::reset_livemap() {
@@ -172,6 +264,83 @@ void ZPage::swap_remset_bitmaps() {
 
 void* ZPage::remset_current() {
   return _remembered_set.current();
+}
+
+size_t ZPage::coalesce_free_list() {
+  precond(!ZGeneration::young()->is_phase_relocate());
+  precond(is_allocating());
+
+  if (_type == ZPageType::small) {
+    return _free_list_small->coalesce_free_list();
+  } else {
+    return _free_list_medium->coalesce_free_list();
+  }
+}
+
+void ZPage::free_tail_to_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
+
+  if (_type == ZPageType::small) {
+    _free_list_small->free_tail(addr, size);
+  } else {
+    _free_list_medium->free_tail(addr, size);
+  }
+#ifdef ASSERT
+  // TODO: Use the right zap function instead.
+  const size_t header_size = 8;
+  ZUtils::fill(reinterpret_cast<uintptr_t*>(untype(addr) + header_size), ZUtils::bytes_to_words(size - header_size), 0xdeafbabedeafbabe);
+#endif
+}
+
+void ZPage::undo_alloc_object_from_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
+
+  if (_type == ZPageType::small) {
+    _free_list_small->undo_allocate(addr, size);
+  } else {
+    _free_list_medium->undo_allocate(addr, size);
+  }
+#ifdef ASSERT
+  // TODO: Use the right zap function instead.
+  const size_t header_size = 8;
+  ZUtils::fill(reinterpret_cast<uintptr_t*>(untype(addr) + header_size), ZUtils::bytes_to_words(size - header_size), 0xdeafbabedeafbabe);
+#endif
+}
+
+void ZPage::free_object_to_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
+
+  if (_type == ZPageType::small) {
+    _free_list_small->free(addr, size);
+  } else {
+    _free_list_medium->free(addr, size);
+  }
+#ifdef ASSERT
+  // TODO: Use the right zap function instead.
+  const size_t header_size = 8;
+  ZUtils::fill(reinterpret_cast<uintptr_t*>(untype(addr) + header_size), ZUtils::bytes_to_words(size - header_size), 0xdeafbabedeafbabe);
+#endif
+}
+
+void ZPage::free_object_to_free_list(zaddress addr) {
+  size_t size = ZUtils::object_size(addr);
+  free_object_to_free_list(unsafe(addr), size);
+}
+
+zaddress ZPage::alloc_object_from_free_list(size_t size) {
+  if (_type == ZPageType::small) {
+    return _free_list_small->allocate(size);
+  } else {
+    return _free_list_medium->allocate(size);
+  }
+}
+
+void ZPage::print_free_list_on(outputStream* st) const {
+  if (_type == ZPageType::small) {
+    _free_list_small->print_on(st);
+  } else {
+    _free_list_medium->print_on(st);
+  }
 }
 
 void ZPage::print_on_msg(outputStream* st, const char* msg) const {

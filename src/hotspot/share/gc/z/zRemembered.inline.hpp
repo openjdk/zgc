@@ -31,10 +31,24 @@
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageTable.inline.hpp"
 
-inline void ZRemembered::remember(volatile zpointer* p) const {
+inline bool ZRemembered::remember(volatile zpointer* p) const {
   ZPage* page = _page_table->get(p);
   assert(page != nullptr,  "Page missing in page table");
-  page->remember(p);
+  return page->remember(p);
+}
+
+inline bool ZRemembered::forget_previous(volatile zpointer* p) const {
+  // TODO: Maybe we already have the page, hmm?
+  ZPage* page = _page_table->get(p);
+  assert(page != nullptr,  "Page missing in page table");
+  return page->forget_previous(p);
+}
+
+inline void ZRemembered::forget_current(volatile zpointer* p) const {
+  // TODO: Maybe we already have the page, hmm?
+  ZPage* page = _page_table->get(p);
+  assert(page != nullptr,  "Page missing in page table");
+  page->forget_current(p);
 }
 
 inline bool ZRemembered::is_remembered(volatile zpointer* p) const {
