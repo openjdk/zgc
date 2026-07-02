@@ -190,6 +190,10 @@ void ZHeap::reset_tlab_used() {
   _tlab_usage.reset();
 }
 
+void ZHeap::in_place_replace_page(ZPage* from_page, ZPage* to_page) {
+  _page_table.replace(from_page, to_page);
+}
+
 bool ZHeap::is_in(uintptr_t addr) const {
   if (addr == 0) {
     // Null isn't in the heap.
@@ -339,6 +343,10 @@ void ZHeap::undo_alloc_object_for_relocation(zaddress addr, size_t size) {
 void ZHeap::keep_alive(oop obj) {
   const zaddress addr = to_zaddress(obj);
   ZBarrier::mark<ZMark::Resurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+
+  if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+    ZGeneration::young()->on_root(addr);
+  }
 }
 
 void ZHeap::mark_flush(Thread* thread) {

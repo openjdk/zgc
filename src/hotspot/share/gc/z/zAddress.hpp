@@ -26,6 +26,7 @@
 
 #include "memory/allStatic.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "utilities/rbTree.hpp"
 #include CPU_HEADER(gc/z/zAddress)
 
 // One bit that denotes where the heap start. All uncolored
@@ -306,6 +307,8 @@ public:
   static zpointer mark_young_good(zaddress addr, zpointer prev);
   static zpointer store_good(zaddress addr);
   static zpointer store_good_or_null(zaddress addr);
+
+  static RBTreeOrdering cmp(zaddress a, zaddress b);
 };
 
 class ZGlobalsPointers : public AllStatic {

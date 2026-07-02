@@ -32,4 +32,13 @@ enum class ZPageType : uint8_t {
   large
 };
 
+inline constexpr uint untype(ZPageType type) {
+  return static_cast<uint>(type);
+}
+
+constexpr uint ZPageTypeCount = untype(ZPageType::large) + 1;
+
+// Large pages contain a single object and don't have free lists.
+constexpr uint ZFreeListPageTypeCount = untype(ZPageType::large);
+
 #endif // SHARE_GC_Z_ZPAGETYPE_HPP

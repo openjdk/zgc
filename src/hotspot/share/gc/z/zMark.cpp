@@ -667,7 +667,7 @@ bool ZMark::follow_work(bool partial) {
 class ZMarkOopClosure : public OopClosure {
 public:
   virtual void do_oop(oop* p) {
-    ZBarrier::mark_barrier_on_oop_field((zpointer*)p, false /* finalizable */);
+    ZBarrier::mark_barrier_on_oop_field((volatile zpointer*)p, false /* finalizable */);
   }
 
   virtual void do_oop(narrowOop* p) {
@@ -678,7 +678,7 @@ public:
 class ZMarkYoungOopClosure : public OopClosure {
 public:
   virtual void do_oop(oop* p) {
-    ZBarrier::mark_young_good_barrier_on_oop_field((zpointer*)p);
+    ZBarrier::mark_young_good_barrier_on_oop_field((volatile zpointer*)p);
   }
 
   virtual void do_oop(narrowOop* p) {

@@ -36,6 +36,7 @@
 #include "gc/z/zObjectAllocator.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageAge.inline.hpp"
+#include "gc/z/zPageAllocator.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRelocationSet.inline.hpp"
 #include "gc/z/zRootsIterator.hpp"
@@ -44,15 +45,19 @@
 #include "gc/z/zStringDedup.inline.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zUncoloredRoot.inline.hpp"
+#include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zValue.inline.hpp"
 #include "gc/z/zVerify.hpp"
 #include "gc/z/zWorkers.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/atomicAccess.hpp"
+#include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
 static const ZStatCriticalPhase ZCriticalPhaseRelocationStall("Relocation Stall");
 static const ZStatSubPhase ZSubPhaseConcurrentRelocateRememberedSetFlipPromotedYoung("Concurrent Relocate Remset FP", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentFreeListPageYoung("Concurrent FP Free-List Page", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentFreeListPageOld("Concurrent FP Free-List Page", ZGenerationId::old);
 
 ZRelocateQueue::ZRelocateQueue()
   : _lock(),
@@ -356,24 +361,63 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
 
   // Allocate object
   const size_t size = ZUtils::object_size(from_addr);
-  const ZPageAge to_age = forwarding->to_age();
 
-  const zaddress to_addr = ZHeap::heap()->alloc_object_for_relocation(size, to_age);
+  // TODO: Refactor everything
+  zaddress to_addr = zaddress::null;
+  ZReferenceCounting::FreeListAllocation free_list_allocation;
+
+  if (is_old(forwarding->to_age())) {
+    free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, forwarding->type(), forwarding->to_age());
+    to_addr = free_list_allocation._address;
+  }
+
+  if (to_addr == zaddress::null) {
+    const ZPageAge to_age = forwarding->to_age();
+
+    to_addr = ZHeap::heap()->alloc_object_for_relocation(size, to_age);
+  }
+
 
   if (is_null(to_addr)) {
     // Allocation failed
     return zaddress::null;
   }
 
+
   // Copy object
   ZUtils::object_copy_disjoint(from_addr, to_addr, size);
+
+  ZPage* to_page = ZHeap::heap()->page(to_addr); // TODO: optimize
+  if (forwarding->is_old_to_old()) {
+    ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
+    ZGeneration::young()->on_old_to_space_alloc(page, to_addr, true);
+  }
 
   // Insert forwarding
   const zaddress to_addr_final = forwarding->insert(from_addr, to_addr, cursor);
 
   if (to_addr_final != to_addr) {
     // Already relocated, try undo allocation
-    ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
+    if (free_list_allocation._address != zaddress::null) {
+      // TODO: Change this so be symmtric, alloc gets FreeListAllocation, undo consumes it.
+      free_list_allocation._page->undo_alloc_object_from_free_list(unsafe(to_addr), size);
+      ZGeneration::young()->on_undo(to_addr, free_list_allocation._page);
+    } else {
+      ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
+      ZGeneration::young()->on_undo(to_addr, ZHeap::heap()->page(to_addr));
+    }
+  } else {
+    if (free_list_allocation._address != zaddress::null) {
+      if (forwarding->is_promotion()) {
+        ZGeneration::young()->increase_mutator_freelist_promoted(free_list_allocation._page->type(), size);
+      } else {
+        ZGeneration::old()->increase_mutator_freelist_compacted(free_list_allocation._page->type(), size);
+      }
+    }
+
+    if (forwarding->is_old_to_old()) {
+      ZGeneration::young()->on_mutator_old_to_old(forwarding, from_addr, to_addr);
+    }
   }
 
   return to_addr_final;
@@ -436,9 +480,9 @@ static ZPage* alloc_page(ZForwarding* forwarding) {
 
 static void retire_target_page(ZGeneration* generation, ZPage* page) {
   if (generation->is_young() && page->is_old()) {
-    generation->increase_promoted(page->used());
+    generation->increase_uncompensated_promoted(page->type(), page->used());
   } else {
-    generation->increase_compacted(page->used());
+    generation->increase_uncompensated_compacted(page->type(), page->used());
   }
 
   // Free target page if it is empty. We can end up with an empty target
@@ -447,6 +491,18 @@ static void retire_target_page(ZGeneration* generation, ZPage* page) {
   // relocation completed.
   if (page->used() == 0) {
     ZHeap::heap()->free_page(page);
+  } else if (ZOldRefCount && page->is_old()) {
+    // Put the remainder in the freelist.
+    // TODO: For shared pages this has the same race as the used statistics
+    //       above, need the same last reference does the retire fix so we do
+    //       not allocate when the page is still useful. After that we can
+    //       remove atomicity and the loop.
+    for (size_t size = page->remaining(); size != 0; size = page->remaining()) {
+      zaddress addr = page->alloc_object_atomic(size);
+      if (addr != zaddress::null) {
+        page->free_tail_to_free_list(unsafe(addr), size);
+      }
+    }
   }
 }
 
@@ -590,20 +646,23 @@ private:
   ZForwarding*        _forwarding;
   ZRelocationTargets* _targets;
   ZGeneration* const  _generation;
-  size_t              _other_promoted;
-  size_t              _other_compacted;
+  size_t              _freelist_promoted[ZPageTypeCount];
+  size_t              _freelist_compacted[ZPageTypeCount];
+  size_t              _mutator_promoted[ZPageTypeCount];
+  size_t              _mutator_compacted[ZPageTypeCount];
   ZStringDedupContext _string_dedup_context;
 
   size_t object_alignment() const {
     return (size_t)1 << _forwarding->object_alignment_shift();
   }
 
-  void increase_other_forwarded(size_t unaligned_object_size) {
+  void increase_mutator_forwarded(size_t unaligned_object_size) {
     const size_t aligned_size = align_up(unaligned_object_size, object_alignment());
+    const uint type_index = untype(_forwarding->type());
     if (_forwarding->is_promotion()) {
-      _other_promoted += aligned_size;
+      _mutator_promoted[type_index] += aligned_size;
     } else {
-      _other_compacted += aligned_size;
+      _mutator_compacted[type_index] += aligned_size;
     }
   }
 
@@ -611,69 +670,95 @@ private:
     ZForwardingCursor cursor;
 
     const size_t size = ZUtils::object_size(from_addr);
-    ZPage* const to_page = _targets->get(partition_id, _forwarding->to_age());
 
     // Lookup forwarding
     {
       const zaddress to_addr = _forwarding->find(from_addr, &cursor);
       if (!is_null(to_addr)) {
         // Already relocated
-        increase_other_forwarded(size);
+        increase_mutator_forwarded(size);
+        update_remset_for_fields(from_addr, to_addr, true /* was_mutator */);
         return to_addr;
       }
     }
 
-    // Allocate object
-    const zaddress allocated_addr = _allocator->alloc_object(to_page, size);
-    if (is_null(allocated_addr)) {
-      // Allocation failed
-      return zaddress::null;
+    // TODO: Refactor everthing.
+    zaddress allocated_addr = zaddress::null;
+    ZReferenceCounting::FreeListAllocation free_list_allocation;
+
+    if (is_old(_forwarding->to_age())) {
+      free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, _forwarding->type(), _forwarding->to_age());
+      allocated_addr = free_list_allocation._address;
     }
+
+    ZPage* const to_page = _targets->get(partition_id, _forwarding->to_age());
+
+    if (allocated_addr == zaddress::null) {
+      // Allocate object
+      allocated_addr = _allocator->alloc_object(to_page, size);
+      if (is_null(allocated_addr)) {
+        // Allocation failed
+        return zaddress::null;
+      }
+    }
+
+    bool in_place = _forwarding->in_place_relocation();
 
     // Copy object. Use conjoint copying if we are relocating
     // in-place and the new object overlaps with the old object.
-    if (_forwarding->in_place_relocation() && allocated_addr + size > from_addr) {
+    if (in_place && allocated_addr + size > from_addr) {
       ZUtils::object_copy_conjoint(from_addr, allocated_addr, size);
     } else {
       ZUtils::object_copy_disjoint(from_addr, allocated_addr, size);
     }
 
+    if (_forwarding->is_old_to_old()) {
+      ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
+      ZGeneration::young()->on_old_to_space_alloc(page, allocated_addr, false);
+    }
+
+    if (in_place) {
+      // In-place relocation has to update remembered sets before mutators can
+      // clobber the memory. Otherwise, we lose information necessary to process
+      // reference counts for the old generation.
+      update_remset_for_fields(from_addr, allocated_addr, false /* was_mutator */);
+    }
+
     // Insert forwarding
     const zaddress to_addr = _forwarding->insert(from_addr, allocated_addr, &cursor);
+
     if (to_addr != allocated_addr) {
       // Already relocated, undo allocation
-      _allocator->undo_alloc_object(to_page, to_addr, size);
-      increase_other_forwarded(size);
+      assert(!in_place, "sanity");
+
+      if (free_list_allocation._address != zaddress::null) {
+        // TODO: Change this so be symmtric, alloc gets FreeListAllocation, undo consumes it.
+        free_list_allocation._page->undo_alloc_object_from_free_list(unsafe(allocated_addr), size);
+        ZGeneration::young()->on_undo(to_addr, free_list_allocation._page);
+      } else {
+        // TODO: Fix wrong address undo.
+        // _allocator->undo_alloc_object(to_page, to_addr, size);
+        // ZGeneration::young()->on_undo(to_addr, to_page);
+      }
+
+      increase_mutator_forwarded(size);
+    } else if (free_list_allocation._address != zaddress::null) {
+      if (_forwarding->is_promotion()) {
+        _freelist_promoted[untype(free_list_allocation._page->type())] += size;
+      } else {
+        _freelist_compacted[untype(free_list_allocation._page->type())] += size;
+      }
+    }
+
+    if (!in_place) {
+      update_remset_for_fields(from_addr, to_addr, to_addr != allocated_addr);
     }
 
     return to_addr;
   }
 
-  void update_remset_old_to_old(zaddress from_addr, zaddress to_addr) const {
+  void update_remset_old_to_old(zaddress from_addr, zaddress to_addr, bool was_mutator) const {
     // Old-to-old relocation - move existing remset bits
-
-    // If this is called for an in-place relocated page, then this code has the
-    // responsibility to clear the old remset bits. Extra care is needed because:
-    //
-    // 1) The to-object copy can overlap with the from-object copy
-    // 2) Remset bits of old objects need to be cleared
-    //
-    // A watermark is used to keep track of how far the old remset bits have been removed.
-
-    const bool in_place = _forwarding->in_place_relocation();
-    ZPage* const from_page = _forwarding->page();
-    const uintptr_t from_local_offset = from_page->local_offset(from_addr);
-
-    // Note: even with in-place relocation, the to_page could be another page
-    ZPage* const to_page = ZHeap::heap()->page(to_addr);
-
-    // Uses _relaxed version to handle that in-place relocation resets _top
-    assert(ZHeap::heap()->is_in_page_relaxed(from_page, from_addr), "Must be");
-    assert(to_page->is_in(to_addr), "Must be");
-
-    // Read the size from the to-object, since the from-object
-    // could have been overwritten during in-place relocation.
-    const size_t size = ZUtils::object_size(to_addr);
 
     // If a young generation collection started while the old generation
     // relocated  objects, the remember set bits were flipped from "current"
@@ -695,14 +780,54 @@ private:
     // doesn't matter for correctness, because the young generation marking has
     // already taken care of the bits.
 
-    const bool active_remset_is_current = ZGeneration::old()->active_remset_is_current();
+    const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+
+    const bool before_young_mark = young_marks == 0;
+    const bool during_young_mark = young_marks == 1 && ZGeneration::young()->is_phase_mark();
+    const bool after_young_mark = !before_young_mark && !during_young_mark;
+
+    if (after_young_mark) {
+      // After the first young mark, all remembered sets of forwardings have been
+      // processed, and processing them again is dangerous for reference counting.
+      return;
+    }
+
+    if (before_young_mark && was_mutator) {
+      // Before young mark start, mutators help relocating remembered set entries,
+      // so we shouldn't do it again as that might conflict our counters.
+      return;
+    }
+
+    // If this is called for an in-place relocated page, then this code has the
+    // responsibility to clear the old remset bits. Extra care is needed because:
+    //
+    // 1) The to-object copy can overlap with the from-object copy
+    // 2) Remset bits of old objects need to be cleared
+    //
+    // A watermark is used to keep track of how far the old remset bits have been removed.
+
+    ZPage* const from_page = _forwarding->page();
+    const uintptr_t from_local_offset = from_page->local_offset(from_addr);
+
+    // Note: even with in-place relocation, the to_page could be another page
+    ZPage* const to_page = ZHeap::heap()->page(to_addr);
+
+    const bool in_place = from_page->start() == to_page->start();
+
+    // Uses _relaxed version to handle that in-place relocation resets _top
+    assert(ZHeap::heap()->is_in_page_relaxed(from_page, from_addr), "Must be");
+    assert(to_page->is_in(to_addr), "Must be");
+
+    // Read the size from the to-object, since the from-object
+    // could have been overwritten during in-place relocation.
+    const size_t size = ZUtils::object_size(to_addr);
 
     // When in-place relocation is done and the old remset bits are located in
     // the bitmap that is going to be used for the new remset bits, then we
     // need to clear the old bits before the new bits are inserted.
-    const bool iterate_current_remset = active_remset_is_current && !in_place;
+    const bool iterate_current_remset = before_young_mark;
 
-    BitMap::Iterator iter = iterate_current_remset
+    BitMap::Iterator iter = before_young_mark
         ? from_page->remset_iterator_limited_current(from_local_offset, size)
         : from_page->remset_iterator_limited_previous(from_local_offset, size);
 
@@ -712,19 +837,46 @@ private:
       // Add remset entry in the to-page
       const uintptr_t offset = field_local_offset - from_local_offset;
       const zaddress to_field = to_addr + offset;
-      log_trace(gc, reloc)("Remember: from: " PTR_FORMAT " to: " PTR_FORMAT " current: %d marking: %d page: " PTR_FORMAT " remset: " PTR_FORMAT,
-          untype(from_page->start() + field_local_offset), untype(to_field), active_remset_is_current, ZGeneration::young()->is_phase_mark(), p2i(to_page), p2i(to_page->remset_current()));
+      const zaddress from_field = from_addr + offset;
+      log_trace(gc, reloc)("Remember: from: " PTR_FORMAT " to: " PTR_FORMAT " marking: %d page: " PTR_FORMAT " remset: " PTR_FORMAT,
+                           untype(from_page->start() + field_local_offset), untype(to_field), ZGeneration::young()->is_phase_mark(), p2i(to_page), p2i(to_page->remset_current()));
 
-      volatile zpointer* const p = (volatile zpointer*)to_field;
+      volatile zpointer* const to_p = (volatile zpointer*)to_field;
+      volatile zpointer* const from_p = (volatile zpointer*)from_field;
 
-      if (ZGeneration::young()->is_phase_mark()) {
+      if (during_young_mark) {
+        // When we have in-place relocation the fromspace object might have been conjointly copied
+        // to to-space, meaning that the from-space view is garbage. However, when we do have in-place
+        // relocated objects, we perform the remset maintenance before exposing the object in the
+        // forwarding table. Therefore, the to-space field will contain exactly the same value that
+        // our from-space snapshot would have.
+        zpointer prev = AtomicAccess::load(in_place ? to_p : from_p);
+
         // Young generation remembered set scanning needs to know about this
         // field. It will take responsibility to add a new remember set entry if needed.
-        _forwarding->relocated_remembered_fields_register(p);
+        _forwarding->relocated_remembered_fields_register(to_p, prev); // TODO: Doesn't respect the flag right now
       } else {
-        to_page->remember(p);
+        assert(before_young_mark, "must be");
+
+        // Forget current so subsequent remset scanning doesn't process the prev bits from fromspace.
+        from_page->forget_current(from_p);
+
+        if (!ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
+          assert(!in_place, "impossible scenario");
+          // During in-place relocation, we can only fail inserting the remembered set due to mutator
+          // relocations. This means that from and to objects are disjoint, and we can easily fish out
+          // the initial value from the from-space.
+          zpointer prev = AtomicAccess::load(from_p);
+
+          // It is impossible for the below load barrier to require relocation. If the mutator beat
+          // us to it with setting the current bit with its store barrier, then the forwarding table
+          // for the initial previous value that we have in prev, is guaranteed to have been relocated
+          // already by the mutator.
+          const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+          ZGeneration::young()->on_failed_remember(addr);
+        }
         if (in_place) {
-          assert(to_page->is_remembered(p), "p: " PTR_FORMAT, p2i(p));
+          assert(to_page->is_remembered(to_p), "p: " PTR_FORMAT, p2i(to_p));
         }
       }
     }
@@ -794,24 +946,48 @@ private:
     return;
   }
 
-  void update_remset_promoted(zaddress to_addr) const {
-    ZIterator::basic_oop_iterate(to_oop(to_addr), update_remset_promoted_filter_and_remap_per_field);
+  void update_remset_promoted(zaddress from_addr, zaddress to_addr) const {
+    if (ZOldRefCount) {
+      // TODO: Bad smell
+      auto doit = [&](volatile zpointer* p) {
+        if (!ZGeneration::young()->remember(p)) {
+          uintptr_t offset = uintptr_t(p) - untype(to_addr);
+          volatile zpointer *from_p = (volatile zpointer*)untype(from_addr + offset);
+          const zpointer prev = AtomicAccess::load(from_p);
+          // It is impossible for the below load barrier to require relocation. If the mutator beat
+          // us to it with setting the current bit with its store barrier, then the forwarding table
+          // for the initial previous value that we have in prev, is guaranteed to have been relocated
+          // already by the mutator.
+          const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+          ZGeneration::young()->on_failed_remember(addr);
+        }
+      };
+      // TODO: This Pair-wise oop iteration is something we could have a general iterator for,
+      //       we added something similar in ZClonerOopClousre.
+      ZIterator::basic_oop_iterate(to_oop(to_addr), doit);
+      ZGeneration::young()->on_promotion(to_addr);
+    } else {
+      ZIterator::basic_oop_iterate(to_oop(to_addr), update_remset_promoted_filter_and_remap_per_field);
+    }
   }
 
-  void update_remset_for_fields(zaddress from_addr, zaddress to_addr) const {
-    if (_forwarding->to_age() != ZPageAge::old) {
+  void update_remset_for_fields(zaddress from_addr, zaddress to_addr, bool was_mutator) const {
+    if (_forwarding->is_young_to_young()) {
       // No remembered set in young pages
       return;
     }
 
     // Need to deal with remset when moving objects to the old generation
-    if (_forwarding->from_age() == ZPageAge::old) {
-      update_remset_old_to_old(from_addr, to_addr);
+    if (_forwarding->is_old_to_old()) {
+      update_remset_old_to_old(from_addr, to_addr, was_mutator);
+      ZPage* from_page = _forwarding->page();
+      ZPage* to_page = ZHeap::heap()->page(to_addr); // TODO: Pass in from transitive caller
+      ZGeneration::young()->on_old_to_old(from_addr, from_page, to_addr, to_page, was_mutator);
       return;
     }
 
     // Normal promotion
-    update_remset_promoted(to_addr);
+    update_remset_promoted(from_addr, to_addr);
   }
 
   void maybe_string_dedup(zaddress to_addr) {
@@ -828,35 +1004,9 @@ private:
       return false;
     }
 
-    update_remset_for_fields(from_addr, to_addr);
-
     maybe_string_dedup(to_addr);
 
     return true;
-  }
-
-  void start_in_place_relocation_prepare_remset(ZPage* from_page) {
-    if (_forwarding->from_age() != ZPageAge::old) {
-      // Only old pages have use remset bits
-      return;
-    }
-
-    if (ZGeneration::old()->active_remset_is_current()) {
-      // We want to iterate over and clear the remset bits of the from-space page,
-      // and insert current bits in the to-space page. However, with in-place
-      // relocation, the from-space and to-space pages are the same. Clearing
-      // is destructive, and is difficult to perform before or during the iteration.
-      // However, clearing of the current bits has to be done before exposing the
-      // to-space objects in the forwarding table.
-      //
-      // To solve this tricky dependency problem, we start by stashing away the
-      // current bits in the previous bits, and clearing the current bits
-      // (implemented by swapping the bits). This way, the current bits are
-      // cleared before copying the objects (like a normal to-space page),
-      // and the previous bits are representing a copy of the current bits
-      // of the from-space page, and are used for iteration.
-      from_page->swap_remset_bitmaps();
-    }
   }
 
   ZPage* start_in_place_relocation(zoffset relocated_watermark) {
@@ -864,21 +1014,20 @@ private:
     _forwarding->in_place_relocation_start(relocated_watermark);
 
     ZPage* const from_page = _forwarding->page();
-
-    const ZPageAge to_age = _forwarding->to_age();
     const bool promotion = _forwarding->is_promotion();
 
-    // Promotions happen through a new cloned page
-    ZPage* const to_page = promotion
-        ? from_page->clone_for_promotion()
-        : from_page->reset(to_age);
+    // Old In-place relocation always happens through a new cloned page
+    ZPage* const to_page = from_page->inplace_relocate_page();
+    postcond(_forwarding->is_young_to_young() || to_page != from_page);
 
     // Reset page for in-place relocation
     to_page->reset_top_for_allocation();
 
     // Verify that the inactive remset is clear when resetting the page for
     // in-place relocation.
-    if (from_page->age() == ZPageAge::old) {
+    if (from_page->is_old()) {
+      const bool young_marks = ZGeneration::old()->active_remset_is_current();
+
       if (ZGeneration::old()->active_remset_is_current()) {
         to_page->verify_remset_cleared_previous();
       } else {
@@ -886,9 +1035,10 @@ private:
       }
     }
 
-    // Clear remset bits for all objects that were relocated
-    // before this page became an in-place relocated page.
-    start_in_place_relocation_prepare_remset(from_page);
+    if (to_page->is_old()) {
+      // TODO: IMPORTANT ensure we don't have a memory leak for the previous page
+      ZHeap::heap()->in_place_replace_page(from_page, to_page);
+    }
 
     if (promotion) {
       // Register the promotion
@@ -933,8 +1083,10 @@ public:
       _forwarding(nullptr),
       _targets(targets),
       _generation(generation),
-      _other_promoted(0),
-      _other_compacted(0) {}
+      _freelist_promoted(),
+      _freelist_compacted(),
+      _mutator_promoted(),
+      _mutator_compacted() {}
 
   ~ZRelocateWork() {
     _targets->apply_and_clear_targets([&](ZPage* page) {
@@ -942,47 +1094,13 @@ public:
     });
 
     // Report statistics on-behalf of non-worker threads
-    _generation->increase_promoted(_other_promoted);
-    _generation->increase_compacted(_other_compacted);
-  }
-
-  bool active_remset_is_current() const {
-    // Normal old-to-old relocation can treat the from-page remset as a
-    // read-only copy, and then copy over the appropriate remset bits to the
-    // cleared to-page's 'current' remset bitmap.
-    //
-    // In-place relocation is more complicated. Since, the same page is both
-    // a from-page and a to-page, we need to remove the old remset bits, and
-    // add remset bits that corresponds to the new locations of the relocated
-    // objects.
-    //
-    // Depending on how long ago (in terms of number of young GC's and the
-    // current young GC's phase), the page was allocated, the active
-    // remembered set will be in either the 'current' or 'previous' bitmap.
-    //
-    // If the active bits are in the 'previous' bitmap, we know that the
-    // 'current' bitmap was cleared at some earlier point in time, and we can
-    // simply set new bits in 'current' bitmap, and later when relocation has
-    // read all the old remset bits, we could just clear the 'previous' remset
-    // bitmap.
-    //
-    // If, on the other hand, the active bits are in the 'current' bitmap, then
-    // that bitmap will be used to both read the old remset bits, and the
-    // destination for the remset bits that we copy when an object is copied
-    // to it's new location within the page. We need to *carefully* remove all
-    // all old remset bits, without clearing out the newly set bits.
-    return ZGeneration::old()->active_remset_is_current();
-  }
-
-  void clear_remset_before_in_place_reuse(ZPage* page) {
-    if (_forwarding->from_age() != ZPageAge::old) {
-      // No remset bits
-      return;
+    for (uint i = 0; i < ZPageTypeCount; i++) {
+      const ZPageType type = static_cast<ZPageType>(i);
+      _generation->increase_freelist_promoted(type, _freelist_promoted[i]);
+      _generation->increase_freelist_compacted(type, _freelist_compacted[i]);
+      _generation->increase_mutator_promoted(type, _mutator_promoted[i]);
+      _generation->increase_mutator_compacted(type, _mutator_compacted[i]);
     }
-
-    // Clear 'previous' remset bits. For in-place relocated pages, the previous
-    // remset bits are always used, even when active_remset_is_current().
-    page->clear_remset_previous();
   }
 
   void finish_in_place_relocation() {
@@ -1016,7 +1134,7 @@ public:
     }
 
     // Old from-space pages need to deal with remset bits
-    if (_forwarding->from_age() == ZPageAge::old) {
+    if (_forwarding->is_old_to_old()) {
       _forwarding->relocated_remembered_fields_after_relocate();
     }
 
@@ -1026,9 +1144,8 @@ public:
     if (in_place) {
       // Wait for all other threads to call release_page
       ZPage* const page = _forwarding->detach_page();
-
-      // Ensure that previous remset bits are cleared
-      clear_remset_before_in_place_reuse(page);
+      // TODO: Check that we don't leak the from-space page during
+      // in-place relocation.
 
       page->log_msg(" (relocate page done in-place)");
 
@@ -1036,7 +1153,6 @@ public:
       const uint32_t target_partition = _forwarding->partition_id();
       ZPage* const target_page = _targets->get(target_partition, _forwarding->to_age());
       _allocator->share_target_page(target_page, target_partition);
-
     } else {
       // Wait for all other threads to call release_page
       ZPage* const page = _forwarding->detach_page();
@@ -1046,34 +1162,6 @@ public:
       // Free page
       ZHeap::heap()->free_page(page);
     }
-  }
-};
-
-class ZRelocateStoreBufferInstallBasePointersThreadClosure : public ThreadClosure {
-public:
-  virtual void do_thread(Thread* thread) {
-    JavaThread* const jt = JavaThread::cast(thread);
-    ZStoreBarrierBuffer* buffer = ZThreadLocalData::store_barrier_buffer(jt);
-    buffer->install_base_pointers();
-  }
-};
-
-// Installs the object base pointers (object starts), for the fields written
-// in the store buffer. The code that searches for the object start uses that
-// liveness information stored in the pages. That information is lost when the
-// pages have been relocated and then destroyed.
-class ZRelocateStoreBufferInstallBasePointersTask : public ZTask {
-private:
-  ZJavaThreadsIterator _threads_iter;
-
-public:
-  ZRelocateStoreBufferInstallBasePointersTask(ZGeneration* generation)
-    : ZTask("ZRelocateStoreBufferInstallBasePointersTask"),
-      _threads_iter(generation->id_optional()) {}
-
-  virtual void work() {
-    ZRelocateStoreBufferInstallBasePointersThreadClosure fix_store_buffer_cl;
-    _threads_iter.apply(&fix_store_buffer_cl);
   }
 };
 
@@ -1271,8 +1359,16 @@ public:
 
     for (ZPage* page; _iter.next(&page);) {
       page->object_iterate([&](oop obj) {
-        // Remap oops and add remset if needed
-        ZIterator::basic_oop_iterate_safe(obj, obj->klass(), remap_and_maybe_add_remset);
+        if (ZOldRefCount) {
+          // Remap oops and add remset if needed
+          auto doit = [&](volatile zpointer* p) {
+            ZGeneration::young()->remember(p);
+          };
+          ZIterator::basic_oop_iterate_safe(obj, doit);
+          ZGeneration::young()->on_promotion(to_zaddress(obj));
+        } else {
+          ZIterator::basic_oop_iterate_safe(obj, obj->klass(), remap_and_maybe_add_remset);
+        }
 
         // String dedup
         string_dedup_context.request(obj);
@@ -1288,14 +1384,6 @@ public:
 
 void ZRelocate::relocate(ZRelocationSet* relocation_set) {
   {
-    // Install the store buffer's base pointers before the
-    // relocate task destroys the liveness information in
-    // the relocated pages.
-    ZRelocateStoreBufferInstallBasePointersTask buffer_task(_generation);
-    workers()->run(&buffer_task);
-  }
-
-  {
     ZRelocateTask relocate_task(relocation_set, &_queue, &_iters, &_small_targets, &_medium_targets, &_shared_medium_targets);
     workers()->run(&relocate_task);
   }
@@ -1307,25 +1395,25 @@ void ZRelocate::relocate(ZRelocationSet* relocation_set) {
 }
 
 ZPageAge ZRelocate::compute_to_age(ZPageAge from_age) {
-  if (from_age == ZPageAge::old) {
+  if (is_old(from_age)) {
     return ZPageAge::old;
   }
 
   const uint age = untype(from_age);
   if (age >= ZGeneration::young()->tenuring_threshold()) {
-    return ZPageAge::old;
+    return ZPageAge::promotion;
   }
 
   return to_zpageage(age + 1);
 }
 
-class ZFlipAgePagesTask : public ZTask {
+class ZFlipAgeYoungPagesTask : public ZTask {
 private:
   ZArrayParallelIterator<ZPage*> _iter;
 
 public:
-  ZFlipAgePagesTask(const ZArray<ZPage*>* pages)
-    : ZTask("ZFlipAgePagesTask"),
+  ZFlipAgeYoungPagesTask(const ZArray<ZPage*>* pages)
+    : ZTask("ZFlipAgeYoungPagesTask"),
       _iter(pages) {}
 
   virtual void work() {
@@ -1333,25 +1421,22 @@ public:
     ZArray<ZPage*> promoted_pages;
 
     for (ZPage* prev_page; _iter.next(&prev_page);) {
-      const ZPageAge from_age = prev_page->age();
-      const ZPageAge to_age = ZRelocate::compute_to_age(from_age);
-      assert(from_age != ZPageAge::old, "invalid age for a young collection");
+      const ZPageAge to_age = ZRelocate::compute_to_age(prev_page->age());
+      postcond(to_age != ZPageAge::old);
 
       // Figure out if this is proper promotion
-      const bool promotion = to_age == ZPageAge::old;
+      const bool promotion = to_age == ZPageAge::promotion;
 
       // Logging
       prev_page->log_msg(promotion ? " (flip promoted)" : " (flip survived)");
 
       // Setup to-space page
-      ZPage* const new_page = promotion
-          ? prev_page->clone_for_promotion()
-          : prev_page->reset(to_age);
+      ZPage* const new_page = prev_page->flip_age();
 
       // Reset page for flip aging
       new_page->reset_livemap();
 
-      if (promotion) {
+      if (new_page->is_flip_promoted_current_young_collection()) {
         ZGeneration::young()->flip_promote(prev_page, new_page);
         // Defer promoted page registration
         promoted_pages.push(prev_page);
@@ -1360,21 +1445,177 @@ public:
       SuspendibleThreadSet::yield();
     }
 
-    ZGeneration::young()->register_flip_promoted(promoted_pages);
+    if (promoted_pages.length() != 0) {
+      ZGeneration::young()->register_flip_promoted(promoted_pages);
+    }
   }
 };
 
-class ZPromoteBarrierTask : public ZTask {
+template <typename Function>
+static size_t object_iterate_and_construct_free_list(const ZPage* prev_page, ZPage* aged_page, Function function) {
+  precond(aged_page->virtual_memory() == prev_page->virtual_memory());
+  precond(aged_page->is_flip_aged());
+  precond(aged_page->is_old());
+  precond(aged_page->age() != ZPageAge::old || ZMaintainOldFreeLists);
+  precond(aged_page->age() != ZPageAge::promotion || ZFlipPromotionFreeLists);
+
+  size_t free_list_available = 0;
+
+  const size_t page_object_alignment = aged_page->object_alignment();
+  zoffset_end next_potential_free_start = to_zoffset_end(aged_page->start());
+
+  prev_page->object_iterate([&](oop obj) {
+    // Invoke iteration callback
+    function(obj);
+
+    if (prev_page->is_large()) {
+      // No free lists for large pages
+      return;
+    }
+
+    // Build free-list
+    precond(is_aligned(untype(to_zaddress(obj)), page_object_alignment));
+
+    const zoffset obj_offset = ZAddress::offset(to_zaddress(obj));
+    const size_t aligned_object_size = align_up(ZUtils::object_size(to_zaddress(obj)), page_object_alignment);
+
+    if (next_potential_free_start != obj_offset) {
+      const zoffset free_start = to_zoffset(next_potential_free_start);
+      const size_t free_size = obj_offset - free_start;
+      aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+      free_list_available += free_size;
+    }
+
+    // Set next potential start
+    next_potential_free_start = to_zoffset_end(obj_offset, aligned_object_size);
+  });
+
+  if (prev_page->is_large()) {
+    // No free lists for large pages
+    postcond(free_list_available == 0);
+    return 0;
+  }
+
+  postcond(next_potential_free_start != to_zoffset_end(aged_page->start()));
+  postcond(next_potential_free_start <= aged_page->end());
+
+  if (next_potential_free_start != aged_page->end()) {
+    if (aged_page->end() != aged_page->top()) {
+      // Alloc the tail
+      [[maybe_unused]] zaddress addr = aged_page->alloc_object(aged_page->remaining());
+    }
+    // Free tail
+    const zoffset free_start = to_zoffset(next_potential_free_start);
+    const size_t free_size = aged_page->end() - free_start;
+    aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+    free_list_available += free_size;
+  }
+
+  if (ZAllocateInOldFreeList && aged_page->age() == ZPageAge::old) {
+    // Register the page
+    ZGeneration::young()->register_old_alloction_page(aged_page);
+  }
+
+  return free_list_available;
+}
+
+class ZFlipAgeOldPagesTask : public ZRestartableTask {
+private:
+  ZArrayParallelIterator<ZPage*> _not_selected_iter;
+  ZArrayParallelIterator<ZPage*> _selected_iter;
+  Atomic<size_t>                 _free_list_available[ZPageTypeCount];
+
+public:
+  ZFlipAgeOldPagesTask(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages)
+    : ZRestartableTask("ZFlipAgeOldPagesTask"),
+      _not_selected_iter(not_selected_pages),
+      _selected_iter(selected_pages),
+      _free_list_available() {}
+
+  ~ZFlipAgeOldPagesTask() {
+    for (uint i = 0; i < ZPageTypeCount; i++) {
+      ZGeneration::old()->increase_freelist_available_at_start(static_cast<ZPageType>(i), _free_list_available[i].load_relaxed());
+    }
+  }
+
+  virtual void work() {
+    SuspendibleThreadSetJoiner sts_joiner;
+
+    for (ZPage* prev_page; _not_selected_iter.next(&prev_page);) {
+      prev_page->log_msg(" (flip survived)");
+      precond(prev_page->is_old());
+      precond(prev_page->is_relocatable());
+
+      const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
+
+      if (young_marks <= 1) {
+        // At thnot_selected_is point, there might be dead remembered set entries. We must prune them
+        // befornot_selected_e flipping the page to become is_allocating, so that concurrent remembered
+        // set snot_selected_canning doesn't scan dead remembered set entries.
+        prev_page->prune_dead_remset_entries();
+      }
+
+      ZPage* const aged_page = prev_page->flip_age();
+
+      ZGeneration::old()->flip_survive(prev_page, aged_page);
+
+      auto function = [&](oop obj) {
+        ZGeneration::young()->on_old_to_old(to_zaddress(obj), prev_page, to_zaddress(obj), aged_page, false /* was_mutator */); // TODO: More naming issues
+      };
+
+      if (ZOldRefCount && ZMaintainOldFreeLists) {
+        ZStatTimerWorker timer(ZSubPhaseConcurrentFreeListPageOld);
+
+        _free_list_available[untype(aged_page->type())].add_then_fetch(object_iterate_and_construct_free_list(prev_page, aged_page, function), memory_order_relaxed);
+      } else {
+        prev_page->object_iterate(function);
+      }
+
+      if (ZGeneration::old()->should_worker_resize()) {
+        return;
+      }
+
+      SuspendibleThreadSet::yield();
+    }
+
+    for (ZPage* page; _selected_iter.next(&page);) {
+      const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
+
+      if (young_marks <= 1) {
+        // At thnot_selected_is point, there might be dead remembered set entries. We must prune them
+        // befornot_selected_e flipping the page to become is_allocating, so that concurrent remembered
+        // set snot_selected_canning doesn't scan dead remembered set entries.
+        page->prune_dead_remset_entries();
+      }
+
+      if (ZGeneration::old()->should_worker_resize()) {
+        return;
+      }
+
+      SuspendibleThreadSet::yield();
+    }
+  }
+};
+
+class ZPromoteBarrierTask : public ZRestartableTask {
 private:
   ZArrayParallelIterator<ZPage*> _flip_promoted_iter;
   ZArrayParallelIterator<ZPage*> _relocate_promoted_iter;
+  Atomic<size_t>                 _free_list_available[ZPageTypeCount];
 
 public:
   ZPromoteBarrierTask(const ZArray<ZPage*>* flip_promoted_pages,
                       const ZArray<ZPage*>* relocate_promoted_pages)
-    : ZTask("ZPromoteBarrierTask"),
+    : ZRestartableTask("ZPromoteBarrierTask"),
       _flip_promoted_iter(flip_promoted_pages),
-      _relocate_promoted_iter(relocate_promoted_pages) {}
+      _relocate_promoted_iter(relocate_promoted_pages),
+      _free_list_available() {}
+
+  ~ZPromoteBarrierTask() {
+    for (uint i = 0; i < ZPageTypeCount; i++) {
+      ZGeneration::young()->increase_freelist_available_at_start(static_cast<ZPageType>(i), _free_list_available[i].load_relaxed());
+    }
+  }
 
   virtual void work() {
     SuspendibleThreadSetJoiner sts_joiner;
@@ -1385,21 +1626,97 @@ public:
         // contained zpointers are store good. The marking code ensures that for non-null
         // pointers, but null pointers are ignored. This code ensures that even null pointers
         // are made store good, for the promoted objects.
-        page->object_iterate([&](oop obj) {
+        auto promote = [&](oop obj) {
           ZIterator::basic_oop_iterate_safe(obj, ZBarrier::promote_barrier_on_young_oop_field);
-        });
+        };
+
+        if (ZOldRefCount && ZFlipPromotionFreeLists && iter == &_flip_promoted_iter) {
+          ZStatTimerWorker timer(ZSubPhaseConcurrentFreeListPageYoung);
+
+          ZPage* const aged_page = ZHeap::heap()->page(ZOffset::address(page->start()));
+
+          _free_list_available[untype(aged_page->type())].add_then_fetch(object_iterate_and_construct_free_list(page, aged_page, promote), memory_order_relaxed);
+        } else {
+          page->object_iterate(promote);
+        }
+
+        if (ZGeneration::young()->should_worker_resize()) {
+          return;
+        }
 
         SuspendibleThreadSet::yield();
       }
     };
 
     promote_barriers(&_flip_promoted_iter);
+    if (ZGeneration::young()->should_worker_resize()) {
+      return;
+    }
     promote_barriers(&_relocate_promoted_iter);
   }
 };
 
-void ZRelocate::flip_age_pages(const ZArray<ZPage*>* pages) {
-  ZFlipAgePagesTask flip_age_task(pages);
+// TODO: Move to separate file, merging with the ZGeneration rendezvous code?
+class ZRendezvousHandshakeClosure : public HandshakeClosure {
+public:
+  ZRendezvousHandshakeClosure()
+    : HandshakeClosure("ZRendezvous") {}
+
+  void do_thread(Thread* thread) {
+    // Does nothing
+  }
+};
+
+class ZRendezvousGCThreads: public VM_Operation {
+ public:
+  VMOp_Type type() const { return VMOp_ZRendezvousGCThreads; }
+
+  virtual bool evaluate_at_safepoint() const {
+    // We only care about synchronizing the GC threads.
+    // Leave the Java threads running.
+    return false;
+  }
+
+  virtual bool skip_thread_oop_barriers() const {
+    fatal("Concurrent VMOps should not call this");
+    return true;
+  }
+
+  virtual bool is_gc_operation() const {
+    return true;
+  }
+
+  void doit() {
+    // Light weight "handshake" of the GC threads
+    SuspendibleThreadSet::synchronize();
+    SuspendibleThreadSet::desynchronize();
+  };
+};
+
+void ZRelocate::flip_age_old_pages(ZPageAllocator* page_allocator, const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages) {
+  ZFlipAgeOldPagesTask flip_age_task(not_selected_pages, selected_pages);
+  workers()->run(&flip_age_task);
+  // TODO: Remove rendezvous code when we have better ZPage SMR.
+
+  // Perform a handshake to make sure concurrent threads are not operating on stale
+  // pages from before flip aging before we destroy them.
+  ZRendezvousHandshakeClosure cl;
+  Handshake::execute(&cl);
+
+  // GC threads are not part of the handshake above.
+  // Explicitly "handshake" them.
+  ZRendezvousGCThreads op;
+  VMThread::execute(&op);
+
+  for (int i = 0; i < not_selected_pages->length(); i++) {
+    // Delete non-relocating promoted pages from last cycle
+    ZPage* const page = not_selected_pages->at(i);
+    page_allocator->safe_destroy_page(page);
+  }
+}
+
+void ZRelocate::flip_age_young_pages(const ZArray<ZPage*>* pages) {
+  ZFlipAgeYoungPagesTask flip_age_task(pages);
   workers()->run(&flip_age_task);
 }
 
