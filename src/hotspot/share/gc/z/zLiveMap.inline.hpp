@@ -221,4 +221,45 @@ inline BitMap::idx_t ZLiveMap::find_base_bit_in_segment(BitMap::idx_t start, Bit
   return bit & ~BitMap::idx_t(1);
 }
 
+// TODO: We should still use the segments to make optimize searching times
+inline void ZLiveMap::set_death_row(BitMap::idx_t index) {
+  _bitmap.par_set_bit(index, memory_order_relaxed);
+}
+
+inline void ZLiveMap::unset_death_row(BitMap::idx_t index) {
+  _bitmap.par_clear_bit(index, memory_order_relaxed);
+}
+
+template <typename Function>
+inline void ZLiveMap::iterate_death_row(Function function, BitMap::idx_t used) {
+  const BitMap::idx_t start_index = 0;
+  const BitMap::idx_t end_index   = start_index + used;
+
+  _bitmap.iterate(function, start_index, end_index);
+}
+
+inline void ZLiveMap::set_pardoned(BitMap::idx_t index) {
+  _bitmap.par_set_bit(_bitmap.size() / 2 + index, memory_order_relaxed);
+}
+
+inline void ZLiveMap::unset_pardoned(BitMap::idx_t index) {
+  _bitmap.par_clear_bit(_bitmap.size() / 2 + index, memory_order_relaxed);
+}
+
+inline bool ZLiveMap::is_pardoned(BitMap::idx_t index) const {
+  return _bitmap.par_at(_bitmap.size() / 2 + index, memory_order_relaxed);
+}
+
+template <typename Function>
+inline void ZLiveMap::iterate_pardoned(Function function, BitMap::idx_t used) {
+  const BitMap::idx_t start_index = _bitmap.size() / 2;
+  const BitMap::idx_t end_index   = start_index + used;
+
+  auto adapter = [&](BitMap::idx_t index) {
+    function(index - start_index);
+  };
+
+  _bitmap.iterate(adapter, start_index, end_index);
+}
+
 #endif // SHARE_GC_Z_ZLIVEMAP_INLINE_HPP

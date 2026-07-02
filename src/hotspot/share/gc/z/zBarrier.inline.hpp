@@ -29,6 +29,7 @@
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
+#include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zResurrection.inline.hpp"
 #include "gc/z/zVerify.hpp"
 #include "oops/oop.hpp"
@@ -678,14 +679,23 @@ inline void ZBarrier::promote_barrier_on_young_oop_field(volatile zpointer* p) {
   barrier(is_store_good_fast_path, promote_slow_path, color_store_good, p, o);
 }
 
-inline zaddress ZBarrier::remset_barrier_on_oop_field(volatile zpointer* p) {
-  const zpointer o = load_atomic(p);
+inline zaddress ZBarrier::remset_barrier_on_oop_field_preloaded(volatile zpointer* p, zpointer o) {
   return barrier(is_mark_young_good_fast_path, mark_young_slow_path, color_remset_good, p, o);
 }
 
 inline void ZBarrier::mark_young_good_barrier_on_oop_field(volatile zpointer* p) {
   const zpointer o = load_atomic(p);
-  barrier(is_mark_young_good_fast_path, mark_young_slow_path, color_mark_young_good, p, o);
+
+  auto slow_path = [=](zaddress addr) -> zaddress {
+    // TODO: This stinks really bad
+    if (ZOldRefCount && !is_null(addr) && ZHeap::heap()->is_old(addr)) {
+      ZGeneration::young()->on_root(addr);
+    }
+
+    return mark_young_slow_path(addr);
+  };
+
+  barrier(is_mark_young_good_fast_path, slow_path, color_mark_young_good, p, o);
 }
 
 //
@@ -726,17 +736,37 @@ inline void ZBarrier::no_keep_alive_store_barrier_on_heap_oop_field(volatile zpo
   barrier(is_store_good_fast_path, slow_path, color_store_good, nullptr, prev);
 }
 
-inline void ZBarrier::remember(volatile zpointer* p) {
-  if (ZHeap::heap()->is_old(p)) {
-    ZGeneration::young()->remember(p);
-  }
+inline void ZBarrier::no_keep_alive_store_barrier_on_native_oop_field(volatile zpointer* p) {
+  const zpointer prev = load_atomic(p);
+
+  auto slow_path = [=](zaddress addr) -> zaddress {
+    return ZBarrier::no_keep_alive_native_store_slow_path(p, addr);
+  };
+
+  barrier(is_store_good_fast_path, slow_path, color_store_good, nullptr, prev);
 }
 
-inline void ZBarrier::mark_and_remember(volatile zpointer* p, zaddress addr) {
+inline bool ZBarrier::remember(volatile zpointer* p) {
+  if (ZHeap::heap()->is_old(p)) {
+    return ZGeneration::young()->remember(p);
+  }
+
+  return false;
+}
+
+inline bool ZBarrier::mark_and_remember(volatile zpointer* p, zaddress addr, zpointer o) {
   if (!is_null(addr)) {
     mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
   }
-  remember(p);
+
+  const bool remembered = remember(p);
+  if (ZOldRefCount) {
+    // Young-to-old edges are not reference counted, but their previous old
+    // value must still be pardoned when it belonged to the mark-start snapshot.
+    ZGeneration::young()->on_remember(p, addr, remembered);
+  }
+
+  return remembered;
 }
 
 template <bool resurrect, bool gc_thread, bool follow, bool finalizable>

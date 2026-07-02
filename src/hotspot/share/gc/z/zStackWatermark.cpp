@@ -199,9 +199,6 @@ void ZStackWatermark::start_processing_impl(void* context) {
     ZThreadLocalAllocBuffer::retire(_jt, &_stats);
   }
 
-  // Prepare store barrier buffer for new GC phase
-  ZThreadLocalData::store_barrier_buffer(_jt)->on_new_phase();
-
   // Publishes the processing start to concurrent threads
   StackWatermark::start_processing_impl(context);
 }

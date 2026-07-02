@@ -49,12 +49,14 @@
 #include "gc/z/zRemembered.hpp"
 #include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zStat.hpp"
+#include "gc/z/zStoreBarrierBuffer.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zUncoloredRoot.inline.hpp"
 #include "gc/z/zVerify.hpp"
 #include "gc/z/zWorkers.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/universe.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/continuation.hpp"
@@ -66,6 +68,7 @@
 #include "runtime/vmThread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/events.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 static const ZStatPhaseGeneration ZPhaseGenerationYoung[] {
   ZStatPhaseGeneration("Young Generation", ZGenerationId::young),
@@ -82,6 +85,7 @@ static const ZStatPhaseConcurrent ZPhaseConcurrentMarkYoung("Concurrent Mark", Z
 static const ZStatPhaseConcurrent ZPhaseConcurrentMarkContinueYoung("Concurrent Mark Continue", ZGenerationId::young);
 static const ZStatPhasePause      ZPhasePauseMarkEndYoung("Pause Mark End", ZGenerationId::young);
 static const ZStatPhaseConcurrent ZPhaseConcurrentMarkFreeYoung("Concurrent Mark Free", ZGenerationId::young);
+static const ZStatPhaseConcurrent ZPhaseConcurrentProcessOldDeathRow("Concurrent Process Old Death Row", ZGenerationId::young);
 static const ZStatPhaseConcurrent ZPhaseConcurrentResetRelocationSetYoung("Concurrent Reset Relocation Set", ZGenerationId::young);
 static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSetYoung("Concurrent Select Relocation Set", ZGenerationId::young);
 static const ZStatPhasePause      ZPhasePauseRelocateStartYoung("Pause Relocate Start", ZGenerationId::young);
@@ -132,6 +136,8 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _relocate(this),
     _relocation_set(this),
     _freed(0),
+    _freelist_promoted(0),
+    _freelist_availiable(0),
     _promoted(0),
     _compacted(0),
     _phase(Phase::Relocate),
@@ -183,16 +189,18 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
   _relocate.flip_age_pages(selector->not_selected_medium());
   _relocate.flip_age_pages(selector->not_selected_large());
 
-  // Perform a handshake between flip promotion and running the promotion barrier. This ensures
-  // that ZBarrierSet::on_slowpath_allocation_exit() observing a young page that was then racingly
-  // flip promoted, will run any stores without barriers to completion before responding to the
-  // handshake at the subsequent safepoint poll. This ensures that the flip promotion barriers always
-  // run after compiled code missing barriers, but before relocate start.
-  ZRendezvousHandshakeClosure cl;
-  Handshake::execute(&cl);
+  if (is_young()) {
+    // Perform a handshake between flip promotion and running the promotion barrier. This ensures
+    // that ZBarrierSet::on_slowpath_allocation_exit() observing a young page that was then racingly
+    // flip promoted, will run any stores without barriers to completion before responding to the
+    // handshake at the subsequent safepoint poll. This ensures that the flip promotion barriers always
+    // run after compiled code missing barriers, but before relocate start.
+    ZRendezvousHandshakeClosure cl;
+    Handshake::execute(&cl);
 
-  _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
-                                   _relocation_set.relocate_promoted_pages());
+    _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
+                                     _relocation_set.relocate_promoted_pages());
+  }
 }
 
 static double fragmentation_limit(ZGenerationId generation) {
@@ -265,9 +273,7 @@ void ZGeneration::select_relocation_set(bool promote_all) {
   _relocation_set.install(&selector);
 
   // Flip age young pages that were not selected
-  if (is_young()) {
-    flip_age_pages(&selector);
-  }
+  flip_age_pages(&selector);
 
   // Setup forwarding table
   ZRelocationSetIterator rs_iter(&_relocation_set);
@@ -310,6 +316,7 @@ bool ZGeneration::is_relocate_queue_active() const {
 void ZGeneration::reset_statistics() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   _freed.store_relaxed(0u);
+  _freelist_promoted.store_relaxed(0u);
   _promoted.store_relaxed(0u);
   _compacted.store_relaxed(0u);
 }
@@ -320,6 +327,22 @@ size_t ZGeneration::freed() const {
 
 void ZGeneration::increase_freed(size_t size) {
   _freed.add_then_fetch(size, memory_order_relaxed);
+}
+
+size_t ZGeneration::freelist_promoted() const {
+  return _freelist_promoted.load_relaxed();;
+}
+
+void ZGeneration::increase_freelist_promoted(size_t size) {
+  _freelist_promoted.add_then_fetch(size, memory_order_relaxed);
+}
+
+size_t ZGeneration::freelist_availiable() const {
+  return _freelist_availiable.load_relaxed();;
+}
+
+void ZGeneration::set_freelist_availiable(size_t size) {
+  _freelist_availiable.store_relaxed(size);
 }
 
 size_t ZGeneration::promoted() const {
@@ -517,6 +540,7 @@ ZGenerationYoung::ZGenerationYoung(ZPageTable* page_table,
     _active_type(ZYoungType::none),
     _tenuring_threshold(0),
     _remembered(page_table, old_forwarding_table, page_allocator),
+    _old_ref_count(),
     _jfr_tracer() {
   ZGeneration::_young = this;
 }
@@ -570,6 +594,12 @@ void ZGenerationYoung::collect(ZYoungType type, ConcurrentGCTimer* timer) {
 
   // Phase 4: Concurrent Mark Free
   concurrent_mark_free();
+
+  abortpoint();
+
+  // TODO: Abstraction violation
+  // Phase X: Free up unreferenced acyclic garbage in the old generation
+  concurrent_process_old_death_row();
 
   abortpoint();
 
@@ -708,6 +738,15 @@ void ZGenerationYoung::concurrent_mark_continue() {
 void ZGenerationYoung::concurrent_mark_free() {
   ZStatTimerYoung timer(ZPhaseConcurrentMarkFreeYoung);
   mark_free();
+}
+
+void ZGenerationYoung::concurrent_process_old_death_row() {
+  if (!ZOldRefCount) {
+    return;
+  }
+
+  ZStatTimerYoung timer(ZPhaseConcurrentProcessOldDeathRow);
+  process_old_death_row();
 }
 
 void ZGenerationYoung::concurrent_reset_relocation_set() {
@@ -940,6 +979,10 @@ bool ZGenerationYoung::mark_end() {
   return true;
 }
 
+void ZGenerationYoung::process_old_death_row() {
+  _old_ref_count.process_death_row(_page_table, _page_allocator);
+}
+
 void ZGenerationYoung::relocate_start() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
@@ -961,6 +1004,19 @@ void ZGenerationYoung::relocate() {
 
   // Update statistics
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
+
+  const size_t promoted_size = promoted();
+  const size_t freelist_availiable_size = freelist_availiable();
+
+  log_info(gc)("Old Generation Free-list Promoted: " PROPERFMT
+               " [%2.2f%% of Promoted] [%2.2f%% of Availiable]",
+               PROPERFMTARGS(freelist_promoted()),
+               promoted_size == 0 ? 100. : percent_of(freelist_promoted(), promoted_size),
+               freelist_availiable_size == 0 ? 100. : percent_of(freelist_promoted(), freelist_availiable_size));
+}
+
+void ZGenerationOld::flip_survive(ZPage* from_page, ZPage* to_page) {
+  _page_table->replace(from_page, to_page);
 }
 
 void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
@@ -973,8 +1029,6 @@ void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
 }
 
 void ZGenerationYoung::in_place_relocate_promote(ZPage* from_page, ZPage* to_page) {
-  _page_table->replace(from_page, to_page);
-
   // Update statistics
   _page_allocator->promote_used(from_page, to_page);
 }
@@ -997,6 +1051,47 @@ ZRemembered* ZGenerationYoung::remembered() {
 
 void ZGenerationYoung::remap_current_remset(ZRemsetTableIterator* iter) {
   _remembered.remap_current(iter);
+}
+
+// TODO: Bother with inlining?
+void ZGenerationYoung::on_root(zaddress addr) {
+  _old_ref_count.on_root(addr);
+}
+
+void ZGenerationYoung::on_remember(volatile zpointer* p, zaddress addr, bool remembered) {
+  _old_ref_count.on_remember(p, addr, remembered);
+}
+
+void ZGenerationYoung::on_failed_remember(zaddress addr) {
+  _old_ref_count.on_failed_remember(addr);
+}
+
+void ZGenerationYoung::on_forget(volatile zpointer* p, zaddress addr) {
+  _old_ref_count.on_forget(p, addr);
+}
+
+void ZGenerationYoung::on_promotion(zaddress addr) {
+  _old_ref_count.on_promotion(addr);
+}
+
+void ZGenerationYoung::on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator) {
+  _old_ref_count.on_old_to_space_alloc(to_page, to_addr, mutator);
+}
+
+void ZGenerationYoung::on_old_to_old(zaddress addr, bool was_mutator) {
+  _old_ref_count.on_old_to_old(addr, was_mutator);
+}
+
+void ZGenerationYoung::on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr) {
+  _old_ref_count.on_mutator_old_to_old(forwarding, from_addr, to_addr);
+}
+
+ZReferenceCounting::FreeListAllocation ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {
+  if (!ZAllocateInFreeList || !ZOldRefCount) {
+    return {};
+  }
+
+  return _old_ref_count.free_list_alloc_object(size, type);
 }
 
 ZGenerationTracer* ZGenerationYoung::jfr_tracer() {

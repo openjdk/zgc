@@ -54,6 +54,16 @@ void ZRememberedSet::initialize(size_t page_size) {
   _bitmap[1].initialize(size_in_bits, true /* clear */);
 }
 
+void ZRememberedSet::initialize(ZRememberedSet* remset) {
+  _bitmap[0].init(&remset->_bitmap[0]);
+  _bitmap[1].init(&remset->_bitmap[1]);
+}
+
+void ZRememberedSet::uninitialize() {
+  _bitmap[0].uninit();
+  _bitmap[1].uninit();
+}
+
 bool ZRememberedSet::is_cleared_current() const {
   return current()->is_empty();
 }
@@ -125,6 +135,7 @@ bool ZRememberedSetContainingIterator::next(ZRememberedSetContaining* containing
 
     if (_obj_remset_iter.next(&index)) {
       containing->_field_addr = to_addr(index);
+      containing->_field_value = AtomicAccess::load((volatile zpointer*)untype(containing->_field_addr));
       containing->_addr = _obj;
 
       log_develop_trace(gc, remset)("Remset Containing Obj  index: " PTR_FORMAT " base: " PTR_FORMAT " field: " PTR_FORMAT, index, untype(containing->_addr), untype(containing->_field_addr));
@@ -141,6 +152,7 @@ bool ZRememberedSetContainingIterator::next(ZRememberedSetContaining* containing
   // owning object.
   if (_remset_iter.next(&index)) {
     containing->_field_addr = to_addr(index);
+    containing->_field_value = AtomicAccess::load((volatile zpointer*)untype(containing->_field_addr)); // TODO: less casts
     containing->_addr = _page->find_base((volatile zpointer*)untype(containing->_field_addr));
 
     if (is_null(containing->_addr)) {

@@ -33,8 +33,11 @@
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
 
+class outputStream;
 class ZGeneration;
 class ZMultiPartitionTracker;
+template<ZPageType>
+class ZFreeList;
 
 class ZPage : public CHeapObj<mtGC> {
   friend class VMStructs;
@@ -53,6 +56,13 @@ private:
   ZRememberedSet                _remembered_set;
   ZMultiPartitionTracker* const _multi_partition_tracker;
   volatile bool                 _relocate_promoted;
+  volatile bool                 _flip_aged;
+  bool                          _remset_flip_retained;
+  union {
+    std::nullptr_t                _free_list_unused;
+    ZFreeList<ZPageType::small>*  _free_list_small;
+    ZFreeList<ZPageType::medium>* _free_list_medium;
+  };
 
   const char* type_to_string() const;
 
@@ -66,15 +76,30 @@ private:
   ZGeneration* generation();
   const ZGeneration* generation() const;
 
+  ZGeneration* generation_other();
+  const ZGeneration* generation_other() const;
+
+  void reset(ZPageAge to_age);
   void reset_seqnum();
 
-  ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id);
+  ZPage* clone(ZPageAge age, ZRememberedSet* remset);
+
+  ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id, ZRememberedSet* remset);
 
 public:
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t partition_id);
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker);
 
-  ZPage* clone_for_promotion() const;
+  ~ZPage();
+
+  // TODO: Naming :)
+  ZPage* inplace_relocate_page();
+  ZPage* flip_age();
+
+  bool is_flip_aged() const;
+  bool is_flip_promoted() const;
+  bool is_promoted() const;
+  bool is_flip_promoted_current_young_collection() const;
 
   uint32_t object_max_count() const;
   size_t object_alignment_shift() const;
@@ -111,10 +136,12 @@ public:
   bool is_allocating() const;
   bool is_relocatable() const;
 
-  ZPage* reset(ZPageAge age);
   void reset_livemap();
   void reset_top_for_allocation();
 
+  void clear_livemap_bits();
+
+  bool is_in(const ZVirtualMemory& vmem) const;
   bool is_in(zoffset offset) const;
   bool is_in(zaddress addr) const;
 
@@ -141,7 +168,21 @@ public:
   template <typename Function>
   void object_iterate(Function function);
 
-  void remember(volatile zpointer* p);
+  bool remember(volatile zpointer* p);
+  bool forget_previous(volatile zpointer* p);
+  void forget_current(volatile zpointer* p);
+
+  BitMap::idx_t dr_bit_index(zaddress addr) const; // TODO: private?
+  void set_death_row(zaddress addr);
+  void unset_death_row(zaddress addr);
+  template <typename Function>
+  void iterate_death_row(Function function);
+
+  void set_pardoned(zaddress addr);
+  void unset_pardoned(zaddress addr);
+  bool is_pardoned(zaddress addr) const;
+  template <typename Function>
+  void iterate_pardoned(Function function);
 
   // In-place relocation support
   void clear_remset_bit_non_par_current(uintptr_t l_offset);
@@ -149,6 +190,8 @@ public:
   void swap_remset_bitmaps();
 
   void remset_alloc();
+  void remset_init(ZRememberedSet* remset);
+  void remset_uninit();
 
   ZBitMap::ReverseIterator remset_reverse_iterator_previous();
   BitMap::Iterator remset_iterator_limited_current(uintptr_t l_offset, size_t size);
@@ -175,10 +218,20 @@ public:
 
   void clear_remset_previous();
 
+  void prune_dead_remset();
+
   void* remset_current();
 
   zaddress alloc_object(size_t size);
   zaddress alloc_object_atomic(size_t size);
+
+  size_t coalesce_free_list();
+  void free_tail_to_free_list(zaddress_unsafe addr, size_t size);
+  void undo_alloc_object_from_free_list(zaddress_unsafe addr, size_t size);
+  void free_object_to_free_list(zaddress_unsafe addr, size_t size);
+  void free_object_to_free_list(zaddress addr);
+  zaddress alloc_object_from_free_list(size_t size);
+  void print_free_list_on(outputStream* st) const;
 
   bool undo_alloc_object(zaddress addr, size_t size);
   bool undo_alloc_object_atomic(zaddress addr, size_t size);

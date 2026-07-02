@@ -72,6 +72,8 @@ zaddress ZBarrier::blocking_keep_alive_on_weak_slow_path(volatile zpointer* p, z
   if (ZHeap::heap()->is_old(addr)) {
     if (!ZHeap::heap()->is_object_strongly_live(addr)) {
       return zaddress::null;
+    } else if (ZOldRefCount) {
+      ZGeneration::young()->on_root(addr);
     }
   } else {
     // Young gen objects are never blocked, need to keep alive
@@ -90,6 +92,8 @@ zaddress ZBarrier::blocking_keep_alive_on_phantom_slow_path(volatile zpointer* p
   if (ZHeap::heap()->is_old(addr)) {
     if (!ZHeap::heap()->is_object_live(addr)) {
       return zaddress::null;
+    } else if (ZOldRefCount) {
+      ZGeneration::young()->on_root(addr);
     }
   } else {
     // Young gen objects are never blocked, need to keep alive
@@ -108,6 +112,8 @@ zaddress ZBarrier::blocking_load_barrier_on_weak_slow_path(volatile zpointer* p,
   if (ZHeap::heap()->is_old(addr)) {
     if (!ZHeap::heap()->is_object_strongly_live(addr)) {
       return zaddress::null;
+    } else if (ZOldRefCount) {
+      ZGeneration::young()->on_root(addr);
     }
   } else {
     // Young objects are never considered non-strong
@@ -128,6 +134,8 @@ zaddress ZBarrier::blocking_load_barrier_on_phantom_slow_path(volatile zpointer*
   if (ZHeap::heap()->is_old(addr)) {
     if (!ZHeap::heap()->is_object_live(addr)) {
       return zaddress::null;
+    } else if (ZOldRefCount) {
+      ZGeneration::young()->on_root(addr);
     }
   } else {
     // Young objects are never considered non-strong
@@ -150,6 +158,10 @@ zaddress ZBarrier::mark_slow_path(zaddress addr) {
     return addr;
   }
 
+  if (ZOldRefCount) {
+    ZGeneration::young()->on_root(addr);
+  }
+
   mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
 
   return addr;
@@ -165,6 +177,10 @@ zaddress ZBarrier::mark_from_young_slow_path(zaddress addr) {
   if (ZHeap::heap()->is_young(addr)) {
     ZGeneration::young()->mark_object<ZMark::DontResurrect, ZMark::GCThread, ZMark::Follow, ZMark::Strong>(addr);
     return addr;
+  }
+
+  if (ZOldRefCount) {
+    ZGeneration::young()->on_root(addr);
   }
 
   if (ZGeneration::young()->type() == ZYoungType::major_full_roots ||
@@ -223,6 +239,9 @@ zaddress ZBarrier::mark_finalizable_slow_path(zaddress addr) {
   }
 
   if (ZHeap::heap()->is_old(addr)) {
+    if (ZOldRefCount) {
+      ZGeneration::young()->on_root(addr);
+    }
     ZGeneration::old()->mark_object<ZMark::DontResurrect, ZMark::GCThread, ZMark::Follow, ZMark::Finalizable>(addr);
     return addr;
   }
@@ -257,7 +276,7 @@ zaddress ZBarrier::heap_store_slow_path(volatile zpointer* p, zaddress addr, zpo
     // Buffer store barriers whenever possible
     buffer->add(p, prev);
   } else {
-    mark_and_remember(p, addr);
+    mark_and_remember(p, addr, prev);
   }
 
   return addr;
@@ -269,9 +288,25 @@ zaddress ZBarrier::no_keep_alive_heap_store_slow_path(volatile zpointer* p, zadd
   return addr;
 }
 
+zaddress ZBarrier::no_keep_alive_native_store_slow_path(volatile zpointer* p, zaddress addr) {
+  if (is_null(addr)) {
+    return addr;
+  }
+
+  if (ZOldRefCount) {
+    ZGeneration::young()->on_root(addr);
+  }
+
+  return addr;
+}
+
 zaddress ZBarrier::native_store_slow_path(zaddress addr) {
   if (!is_null(addr)) {
     mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+
+    if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+      ZGeneration::young()->on_root(addr);
+    }
   }
 
   return addr;
@@ -280,6 +315,10 @@ zaddress ZBarrier::native_store_slow_path(zaddress addr) {
 zaddress ZBarrier::keep_alive_slow_path(zaddress addr) {
   if (!is_null(addr)) {
     mark<ZMark::Resurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+    // TODO: Embed beter with the resurrect mechanism to avoid on_root after marking termination
+    if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+      ZGeneration::young()->on_root(addr);
+    }
   }
 
   return addr;
