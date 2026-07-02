@@ -73,7 +73,9 @@ void ZRemembered::oops_do_forwarded_via_containing(GrowableArrayView<ZRemembered
       // Calculate the corresponding address in the to-object
       const zaddress to_addr_field = to_addr + field_offset;
 
-      function((volatile zpointer*)untype(to_addr_field));
+      zpointer prev = containing._field_value; // TODO: This wastes memory before first young mark start and isn't needed.
+
+      function((volatile zpointer*)untype(to_addr_field), prev);
     }
   }
 }
@@ -92,11 +94,12 @@ bool ZRemembered::should_scan_page(ZPage* page) const {
     return true;
   }
 
-  if (!forwarding->relocated_remembered_fields_is_concurrently_scanned()) {
+  if (page->is_allocating()) {
     // Safe to scan
     return true;
   }
 
+  // TODO: Look at what the comment below is saying
   // If we get here, we know that the old collection is concurrently relocating
   // objects. We need to be extremely careful not to scan a page that is
   // concurrently being in-place relocated because it's objects and previous
@@ -125,12 +128,29 @@ bool ZRemembered::should_scan_page(ZPage* page) const {
 }
 
 bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
-  const bool can_trust_live_bits =
-      page->is_relocatable() && !ZGeneration::old()->is_phase_mark();
+  // We have to filter and prune dead remset entries the first young marking
+  // after old mark end. Once they are pruned, subsequent remset scans don't
+  // need to filter and prune them again.
 
+  const bool can_trust_live_bits = page->is_relocatable() &&
+                                   !ZGeneration::old()->is_phase_mark();
+  const bool first_yc = ZGeneration::old()->young_marks_since_old_mark_end() == 1;
+  const bool skip_page = can_trust_live_bits && !page->is_marked();
   bool result = false;
 
-  if (!can_trust_live_bits) {
+  if (skip_page) {
+    // All objects are dead - do nothing
+    page->log_msg(" (scan_page_remembered_dead)");
+    return result;
+  }
+
+  if (can_trust_live_bits && first_yc) {
+    // We have full liveness info - Only scan remset entries in live objects
+    page->log_msg(" (scan_page_remembered_in_live)");
+    page->oops_do_remembered_in_live([&](volatile zpointer* p) {
+      result |= scan_field(p);
+    });
+  } else {
     // We don't have full liveness info - scan all remset entries
     page->log_msg(" (scan_page_remembered)");
     int count = 0;
@@ -139,15 +159,6 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
       count++;
     });
     page->log_msg(" (scan_page_remembered done: %d ignoring: " PTR_FORMAT " )", count, p2i(page->remset_current()));
-  } else if (page->is_marked()) {
-    // We have full liveness info - Only scan remset entries in live objects
-    page->log_msg(" (scan_page_remembered_in_live)");
-    page->oops_do_remembered_in_live([&](volatile zpointer* p) {
-      result |= scan_field(p);
-    });
-  } else {
-    page->log_msg(" (scan_page_remembered_dead)");
-    // All objects are dead - do nothing
   }
 
   if (ZVerifyRemembered) {
@@ -157,10 +168,12 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
     OrderAccess::storestore();
   }
 
-  // If we have consumed the remset entries above we also clear them.
-  // The exception is if the page is completely empty/garbage, where we don't
-  // want to race with an old collection modifying the remset as well.
-  if (!can_trust_live_bits || page->is_marked()) {
+  if (ZOldRefCount) {
+    page->verify_remset_cleared_or_store_good_previous();
+  } else {
+    // If we have consumed the remset entries above we also clear them.
+    // The exception is if the page is completely empty/garbage, where we don't
+    // want to race with an old collection modifying the remset as well.
     page->clear_remset_previous();
   }
 
@@ -302,8 +315,8 @@ bool ZRemembered::scan_forwarding(ZForwarding* forwarding, void* context_void) c
 
     // Relocate (and mark) while page is released, to prevent
     // retain deadlock when relocation threads in-place relocate.
-    oops_do_forwarded_via_containing(array, [&](volatile zpointer* p) {
-      result |= scan_field(p);
+    oops_do_forwarded_via_containing(array, [&](volatile zpointer* p, zpointer prev) {
+      result |= scan_field(p, prev);
     });
 
   } else {
@@ -312,8 +325,8 @@ bool ZRemembered::scan_forwarding(ZForwarding* forwarding, void* context_void) c
     // The page has been released. If the page was relocated while this young
     // generation collection was running, the old generation relocation will
     // have published all addresses of fields that had a remembered set entry.
-    forwarding->relocated_remembered_fields_apply_to_published([&](volatile zpointer* p) {
-      result |= scan_field(p);
+    forwarding->relocated_remembered_fields_apply_to_published([&](volatile zpointer* p, zpointer prev) {
+      result |= scan_field(p, prev);
     });
   }
 
@@ -453,6 +466,7 @@ void ZRemembered::remap_current(ZRemsetTableIterator* iter) {
     assert(entry._forwarding == nullptr, "Shouldn't be looking for forwardings");
     assert(entry._page != nullptr, "Must have found a page");
     assert(entry._page->is_old(), "Should only have found old pages");
+    assert(!entry._page->is_relocatable() || entry._page->is_marked(), "all dead pages should be freed by now");
 
     entry._page->oops_do_current_remembered(ZBarrier::load_barrier_on_oop_field);
   }
@@ -499,8 +513,11 @@ public:
       ZForwarding* forwarding = entry._forwarding;
       ZPage* page = entry._page;
 
+      const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+      const bool first_yc = young_marks == 1;
+
       // Scan forwarding
-      if (forwarding != nullptr) {
+      if (forwarding != nullptr && first_yc) {
         bool found_roots = _remembered->scan_forwarding(forwarding, &context);
         ZVerify::after_scan(forwarding);
         if (found_roots) {
@@ -575,14 +592,58 @@ void ZRemembered::scan_and_follow(ZMark* mark) {
   mark->mark_follow();
 }
 
+// TODO: Give this a less desceptive name?
+bool ZRemembered::scan_field(volatile zpointer* p, zpointer prev) const {
+  // Decode the location of the prev colored pointer snapshot
+  const zaddress addr = ZBarrier::remset_barrier_on_oop_field_preloaded(p, prev);
+
+  if (is_null(addr)) {
+    return false;
+  }
+
+  if (ZHeap::heap()->is_young(addr)) {
+    remember(p);
+    return true;
+  } else if (ZOldRefCount) {
+    // When we have old-to-old relocation, there is no need to claim the last
+    // increment from the mutator; it does not have access to the from-space
+    // object needed in order to claim it. Hence, the last increment is always
+    // processed by the GC thread.
+    ZGeneration::young()->on_forget(p, addr);
+  }
+
+  return false;
+}
+
 bool ZRemembered::scan_field(volatile zpointer* p) const {
   assert(ZGeneration::young()->is_phase_mark(), "Wrong phase");
 
-  const zaddress addr = ZBarrier::remset_barrier_on_oop_field(p);
+  const zpointer prev = AtomicAccess::load(p);
 
-  if (!is_null(addr) && ZHeap::heap()->is_young(addr)) {
+  if (ZPointer::is_store_good(prev)) {
+    // If the mutator wrote to this field this epoch, then it will take care
+    // of re-remembering and reference counting stake for the last increment
+    // of the previous epoch.
+    return false;
+  }
+
+  const zaddress addr = ZBarrier::remset_barrier_on_oop_field_preloaded(p, prev);
+
+  // If the previous value was not store good, it is always the responsibility
+  // of the remembered set scanning to clear the previous bit
+  const bool forgotten = ZOldRefCount && ZGeneration::young()->forget_previous(p);
+
+  if (is_null(addr)) {
+    return false;
+  }
+
+  if (ZHeap::heap()->is_young(addr)) {
     remember(p);
     return true;
+  }
+
+  if (forgotten) {
+    ZGeneration::young()->on_forget(p, addr);
   }
 
   return false;

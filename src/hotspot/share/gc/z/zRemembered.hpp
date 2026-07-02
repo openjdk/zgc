@@ -84,7 +84,11 @@ public:
               ZPageAllocator* page_allocator);
 
   // Add to remembered set
-  void remember(volatile zpointer* p) const;
+  bool remember(volatile zpointer* p) const;
+
+  // Forget from remembered set
+  bool forget_previous(volatile zpointer* p) const;
+  void forget_current(volatile zpointer* p) const;
 
   // Scan all remembered sets and follow
   void scan_and_follow(ZMark* mark);
@@ -94,6 +98,7 @@ public:
   void flip();
 
   // Scan a remembered set entry
+  bool scan_field(volatile zpointer* p, zpointer prev) const;
   bool scan_field(volatile zpointer* p) const;
 
   // Verification

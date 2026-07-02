@@ -752,7 +752,11 @@ void ZStatPhaseGeneration::register_end(ConcurrentGCTimer* timer, const Ticks& s
   generation->stat_relocation()->print_page_summary();
   if (generation->is_young()) {
     generation->stat_relocation()->print_age_table();
+    if (ZOldRefCount) {
+      ZGeneration::young()->stat_reference_counting()->print();
+    }
   }
+  generation->stat_freelist()->print();
 
   generation->stat_heap()->print(generation);
 
@@ -1257,6 +1261,11 @@ public:
       return next();
     }
 
+    template <typename T>
+    ZColumn right_percent(T numerator, T denominator) {
+      return denominator == T(0) ? right("N/A") : right("%.2f%%", percent_of(numerator, denominator));
+    }
+
     ZColumn center(const char* fmt, ...) ATTRIBUTE_PRINTF(2, 3) {
       va_list va;
 
@@ -1695,7 +1704,7 @@ void ZStatRelocation::print_age_table() {
     FormatBuffer<> age_str("");
     if (age == ZPageAge::eden) {
       age_str.append("Eden");
-    } else if (age != ZPageAge::old) {
+    } else if (is_survivor(age)) {
       age_str.append("Survivor %d", i);
     }
 
@@ -1809,6 +1818,173 @@ void ZStatReferences::print() {
 }
 
 //
+// Stat reference counting
+//
+ZStatReferenceCounting::ZStatReferenceCounting()
+  : _death_row_roots(),
+    _processed(),
+    _freelist_freed(),
+    _page_freed(),
+    _pardoned() {}
+
+void ZStatReferenceCounting::at_process_death_row(size_t death_row_roots[ZPageAgeOldCount],
+                                                  size_t processed[ZPageAgeOldCount],
+                                                  size_t freelist_freed[ZPageAgeOldCount],
+                                                  size_t page_freed[ZPageAgeOldCount],
+                                                  size_t pardoned[ZPageAgeOldCount]) {
+  for (uint i = 0; i < ZPageAgeOldCount; i++) {
+    _death_row_roots[i] = death_row_roots[i];
+    _processed[i] = processed[i];
+    _freelist_freed[i] = freelist_freed[i];
+    _page_freed[i] = page_freed[i];
+    _pardoned[i] = pardoned[i];
+  }
+}
+
+void ZStatReferenceCounting::print() const {
+  LogTarget(Info, gc, refcount) lt;
+  if (!lt.is_enabled()) {
+    return;
+  }
+
+  ZStatTablePrinter table(16, 16);
+  lt.print("Reference Counting:");
+  lt.print("%s", table()
+                     .fill()
+                     .right("DR Roots")
+                     .right("Processed")
+                     .right("FL Freed")
+                     .right("Page Freed")
+                     .right("Pardoned")
+                     .end());
+  for (ZPageAge age : ZPageAgeRangeOld) {
+    const size_t i = ZPageAgeRangeOld.index(age);
+    lt.print("%s", table()
+                       .left("%s:", name(age))
+                       .right(PROPERFMT, PROPERFMTARGS(_death_row_roots[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_processed[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_freelist_freed[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_page_freed[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_pardoned[i]))
+                       .end());
+  }
+}
+
+//
+// Stat free list
+//
+ZStatFreeList::ZStatFreeList(ZGenerationId id)
+  : _id(id),
+    _available_at_start(),
+    _worker_freelist(),
+    _mutator_freelist(),
+    _worker_relocated(),
+    _mutator_relocated() {}
+
+void ZStatFreeList::at_relocate_end(const ZPageAllocatorStats& stats) {
+  const bool is_young = _id == ZGenerationId::young;
+  for (uint i = 0; i < ZFreeListPageTypeCount; i++) {
+    const ZPageType type = static_cast<ZPageType>(i);
+    _available_at_start[i] = stats.freelist_available_at_start(type);
+
+    const size_t freelist = is_young ? stats.freelist_promoted(type) : stats.freelist_compacted(type);
+    const size_t mutator_freelist = is_young ? stats.mutator_freelist_promoted(type) : stats.mutator_freelist_compacted(type);
+    const size_t mutator_relocated = is_young ? stats.mutator_promoted(type) : stats.mutator_compacted(type);
+    const size_t relocated = is_young ? stats.promoted(type) - stats.flip_promoted(type) : stats.compacted(type);
+
+    assert(!is_young || stats.flip_promoted(type) <= stats.promoted(type), "Invalid promotion statistics");
+    assert(mutator_freelist <= freelist, "Invalid free-list statistics");
+    assert(mutator_freelist <= mutator_relocated, "Invalid mutator free-list statistics");
+    assert(mutator_relocated <= relocated, "Invalid mutator relocation statistics");
+
+    _worker_freelist[i] = freelist - mutator_freelist;
+    _mutator_freelist[i] = mutator_freelist;
+    _worker_relocated[i] = relocated - mutator_relocated;
+    _mutator_relocated[i] = mutator_relocated;
+  }
+}
+
+void ZStatFreeList::print() const {
+  LogTarget(Info, gc, freelist) lt;
+  if (!lt.is_enabled()) {
+    return;
+  }
+
+  size_t available_total = 0;
+  size_t worker_freelist_total = 0;
+  size_t mutator_freelist_total = 0;
+  size_t worker_relocated_total = 0;
+  size_t mutator_relocated_total = 0;
+  for (uint i = 0; i < ZFreeListPageTypeCount; i++) {
+    const size_t used = _worker_freelist[i] + _mutator_freelist[i];
+    const size_t relocated = _worker_relocated[i] + _mutator_relocated[i];
+    precond(used <= _available_at_start[i]);
+    precond(used <= relocated);
+
+    available_total += _available_at_start[i];
+    worker_freelist_total += _worker_freelist[i];
+    mutator_freelist_total += _mutator_freelist[i];
+    worker_relocated_total += _worker_relocated[i];
+    mutator_relocated_total += _mutator_relocated[i];
+  }
+
+  const size_t used_total = worker_freelist_total + mutator_freelist_total;
+  const size_t relocated_total = worker_relocated_total + mutator_relocated_total;
+  if (available_total == 0 || relocated_total == 0) {
+    return;
+  }
+
+  ZStatTablePrinter table(16, 16);
+  lt.print("Free List (%s):", _id == ZGenerationId::young ? "Promoted" : "Compacted");
+  lt.print("%s", table()
+           .fill()
+           .right("Available")
+           .right("Relocated")
+           .right("Used")
+           .right("Of Available")
+           .right("Of Relocated")
+           .end());
+  for (uint i = 0; i < ZFreeListPageTypeCount; i++) {
+    const char* const name = i == untype(ZPageType::small) ? "Small" : "Medium";
+    const size_t used = _worker_freelist[i] + _mutator_freelist[i];
+    const size_t relocated = _worker_relocated[i] + _mutator_relocated[i];
+    lt.print("%s", table()
+             .left("%s Worker:", name)
+             .right("-")
+             .right(PROPERFMT, PROPERFMTARGS(_worker_relocated[i]))
+             .right(PROPERFMT, PROPERFMTARGS(_worker_freelist[i]))
+             .right_percent(_worker_freelist[i], _available_at_start[i])
+             .right_percent(_worker_freelist[i], _worker_relocated[i])
+             .end());
+    lt.print("%s", table()
+             .left("%s Mutator:", name)
+             .right("-")
+             .right(PROPERFMT, PROPERFMTARGS(_mutator_relocated[i]))
+             .right(PROPERFMT, PROPERFMTARGS(_mutator_freelist[i]))
+             .right_percent(_mutator_freelist[i], _available_at_start[i])
+             .right_percent(_mutator_freelist[i], _mutator_relocated[i])
+             .end());
+    lt.print("%s", table()
+             .left("%s Total:", name)
+             .right(PROPERFMT, PROPERFMTARGS(_available_at_start[i]))
+             .right(PROPERFMT, PROPERFMTARGS(relocated))
+             .right(PROPERFMT, PROPERFMTARGS(used))
+             .right_percent(used, _available_at_start[i])
+             .right_percent(used, relocated)
+             .end());
+  }
+  // TODO: Total might % might be missleading.
+  lt.print("%s", table()
+           .left("Total:")
+           .right(PROPERFMT, PROPERFMTARGS(available_total))
+           .right(PROPERFMT, PROPERFMTARGS(relocated_total))
+           .right(PROPERFMT, PROPERFMTARGS(used_total))
+           .right_percent(used_total, available_total)
+           .right_percent(used_total, relocated_total)
+           .end());
+}
+
+//
 // Stat heap
 //
 
@@ -1845,6 +2021,14 @@ size_t ZStatHeap::free(size_t used, size_t capacity) const {
   }
 
   return _at_initialize.max_capacity - used;
+}
+
+size_t ZStatHeap::freelist_available(size_t freelist_available_at_start,
+                                     size_t freelist_promoted,
+                                     size_t freelist_compacted) const {
+  const size_t freelist_allocated = freelist_promoted + freelist_compacted;
+  assert(freelist_allocated <= freelist_available_at_start, "Invalid free-list statistics");
+  return freelist_available_at_start - freelist_allocated;
 }
 
 size_t ZStatHeap::mutator_allocated(size_t used_generation, size_t freed, size_t relocated) const {
@@ -1890,6 +2074,9 @@ void ZStatHeap::at_mark_start(const ZPageAllocatorStats& stats) {
   _at_mark_start.free = free(stats.used(), stats.capacity());
   _at_mark_start.used = stats.used();
   _at_mark_start.used_generation = stats.used_generation();
+  _at_mark_start.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                         stats.freelist_promoted(),
+                                                         stats.freelist_compacted());
   _at_mark_start.allocation_stalls = stats.allocation_stalls();
 }
 
@@ -1900,6 +2087,9 @@ void ZStatHeap::at_mark_end(const ZPageAllocatorStats& stats) {
   _at_mark_end.free = free(stats.used(), stats.capacity());
   _at_mark_end.used = stats.used();
   _at_mark_end.used_generation = stats.used_generation();
+  _at_mark_end.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                       stats.freelist_promoted(),
+                                                       stats.freelist_compacted());
   _at_mark_end.mutator_allocated = mutator_allocated(stats.used_generation(), 0 /* reclaimed */, 0 /* relocated */);
   _at_mark_end.allocation_stalls = stats.allocation_stalls();
 }
@@ -1919,22 +2109,32 @@ void ZStatHeap::at_relocate_start(const ZPageAllocatorStats& stats) {
   ZLocker<ZLock> locker(&_stat_lock);
 
   assert(stats.compacted() == 0, "Nothing should have been compacted");
+  assert(stats.freelist_compacted() == 0, "Nothing should have been compacted");
+
+  const size_t promoted = stats.promoted();
+  const size_t compacted = stats.compacted();
 
   _at_relocate_start.capacity = stats.capacity();
   _at_relocate_start.free = free(stats.used(), stats.capacity());
   _at_relocate_start.used = stats.used();
   _at_relocate_start.used_generation = stats.used_generation();
-  _at_relocate_start.live = _at_mark_end.live - stats.promoted();
-  _at_relocate_start.garbage = garbage(stats.freed(), stats.compacted(), stats.promoted());
+  _at_relocate_start.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                             stats.freelist_promoted(),
+                                                             stats.freelist_compacted());
+  _at_relocate_start.live = _at_mark_end.live - promoted;
+  _at_relocate_start.garbage = garbage(stats.freed(), compacted, promoted);
   _at_relocate_start.mutator_allocated = mutator_allocated(stats.used_generation(), stats.freed(), stats.compacted());
-  _at_relocate_start.reclaimed = reclaimed(stats.freed(), stats.compacted(), stats.promoted());
-  _at_relocate_start.promoted = stats.promoted();
-  _at_relocate_start.compacted = stats.compacted();
+  _at_relocate_start.reclaimed = reclaimed(stats.freed(), compacted, promoted);
+  _at_relocate_start.promoted = promoted;
+  _at_relocate_start.compacted = compacted;
   _at_relocate_start.allocation_stalls = stats.allocation_stalls();
 }
 
 void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_stats) {
   ZLocker<ZLock> locker(&_stat_lock);
+
+  const size_t promoted = stats.promoted();
+  const size_t compacted = stats.compacted();
 
   _at_relocate_end.capacity = stats.capacity();
   _at_relocate_end.capacity_high = capacity_high();
@@ -1946,12 +2146,15 @@ void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_st
   _at_relocate_end.used_high = stats.used_high();
   _at_relocate_end.used_low = stats.used_low();
   _at_relocate_end.used_generation = stats.used_generation();
-  _at_relocate_end.live = _at_mark_end.live - MIN2(stats.promoted(), _at_mark_end.live);
-  _at_relocate_end.garbage = garbage(stats.freed(), stats.compacted(), stats.promoted());
+  _at_relocate_end.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                           stats.freelist_promoted(),
+                                                           stats.freelist_compacted());
+  _at_relocate_end.live = _at_mark_end.live - MIN2(promoted, _at_mark_end.live);
+  _at_relocate_end.garbage = garbage(stats.freed(), compacted, promoted);
   _at_relocate_end.mutator_allocated = mutator_allocated(stats.used_generation(), stats.freed(), stats.compacted());
-  _at_relocate_end.reclaimed = reclaimed(stats.freed(), stats.compacted(), stats.promoted());
-  _at_relocate_end.promoted = stats.promoted();
-  _at_relocate_end.compacted = stats.compacted();
+  _at_relocate_end.reclaimed = reclaimed(stats.freed(), compacted, promoted);
+  _at_relocate_end.promoted = promoted;
+  _at_relocate_end.compacted = compacted;
   _at_relocate_end.allocation_stalls = stats.allocation_stalls();
 
   if (record_stats) {
@@ -2094,6 +2297,18 @@ void ZStatHeap::print(const ZGeneration* generation) const {
                      .left(ZTABLE_ARGS(_at_relocate_start.used_generation, max))
                      .left(ZTABLE_ARGS(_at_relocate_end.used_generation, max))
                      .end());
+  if (_at_mark_start.freelist_available != 0 ||
+      _at_mark_end.freelist_available != 0 ||
+      _at_relocate_start.freelist_available != 0 ||
+      _at_relocate_end.freelist_available != 0) {
+    log_info(gc, heap)("%s", gen_table()
+                       .right("Free List:")
+                       .left(ZTABLE_ARGS(_at_mark_start.freelist_available, max))
+                       .left(ZTABLE_ARGS(_at_mark_end.freelist_available, max))
+                       .left(ZTABLE_ARGS(_at_relocate_start.freelist_available, max))
+                       .left(ZTABLE_ARGS(_at_relocate_end.freelist_available, max))
+                       .end());
+  }
   log_info(gc, heap)("%s", gen_table()
                      .right("Live:")
                      .left(ZTABLE_ARGS_NA)

@@ -54,6 +54,16 @@ void ZRememberedSet::initialize(size_t page_size) {
   _bitmap[1].initialize(size_in_bits, true /* clear */);
 }
 
+void ZRememberedSet::initialize(ZRememberedSet* remset) {
+  _bitmap[0].init(&remset->_bitmap[0]);
+  _bitmap[1].init(&remset->_bitmap[1]);
+}
+
+void ZRememberedSet::uninitialize() {
+  _bitmap[0].uninit();
+  _bitmap[1].uninit();
+}
+
 bool ZRememberedSet::is_cleared_current() const {
   return current()->is_empty();
 }
@@ -80,14 +90,14 @@ ZBitMap::ReverseIterator ZRememberedSet::iterator_reverse_previous() {
 }
 
 BitMap::Iterator ZRememberedSet::iterator_limited_current(uintptr_t offset, size_t size) {
-  const size_t index = to_index(offset);;
+  const size_t index = to_index(offset);
   const size_t bit_size = to_bit_size(size);
 
   return BitMap::Iterator(*current(), index, index + bit_size);
 }
 
 ZBitMap::Iterator ZRememberedSet::iterator_limited_previous(uintptr_t offset, size_t size) {
-  const size_t index = to_index(offset);;
+  const size_t index = to_index(offset);
   const size_t bit_size = to_bit_size(size);
 
   return BitMap::Iterator(*previous(), index, index + bit_size);
@@ -125,6 +135,7 @@ bool ZRememberedSetContainingIterator::next(ZRememberedSetContaining* containing
 
     if (_obj_remset_iter.next(&index)) {
       containing->_field_addr = to_addr(index);
+      containing->_field_value = AtomicAccess::load((volatile zpointer*)untype(containing->_field_addr));
       containing->_addr = _obj;
 
       log_develop_trace(gc, remset)("Remset Containing Obj  index: " PTR_FORMAT " base: " PTR_FORMAT " field: " PTR_FORMAT, index, untype(containing->_addr), untype(containing->_field_addr));
@@ -139,13 +150,20 @@ bool ZRememberedSetContainingIterator::next(ZRememberedSetContaining* containing
   // At this point, we don't know where the nearest earlier object starts.
   // Search for the next earlier remset bit, and then search for the likely
   // owning object.
-  if (_remset_iter.next(&index)) {
+  for (;;) {
+    if (!_remset_iter.next(&index)) {
+      // Remset iterator exhausted
+      return false;
+    }
+
     containing->_field_addr = to_addr(index);
+    containing->_field_value = AtomicAccess::load((volatile zpointer*)untype(containing->_field_addr)); // TODO: less casts
     containing->_addr = _page->find_base((volatile zpointer*)untype(containing->_field_addr));
 
     if (is_null(containing->_addr)) {
-      // Found no live object
-      return false;
+      // Found no live object; prune the remset entry
+      ZGeneration::young()->forget_previous((volatile zpointer*)containing->_field_addr);
+      continue;
     }
 
     // Found live object. Not necessarily the one that originally owned the remset bit.
@@ -162,8 +180,6 @@ bool ZRememberedSetContainingIterator::next(ZRememberedSetContaining* containing
 
     return true;
   }
-
-  return false;
 }
 
 ZRememberedSetContainingInLiveIterator::ZRememberedSetContainingInLiveIterator(ZPage* page)
@@ -191,6 +207,7 @@ bool ZRememberedSetContainingInLiveIterator::next(ZRememberedSetContaining* cont
     }
 
     // Skip field outside object
+    ZGeneration::young()->forget_previous((volatile zpointer*)local._field_addr);
     _count_skipped++;
   }
 
