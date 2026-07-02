@@ -185,6 +185,10 @@ inline bool ZPage::is_relocatable() const {
   return _seqnum < generation()->seqnum();
 }
 
+inline bool ZPage::is_in(const ZVirtualMemory& vmem) const {
+  return _virtual.contains(vmem);
+}
+
 inline bool ZPage::is_in(zoffset offset) const {
   return offset >= start() && offset < top();
 }
@@ -317,7 +321,7 @@ inline size_t ZPage::live_bytes() const {
 }
 
 template <typename Function>
-inline void ZPage::object_iterate(Function function) {
+inline void ZPage::object_iterate(Function function) const {
   auto do_bit = [&](BitMap::idx_t index) -> bool {
     const oop obj = object_from_bit_index(index);
 
@@ -330,12 +334,92 @@ inline void ZPage::object_iterate(Function function) {
   _livemap.iterate(_generation_id, do_bit);
 }
 
-inline void ZPage::remember(volatile zpointer* p) {
+inline bool ZPage::remember(volatile zpointer* p) {
   const zaddress addr = to_zaddress((uintptr_t)p);
   const uintptr_t l_offset = local_offset(addr);
-  _remembered_set.set_current(l_offset);
+  return _remembered_set.set_current(l_offset);
 }
 
+inline bool ZPage::forget_previous(volatile zpointer* p) {
+  const zaddress addr = to_zaddress((uintptr_t)p);
+  const uintptr_t l_offset = local_offset(addr);
+  return _remembered_set.unset_previous(l_offset);
+}
+
+inline void ZPage::forget_current(volatile zpointer* p) {
+  const zaddress addr = to_zaddress((uintptr_t)p);
+  const uintptr_t l_offset = local_offset(addr);
+  _remembered_set.unset_current(l_offset);
+}
+
+// TODO: Naming is horrible
+inline BitMap::idx_t ZPage::dr_bit_index(zaddress addr) const {
+  return local_offset(addr) >> object_alignment_shift();
+}
+
+inline void ZPage::set_death_row(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.set_death_row(index);
+}
+
+inline void ZPage::unset_death_row(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.unset_death_row(index);
+}
+
+inline bool ZPage::is_in_death_row(zaddress addr) {
+  BitMap::idx_t index = dr_bit_index(addr);
+  return _livemap.is_in_death_row(index);
+}
+
+template <typename Function>
+inline void ZPage::iterate_death_row(Function function) {
+  assert(is_allocating(), "must be");
+  auto adapter = [&](BitMap::idx_t bit_index) {
+    zaddress addr = ZOffset::address(start() + (bit_index << object_alignment_shift()));
+    function(addr);
+    return true;
+  };
+  _livemap.iterate_death_row(adapter);
+}
+
+inline void ZPage::set_pardoned(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.set_pardoned(index);
+}
+
+inline void ZPage::unset_pardoned(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.unset_pardoned(index);
+}
+
+inline bool ZPage::is_pardoned(zaddress addr) const {
+  assert(is_allocating(), "must be");
+  assert(is_old(), "must be");
+  if (_seqnum_other == ZGeneration::young()->seqnum()) {
+    // Freshly created/reset pages have all objects pardoned by definition.
+    return true;
+  }
+  BitMap::idx_t index = dr_bit_index(addr);
+  return _livemap.is_pardoned(index);
+}
+
+template <typename Function>
+inline void ZPage::iterate_pardoned(Function function) {
+  assert(is_allocating(), "must be");
+  auto adapter = [&](BitMap::idx_t bit_index) {
+    zaddress addr = ZOffset::address(start() + (bit_index << object_alignment_shift()));
+    function(addr);
+    return true;
+  };
+  _livemap.iterate_pardoned(adapter);
+}
+
+// TODO: Look at callers of these guys; don't want double clearing
 inline void ZPage::clear_remset_bit_non_par_current(uintptr_t l_offset) {
   _remembered_set.unset_non_par_current(l_offset);
 }

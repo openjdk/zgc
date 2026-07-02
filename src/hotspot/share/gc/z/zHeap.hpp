@@ -104,6 +104,7 @@ public:
 
   ZPage* page(zaddress addr) const;
   ZPage* page(volatile zpointer* addr) const;
+  void in_place_replace_page(ZPage* from_page, ZPage* to_page);
 
   // Liveness
   bool is_object_live(zaddress addr) const;

@@ -22,7 +22,6 @@
  */
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zCPU.inline.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "runtime/globals_extension.hpp"
 
@@ -35,15 +34,6 @@ void ZNUMA::pd_initialize() {
       : 1;
 }
 
-uint32_t ZNUMA::id() {
-  if (is_faked()) {
-    // ZFakeNUMA testing
-    return ZCPU::id() % ZFakeNUMA;
-  }
-
-  return 0;
-}
-
 uint32_t ZNUMA::memory_id(uintptr_t addr) {
   // NUMA support not enabled, assume everything belongs to node zero
   return 0;
@@ -51,4 +41,14 @@ uint32_t ZNUMA::memory_id(uintptr_t addr) {
 
 int ZNUMA::numa_id_to_node(uint32_t numa_id) {
   ShouldNotCallThis();
+}
+
+uint32_t ZNUMA::cpu_id_to_numa_id(uint32_t cpu_id) {
+  if (is_faked()) {
+    // ZFakeNUMA testing
+    return cpu_id % ZFakeNUMA;
+  }
+
+  // NUMA support not enabled, assume everything belongs to node zero
+  return 0;
 }

@@ -60,6 +60,18 @@ inline bool ZRelocationSetSelectorStats::has_relocatable_pages() const {
   return _has_relocatable_pages;
 }
 
+inline size_t ZRelocationSetLiveStats::small(ZPageAge age) const {
+  return _small[untype(age)];
+}
+
+inline size_t ZRelocationSetLiveStats::medium(ZPageAge age) const {
+  return _medium[untype(age)];
+}
+
+inline size_t ZRelocationSetLiveStats::large(ZPageAge age) const {
+  return _large[untype(age)];
+}
+
 inline const ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorStats::small(ZPageAge age) const {
   return _small[untype(age)];
 }
@@ -73,6 +85,11 @@ inline const ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorStats::larg
 }
 
 inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size_t live_bytes) const {
+  if (_promote_all) {
+    // Flip promote everything
+    return false;
+  }
+
   if (page->is_small()) {
     // Small pages are always the same size, so we can simply compare the
     // garbage pre-calculated _page_fragmentation_limit.
@@ -80,7 +97,7 @@ inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size
 
     const size_t garbage = ZPageSizeSmall - live_bytes;
 
-    return garbage > _page_fragmentation_limit;
+    return garbage > page_fragmentation_limit(page->age());
   }
 
   if (page->is_medium()) {
@@ -92,7 +109,7 @@ inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size
     // using log2 and bit-shift.
     const size_t size = page->size();
     const int shift = ZPageSizeMediumMaxShift - log2i_exact(size);
-    const size_t page_fragmentation_limit = _page_fragmentation_limit >> shift;
+    const size_t page_fragmentation_limit = _page_fragmentation_limit[untype(page->age())] >> shift;
 
     const size_t garbage = size - live_bytes;
 
@@ -103,13 +120,33 @@ inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size
   return false;
 }
 
+inline double ZRelocationSetSelectorGroup::fragmentation_limit(ZPageAge age) const {
+  return _fragmentation_limit[static_cast<uint>(age)];
+}
+
+inline size_t ZRelocationSetSelectorGroup::page_fragmentation_limit(ZPageAge age) const {
+  return _page_fragmentation_limit[static_cast<uint>(age)];
+}
+
+inline ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorGroup::stats(ZPageAge age) {
+  return _stats[static_cast<uint>(age)];
+}
+
+inline ZArray<ZPage*>& ZRelocationSetSelectorGroup::live_pages(ZPageAge age) {
+  if (is_old(age)) {
+    return _live_pages;
+  }
+
+  return _live_pages_young[static_cast<uint>(age)];
+}
+
 inline void ZRelocationSetSelectorGroup::register_live_page(ZPage* page) {
   const size_t live = page->live_bytes();
 
   // Pre-filter out pages that are guaranteed to not be selected
   if (pre_filter_page(page, live)) {
-    _live_pages.append(page);
-  } else if (page->is_young()) {
+    live_pages(page->age()).append(page);
+  } else {
     _not_selected_pages.append(page);
   }
 
@@ -149,13 +186,17 @@ inline void ZRelocationSetSelector::register_live_page(ZPage* page) {
   page->log_msg(" (relocation candidate)");
 
   const ZPageType type = page->type();
+  const ZPageAge age = page->age();
 
   if (type == ZPageType::small) {
     _small.register_live_page(page);
+    _live_stats._small[untype(age)] += page->live_bytes();
   } else if (type == ZPageType::medium) {
     _medium.register_live_page(page);
+    _live_stats._medium[untype(age)] += page->live_bytes();
   } else {
     _large.register_live_page(page);
+    _live_stats._large[untype(age)] += page->live_bytes();
   }
 }
 
