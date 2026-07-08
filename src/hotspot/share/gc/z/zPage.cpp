@@ -55,6 +55,7 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
 
   if (is_old()) {
     remset_alloc();
+    _livemap.initialize_bitmap(); // TODO: Check for redundancy
   }
 }
 
@@ -179,10 +180,10 @@ void* ZPage::remset_current() {
 
 void ZPage::free_object_to_free_list(zaddress addr) {
   size_t size = ZUtils::object_size(addr);
-  //_free_list->free(addr, size); TODO: Switch this on again
+  _free_list->free(addr, size);
 #ifdef ASSERT
   // TODO: Use the right zap function instead.
-  int header_size = 0;
+  int header_size = 8;
   memset(((char*)addr) + header_size, 0xdeafbabe, size - header_size);
 #endif
 }

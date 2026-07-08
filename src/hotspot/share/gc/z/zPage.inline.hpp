@@ -348,6 +348,64 @@ inline void ZPage::forget_current(volatile zpointer* p) {
   _remembered_set.unset_current(l_offset);
 }
 
+// TODO: Naming is horrible
+inline BitMap::idx_t ZPage::dr_bit_index(zaddress addr) const {
+  return local_offset(addr) >> object_alignment_shift();
+}
+
+// TODO: Large pages!!
+inline void ZPage::set_death_row(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.set_death_row(index);
+}
+
+inline void ZPage::unset_death_row(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.unset_death_row(index);
+}
+
+template <typename Function>
+inline void ZPage::iterate_death_row(Function function) {
+  assert(is_allocating(), "must be");
+  auto adapter = [&](BitMap::idx_t bit_index) {
+    zaddress addr = ZOffset::address(start() + (bit_index << object_alignment_shift()));
+    function(addr);
+    return true;
+  };
+  _livemap.iterate_death_row(adapter);
+}
+
+inline void ZPage::set_pardoned(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.set_pardoned(index);
+}
+
+inline void ZPage::unset_pardoned(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  _livemap.unset_pardoned(index);
+}
+
+inline bool ZPage::is_pardoned(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  return _livemap.is_pardoned(index);
+}
+
+template <typename Function>
+inline void ZPage::iterate_pardoned(Function function) {
+  assert(is_allocating(), "must be");
+  auto adapter = [&](BitMap::idx_t bit_index) {
+    zaddress addr = ZOffset::address(start() + (bit_index << object_alignment_shift()));
+    function(addr);
+    return true;
+  };
+  _livemap.iterate_pardoned(adapter);
+}
+
 // TODO: Look at callers of these guys; don't want double clearing
 inline void ZPage::clear_remset_bit_non_par_current(uintptr_t l_offset) {
   _remembered_set.unset_non_par_current(l_offset);

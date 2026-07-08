@@ -80,32 +80,19 @@ struct ZRefCount : public AllStatic {
   }
 };
 
-// TODO: Pick better death row data structure?
-ZReferenceCounting::ZReferenceCounting()
-  : _lock(),
-    _next_death_row(new (mtGC) ZAddressTable(8, 0x3fffffff)),
-    _curr_death_row(new (mtGC) ZAddressTable(8, 0x3fffffff)) {
-}
-
 void ZReferenceCounting::on_young_mark_start() {
-  delete _curr_death_row; // TODO: Looks expensive for safepoint; defer?
-  _curr_death_row = _next_death_row;
-  _next_death_row = new (mtGC) ZAddressTable(8, 0x3fffffff);
-  log_info(gc)("[OYMS %d:%d]", _curr_death_row->number_of_entries(), _next_death_row->number_of_entries()); // TODO: REMOVE
+  // TODO: Remove?
 }
 
 void ZReferenceCounting::on_old_mark_start() {
-  delete _curr_death_row; // TODO: Looks expensive for safepoint; defer?
-  delete _next_death_row; // TODO: Looks expensive for safepoint; defer?
-  _curr_death_row = new (mtGC) ZAddressTable(8, 0x3fffffff);
-  _next_death_row = new (mtGC) ZAddressTable(8, 0x3fffffff);
-  log_info(gc)("[OOMS %d:%d]", _curr_death_row->number_of_entries(), _next_death_row->number_of_entries()); // TODO: REMOVE
+  // TODO: Remove?
 }
 
 void ZReferenceCounting::increment(zaddress addr) {
   oop obj = to_oop(addr);
+  ZPage* page = ZHeap::heap()->page(addr);
 
-  if (!ZHeap::heap()->page(addr)->is_allocating()) {
+  if (!page->is_allocating()) {
     // Only is_allocating old objects are candidates for eager reclamation.
     return;
   }
@@ -118,18 +105,20 @@ void ZReferenceCounting::increment(zaddress addr) {
       return;
     }
 
+    // Increments imply that the last GC cycle still had a reference to the object.
+    // That means it could have escaped into roots before or after root scanning.
+    // So we have to conservatively pardon these objects from the death row.
+    page->set_pardoned(addr);
+
     int new_ref_count = ref_count == ZRefCount::Max ? ZRefCount::Uncertain : (ref_count + 1);
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
+    // TODO DO NOT USE bit_index
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
+      log_info(gc)("[i%d %p]", new_ref_count, (void*)addr); // TODO: REMOVE
       if (new_ref_count == 1) {
-        log_info(gc)("[i%d %p %d:%d]", new_ref_count, (void*)addr, _curr_death_row->number_of_entries(), _next_death_row->number_of_entries()); // TODO: REMOVE
         // When transitioning from 0 to 1, we no longer need to be remembered.
-        ZLocker<ZLock> locker(&_lock);
-        _curr_death_row->remove(addr);
-        _next_death_row->remove(addr); // TODO: Seems impossible, but lets be safe now
-      } else {
-        log_info(gc)("[i%d %p]", new_ref_count, (void*)addr); // TODO: REMOVE
+        page->unset_death_row(addr);
       }
 
       return;
@@ -139,8 +128,9 @@ void ZReferenceCounting::increment(zaddress addr) {
 
 void ZReferenceCounting::decrement(zaddress addr) {
   oop obj = to_oop(addr);
+  ZPage* page = ZHeap::heap()->page(addr);
 
-  if (!ZHeap::heap()->page(addr)->is_allocating()) {
+  if (!page->is_allocating()) {
     // Only is_allocating old objects are candidates for eager reclamation.
     return;
   }
@@ -171,18 +161,16 @@ void ZReferenceCounting::decrement(zaddress addr) {
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      log_info(gc)("[d%d %p %d:%d]", new_ref_count, (void*)addr, _curr_death_row->number_of_entries(), _next_death_row->number_of_entries()); // TODO: REMOVE
+      log_info(gc)("[d%d %p]", new_ref_count, (void*)addr); // TODO: REMOVE
       if (new_ref_count == ZRefCount::Uncertain) {
-        ZLocker<ZLock> locker(&_lock);
-        _curr_death_row->remove(addr);
-        _next_death_row->remove(addr); // TODO: Seems impossible, but lets be safe now
+        page->unset_death_row(addr);
       } else if (new_ref_count == 0) {
         // When transitioning from 1 to 0, we need to remember the object so it
-        // can be freed later.
-        ZLocker<ZLock> locker(&_lock);
-        bool created;
-        _next_death_row->put_if_absent(addr, &created);
-        _next_death_row->maybe_grow();
+        // can be freed later. However, it can not be doned this GC cycle; we
+        // have to wait until the next GC cycle. So we pardon the object from
+        // death row for this GC cycle.
+        page->set_death_row(addr);
+        page->set_pardoned(addr);
       }
       return;
     }
@@ -198,11 +186,6 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   }
 
   log_info(gc)("[re %p]", (void*)addr); // TODO: REMOVE
-
-  {
-    ZLocker<ZLock> locker(&_lock);
-    _curr_death_row->remove(addr);
-  }
 
   // The first store after young generation marking starts always needs to perform
   // the first decrement of the previously referred to object (i.e. addr). However,
@@ -237,118 +220,143 @@ void ZReferenceCounting::on_promotion(zaddress addr) {
   assert(ZHeap::heap()->page(addr)->is_allocating(), "must be allocating");
   assert(ZRefCount::count(to_oop(addr)->mark()) == 0,
          "invalid promotion ref count: %d", ZRefCount::count(to_oop(addr)->mark()));
-  ZLocker<ZLock> locker(&_lock);
-  bool created;
-  log_info(gc)("[p %p %d:%d]", (void*)addr, _curr_death_row->number_of_entries(), _next_death_row->number_of_entries()); // TODO: REMOVE
-  _next_death_row->put_if_absent(addr, &created);
-  _next_death_row->maybe_grow();
+  log_info(gc)("[p %p]", (void*)addr); // TODO: REMOVE
+
+  ZPage* page = ZHeap::heap()->page(addr);
+  page->set_death_row(addr);
 }
 
 // TODO: Not called
 void ZReferenceCounting::on_root(zaddress addr) {
-  // The reference counters track the number of old-to-old references in
-  // the object graph. That means roots to the old generation are not
-  // accounted for. To make life easier, we simply ban objects ever referred
-  // to from global roots from becoming eagerly collected. Then we only need
-  // to deal with indeterminism w.r.t. the execution stacks and the
-  // young-to-old roots found during young generation collection.
+  // Roots are always pardoned from the current YC. A full YC without any pending
+  // increments nor roots is required before having zero old-to-old pointers is
+  // a sufficient condition for freeing the object.
+  ZPage* page = ZHeap::heap()->page(addr);
 
-  oop obj = to_oop(addr);
-  markWord mark = obj->mark();
-  int ref_count = ZRefCount::count(mark);
-  if (ref_count > 0) {
+  if (!page->is_old()) {
     return;
   }
 
-  ZLocker<ZLock> locker(&_lock);
-  if (_curr_death_row->remove(addr)) {
-    // If a root blocks freeing, enqueue for processing next time again,
-    // so that it will eventually get freed when the root is gone, while
-    // old-to-old ref count stays zero.
-    bool created;
-    log_info(gc)("[ro %p %d:%d]", (void*)addr, _curr_death_row->number_of_entries(), _next_death_row->number_of_entries()); // TODO: REMOVE
-    _next_death_row->put_if_absent(addr, &created);
-    _next_death_row->maybe_grow();
+  if (!page->is_allocating()) {
+    return;
   }
+
+  page->set_pardoned(addr);
 }
 
-// TODO: not called
 // TODO: Make parallel
 // TODO: Deal better with large arrays
 // TODO: Figure out when we can SuspendibleThreadSet::yield()
-void ZReferenceCounting::process_death_row() {
-  class ZFollowGarbageOopIterateClosure: public BasicOopIterateClosure {
-    Stack<oop, mtGC>* _dfs_stack;
-    oop _obj;
-    ZPage* _page;
+void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator) {
+  Stack<oop, mtGC> dfs_stack;
+  SuspendibleThreadSetJoiner sts;
 
-  public:
-    ZFollowGarbageOopIterateClosure(Stack<oop, mtGC>* dfs_stack, oop obj, ZPage* page) :
-      _dfs_stack(dfs_stack),
-      _obj(obj),
-      _page(page) {}
+  ZGenerationPagesIterator pt_iter(page_table, ZGenerationId::old, page_allocator);
+  for (ZPage* page; pt_iter.next(&page);) {
+    if (!page->is_allocating()) {
+      // TODO: Construct iterator bitmap for faster iteration instead of filtering
+      continue;
+    }
 
-    void do_oop(narrowOop *p) { ShouldNotReachHere(); }
-    void do_oop(oop *p) {
-      size_t field_offset = pointer_delta(p, _obj, sizeof(char));
-      oop obj = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(_obj, field_offset); // TODO: Feel happy about this?
+    page->iterate_death_row([&](zaddress addr) {
+      if (page->is_pardoned(addr)) {
+        return;
+      }
 
-      if (obj != nullptr) {
+      oop obj = to_oop(addr);
+      int ref_count = ZRefCount::count(obj->mark());
+      log_info(gc)("[drr %p]", (void*)addr); // TODO: REMOVE
+
+      assert(ref_count == 0, "must be zero: %d: %p", ref_count, (void*)addr);
+      dfs_stack.push(obj);
+    });
+
+    while (!dfs_stack.is_empty()) {
+      oop obj = dfs_stack.pop();
+      zaddress addr = to_zaddress(obj);
+      int ref_count = ZRefCount::count(obj->mark());
+      ZPage* const page = ZHeap::heap()->page(addr);
+
+      log_info(gc)("[drf %p]", cast_from_oop<void*>(obj)); // TODO: REMOVE
+      assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
+      assert(page->is_allocating(), "must be allocating: %p", cast_from_oop<void*>(obj));
+
+      ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p){
+        size_t field_offset = pointer_delta(p, obj, sizeof(char));
+        oop o = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(obj, field_offset); // TODO: Feel happy about this?
+        zaddress a = to_zaddress(o);
+
+        if (a == zaddress::null) {
+          return;
+        }
+
+        if (ZHeap::heap()->is_young(a)) {
+          return;
+        }
+
+        ZPage* page = ZHeap::heap()->page(a);
+
+        if (!page->is_allocating()) {
+          return;
+        }
+
         for (;;) {
-          markWord mark = obj->mark();
+          markWord mark = o->mark();
           int ref_count = ZRefCount::count(mark);
-          assert(ref_count > 0, "sanity");
+
+          if (ref_count == ZRefCount::Uncertain) {
+            break;
+          }
+
+          assert(ref_count > 0, "should be positive: %d", ref_count);
+
           markWord new_mark = ZRefCount::set_count(mark, ref_count - 1);
-          if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-            log_info(gc)("[drd %p]", cast_from_oop<void*>(obj)); // TODO: REMOVE
+
+          if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
+            log_info(gc)("[drd %p]", cast_from_oop<void*>(o)); // TODO: REMOVE
             // If we decrement an edge to zero, we traverse through more garbage.
             if (ref_count == 1) {
-              _dfs_stack->push(obj);
+              if (page->is_pardoned(a)) {
+                page->set_death_row(a);
+              } else {
+                dfs_stack.push(o);
+              }
             }
             break;
           }
         }
+      });
+
+      // Unlink current remset entries
+      const uintptr_t from_local_offset = page->local_offset(addr);
+      BitMap::Iterator iter = page->remset_iterator_limited_current(from_local_offset, ZUtils::object_size(addr));
+
+      for (BitMap::idx_t field_bit : iter) {
+        const uintptr_t field_local_offset = ZRememberedSet::to_offset(field_bit);
+        const uintptr_t field_offset = field_local_offset - from_local_offset;
+        const zaddress field_addr = addr + field_offset;
+        volatile zpointer* const p = (volatile zpointer*)field_addr;
+
+        page->forget_current(p);
       }
+
+      page->unset_death_row(addr);
+
+      log_info(gc)("Freeing object: %p", (void*)p2i(obj));
+      page->free_object_to_free_list(addr);
     }
-  };
+  }
 
-  Stack<oop, mtGC> dfs_stack;
-  SuspendibleThreadSetJoiner sts;
-
-  _curr_death_row->iterate_all([&](zaddress addr, bool unused) {
-    oop obj = to_oop(addr);
-    int ref_count = ZRefCount::count(obj->mark());
-    log_info(gc)("[drr %p]", (void*)addr); // TODO: REMOVE
-    assert(ref_count == 0, "must be zero: %d: %p", ref_count, (void*)addr);
-    dfs_stack.push(obj);
-  });
-
-  while (!dfs_stack.is_empty()) {
-    oop obj = dfs_stack.pop();
-    zaddress addr = to_zaddress(obj);
-    int ref_count = ZRefCount::count(obj->mark());
-    log_info(gc)("[drf %p]", cast_from_oop<void*>(obj)); // TODO: REMOVE
-    assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
-    ZPage* const page = ZHeap::heap()->page(addr);
-    assert(page->is_allocating(), "must be allocating: %p", cast_from_oop<void*>(obj));
-
-    ZFollowGarbageOopIterateClosure cl(&dfs_stack, obj, page);
-    obj->oop_iterate(&cl);
-
-    // Unlink current remset entries
-    const uintptr_t from_local_offset = page->local_offset(addr);
-    BitMap::Iterator iter = page->remset_iterator_limited_current(from_local_offset, obj->size());
-
-    for (BitMap::idx_t field_bit : iter) {
-      const uintptr_t field_local_offset = ZRememberedSet::to_offset(field_bit);
-      const uintptr_t field_offset = field_local_offset - from_local_offset;
-      const zaddress field_addr = addr + field_offset;
-      volatile zpointer* const p = (volatile zpointer*)field_addr;
-
-      page->forget_current(p);
+  // Clear all the pardoned bits to prepare for next GC cycle.
+  ZGenerationPagesIterator pt_iter2(page_table, ZGenerationId::old, page_allocator);
+  for (ZPage* page; pt_iter2.next(&page);) {
+    if (!page->is_allocating()) {
+      // TODO: Construct iterator bitmap for faster iteration instead of filtering
+      continue;
     }
 
-    log_info(gc)("Freeing object: %p", (void*)p2i(obj));
-    page->free_object_to_free_list(addr);
+    page->iterate_pardoned([&](zaddress addr) {
+      page->unset_pardoned(addr);
+    });
   }
 }

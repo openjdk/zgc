@@ -922,7 +922,7 @@ void ZGenerationYoung::mark_follow() {
   _remembered.scan_and_follow(&_mark);
 
   // Free up unreferenced acyclic garbage in the old generation
-  _old_ref_count.process_death_row();
+  _old_ref_count.process_death_row(_page_table, _page_allocator);
 }
 
 bool ZGenerationYoung::mark_end() {

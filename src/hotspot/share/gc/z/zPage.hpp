@@ -147,6 +147,18 @@ public:
   bool forget_previous(volatile zpointer* p);
   void forget_current(volatile zpointer* p);
 
+  BitMap::idx_t dr_bit_index(zaddress addr) const; // TODO: private?
+  void set_death_row(zaddress addr);
+  void unset_death_row(zaddress addr);
+  template <typename Function>
+  void iterate_death_row(Function function);
+
+  void set_pardoned(zaddress addr);
+  void unset_pardoned(zaddress addr);
+  bool is_pardoned(zaddress addr);
+  template <typename Function>
+  void iterate_pardoned(Function function);
+
   // In-place relocation support
   void clear_remset_bit_non_par_current(uintptr_t l_offset);
   void clear_remset_range_non_par_current(uintptr_t l_offset, size_t size);

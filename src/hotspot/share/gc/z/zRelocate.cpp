@@ -1255,6 +1255,12 @@ static void remap_and_maybe_add_remset(volatile zpointer* p) {
   // old-to-young pointers for (1).
   const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(p, ptr);
 
+  if (ZOldRefCount) {
+    // TODO: Tidy up?
+    ZRelocate::add_remset(p);
+    return;
+  }
+
   if (is_null(addr)) {
     // No need for remset entries for null pointers
     return;

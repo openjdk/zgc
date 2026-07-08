@@ -28,24 +28,18 @@
 #include "gc/z/zLock.hpp"
 #include "utilities/resizableHashTable.hpp"
 
-// Table of candidates for deletion.
-typedef ResizeableHashTable<zaddress, bool, AnyObj::C_HEAP, mtGC> ZAddressTable;
+class ZPageTable;
+class ZPageAllocator;
 
 // ZGC employes a deferred lazy reference counting scheme for old-to-old
 // edges in the object graph, allowing the young generation collections to
 // reclaim acycling garbage from the old generation.
 class ZReferenceCounting {
 private:
-  ZLock _lock; // TODO: Find a way of removing the lock
-  ZAddressTable* _next_death_row;
-  ZAddressTable* _curr_death_row;
-
   void increment(zaddress addr);
   void decrement(zaddress addr);
 
 public:
-  ZReferenceCounting();
-
   void on_young_mark_start();
   void on_old_mark_start();
 
@@ -57,7 +51,7 @@ public:
 
   void on_root(zaddress addr);
 
-  void process_death_row();
+  void process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator);
 };
 
 
