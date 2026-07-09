@@ -619,6 +619,7 @@ private:
       if (!is_null(to_addr)) {
         // Already relocated
         increase_other_forwarded(size);
+        update_remset_for_fields(from_addr, to_addr);
         return to_addr;
       }
     }
@@ -630,20 +631,33 @@ private:
       return zaddress::null;
     }
 
+    bool in_place = _forwarding->in_place_relocation();
+
     // Copy object. Use conjoint copying if we are relocating
     // in-place and the new object overlaps with the old object.
-    if (_forwarding->in_place_relocation() && allocated_addr + size > from_addr) {
+    if (in_place && allocated_addr + size > from_addr) {
       ZUtils::object_copy_conjoint(from_addr, allocated_addr, size);
     } else {
       ZUtils::object_copy_disjoint(from_addr, allocated_addr, size);
+    }
+
+    if (in_place) {
+      // In-place relocation updates the remsets before exposing
+      // the objects in the remembered set
+      update_remset_for_fields(from_addr, allocated_addr);
     }
 
     // Insert forwarding
     const zaddress to_addr = _forwarding->insert(from_addr, allocated_addr, &cursor);
     if (to_addr != allocated_addr) {
       // Already relocated, undo allocation
+      assert(!in_place, "sanity");
       _allocator->undo_alloc_object(to_page, to_addr, size);
       increase_other_forwarded(size);
+    }
+
+    if (!in_place) {
+      update_remset_for_fields(from_addr, to_addr);
     }
 
     return to_addr;
@@ -700,7 +714,7 @@ private:
     // When in-place relocation is done and the old remset bits are located in
     // the bitmap that is going to be used for the new remset bits, then we
     // need to clear the old bits before the new bits are inserted.
-    const bool iterate_current_remset = active_remset_is_current && !in_place;
+    const bool iterate_current_remset = active_remset_is_current;
 
     BitMap::Iterator iter = iterate_current_remset
         ? from_page->remset_iterator_limited_current(from_local_offset, size)
@@ -719,6 +733,14 @@ private:
       volatile zpointer* const to_p = (volatile zpointer*)to_field;
       volatile zpointer* const from_p = (volatile zpointer*)from_field;
       zpointer prev = AtomicAccess::load(from_p);
+
+      if (in_place) {
+        if (iterate_current_remset) {
+          to_page->forget_current(from_p);
+        } else {
+          to_page->forget_previous(from_p);
+        }
+      }
 
       if (ZGeneration::young()->is_phase_mark()) {
         // Young generation remembered set scanning needs to know about this
@@ -837,40 +859,16 @@ private:
       return false;
     }
 
-    update_remset_for_fields(from_addr, to_addr);
-
     maybe_string_dedup(to_addr);
 
     return true;
   }
 
-  void start_in_place_relocation_prepare_remset(ZPage* from_page) {
-    if (_forwarding->from_age() != ZPageAge::old) {
-      // Only old pages have use remset bits
-      return;
-    }
-
-    if (ZGeneration::old()->active_remset_is_current()) {
-      // We want to iterate over and clear the remset bits of the from-space page,
-      // and insert current bits in the to-space page. However, with in-place
-      // relocation, the from-space and to-space pages are the same. Clearing
-      // is destructive, and is difficult to perform before or during the iteration.
-      // However, clearing of the current bits has to be done before exposing the
-      // to-space objects in the forwarding table.
-      //
-      // To solve this tricky dependency problem, we start by stashing away the
-      // current bits in the previous bits, and clearing the current bits
-      // (implemented by swapping the bits). This way, the current bits are
-      // cleared before copying the objects (like a normal to-space page),
-      // and the previous bits are representing a copy of the current bits
-      // of the from-space page, and are used for iteration.
-      from_page->swap_remset_bitmaps();
-    }
-  }
-
   ZPage* start_in_place_relocation(zoffset relocated_watermark) {
     _forwarding->in_place_relocation_claim_page();
     _forwarding->in_place_relocation_start(relocated_watermark);
+
+    log_info(gc)("IN_PLACE"); // TODO: Remove
 
     ZPage* const from_page = _forwarding->page();
 
@@ -894,10 +892,6 @@ private:
         to_page->verify_remset_cleared_current();
       }
     }
-
-    // Clear remset bits for all objects that were relocated
-    // before this page became an in-place relocated page.
-    start_in_place_relocation_prepare_remset(from_page);
 
     if (promotion) {
       // Register the promotion
@@ -983,19 +977,6 @@ public:
     return ZGeneration::old()->active_remset_is_current();
   }
 
-  void clear_remset_before_in_place_reuse(ZPage* page) {
-    if (_forwarding->from_age() != ZPageAge::old) {
-      // No remset bits
-      return;
-    }
-
-    // TODO: Probably remove
-    ShouldNotReachHere();
-    // Clear 'previous' remset bits. For in-place relocated pages, the previous
-    // remset bits are always used, even when active_remset_is_current().
-    page->clear_remset_previous();
-  }
-
   void finish_in_place_relocation() {
     // We are done with the from_space copy of the page
     _forwarding->in_place_relocation_finish();
@@ -1038,16 +1019,12 @@ public:
       // Wait for all other threads to call release_page
       ZPage* const page = _forwarding->detach_page();
 
-      // Ensure that previous remset bits are cleared
-      clear_remset_before_in_place_reuse(page);
-
       page->log_msg(" (relocate page done in-place)");
 
       // Different pages when promoting
       const uint32_t target_partition = _forwarding->partition_id();
       ZPage* const target_page = _targets->get(target_partition, _forwarding->to_age());
       _allocator->share_target_page(target_page, target_partition);
-
     } else {
       // Wait for all other threads to call release_page
       ZPage* const page = _forwarding->detach_page();
