@@ -153,7 +153,7 @@ void ZFreeList::insert_block(BlockHeader *blk) {
   for (;;) {
     BlockHeader* head = _blocks[list_index].load_acquire();
     blk_set_next(blk, head);
-    if (_blocks[list_index].compare_exchange(head, blk, memory_order_release) == head) {
+    if (_blocks[list_index].compare_set(head, blk, memory_order_release)) {
       break;
     }
   }
@@ -163,7 +163,7 @@ void ZFreeList::insert_block(BlockHeader *blk) {
     uint64_t current_word = _fl_bitmap.load_relaxed();
     uint64_t new_word = current_word | UCONST64(1) << list_index;
     if (current_word == new_word ||
-        _fl_bitmap.compare_exchange(current_word, new_word, memory_order_relaxed)) {
+        _fl_bitmap.compare_set(current_word, new_word, memory_order_relaxed)) {
       break;
     }
   }
@@ -178,7 +178,7 @@ BlockHeader* ZFreeList::remove_block(uint32_t list_index) {
     }
 
     BlockHeader* next = blk_get_next(head);
-    if (_blocks[list_index].compare_exchange(head, next) == head) {
+    if (_blocks[list_index].compare_set(head, next)) {
       return head;
     }
   }
@@ -187,7 +187,7 @@ BlockHeader* ZFreeList::remove_block(uint32_t list_index) {
     uint64_t current_word = _fl_bitmap.load_relaxed();
     uint64_t new_word = current_word & ~(UCONST64(1) << list_index);
     if (current_word == new_word ||
-        _fl_bitmap.compare_exchange(current_word, new_word, memory_order_relaxed) == current_word) {
+        _fl_bitmap.compare_set(current_word, new_word, memory_order_relaxed)) {
       return nullptr;
     }
   }
