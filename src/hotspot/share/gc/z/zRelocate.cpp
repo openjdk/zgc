@@ -837,9 +837,6 @@ private:
       return false;
     }
 
-    // TODO: When the to-space object is published before the current remset bits have been set
-    // below, it is possible for a racy thread to claim setting the curr remset, which would decrement
-    // the ref count to -1.
     update_remset_for_fields(from_addr, to_addr);
 
     maybe_string_dedup(to_addr);

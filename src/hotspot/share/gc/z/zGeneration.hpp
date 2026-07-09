@@ -267,7 +267,6 @@ public:
   void on_remember(volatile zpointer* p, zaddress addr);
   void on_forget(volatile zpointer* p, zaddress addr);
   void on_promotion(zaddress addr);
-  void on_old_mark_start(); // TODO yes this is a sign ref counting class shouldn't be here
 
   // Serviceability
   ZGenerationTracer* jfr_tracer();

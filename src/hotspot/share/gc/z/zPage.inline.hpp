@@ -353,7 +353,6 @@ inline BitMap::idx_t ZPage::dr_bit_index(zaddress addr) const {
   return local_offset(addr) >> object_alignment_shift();
 }
 
-// TODO: Large pages!!
 inline void ZPage::set_death_row(zaddress addr) {
   assert(is_allocating(), "must be");
   BitMap::idx_t index = dr_bit_index(addr);

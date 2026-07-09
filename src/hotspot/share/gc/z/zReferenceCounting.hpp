@@ -40,9 +40,6 @@ private:
   void decrement(zaddress addr);
 
 public:
-  void on_young_mark_start();
-  void on_old_mark_start();
-
   void on_remember(volatile zpointer* p, zaddress addr);
   void on_forget(volatile zpointer* p, zaddress addr);
 

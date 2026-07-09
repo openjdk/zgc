@@ -80,14 +80,6 @@ struct ZRefCount : public AllStatic {
   }
 };
 
-void ZReferenceCounting::on_young_mark_start() {
-  // TODO: Remove?
-}
-
-void ZReferenceCounting::on_old_mark_start() {
-  // TODO: Remove?
-}
-
 void ZReferenceCounting::increment(zaddress addr) {
   oop obj = to_oop(addr);
   ZPage* page = ZHeap::heap()->page(addr);
@@ -112,10 +104,8 @@ void ZReferenceCounting::increment(zaddress addr) {
 
     int new_ref_count = ref_count == ZRefCount::Max ? ZRefCount::Uncertain : (ref_count + 1);
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
-    // TODO DO NOT USE bit_index
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      log_info(gc)("[i%d %p]", new_ref_count, (void*)addr); // TODO: REMOVE
       if (new_ref_count == 1) {
         // When transitioning from 0 to 1, we no longer need to be remembered.
         page->unset_death_row(addr);
@@ -140,7 +130,6 @@ void ZReferenceCounting::decrement(zaddress addr) {
     int ref_count = ZRefCount::count(mark);
 
     if (ref_count == 0 && !ZGeneration::young()->is_phase_mark()) {
-      // TODO: Validate this code
       // Only during young generation concurrent marking can an old-to-old
       // reference count become negative, due to increments from the last
       // phase not being processed yet.
@@ -161,7 +150,6 @@ void ZReferenceCounting::decrement(zaddress addr) {
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      log_info(gc)("[d%d %p]", new_ref_count, (void*)addr); // TODO: REMOVE
       if (new_ref_count == ZRefCount::Uncertain) {
         page->unset_death_row(addr);
       } else if (new_ref_count == 0) {
@@ -185,8 +173,6 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
     return;
   }
 
-  log_info(gc)("[re %p]", (void*)addr); // TODO: REMOVE
-
   // The first store after young generation marking starts always needs to perform
   // the first decrement of the previously referred to object (i.e. addr). However,
   // if the remembered set entry from the previous bits was set, that means that we
@@ -197,7 +183,6 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   // of the previous epoch and the first decrement of the current epoch effectively
   // cancel out, leaving there to be no need to update the old-to-old reference count.
 
-  // TODO: Ugly back pointer in architecture
   if (forgotten) {
     // TODO: Could return here instead. Now I explicitly both call increment and
     // decrement, purely to handle the death rows right.
@@ -211,7 +196,6 @@ void ZReferenceCounting::on_forget(volatile zpointer* p, zaddress addr) {
   // When we have an old-to-old pointer that is about to become forgotten,
   // it means that it was written to by a mutator in the last marking epoch.
   // Therefore, we have to account for the last increment of the last cycle.
-  log_info(gc)("[fo %p]", (void*)addr); // TODO: REMOVE
   increment(addr);
 }
 
@@ -220,13 +204,11 @@ void ZReferenceCounting::on_promotion(zaddress addr) {
   assert(ZHeap::heap()->page(addr)->is_allocating(), "must be allocating");
   assert(ZRefCount::count(to_oop(addr)->mark()) == 0,
          "invalid promotion ref count: %d", ZRefCount::count(to_oop(addr)->mark()));
-  log_info(gc)("[p %p]", (void*)addr); // TODO: REMOVE
 
   ZPage* page = ZHeap::heap()->page(addr);
   page->set_death_row(addr);
 }
 
-// TODO: Not called
 void ZReferenceCounting::on_root(zaddress addr) {
   // Roots are always pardoned from the current YC. A full YC without any pending
   // increments nor roots is required before having zero old-to-old pointers is
@@ -265,7 +247,6 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
       oop obj = to_oop(addr);
       int ref_count = ZRefCount::count(obj->mark());
-      log_info(gc)("[drr %p]", (void*)addr); // TODO: REMOVE
 
       assert(ref_count == 0, "must be zero: %d: %p", ref_count, (void*)addr);
       dfs_stack.push(obj);
@@ -277,7 +258,6 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       int ref_count = ZRefCount::count(obj->mark());
       ZPage* const page = ZHeap::heap()->page(addr);
 
-      log_info(gc)("[drf %p]", cast_from_oop<void*>(obj)); // TODO: REMOVE
       assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
       assert(page->is_allocating(), "must be allocating: %p", cast_from_oop<void*>(obj));
 
@@ -313,7 +293,6 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
           markWord new_mark = ZRefCount::set_count(mark, ref_count - 1);
 
           if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-            log_info(gc)("[drd %p]", cast_from_oop<void*>(o)); // TODO: REMOVE
             // If we decrement an edge to zero, we traverse through more garbage.
             if (ref_count == 1) {
               if (page->is_pardoned(a)) {

@@ -905,8 +905,6 @@ void ZGenerationYoung::mark_start() {
   // Flip remembered set bits
   _remembered.flip();
 
-  _old_ref_count.on_young_mark_start();
-
   // Update statistics
   stat_heap()->at_mark_start(_page_allocator->update_and_stats(this));
 }
@@ -1020,10 +1018,6 @@ void ZGenerationYoung::on_forget(volatile zpointer* p, zaddress addr) {
 
 void ZGenerationYoung::on_promotion(zaddress addr) {
   _old_ref_count.on_promotion(addr);
-}
-
-void ZGenerationYoung::on_old_mark_start() {
-  _old_ref_count.on_old_mark_start();
 }
 
 ZGenerationTracer* ZGenerationYoung::jfr_tracer() {
@@ -1287,9 +1281,6 @@ void ZGenerationOld::mark_start() {
 
   // Reset marking information
   _mark.start();
-
-  // Clear the ref counting garbage candidates
-  ZGeneration::young()->on_old_mark_start(); // TODO: This seems to belong to ZHeap; it's in the border lands
 
   // Update statistics
   stat_heap()->at_mark_start(_page_allocator->update_and_stats(this));
