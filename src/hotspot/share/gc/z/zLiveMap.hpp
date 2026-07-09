@@ -81,6 +81,7 @@ public:
 
   void initialize_bitmap(); // TODO: Lazyness; now mutators call this too
   void reset();
+  void clear_bits();
 
   bool is_marked(ZGenerationId id) const;
 

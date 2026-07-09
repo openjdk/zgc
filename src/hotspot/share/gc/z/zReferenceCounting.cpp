@@ -84,11 +84,6 @@ void ZReferenceCounting::increment(zaddress addr) {
   oop obj = to_oop(addr);
   ZPage* page = ZHeap::heap()->page(addr);
 
-  if (!page->is_allocating()) {
-    // Only is_allocating old objects are candidates for eager reclamation.
-    return;
-  }
-
   for (;;) {
     markWord mark = obj->mark();
     int ref_count = ZRefCount::count(mark);
@@ -97,16 +92,18 @@ void ZReferenceCounting::increment(zaddress addr) {
       return;
     }
 
-    // Increments imply that the last GC cycle still had a reference to the object.
-    // That means it could have escaped into roots before or after root scanning.
-    // So we have to conservatively pardon these objects from the death row.
-    page->set_pardoned(addr);
+    if (page->is_allocating()) {
+      // Increments imply that the last GC cycle still had a reference to the object.
+      // That means it could have escaped into roots before or after root scanning.
+      // So we have to conservatively pardon these objects from the death row.
+      page->set_pardoned(addr);
+    }
 
     int new_ref_count = ref_count == ZRefCount::Max ? ZRefCount::Uncertain : (ref_count + 1);
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      if (new_ref_count == 1) {
+      if (new_ref_count == 1 && page->is_allocating()) {
         // When transitioning from 0 to 1, we no longer need to be remembered.
         page->unset_death_row(addr);
       }
@@ -119,11 +116,6 @@ void ZReferenceCounting::increment(zaddress addr) {
 void ZReferenceCounting::decrement(zaddress addr) {
   oop obj = to_oop(addr);
   ZPage* page = ZHeap::heap()->page(addr);
-
-  if (!page->is_allocating()) {
-    // Only is_allocating old objects are candidates for eager reclamation.
-    return;
-  }
 
   for (;;) {
     markWord mark = obj->mark();
@@ -150,15 +142,18 @@ void ZReferenceCounting::decrement(zaddress addr) {
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      if (new_ref_count == ZRefCount::Uncertain) {
-        page->unset_death_row(addr);
-      } else if (new_ref_count == 0) {
-        // When transitioning from 1 to 0, we need to remember the object so it
-        // can be freed later. However, it can not be doned this GC cycle; we
-        // have to wait until the next GC cycle. So we pardon the object from
-        // death row for this GC cycle.
-        page->set_death_row(addr);
-        page->set_pardoned(addr);
+      if (page->is_allocating()) {
+        // Maintain death rows
+        if (new_ref_count == ZRefCount::Uncertain) {
+          page->unset_death_row(addr);
+        } else if (new_ref_count == 0) {
+          // When transitioning from 1 to 0, we need to remember the object so it
+          // can be freed later. However, it can not be doned this GC cycle; we
+          // have to wait until the next GC cycle. So we pardon the object from
+          // death row for this GC cycle.
+          page->set_death_row(addr);
+          page->set_pardoned(addr);
+        }
       }
       return;
     }

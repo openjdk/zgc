@@ -140,3 +140,7 @@ void ZLiveMap::reset_segment(BitMap::idx_t segment) {
   const bool success = set_segment_live(segment);
   assert(success, "Should never fail");
 }
+
+void ZLiveMap::clear_bits() {
+  _bitmap.clear_large_range(0, _bitmap.size());
+}

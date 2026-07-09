@@ -72,6 +72,10 @@ void ZForwarding::in_place_relocation_finish() {
     // Only do this for non-promoted pages, that still need to reset live map.
     // Done with iterating over the "from-page" view, so can now drop the _livemap.
     _page->reset_livemap();
+    if (_to_age == ZPageAge::old) {
+      // Don't want to confuse death row bits and live bits, so let's clear the bits.
+      _page->clear_livemap_bits();
+    }
   }
 
   // Disable relaxed ZHeap::is_in checks

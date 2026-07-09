@@ -104,6 +104,10 @@ void ZPage::remset_alloc() {
   _remembered_set.initialize(size());
 }
 
+void ZPage::clear_livemap_bits() {
+  _livemap.clear_bits();
+}
+
 ZPage* ZPage::reset(ZPageAge age) {
   _age = age;
 

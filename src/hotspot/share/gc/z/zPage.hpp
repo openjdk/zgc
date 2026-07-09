@@ -117,6 +117,8 @@ public:
   void reset_livemap();
   void reset_top_for_allocation();
 
+  void clear_livemap_bits();
+
   bool is_in(zoffset offset) const;
   bool is_in(zaddress addr) const;
 
