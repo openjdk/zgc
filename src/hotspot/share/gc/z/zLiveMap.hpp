@@ -102,13 +102,13 @@ public:
   void set_death_row(BitMap::idx_t index);
   void unset_death_row(BitMap::idx_t index);
   template <typename Function>
-  void iterate_death_row(Function function);
+  void iterate_death_row(Function function, BitMap::idx_t used);
 
   void set_pardoned(BitMap::idx_t index);
   void unset_pardoned(BitMap::idx_t index);
   bool is_pardoned(BitMap::idx_t index);
   template <typename Function>
-  void iterate_pardoned(Function function);
+  void iterate_pardoned(Function function, BitMap::idx_t used);
 };
 
 #endif // SHARE_GC_Z_ZLIVEMAP_HPP

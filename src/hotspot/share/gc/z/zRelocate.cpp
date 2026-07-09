@@ -868,8 +868,6 @@ private:
     _forwarding->in_place_relocation_claim_page();
     _forwarding->in_place_relocation_start(relocated_watermark);
 
-    log_info(gc)("IN_PLACE"); // TODO: Remove
-
     ZPage* const from_page = _forwarding->page();
 
     const ZPageAge to_age = _forwarding->to_age();

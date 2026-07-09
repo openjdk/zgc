@@ -231,9 +231,9 @@ inline void ZLiveMap::unset_death_row(BitMap::idx_t index) {
 }
 
 template <typename Function>
-inline void ZLiveMap::iterate_death_row(Function function) {
+inline void ZLiveMap::iterate_death_row(Function function, BitMap::idx_t used) {
   const BitMap::idx_t start_index = 0;
-  const BitMap::idx_t end_index   = _bitmap.size() / 2;
+  const BitMap::idx_t end_index   = start_index + used;
 
   _bitmap.iterate(function, start_index, end_index);
 }
@@ -251,9 +251,9 @@ inline bool ZLiveMap::is_pardoned(BitMap::idx_t index) {
 }
 
 template <typename Function>
-inline void ZLiveMap::iterate_pardoned(Function function) {
+inline void ZLiveMap::iterate_pardoned(Function function, BitMap::idx_t used) {
   const BitMap::idx_t start_index = _bitmap.size() / 2;
-  const BitMap::idx_t end_index   = _bitmap.size();
+  const BitMap::idx_t end_index   = start_index + used;
 
   auto adapter = [&](BitMap::idx_t index) {
     function(index - start_index);
