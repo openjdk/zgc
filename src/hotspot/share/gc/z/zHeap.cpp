@@ -190,6 +190,10 @@ void ZHeap::reset_tlab_used() {
   _tlab_usage.reset();
 }
 
+void ZHeap::in_place_replace_page(ZPage* from_page, ZPage* to_page) {
+  _page_table.replace(from_page, to_page);
+}
+
 bool ZHeap::is_in(uintptr_t addr) const {
   if (addr == 0) {
     // Null isn't in the heap.

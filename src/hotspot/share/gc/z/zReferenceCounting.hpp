@@ -44,7 +44,7 @@ public:
   void on_forget(volatile zpointer* p, zaddress addr);
 
   void on_promotion(zaddress addr);
-  void on_promotion_remset_race(zaddress addr);
+  void on_old_to_old(zaddress addr);
 
   void on_root(zaddress addr);
 

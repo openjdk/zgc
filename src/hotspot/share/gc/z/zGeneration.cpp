@@ -977,8 +977,6 @@ void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
 }
 
 void ZGenerationYoung::in_place_relocate_promote(ZPage* from_page, ZPage* to_page) {
-  _page_table->replace(from_page, to_page);
-
   // Update statistics
   _page_allocator->promote_used(from_page, to_page);
 }
@@ -1018,6 +1016,10 @@ void ZGenerationYoung::on_forget(volatile zpointer* p, zaddress addr) {
 
 void ZGenerationYoung::on_promotion(zaddress addr) {
   _old_ref_count.on_promotion(addr);
+}
+
+void ZGenerationYoung::on_old_to_old(zaddress addr) {
+  _old_ref_count.on_old_to_old(addr);
 }
 
 ZGenerationTracer* ZGenerationYoung::jfr_tracer() {

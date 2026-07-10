@@ -619,7 +619,6 @@ private:
       if (!is_null(to_addr)) {
         // Already relocated
         increase_other_forwarded(size);
-        update_remset_for_fields(from_addr, to_addr);
         return to_addr;
       }
     }
@@ -641,12 +640,6 @@ private:
       ZUtils::object_copy_disjoint(from_addr, allocated_addr, size);
     }
 
-    if (in_place) {
-      // In-place relocation updates the remsets before exposing
-      // the objects in the remembered set
-      update_remset_for_fields(from_addr, allocated_addr);
-    }
-
     // Insert forwarding
     const zaddress to_addr = _forwarding->insert(from_addr, allocated_addr, &cursor);
     if (to_addr != allocated_addr) {
@@ -654,10 +647,6 @@ private:
       assert(!in_place, "sanity");
       _allocator->undo_alloc_object(to_page, to_addr, size);
       increase_other_forwarded(size);
-    }
-
-    if (!in_place) {
-      update_remset_for_fields(from_addr, to_addr);
     }
 
     return to_addr;
@@ -733,14 +722,6 @@ private:
       volatile zpointer* const to_p = (volatile zpointer*)to_field;
       volatile zpointer* const from_p = (volatile zpointer*)from_field;
       zpointer prev = AtomicAccess::load(from_p);
-
-      if (in_place) {
-        if (iterate_current_remset) {
-          to_page->forget_current(from_p);
-        } else {
-          to_page->forget_previous(from_p);
-        }
-      }
 
       if (ZGeneration::young()->is_phase_mark()) {
         // Young generation remembered set scanning needs to know about this
@@ -838,6 +819,7 @@ private:
     // Need to deal with remset when moving objects to the old generation
     if (_forwarding->from_age() == ZPageAge::old) {
       update_remset_old_to_old(from_addr, to_addr);
+      ZGeneration::young()->on_old_to_old(to_addr);
       return;
     }
 
@@ -859,6 +841,7 @@ private:
       return false;
     }
 
+    update_remset_for_fields(from_addr, to_addr);
     maybe_string_dedup(to_addr);
 
     return true;
@@ -873,13 +856,12 @@ private:
     const ZPageAge to_age = _forwarding->to_age();
     const bool promotion = _forwarding->is_promotion();
 
-    // Promotions happen through a new cloned page
-    ZPage* const to_page = promotion
-        ? from_page->clone_for_promotion()
-        : from_page->reset(to_age);
+    // In-place relocation always happens through a new cloned page
+    ZPage* const to_page = from_page->clone_for_promotion(); // TODO: naming
 
     // Reset page for in-place relocation
     to_page->reset_top_for_allocation();
+    log_info(gc)("IN PLACE: %lx", untype(from_page->start())); // TODO: REMOVE
 
     // Verify that the inactive remset is clear when resetting the page for
     // in-place relocation.
@@ -890,6 +872,8 @@ private:
         to_page->verify_remset_cleared_current();
       }
     }
+
+    ZHeap::heap()->in_place_replace_page(from_page, to_page);
 
     if (promotion) {
       // Register the promotion
@@ -1016,6 +1000,8 @@ public:
     if (in_place) {
       // Wait for all other threads to call release_page
       ZPage* const page = _forwarding->detach_page();
+      // TODO: Check that we don't leak the from-space page during
+      // in-place relocation.
 
       page->log_msg(" (relocate page done in-place)");
 

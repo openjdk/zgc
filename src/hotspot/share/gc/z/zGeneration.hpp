@@ -267,6 +267,7 @@ public:
   void on_remember(volatile zpointer* p, zaddress addr);
   void on_forget(volatile zpointer* p, zaddress addr);
   void on_promotion(zaddress addr);
+  void on_old_to_old(zaddress addr);
 
   // Serviceability
   ZGenerationTracer* jfr_tracer();
