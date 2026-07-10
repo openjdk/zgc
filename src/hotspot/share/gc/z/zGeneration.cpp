@@ -1010,6 +1010,10 @@ void ZGenerationYoung::on_remember(volatile zpointer* p, zaddress addr) {
   _old_ref_count.on_remember(p, addr);
 }
 
+void ZGenerationYoung::on_failed_remember(zaddress addr) {
+  _old_ref_count.on_failed_remember(addr);
+}
+
 void ZGenerationYoung::on_forget(volatile zpointer* p, zaddress addr) {
   _old_ref_count.on_forget(p, addr);
 }

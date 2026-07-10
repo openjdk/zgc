@@ -88,7 +88,7 @@ private:
   static zaddress relocate_or_remap(zaddress_unsafe addr, ZGeneration* generation);
   static zaddress remap(zaddress_unsafe addr, ZGeneration* generation);
   static bool remember(volatile zpointer* p);
-  static bool mark_and_remember(volatile zpointer* p, zaddress addr);
+  static bool mark_and_remember(volatile zpointer* p, zaddress addr, zpointer o);
 
   // Fast paths in increasing strength level
   static bool is_load_good_or_null_fast_path(zpointer ptr);

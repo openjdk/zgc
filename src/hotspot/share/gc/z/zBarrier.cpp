@@ -261,7 +261,7 @@ zaddress ZBarrier::heap_store_slow_path(volatile zpointer* p, zaddress addr, zpo
     // Buffer store barriers whenever possible
     buffer->add(p, prev);
   } else {
-    mark_and_remember(p, addr);
+    mark_and_remember(p, addr, prev);
   }
 
   return addr;

@@ -92,17 +92,16 @@ void ZReferenceCounting::increment(zaddress addr) {
       return;
     }
 
-    if (page->is_allocating()) {
-      // Increments imply that the last GC cycle still had a reference to the object.
-      // That means it could have escaped into roots before or after root scanning.
-      // So we have to conservatively pardon these objects from the death row.
-      page->set_pardoned(addr);
-    }
-
     int new_ref_count = ref_count == ZRefCount::Max ? ZRefCount::Uncertain : (ref_count + 1);
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
+      if (page->is_allocating()) {
+        // Increments imply that the last GC cycle still had a reference to the object.
+        // That means it could have escaped into roots before or after root scanning.
+        // So we have to conservatively pardon these objects from the death row.
+        page->set_pardoned(addr);
+      }
       if (new_ref_count == 1 && page->is_allocating()) {
         // When transitioning from 0 to 1, we no longer need to be remembered.
         page->unset_death_row(addr);
@@ -120,17 +119,6 @@ void ZReferenceCounting::decrement(zaddress addr) {
   for (;;) {
     markWord mark = obj->mark();
     int ref_count = ZRefCount::count(mark);
-
-    if (ref_count == 0 && !ZGeneration::young()->is_phase_mark()) {
-      // Only during young generation concurrent marking can an old-to-old
-      // reference count become negative, due to increments from the last
-      // phase not being processed yet.
-      // During promotion to the old generation, we do not want the decrements
-      // to do anything, as we are adding edges to the current remembered set,
-      // so that the entire edge snapshot may be processed during the next
-      // young generation marking phase.
-      return;
-    }
 
     if (ref_count == ZRefCount::Uncertain) {
       // We can not reliably decrement from the uncertain count using
@@ -185,7 +173,33 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   }
 
   decrement(addr);
-  log_info(gc)("[re %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
+  //log_info(gc)("[re %d %lx -> %lx]", ZRefCount::count(to_oop(addr)->mark()), p2i(p), untype(addr));
+}
+
+void ZReferenceCounting::on_failed_remember(zaddress addr) {
+  if (is_null(addr) || ZHeap::heap()->is_young(addr)) {
+    // Only count old-to-old edges.
+    return;
+  }
+
+  // When promoting objects and old-to-old moving objects between old relocate start
+  // and young mark start, we have to compensate for failed remset inserts, because
+  // the mutator incorrectly decremented due to winning with setting the current
+  // remembered set. This ASCII art shows what strategy we have for different types
+  // of object movement in different phases:
+  //  ORS                      YMS                    YRS
+  //                                                               y2o
+  //                                                     young reloc compensates
+  //                                                    inc on failed curr insert
+  //
+  //              o2o
+  //    old reloc compensates
+  //  inc on failed curr insert
+  //
+  //                                      o2o
+  //                                always inc prev
+
+  increment(addr);
 }
 
 void ZReferenceCounting::on_forget(volatile zpointer* p, zaddress addr) {
@@ -193,18 +207,16 @@ void ZReferenceCounting::on_forget(volatile zpointer* p, zaddress addr) {
   // it means that it was written to by a mutator in the last marking epoch.
   // Therefore, we have to account for the last increment of the last cycle.
   increment(addr);
-  log_info(gc)("[fo %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
+  //log_info(gc)("[fo %d %lx -> %lx]", ZRefCount::count(to_oop(addr)->mark()), p2i(p), untype(addr));
 }
 
 void ZReferenceCounting::on_promotion(zaddress addr) {
   assert(ZHeap::heap()->is_old(addr), "must be old");
   assert(ZHeap::heap()->page(addr)->is_allocating(), "must be allocating");
-  assert(ZRefCount::count(to_oop(addr)->mark()) == 0,
-         "invalid promotion ref count: %d", ZRefCount::count(to_oop(addr)->mark()));
 
   ZPage* page = ZHeap::heap()->page(addr);
   page->set_death_row(addr);
-  log_info(gc)("[pr %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
+  //log_info(gc)("[pr %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 }
 
 void ZReferenceCounting::on_old_to_old(zaddress addr) {
@@ -217,7 +229,7 @@ void ZReferenceCounting::on_old_to_old(zaddress addr) {
     OrderAccess::release(); // TODO: Embed in death row set?
     page->set_death_row(addr);
   }
-  log_info(gc)("[oo %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
+  //log_info(gc)("[oo %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 }
 
 void ZReferenceCounting::on_root(zaddress addr) {
@@ -235,7 +247,7 @@ void ZReferenceCounting::on_root(zaddress addr) {
   }
 
   page->set_pardoned(addr);
-  log_info(gc)("[ro %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
+  //log_info(gc)("[ro %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 }
 
 // TODO: Make parallel
@@ -270,7 +282,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       zaddress addr = to_zaddress(obj);
       int ref_count = ZRefCount::count(obj->mark());
       ZPage* const page = ZHeap::heap()->page(addr);
-      log_info(gc)("[dr %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
+      //log_info(gc)("[dr %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 
       assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
       assert(page->is_allocating(), "must be allocating: %p", cast_from_oop<void*>(obj));
@@ -335,7 +347,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
       page->unset_death_row(addr);
 
-      log_info(gc)("Freeing object: %p", (void*)p2i(obj));
+      //log_info(gc)("Freeing object: %p", (void*)p2i(obj));
       page->free_object_to_free_list(addr);
     }
   }

@@ -698,6 +698,10 @@ private:
     // doesn't matter for correctness, because the young generation marking has
     // already taken care of the bits.
 
+    // TODO: I don't think o2o works right; must deal differently with first increment
+    // when current is active
+    //log_info(gc)("[o2o %lx -> %lx]", untype(from_addr), untype(to_addr)); // TODO: Remove
+
     const bool active_remset_is_current = ZGeneration::old()->active_remset_is_current();
 
     // When in-place relocation is done and the old remset bits are located in
@@ -800,11 +804,20 @@ private:
     return;
   }
 
-  void update_remset_promoted(zaddress to_addr) const {
+  void update_remset_promoted(zaddress from_addr, zaddress to_addr) const {
     if (ZOldRefCount) {
       // TODO: Bad smell
+      auto doit = [&](volatile zpointer* p) {
+        if (!ZGeneration::young()->remember(p)) {
+          uintptr_t offset = uintptr_t(p) - untype(to_addr);
+          volatile zpointer *from_p = (volatile zpointer*)untype(from_addr + offset);
+          const zpointer prev = AtomicAccess::load(from_p);
+          const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+          ZGeneration::young()->on_failed_remember(addr);
+        }
+      };
+      ZIterator::basic_oop_iterate(to_oop(to_addr), doit);
       ZGeneration::young()->on_promotion(to_addr);
-      ZIterator::basic_oop_iterate(to_oop(to_addr), ZRelocate::add_remset); // TODO: Deal with mutator claiming curr remset first
     } else {
       ZIterator::basic_oop_iterate(to_oop(to_addr), update_remset_promoted_filter_and_remap_per_field);
     }
@@ -824,7 +837,7 @@ private:
     }
 
     // Normal promotion
-    update_remset_promoted(to_addr);
+    update_remset_promoted(from_addr, to_addr);
   }
 
   void maybe_string_dedup(zaddress to_addr) {

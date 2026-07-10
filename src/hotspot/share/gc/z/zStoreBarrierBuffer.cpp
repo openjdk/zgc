@@ -170,6 +170,9 @@ void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
   const uintptr_t last_mark_young_bits = _last_processed_color & (ZPointerMarkedYoung0 | ZPointerMarkedYoung1);
   const bool woke_up_in_young_mark = last_mark_young_bits != ZPointerMarkedYoung;
 
+  // TODO: Note that we hide the last increment from the GC; that has to be
+  // reflected in the reference counts
+
   if (woke_up_in_young_mark) {
     // When young mark starts we "flip" the remembered sets. The remembered
     // sets used before the young mark start becomes read-only and used by
@@ -220,7 +223,7 @@ void ZStoreBarrierBuffer::on_new_phase_mark(size_t i) {
   }
 }
 
-void ZStoreBarrierBuffer::on_new_phase() {
+void ZStoreBarrierBuffer::on_new_phase() { // TODO: Not convince this works really
   if (!ZBufferStoreBarriers) {
     return;
   }
@@ -278,7 +281,7 @@ void ZStoreBarrierBuffer::flush() {
   for (size_t i = current(); i < BufferLength; ++i) {
     const ZStoreBarrierEntry& entry = _buffer[i];
     const zaddress addr = ZBarrier::make_load_good(entry._prev);
-    ZBarrier::mark_and_remember(entry._p, addr);
+    ZBarrier::mark_and_remember(entry._p, addr, entry._prev);
   }
 
   clear();

@@ -610,6 +610,9 @@ bool ZRemembered::scan_field(volatile zpointer* p, zpointer prev) const {
     // increment from the mutator; it does not have access to the from-space
     // object needed in order to claim it. Hence, the last increment is always
     // processed by the GC thread.
+    // TODO: IMPORTANT When the relocation processing had current as active,
+    // we really have to increment once to compensate for the incorrect decrement
+    // that happened if the mutator claimed the current remset.
     ZGeneration::young()->on_forget(p, addr);
   }
 

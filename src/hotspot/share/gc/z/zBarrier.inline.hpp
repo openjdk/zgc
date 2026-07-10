@@ -744,7 +744,7 @@ inline bool ZBarrier::remember(volatile zpointer* p) {
   return false;
 }
 
-inline bool ZBarrier::mark_and_remember(volatile zpointer* p, zaddress addr) {
+inline bool ZBarrier::mark_and_remember(volatile zpointer* p, zaddress addr, zpointer o) {
   if (!is_null(addr)) {
     mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
   }
