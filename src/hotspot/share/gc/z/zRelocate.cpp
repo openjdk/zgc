@@ -732,7 +732,11 @@ private:
         // field. It will take responsibility to add a new remember set entry if needed.
         _forwarding->relocated_remembered_fields_register(to_p, prev); // TODO: Doesn't respect the flag right now
       } else {
-        to_page->remember(to_p);
+        assert(active_remset_is_current, "why not?");
+        if (!ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
+          const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+          ZGeneration::young()->on_failed_remember(addr);
+        }
         if (in_place) {
           assert(to_page->is_remembered(to_p), "p: " PTR_FORMAT, p2i(to_p));
         }
@@ -874,7 +878,6 @@ private:
 
     // Reset page for in-place relocation
     to_page->reset_top_for_allocation();
-    log_info(gc)("IN PLACE: %lx", untype(from_page->start())); // TODO: REMOVE
 
     // Verify that the inactive remset is clear when resetting the page for
     // in-place relocation.

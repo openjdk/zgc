@@ -173,7 +173,6 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   }
 
   decrement(addr);
-  //log_info(gc)("[re %d %lx -> %lx]", ZRefCount::count(to_oop(addr)->mark()), p2i(p), untype(addr));
 }
 
 void ZReferenceCounting::on_failed_remember(zaddress addr) {
@@ -207,7 +206,6 @@ void ZReferenceCounting::on_forget(volatile zpointer* p, zaddress addr) {
   // it means that it was written to by a mutator in the last marking epoch.
   // Therefore, we have to account for the last increment of the last cycle.
   increment(addr);
-  //log_info(gc)("[fo %d %lx -> %lx]", ZRefCount::count(to_oop(addr)->mark()), p2i(p), untype(addr));
 }
 
 void ZReferenceCounting::on_promotion(zaddress addr) {
@@ -216,7 +214,6 @@ void ZReferenceCounting::on_promotion(zaddress addr) {
 
   ZPage* page = ZHeap::heap()->page(addr);
   page->set_death_row(addr);
-  //log_info(gc)("[pr %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 }
 
 void ZReferenceCounting::on_old_to_old(zaddress addr) {
@@ -229,7 +226,6 @@ void ZReferenceCounting::on_old_to_old(zaddress addr) {
     OrderAccess::release(); // TODO: Embed in death row set?
     page->set_death_row(addr);
   }
-  //log_info(gc)("[oo %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 }
 
 void ZReferenceCounting::on_root(zaddress addr) {
@@ -247,7 +243,6 @@ void ZReferenceCounting::on_root(zaddress addr) {
   }
 
   page->set_pardoned(addr);
-  //log_info(gc)("[ro %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 }
 
 // TODO: Make parallel
@@ -282,7 +277,6 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       zaddress addr = to_zaddress(obj);
       int ref_count = ZRefCount::count(obj->mark());
       ZPage* const page = ZHeap::heap()->page(addr);
-      //log_info(gc)("[dr %d %lx]", ZRefCount::count(to_oop(addr)->mark()), untype(addr));
 
       assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
       assert(page->is_allocating(), "must be allocating: %p", cast_from_oop<void*>(obj));
@@ -347,7 +341,6 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
       page->unset_death_row(addr);
 
-      //log_info(gc)("Freeing object: %p", (void*)p2i(obj));
       page->free_object_to_free_list(addr);
     }
   }
