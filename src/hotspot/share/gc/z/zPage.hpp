@@ -54,6 +54,7 @@ private:
   ZRememberedSet                _remembered_set;
   ZMultiPartitionTracker* const _multi_partition_tracker;
   volatile bool                 _relocate_promoted;
+  uint32_t                      _flip_promoted;
   ZFreeList*                    _free_list;
 
   const char* type_to_string() const;
@@ -77,6 +78,9 @@ public:
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker);
 
   ZPage* clone_for_promotion() const;
+
+  bool is_flip_promoted() const;
+  void set_is_flip_promoted();
 
   uint32_t object_max_count() const;
   size_t object_alignment_shift() const;

@@ -156,6 +156,11 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
     return;
   }
 
+  ZPage* page = ZHeap::heap()->page(p);
+  if (page->is_flip_promoted()) {
+    return;
+  }
+
   // The first store after young generation marking starts always needs to perform
   // the first decrement of the previously referred to object (i.e. addr). However,
   // if the remembered set entry from the previous bits was set, that means that we
@@ -222,8 +227,10 @@ void ZReferenceCounting::on_old_to_old(zaddress addr) {
 
   if (ZRefCount::count(to_oop(addr)->mark()) == 0) {
     ZPage* page = ZHeap::heap()->page(addr);
-    page->set_pardoned(addr);
-    OrderAccess::release(); // TODO: Embed in death row set?
+    if (ZGeneration::young()->is_phase_mark()) {
+      page->set_pardoned(addr);
+      OrderAccess::release(); // TODO: Embed in death row set?
+    }
     page->set_death_row(addr);
   }
 }

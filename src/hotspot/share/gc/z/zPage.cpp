@@ -45,6 +45,7 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _remembered_set(),
     _multi_partition_tracker(multi_partition_tracker),
     _relocate_promoted(false),
+    _flip_promoted(),
     _free_list(ZOldRefCount ? new ZFreeList(ZOffset::address(start()), size(), object_alignment()) : nullptr) {
   assert(!_virtual.is_null(), "Should not be null");
   assert((_type == ZPageType::small && size() == ZPageSizeSmall) ||
@@ -72,6 +73,14 @@ ZPage* ZPage::clone_for_promotion() const {
   page->_top = _top;
 
   return page;
+}
+
+bool ZPage::is_flip_promoted() const {
+  return _flip_promoted == ZGeneration::young()->seqnum();
+}
+
+void ZPage::set_is_flip_promoted() {
+  _flip_promoted = ZGeneration::young()->seqnum();
 }
 
 bool ZPage::allows_raw_null() const {

@@ -747,8 +747,9 @@ private:
         // field. It will take responsibility to add a new remember set entry if needed.
         _forwarding->relocated_remembered_fields_register(to_p, prev); // TODO: Doesn't respect the flag right now
       } else {
-        assert(active_remset_is_current, "why not?");
-        if (!ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
+        // If the active remset is prev, we have already migrated the remsets as
+        // part of the preceding remset scan. No need to do anything.
+        if (active_remset_is_current && !ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
           assert(!in_place, "impossible scenario");
           // During in-place relocation, we can only fail inserting the remembered set due to mutator
           // relocations. This means that from and to objects are disjoint, and we can easily fish out
@@ -1294,15 +1295,7 @@ public:
         if (ZOldRefCount) {
           // Remap oops and add remset if needed
           auto doit = [&](volatile zpointer* p) {
-            if (!ZGeneration::young()->remember(p)) {
-              const zpointer prev = AtomicAccess::load(p);
-              // It is impossible for the below load barrier to require relocation. If the mutator beat
-              // us to it with setting the current bit with its store barrier, then the forwarding table
-              // for the initial previous value that we have in prev, is guaranteed to have been relocated
-              // already by the mutator.
-              const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
-              ZGeneration::young()->on_failed_remember(addr);
-            }
+            ZGeneration::young()->remember(p);
           };
           ZIterator::basic_oop_iterate_safe(obj, doit);
           ZGeneration::young()->on_promotion(to_zaddress(obj));
@@ -1388,6 +1381,7 @@ public:
       new_page->reset_livemap();
 
       if (promotion) {
+        new_page->set_is_flip_promoted();
         ZGeneration::young()->flip_promote(prev_page, new_page);
         // Defer promoted page registration
         promoted_pages.push(prev_page);
