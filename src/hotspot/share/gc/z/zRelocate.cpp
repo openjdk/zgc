@@ -698,10 +698,6 @@ private:
     // doesn't matter for correctness, because the young generation marking has
     // already taken care of the bits.
 
-    // TODO: I don't think o2o works right; must deal differently with first increment
-    // when current is active
-    //log_info(gc)("[o2o %lx -> %lx]", untype(from_addr), untype(to_addr)); // TODO: Remove
-
     const bool active_remset_is_current = ZGeneration::old()->active_remset_is_current();
 
     // When in-place relocation is done and the old remset bits are located in
