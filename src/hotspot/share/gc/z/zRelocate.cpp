@@ -1229,12 +1229,6 @@ static void remap_and_maybe_add_remset(volatile zpointer* p) {
   // old-to-young pointers for (1).
   const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(p, ptr);
 
-  if (ZOldRefCount) {
-    // TODO: Tidy up?
-    ZRelocate::add_remset(p);
-    return;
-  }
-
   if (is_null(addr)) {
     // No need for remset entries for null pointers
     return;
@@ -1265,9 +1259,22 @@ public:
 
     for (ZPage* page; _iter.next(&page);) {
       page->object_iterate([&](oop obj) {
-        // Remap oops and add remset if needed
-        ZGeneration::young()->on_promotion(to_zaddress(obj));
-        ZIterator::basic_oop_iterate_safe(obj, remap_and_maybe_add_remset);
+        if (ZOldRefCount) {
+          // Remap oops and add remset if needed
+          auto doit = [&](volatile zpointer* p) {
+            if (!ZGeneration::young()->remember(p)) {
+              uintptr_t offset = uintptr_t(p) - cast_from_oop<uintptr_t>(obj);
+              volatile zpointer *from_p = (volatile zpointer*)(cast_from_oop<uintptr_t>(obj) + offset);
+              const zpointer prev = AtomicAccess::load(from_p);
+              const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+              ZGeneration::young()->on_failed_remember(addr);
+            }
+          };
+          ZIterator::basic_oop_iterate_safe(obj, doit);
+          ZGeneration::young()->on_promotion(to_zaddress(obj));
+        } else {
+          ZIterator::basic_oop_iterate_safe(obj, remap_and_maybe_add_remset);
+        }
 
         // String dedup
         string_dedup_context.request(obj);

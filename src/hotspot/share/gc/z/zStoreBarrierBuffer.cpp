@@ -170,9 +170,6 @@ void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
   const uintptr_t last_mark_young_bits = _last_processed_color & (ZPointerMarkedYoung0 | ZPointerMarkedYoung1);
   const bool woke_up_in_young_mark = last_mark_young_bits != ZPointerMarkedYoung;
 
-  // TODO: Note that we hide the last increment from the GC; that has to be
-  // reflected in the reference counts
-
   if (woke_up_in_young_mark) {
     // When young mark starts we "flip" the remembered sets. The remembered
     // sets used before the young mark start becomes read-only and used by
@@ -182,7 +179,20 @@ void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
     // were supposed to be part of the remembered sets that the GC scans.
     // However, it is too late to add those entries at this point, so instead
     // we perform the GC remembered set scanning up-front here.
-    ZGeneration::young()->scan_remembered_field(p);
+
+    const zaddress_unsafe p_base = _base_pointers[i];
+    if (is_null(p_base)) {
+      // Page is not part of the relocation set
+      ZGeneration::young()->scan_remembered_field(p);
+    } else {
+      // If p was relocated, remset scanning owns the last increment
+      // TODO: WARNING there is a theoretical possibility that we are catching
+      // a ptomotion here, in which case this might not be the right thing to do
+      // TODO: Sniff the forwarding entry for p_base to find out if we are in an
+      // old-to-old p or young-to-old p situation.
+      const zpointer prev = _buffer[i]._prev;
+      ZGeneration::young()->scan_remembered_field(p, prev);
+    }
   } else {
     // The remembered set wasn't flipped in this phase shift,
     // so just add the remembered set entry.
@@ -223,7 +233,7 @@ void ZStoreBarrierBuffer::on_new_phase_mark(size_t i) {
   }
 }
 
-void ZStoreBarrierBuffer::on_new_phase() { // TODO: Not convince this works really
+void ZStoreBarrierBuffer::on_new_phase() {
   if (!ZBufferStoreBarriers) {
     return;
   }

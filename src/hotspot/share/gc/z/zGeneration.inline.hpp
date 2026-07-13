@@ -171,6 +171,10 @@ inline void ZGenerationYoung::scan_remembered_field(volatile zpointer* p) {
   _remembered.scan_field(p);
 }
 
+inline void ZGenerationYoung::scan_remembered_field(volatile zpointer* p, zpointer prev) {
+  _remembered.scan_field(p, prev);
+}
+
 inline bool ZGenerationYoung::is_remembered(volatile zpointer* p) const {
   return _remembered.is_remembered(p);
 }
