@@ -619,6 +619,7 @@ private:
       if (!is_null(to_addr)) {
         // Already relocated
         increase_other_forwarded(size);
+        update_remset_for_fields(from_addr, to_addr);
         return to_addr;
       }
     }
@@ -640,6 +641,13 @@ private:
       ZUtils::object_copy_disjoint(from_addr, allocated_addr, size);
     }
 
+    if (in_place) {
+      // In-place relocation has to update remembered sets before mutators can
+      // clobber the memory. Otherwise, we lose information necessary to process
+      // reference counts for the old generation.
+      update_remset_for_fields(from_addr, allocated_addr);
+    }
+
     // Insert forwarding
     const zaddress to_addr = _forwarding->insert(from_addr, allocated_addr, &cursor);
     if (to_addr != allocated_addr) {
@@ -647,6 +655,10 @@ private:
       assert(!in_place, "sanity");
       _allocator->undo_alloc_object(to_page, to_addr, size);
       increase_other_forwarded(size);
+    }
+
+    if (!in_place) {
+      update_remset_for_fields(from_addr, to_addr);
     }
 
     return to_addr;
@@ -663,12 +675,13 @@ private:
     //
     // A watermark is used to keep track of how far the old remset bits have been removed.
 
-    const bool in_place = _forwarding->in_place_relocation();
     ZPage* const from_page = _forwarding->page();
     const uintptr_t from_local_offset = from_page->local_offset(from_addr);
 
     // Note: even with in-place relocation, the to_page could be another page
     ZPage* const to_page = ZHeap::heap()->page(to_addr);
+
+    const bool in_place = from_page->start() == to_page->start();
 
     // Uses _relaxed version to handle that in-place relocation resets _top
     assert(ZHeap::heap()->is_in_page_relaxed(from_page, from_addr), "Must be");
@@ -721,15 +734,31 @@ private:
 
       volatile zpointer* const to_p = (volatile zpointer*)to_field;
       volatile zpointer* const from_p = (volatile zpointer*)from_field;
-      zpointer prev = AtomicAccess::load(from_p);
 
       if (ZGeneration::young()->is_phase_mark()) {
+        // When we have in-place relocation the fromspace object might have been conjointly copied
+        // to to-space, meaning that the from-space view is garbage. However, when we do have in-place
+        // relocated objects, we perform the remset maintenance before exposing the object in the
+        // forwarding table. Therefore, the to-space field will contain exactly the same value that
+        // our from-space snapshot would have.
+        zpointer prev = AtomicAccess::load(in_place ? to_p : from_p);
+
         // Young generation remembered set scanning needs to know about this
         // field. It will take responsibility to add a new remember set entry if needed.
         _forwarding->relocated_remembered_fields_register(to_p, prev); // TODO: Doesn't respect the flag right now
       } else {
         assert(active_remset_is_current, "why not?");
         if (!ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
+          assert(!in_place, "impossible scenario");
+          // During in-place relocation, we can only fail inserting the remembered set due to mutator
+          // relocations. This means that from and to objects are disjoint, and we can easily fish out
+          // the initial value from the from-space.
+          zpointer prev = AtomicAccess::load(from_p);
+
+          // It is impossible for the below load barrier to require relocation. If the mutator beat
+          // us to it with setting the current bit with its store barrier, then the forwarding table
+          // for the initial previous value that we have in prev, is guaranteed to have been relocated
+          // already by the mutator.
           const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
           ZGeneration::young()->on_failed_remember(addr);
         }
@@ -812,6 +841,10 @@ private:
           uintptr_t offset = uintptr_t(p) - untype(to_addr);
           volatile zpointer *from_p = (volatile zpointer*)untype(from_addr + offset);
           const zpointer prev = AtomicAccess::load(from_p);
+          // It is impossible for the below load barrier to require relocation. If the mutator beat
+          // us to it with setting the current bit with its store barrier, then the forwarding table
+          // for the initial previous value that we have in prev, is guaranteed to have been relocated
+          // already by the mutator.
           const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
           ZGeneration::young()->on_failed_remember(addr);
         }
@@ -854,7 +887,6 @@ private:
       return false;
     }
 
-    update_remset_for_fields(from_addr, to_addr);
     maybe_string_dedup(to_addr);
 
     return true;
@@ -870,7 +902,8 @@ private:
     const bool promotion = _forwarding->is_promotion();
 
     // In-place relocation always happens through a new cloned page
-    ZPage* const to_page = from_page->clone_for_promotion(); // TODO: naming
+    ZPage* const to_page = to_age == ZPageAge::old ? from_page->clone_for_promotion()
+                                                   : from_page->reset(to_age); // TODO: naming
 
     // Reset page for in-place relocation
     to_page->reset_top_for_allocation();
@@ -885,7 +918,10 @@ private:
       }
     }
 
-    ZHeap::heap()->in_place_replace_page(from_page, to_page);
+    if (to_age == ZPageAge::old) {
+      // TODO: IMPORTANT ensure we don't have a memory leak for the previous page
+      ZHeap::heap()->in_place_replace_page(from_page, to_page);
+    }
 
     if (promotion) {
       // Register the promotion
@@ -1259,9 +1295,11 @@ public:
           // Remap oops and add remset if needed
           auto doit = [&](volatile zpointer* p) {
             if (!ZGeneration::young()->remember(p)) {
-              uintptr_t offset = uintptr_t(p) - cast_from_oop<uintptr_t>(obj);
-              volatile zpointer *from_p = (volatile zpointer*)(cast_from_oop<uintptr_t>(obj) + offset);
-              const zpointer prev = AtomicAccess::load(from_p);
+              const zpointer prev = AtomicAccess::load(p);
+              // It is impossible for the below load barrier to require relocation. If the mutator beat
+              // us to it with setting the current bit with its store barrier, then the forwarding table
+              // for the initial previous value that we have in prev, is guaranteed to have been relocated
+              // already by the mutator.
               const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
               ZGeneration::young()->on_failed_remember(addr);
             }

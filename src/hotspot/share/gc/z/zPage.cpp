@@ -66,7 +66,6 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
   : ZPage(type, age, vmem, multi_partition_tracker, -1u /* partition_id */) {}
 
 ZPage* ZPage::clone_for_promotion() const {
-  assert(_age != ZPageAge::old, "must be used for promotion");
   // Only copy type and memory layouts, and also update _top. Let the rest be
   // lazily reconstructed when needed.
   ZPage* const page = new ZPage(_type, ZPageAge::old, _virtual, _multi_partition_tracker, _single_partition_id);
