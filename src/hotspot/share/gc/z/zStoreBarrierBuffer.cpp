@@ -162,7 +162,9 @@ void ZStoreBarrierBuffer::on_new_phase_relocate(size_t i) {
 void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
   volatile zpointer* const p = _buffer[i]._p;
 
-  if (ZHeap::heap()->is_young(p)) {
+  ZPage* page = ZHeap::heap()->page(p);
+
+  if (page->is_young()) {
     // Only need remset entries for old objects
     return;
   }
@@ -181,19 +183,28 @@ void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
     // However, it is too late to add those entries at this point, so instead
     // we perform the GC remembered set scanning up-front here.
 
-    if (!is_null(p_base)) {
-      // If p was relocated, remset scanning owns the last increment
-      // TODO: WARNING there is a theoretical possibility that we are catching
-      // a ptomotion here, in which case this might not be the right thing to do
-      // TODO: Sniff the forwarding entry for p_base to find out if we are in an
-      // old-to-old p or young-to-old p situation.
-      const zpointer prev = _buffer[i]._prev;
-      ZGeneration::young()->scan_remembered_field(p, prev);
-    } else {
-      // Page is not part of the relocation set
-      ZGeneration::young()->scan_remembered_field(p);
-    }
-  } else {
+    ZGeneration::young()->scan_remembered_field(p);
+    //const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+    //ZGeneration::young()->on_failed_remember(addr);
+
+    // TODO: WARNING Errrrrr no idea what to do here really.
+    //if (!is_null(p_base)) {
+    //  // Color with the last processed color
+    //  const zpointer ptr = ZAddress::color(p_base, _last_processed_color);
+
+    //  // Look up the generation that thinks that this pointer is not
+    //  // load good and check if the page is being relocated.
+    //  ZGeneration* const remap_generation = ZBarrier::remap_generation(ptr);
+    //  if (remap_generation == ZGeneration::old()) {
+    //    // Old-to-old movement
+    //    const zpointer prev = _buffer[i]._prev;
+    //    ZGeneration::young()->scan_remembered_field(p, prev);
+    //  }
+    //} else {
+    //  // Page is not part of the relocation set
+    //  ZGeneration::young()->scan_remembered_field(p);
+    //}
+  } else if (!page->is_flip_promoted()) {
     // The remembered set wasn't flipped in this phase shift,
     // so just add the remembered set entry.
     if (!ZGeneration::young()->remember(p) && !is_null(p_base)) {

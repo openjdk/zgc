@@ -667,6 +667,38 @@ private:
   void update_remset_old_to_old(zaddress from_addr, zaddress to_addr) const {
     // Old-to-old relocation - move existing remset bits
 
+    // If a young generation collection started while the old generation
+    // relocated  objects, the remember set bits were flipped from "current"
+    // to "previous".
+    //
+    // We need to select the correct remembered sets bitmap to ensure that the
+    // old remset bits are found.
+    //
+    // Note that if the young generation marking (remset scanning) finishes
+    // before the old generation relocation has relocated this page, then the
+    // young generation will visit this page's previous remembered set bits and
+    // moved them over to the current bitmap.
+    //
+    // If the young generation runs multiple cycles while the old generation is
+    // relocating, then the first cycle will have consumed the old remset,
+    // bits and moved associated objects to a new old page. The old relocation
+    // could find either of the two bitmaps. So, either it will find the original
+    // remset bits for the page, or it will find an empty bitmap for the page. It
+    // doesn't matter for correctness, because the young generation marking has
+    // already taken care of the bits.
+
+    const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+
+    const bool before_young_mark = young_marks == 0;
+    const bool during_young_mark = young_marks == 1 && ZGeneration::young()->is_phase_mark();
+    const bool after_young_mark = !before_young_mark && !during_young_mark;
+
+    if (after_young_mark) {
+      // After the first young mark, all remembered sets of forwardings have been
+      // processed, and processing them again is dangerous for reference counting.
+      return;
+    }
+
     // If this is called for an in-place relocated page, then this code has the
     // responsibility to clear the old remset bits. Extra care is needed because:
     //
@@ -691,34 +723,12 @@ private:
     // could have been overwritten during in-place relocation.
     const size_t size = ZUtils::object_size(to_addr);
 
-    // If a young generation collection started while the old generation
-    // relocated  objects, the remember set bits were flipped from "current"
-    // to "previous".
-    //
-    // We need to select the correct remembered sets bitmap to ensure that the
-    // old remset bits are found.
-    //
-    // Note that if the young generation marking (remset scanning) finishes
-    // before the old generation relocation has relocated this page, then the
-    // young generation will visit this page's previous remembered set bits and
-    // moved them over to the current bitmap.
-    //
-    // If the young generation runs multiple cycles while the old generation is
-    // relocating, then the first cycle will have consumed the old remset,
-    // bits and moved associated objects to a new old page. The old relocation
-    // could find either of the two bitmaps. So, either it will find the original
-    // remset bits for the page, or it will find an empty bitmap for the page. It
-    // doesn't matter for correctness, because the young generation marking has
-    // already taken care of the bits.
-
-    const bool active_remset_is_current = ZGeneration::old()->active_remset_is_current();
-
     // When in-place relocation is done and the old remset bits are located in
     // the bitmap that is going to be used for the new remset bits, then we
     // need to clear the old bits before the new bits are inserted.
-    const bool iterate_current_remset = active_remset_is_current;
+    const bool iterate_current_remset = before_young_mark;
 
-    BitMap::Iterator iter = iterate_current_remset
+    BitMap::Iterator iter = before_young_mark
         ? from_page->remset_iterator_limited_current(from_local_offset, size)
         : from_page->remset_iterator_limited_previous(from_local_offset, size);
 
@@ -729,13 +739,13 @@ private:
       const uintptr_t offset = field_local_offset - from_local_offset;
       const zaddress to_field = to_addr + offset;
       const zaddress from_field = from_addr + offset;
-      log_trace(gc, reloc)("Remember: from: " PTR_FORMAT " to: " PTR_FORMAT " current: %d marking: %d page: " PTR_FORMAT " remset: " PTR_FORMAT,
-                           untype(from_page->start() + field_local_offset), untype(to_field), active_remset_is_current, ZGeneration::young()->is_phase_mark(), p2i(to_page), p2i(to_page->remset_current()));
+      log_trace(gc, reloc)("Remember: from: " PTR_FORMAT " to: " PTR_FORMAT " marking: %d page: " PTR_FORMAT " remset: " PTR_FORMAT,
+                           untype(from_page->start() + field_local_offset), untype(to_field), ZGeneration::young()->is_phase_mark(), p2i(to_page), p2i(to_page->remset_current()));
 
       volatile zpointer* const to_p = (volatile zpointer*)to_field;
       volatile zpointer* const from_p = (volatile zpointer*)from_field;
 
-      if (ZGeneration::young()->is_phase_mark()) {
+      if (during_young_mark) {
         // When we have in-place relocation the fromspace object might have been conjointly copied
         // to to-space, meaning that the from-space view is garbage. However, when we do have in-place
         // relocated objects, we perform the remset maintenance before exposing the object in the
@@ -749,7 +759,7 @@ private:
       } else {
         // If the active remset is prev, we have already migrated the remsets as
         // part of the preceding remset scan. No need to do anything.
-        if (active_remset_is_current && !ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
+        if (!ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
           assert(!in_place, "impossible scenario");
           // During in-place relocation, we can only fail inserting the remembered set due to mutator
           // relocations. This means that from and to objects are disjoint, and we can easily fish out
@@ -912,6 +922,8 @@ private:
     // Verify that the inactive remset is clear when resetting the page for
     // in-place relocation.
     if (from_page->age() == ZPageAge::old) {
+      const bool young_marks = ZGeneration::old()->active_remset_is_current();
+
       if (ZGeneration::old()->active_remset_is_current()) {
         to_page->verify_remset_cleared_previous();
       } else {
@@ -978,34 +990,6 @@ public:
     // Report statistics on-behalf of non-worker threads
     _generation->increase_promoted(_other_promoted);
     _generation->increase_compacted(_other_compacted);
-  }
-
-  bool active_remset_is_current() const {
-    // Normal old-to-old relocation can treat the from-page remset as a
-    // read-only copy, and then copy over the appropriate remset bits to the
-    // cleared to-page's 'current' remset bitmap.
-    //
-    // In-place relocation is more complicated. Since, the same page is both
-    // a from-page and a to-page, we need to remove the old remset bits, and
-    // add remset bits that corresponds to the new locations of the relocated
-    // objects.
-    //
-    // Depending on how long ago (in terms of number of young GC's and the
-    // current young GC's phase), the page was allocated, the active
-    // remembered set will be in either the 'current' or 'previous' bitmap.
-    //
-    // If the active bits are in the 'previous' bitmap, we know that the
-    // 'current' bitmap was cleared at some earlier point in time, and we can
-    // simply set new bits in 'current' bitmap, and later when relocation has
-    // read all the old remset bits, we could just clear the 'previous' remset
-    // bitmap.
-    //
-    // If, on the other hand, the active bits are in the 'current' bitmap, then
-    // that bitmap will be used to both read the old remset bits, and the
-    // destination for the remset bits that we copy when an object is copied
-    // to it's new location within the page. We need to *carefully* remove all
-    // all old remset bits, without clearing out the newly set bits.
-    return ZGeneration::old()->active_remset_is_current();
   }
 
   void finish_in_place_relocation() {

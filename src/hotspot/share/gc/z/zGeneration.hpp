@@ -330,6 +330,7 @@ public:
 
   uint total_collections_at_start() const;
 
+  uint32_t young_marks_since_old_reloc_start() const;
   bool active_remset_is_current() const;
 
   ZRelocateQueue* relocate_queue();

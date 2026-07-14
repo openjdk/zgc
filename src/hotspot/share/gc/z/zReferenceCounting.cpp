@@ -101,10 +101,11 @@ void ZReferenceCounting::increment(zaddress addr) {
         // That means it could have escaped into roots before or after root scanning.
         // So we have to conservatively pardon these objects from the death row.
         page->set_pardoned(addr);
-      }
-      if (new_ref_count == 1 && page->is_allocating()) {
-        // When transitioning from 0 to 1, we no longer need to be remembered.
-        page->unset_death_row(addr);
+
+        if (new_ref_count == 1) {
+          // When transitioning from 0 to 1, we no longer need to be remembered.
+          page->unset_death_row(addr);
+        }
       }
 
       return;
@@ -259,6 +260,9 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
   Stack<oop, mtGC> dfs_stack;
   SuspendibleThreadSetJoiner sts;
 
+  size_t freed = 0;
+  size_t pardoned = 0;
+
   ZGenerationPagesIterator pt_iter(page_table, ZGenerationId::old, page_allocator);
   for (ZPage* page; pt_iter.next(&page);) {
     if (!page->is_allocating()) {
@@ -269,6 +273,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     page->iterate_death_row([&](zaddress addr) {
       OrderAccess::acquire(); // TODO: put acquire into iterator?
       if (page->is_pardoned(addr)) {
+        pardoned += ZUtils::object_size(addr);
         return;
       }
 
@@ -281,17 +286,10 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
     while (!dfs_stack.is_empty()) {
       oop obj = dfs_stack.pop();
-      zaddress addr = to_zaddress(obj);
-      int ref_count = ZRefCount::count(obj->mark());
-      ZPage* const page = ZHeap::heap()->page(addr);
-
-      assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
-      assert(page->is_allocating(), "must be allocating: %p", cast_from_oop<void*>(obj));
 
       ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p){
-        size_t field_offset = pointer_delta(p, obj, sizeof(char));
-        oop o = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(obj, field_offset); // TODO: Feel happy about this?
-        zaddress a = to_zaddress(o);
+        zaddress a = ZBarrier::load_barrier_on_oop_field(p);
+        oop o = to_oop(a);
 
         if (a == zaddress::null) {
           return;
@@ -302,10 +300,6 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
         }
 
         ZPage* page = ZHeap::heap()->page(a);
-
-        if (!page->is_allocating()) {
-          return;
-        }
 
         for (;;) {
           markWord mark = o->mark();
@@ -321,8 +315,9 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
           if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
             // If we decrement an edge to zero, we traverse through more garbage.
-            if (ref_count == 1) {
+            if (page->is_allocating() && ref_count == 1) {
               if (page->is_pardoned(a)) {
+                pardoned += ZUtils::object_size(a);
                 page->set_death_row(a);
               } else {
                 dfs_stack.push(o);
@@ -332,6 +327,12 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
           }
         }
       });
+
+      zaddress addr = to_zaddress(obj);
+      int ref_count = ZRefCount::count(obj->mark());
+      assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
+
+      ZPage* page = ZHeap::heap()->page(addr);
 
       // Unlink current remset entries
       const uintptr_t from_local_offset = page->local_offset(addr);
@@ -348,9 +349,13 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
       page->unset_death_row(addr);
 
+      freed += ZUtils::object_size(addr);
       page->free_object_to_free_list(addr);
     }
   }
+
+  log_info(gc)("Old Generation Reclaimed: %zu", freed);
+  log_info(gc)("Old Generation Pardoned: %zu", pardoned);
 
   // Clear all the pardoned bits to prepare for next GC cycle.
   ZGenerationPagesIterator pt_iter2(page_table, ZGenerationId::old, page_allocator);
