@@ -25,9 +25,12 @@
 #define SHARE_GC_Z_ZREFERENCECOUNTING_HPP
 
 #include "gc/z/zAddress.hpp"
+#include "gc/z/zArray.hpp"
 #include "gc/z/zLock.hpp"
+#include "gc/z/zPageType.hpp"
 #include "utilities/resizableHashTable.hpp"
 
+class ZPage;
 class ZPageTable;
 class ZPageAllocator;
 
@@ -36,6 +39,9 @@ class ZPageAllocator;
 // reclaim acycling garbage from the old generation.
 class ZReferenceCounting {
 private:
+  ZArray<ZPage*> _allocating[2];
+  Atomic<int> _next_page_index[2];
+
   void increment(zaddress addr);
   void decrement(zaddress addr);
 
@@ -50,6 +56,8 @@ public:
   void on_root(zaddress addr);
 
   void process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator);
+
+  zaddress free_list_alloc_object(size_t size, ZPageType type);
 };
 
 

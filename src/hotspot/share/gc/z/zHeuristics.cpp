@@ -38,8 +38,8 @@ void ZHeuristics::set_medium_page_size() {
   // max heap size. ZPageSizeMedium is initially set to 0, which means medium
   // pages are effectively disabled. It is adjusted only if ZPageSizeMedium
   // becomes larger than ZPageSizeSmall.
-  const size_t min = ZGranuleSize;
-  const size_t max = ZGranuleSize * 16;
+  const size_t min = ZPageSizeSmall;
+  const size_t max = ZPageSizeMediumMaxMax;
   const size_t unclamped = (size_t)(MaxHeapSize * 0.03125);
   const size_t clamped = clamp(unclamped, min, max);
   const size_t size = round_down_power_of_2(clamped);
@@ -49,7 +49,7 @@ void ZHeuristics::set_medium_page_size() {
     ZPageSizeMediumMax          = size;
     ZPageSizeMediumMaxShift     = log2i_exact(ZPageSizeMediumMax);
     ZObjectSizeLimitMedium      = ZPageSizeMediumMax / 8;
-    ZObjectAlignmentMediumShift = ZPageSizeMediumMaxShift - 13;
+    ZObjectAlignmentMediumShift = ZPageSizeMediumMaxShift - ZMaxObjectCountMediumShift;
     ZObjectAlignmentMedium      = 1 << ZObjectAlignmentMediumShift;
     ZPageSizeMediumEnabled      = true;
     ZPageSizeMediumMin          = ZUseMediumPageSizeRange

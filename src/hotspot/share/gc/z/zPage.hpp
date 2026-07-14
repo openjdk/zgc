@@ -35,6 +35,7 @@
 
 class ZGeneration;
 class ZMultiPartitionTracker;
+template<ZPageType>
 class ZFreeList;
 
 class ZPage : public CHeapObj<mtGC> {
@@ -55,7 +56,10 @@ private:
   ZMultiPartitionTracker* const _multi_partition_tracker;
   volatile bool                 _relocate_promoted;
   uint32_t                      _flip_promoted;
-  ZFreeList*                    _free_list;
+  union {
+    ZFreeList<ZPageType::small>*  _free_list_small;
+    ZFreeList<ZPageType::medium>* _free_list_medium;
+  };
 
   const char* type_to_string() const;
 
@@ -202,6 +206,7 @@ public:
   zaddress alloc_object(size_t size);
   zaddress alloc_object_atomic(size_t size);
 
+  void free_object_to_free_list(zaddress_unsafe addr, size_t size);
   void free_object_to_free_list(zaddress addr);
   zaddress alloc_object_from_free_list(size_t size);
 

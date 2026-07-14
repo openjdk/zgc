@@ -22,11 +22,14 @@
  */
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zFreeList.hpp"
+#include "gc/z/zAddress.hpp"
+#include "gc/z/zAddress.inline.hpp"
+#include "gc/z/zFreeList.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageType.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "utilities/align.hpp"
@@ -45,8 +48,14 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _remembered_set(),
     _multi_partition_tracker(multi_partition_tracker),
     _relocate_promoted(false),
-    _flip_promoted(),
-    _free_list(ZOldRefCount ? new ZFreeList(ZOffset::address(start()), size(), object_alignment()) : nullptr) {
+    _flip_promoted() {
+  if (ZOldRefCount) {
+    if (_type == ZPageType::small) {
+      _free_list_small = new ZFreeList<ZPageType::small>(*this);
+    } else {
+      _free_list_medium = new ZFreeList<ZPageType::medium>(*this);
+    }
+  }
   assert(!_virtual.is_null(), "Should not be null");
   assert((_type == ZPageType::small && size() == ZPageSizeSmall) ||
          (_type == ZPageType::medium && ZPageSizeMediumMin <= size() && size() <= ZPageSizeMediumMax) ||
@@ -190,9 +199,12 @@ void* ZPage::remset_current() {
   return _remembered_set.current();
 }
 
-void ZPage::free_object_to_free_list(zaddress addr) {
-  size_t size = ZUtils::object_size(addr);
-  _free_list->free(addr, size);
+void ZPage::free_object_to_free_list(zaddress_unsafe addr, size_t size) {
+  if (_type == ZPageType::small) {
+    _free_list_small->free(addr, size);
+  } else {
+    _free_list_medium->free(addr, size);
+  }
 #ifdef ASSERT
   // TODO: Use the right zap function instead.
   int header_size = 8;
@@ -200,8 +212,17 @@ void ZPage::free_object_to_free_list(zaddress addr) {
 #endif
 }
 
+void ZPage::free_object_to_free_list(zaddress addr) {
+  size_t size = ZUtils::object_size(addr);
+  free_object_to_free_list(unsafe(addr), size);
+}
+
 zaddress ZPage::alloc_object_from_free_list(size_t size) {
-  return _free_list->allocate(size);
+  if (_type == ZPageType::small) {
+    return _free_list_small->allocate(size);
+  } else {
+    return _free_list_medium->allocate(size);
+  }
 }
 
 void ZPage::print_on_msg(outputStream* st, const char* msg) const {

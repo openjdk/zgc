@@ -43,19 +43,30 @@ const size_t      ZMaxVirtualReservations       = 100; // Each reservation at le
 
 // Page size shifts
 const int         ZPageSizeSmallShift           = (int)ZGranuleSizeShift;
+const int         ZPageSizeMediumMinMaxShift    = ZPageSizeSmallShift + 1; // 4MB
+const int         ZPageSizeMediumMaxMaxShift    = ZPageSizeSmallShift + 4; // 32MB
 extern int        ZPageSizeMediumMaxShift;
 
 // Page sizes
 const size_t      ZPageSizeSmall                = (size_t)1 << ZPageSizeSmallShift;
+const size_t      ZPageSizeMediumMaxMax         = (size_t)1 << ZPageSizeMediumMaxMaxShift;
 extern size_t     ZPageSizeMediumMax;
 extern size_t     ZPageSizeMediumMin;
 extern bool       ZPageSizeMediumEnabled;
 
+// Object size limits shifts
+const int         ZObjectSizeLimitSmallShift    = ZPageSizeSmallShift - 3; // 12.5% max waste
+
 // Object size limits
-const size_t      ZObjectSizeLimitSmall         = ZPageSizeSmall / 8; // 12.5% max waste
+const size_t      ZObjectSizeLimitSmall         = (size_t)1 << ZObjectSizeLimitSmallShift;
 extern size_t     ZObjectSizeLimitMedium;
 
+// Object Count shift
+const int         ZMaxObjectCountMediumShift    = 13;
+
 // Object alignment shifts
+const int         ZMinObjectAlignmentShift      = 3;
+const int         ZMinObjectAlignmentMediumShift= ZPageSizeMediumMinMaxShift - ZMaxObjectCountMediumShift;
 extern const int& ZObjectAlignmentSmallShift;
 extern int        ZObjectAlignmentMediumShift;
 const int         ZObjectAlignmentLargeShift    = ZGranuleSizeShift;

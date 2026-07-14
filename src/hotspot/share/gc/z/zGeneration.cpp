@@ -1026,6 +1026,10 @@ void ZGenerationYoung::on_old_to_old(zaddress addr) {
   _old_ref_count.on_old_to_old(addr);
 }
 
+zaddress ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {
+  return _old_ref_count.free_list_alloc_object(size, type);
+}
+
 ZGenerationTracer* ZGenerationYoung::jfr_tracer() {
   return &_jfr_tracer;
 }

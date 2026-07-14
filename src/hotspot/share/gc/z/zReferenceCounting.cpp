@@ -22,12 +22,16 @@
  */
 
 #include "gc/shared/suspendibleThreadSet.hpp"
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
+#include "gc/z/zHeap.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
 #include "gc/z/zReferenceCounting.hpp"
+#include "gc/z/zPageType.hpp"
 #include "oops/access.inline.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/stack.inline.hpp"
 
 // We use "crow reference counting". Crows can count 1, 2, 3, many. In other
@@ -259,6 +263,7 @@ void ZReferenceCounting::on_root(zaddress addr) {
 void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator) {
   Stack<oop, mtGC> dfs_stack;
   SuspendibleThreadSetJoiner sts;
+  int allocating_page_count[2] = {};
 
   size_t freed = 0;
   size_t pardoned = 0;
@@ -269,6 +274,8 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       // TODO: Construct iterator bitmap for faster iteration instead of filtering
       continue;
     }
+
+    const bool page_is_large = page->is_large();
 
     page->iterate_death_row([&](zaddress addr) {
       OrderAccess::acquire(); // TODO: put acquire into iterator?
@@ -288,7 +295,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       oop obj = dfs_stack.pop();
 
       // TODO: re-enable garbage tracing!
-      //ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p){
+      //ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p) {
       //  zaddress a = ZBarrier::load_barrier_on_oop_field(p);
       //  oop o = to_oop(a);
 
@@ -352,12 +359,35 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       page->unset_death_row(addr);
 
       freed += ZUtils::object_size(addr);
-      page->free_object_to_free_list(addr);
+      if (page_is_large) {
+        ZHeap::heap()->free_page(page);
+      } else {
+        page->free_object_to_free_list(addr);
+      }
+    }
+
+    if (!page_is_large) {
+      // TODO: Cleanup
+      while (page->top() != page->end()) {
+        const size_t size = page->remaining();
+        zaddress addr = page->alloc_object_atomic(size);
+        if (addr != zaddress::null) {
+          page->free_object_to_free_list(unsafe(addr), size);
+        }
+      }
+
+      allocating_page_count[static_cast<int>(page->type())]++;
     }
   }
 
   log_info(gc)("Old Generation Reclaimed: %zu", freed);
   log_info(gc)("Old Generation Pardoned: %zu", pardoned);
+
+  for (int i = 0; i < 2; i++) {
+    _allocating[i].clear();
+    _allocating[i].reserve(allocating_page_count[i]);
+    _next_page_index[i].store_relaxed(0);
+  }
 
   // Clear all the pardoned bits to prepare for next GC cycle.
   ZGenerationPagesIterator pt_iter2(page_table, ZGenerationId::old, page_allocator);
@@ -370,5 +400,36 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     page->iterate_pardoned([&](zaddress addr) {
       page->unset_pardoned(addr);
     });
+
+    if (!page->is_large()) {
+      _allocating[static_cast<int>(page->type())].push(page);
+    }
+  }
+
+  // TODO: Sort based free list bytes free
+  // TODO: Remove completely free pages
+  // _allocating.sort([](ZPage** e1, ZPage** e2) -> int {
+  //   return (*e1)->free_list_bytes() > (*e2)->free_list_bytes() ? -1 : 1;
+  // });
+
+}
+
+zaddress ZReferenceCounting::free_list_alloc_object(size_t size, ZPageType type) {
+  precond(type != ZPageType::large);
+  // TODO: Bound this? What is the trade-off with forcing bump-pointer alloc
+  const int page_type_index = static_cast<int>(type);
+  for (;;) {
+    const int page_index = _next_page_index[page_type_index].load_relaxed();
+
+    if (page_index == _allocating[page_type_index].length()) {
+      return zaddress::null;
+    }
+
+    const zaddress addr = _allocating[page_type_index].at(page_index)->alloc_object_from_free_list(size);
+    if (addr != zaddress::null) {
+      return addr;
+    }
+
+    _next_page_index[page_type_index].compare_set(page_index, page_index + 1, memory_order_relaxed);
   }
 }

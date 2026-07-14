@@ -27,6 +27,7 @@
 #include "gc/z/zForwardingTable.hpp"
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zMark.hpp"
+#include "gc/z/zPageType.hpp"
 #include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zReferenceProcessor.hpp"
 #include "gc/z/zRelocate.hpp"
@@ -270,6 +271,8 @@ public:
   void on_forget(volatile zpointer* p, zaddress addr);
   void on_promotion(zaddress addr);
   void on_old_to_old(zaddress addr);
+
+  zaddress free_list_alloc_object(size_t size, ZPageType type);
 
   // Serviceability
   ZGenerationTracer* jfr_tracer();

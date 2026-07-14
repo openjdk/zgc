@@ -27,6 +27,7 @@
 #include "gc/z/zAddressSpaceLimit.hpp"
 #include "gc/z/zArguments.hpp"
 #include "gc/z/zCollectedHeap.hpp"
+#include "gc/z/zFreeList.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zHeap.hpp"
 #include "gc/z/zHeuristics.hpp"
@@ -346,6 +347,8 @@ size_t ZArguments::heap_virtual_to_physical_ratio() {
 }
 
 CollectedHeap* ZArguments::create_heap() {
+  ZFreeList<ZPageType::small>::print_size_classes();
+  ZFreeList<ZPageType::medium>::print_size_classes();
   // ZCollectedHeap has an alignment greater than or equal to ZCacheLineSize,
   // which may be larger than std::max_align_t. Instead of using operator new,
   // align the storage manually and construct the ZCollectedHeap using operator

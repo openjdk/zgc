@@ -26,67 +26,85 @@
 #define SHARE_GC_Z_ZFREELIST_HPP
 
 #include "gc/z/zAddress.hpp"
+#include "gc/z/zGlobals.hpp"
+#include "gc/z/zPageType.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-struct BlockHeader {
-  uint32_t size;
-  uint32_t next;
-};
+class ZPage;
+class outputStream;
 
 // Free list based on a flattened two level segregated fit. It has been
 // carefully adjusted specifically for the size classes of a ZPage.
+template <ZPageType PageType>
 class ZFreeList : public CHeapObj<mtGC> {
 public:
-  ZFreeList(zaddress page_start, size_t page_size, size_t alignment);
+  explicit ZFreeList(const ZPage& page);
 
   zaddress allocate(size_t size);
-  void free(zaddress addr, size_t size);
+  void free(zaddress_unsafe addr, size_t size);
 
+  static void print_size_classes();
 private:
-  static const size_t _min_alloc_size_log2 = 4;
-  static const size_t _min_alloc_size = 2 << _min_alloc_size_log2;
+  enum class ZPageLocalOffset : uint32_t {
+    invalid = -1u,
+  };
 
-  static const size_t _fl_index = 15;
-  static const size_t _sl_index_log2 = 2;
-  static const size_t _sl_index = (1 << _sl_index_log2);
-  static const size_t _num_lists = _fl_index * _sl_index;
-  static const size_t _mbs = 8;
+  struct BlockHeader {
+    uint32_t size;
+    ZPageLocalOffset next;
+  };
 
-  const uintptr_t _page_start;
-  const size_t _page_size;
-  const size_t _alignment;
+  // static constexpr ZPageType PageType = ZPageType::small;
+  static_assert(PageType != ZPageType::large, "Unsupported ZPageType");
+  static constexpr bool IsSmallPage = PageType == ZPageType::small;
+  // Inclusive
+  static constexpr int MinAllocSizeShift = IsSmallPage ? ZMinObjectAlignmentShift : ZMinObjectAlignmentMediumShift;
+  // Exclusive, a fully free page is returned to the PageAllocator
+  static constexpr int MaxFreeBlockSizeShift = IsSmallPage ? ZPageSizeSmallShift : ZPageSizeMediumMaxMaxShift;
+
+  // TODO: This seems partially incorrect.
+  static constexpr int AlignmentShift = MinAllocSizeShift;
+  static constexpr int SecondLevelIndexCountShift = 2;
+  static constexpr int FirstLevelIndexMax = MaxFreeBlockSizeShift - 1;
+  static constexpr int SecondLevelIndexCount = 1 << SecondLevelIndexCountShift;
+  static constexpr int FirstLevelIndexShift = SecondLevelIndexCountShift + AlignmentShift;
+  static constexpr int FirstLevelIndexCount = FirstLevelIndexMax - FirstLevelIndexShift + 1;
+  static constexpr size_t SmallBlockSize = size_t(1) << FirstLevelIndexShift;
+
+  static constexpr int ListCount = FirstLevelIndexCount * SecondLevelIndexCount;
+
+  const ZPage& _page;
 
   Atomic<uint64_t> _fl_bitmap;
-  Atomic<BlockHeader*> _blocks[_num_lists];
+  Atomic<BlockHeader*> _blocks[ListCount];
 
-  void insert_block(BlockHeader *blk);
+  static_assert(ListCount <= sizeof(_fl_bitmap) * 8);
 
-  BlockHeader *find_block(size_t size);
+  void insert_block(BlockHeader* blk);
+
+  BlockHeader* find_block(size_t size);
 
   // If blk is not nullptr, blk is removed, otherwise the head of the free-list
   // corresponding to mapping is removed.
-  BlockHeader *remove_block(uint32_t list_index);
+  BlockHeader* remove_block(uint32_t list_index);
 
   // size is the number of bytes that should remain in blk. blk is shrinked to
   // size and a new block with the remaining blk->size - size is returned.
-  BlockHeader *split_block(BlockHeader *blk, size_t size);
-
-  bool ptr_in_pool(uintptr_t ptr);
-
-  size_t align_size(size_t size);
+  BlockHeader* split_block(BlockHeader* blk, size_t size);
 
   // The following methods are calculated differently depending on the configuration.
-  inline BlockHeader *blk_get_next(BlockHeader *blk);
-  inline void blk_set_next(BlockHeader *blk, BlockHeader *next);
+  inline BlockHeader* blk_get_next(BlockHeader* blk);
+  inline void blk_set_next(BlockHeader* blk, BlockHeader* next);
 
-  uint32_t ideal_list_index(size_t size);
+  uint32_t guaranteed_list_index(size_t size) const;
+  uint32_t insertion_list_index(size_t size) const;
 
-  //// Manually trigger block coalescing.
-  //void coalesce(std::map<void *, size_t> &allocmap);
+  ZPageLocalOffset calculate_offset(BlockHeader* blk) const;
+  BlockHeader* calculate_block(ZPageLocalOffset offset) const;
 
-  //BlockHeader *get_next_phys_block(BlockHeader *blk, std::map<void *, size_t> &allocmap);
+  void print_on(outputStream* st) const;
 };
 
 #endif // SHARE_GC_Z_ZFREELIST_HPP

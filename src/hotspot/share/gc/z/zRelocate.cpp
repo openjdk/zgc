@@ -24,10 +24,12 @@
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zAbort.inline.hpp"
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zCollectedHeap.hpp"
 #include "gc/z/zForwarding.inline.hpp"
+#include "gc/z/zGeneration.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zIndexDistributor.inline.hpp"
@@ -356,9 +358,22 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
 
   // Allocate object
   const size_t size = ZUtils::object_size(from_addr);
-  const ZPageAge to_age = forwarding->to_age();
 
-  const zaddress to_addr = ZHeap::heap()->alloc_object_for_relocation(size, to_age);
+  // TODO: Refactor everything
+  zaddress to_addr;
+  bool was_free_list_allocated = false;
+
+  if (forwarding->is_promotion()) {
+    to_addr = ZGeneration::young()->free_list_alloc_object(size, forwarding->type());
+    was_free_list_allocated = to_addr != zaddress::null;
+  }
+
+  if (!was_free_list_allocated) {
+    const ZPageAge to_age = forwarding->to_age();
+
+    to_addr = ZHeap::heap()->alloc_object_for_relocation(size, to_age);
+  }
+
 
   if (is_null(to_addr)) {
     // Allocation failed
@@ -371,7 +386,8 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   // Insert forwarding
   const zaddress to_addr_final = forwarding->insert(from_addr, to_addr, cursor);
 
-  if (to_addr_final != to_addr) {
+  // TODO: Free list allocated object leak, another place we may race remove with insert.
+  if (to_addr_final != to_addr && !was_free_list_allocated) {
     // Already relocated, try undo allocation
     ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
   }
@@ -611,7 +627,6 @@ private:
     ZForwardingCursor cursor;
 
     const size_t size = ZUtils::object_size(from_addr);
-    ZPage* const to_page = _targets->get(partition_id, _forwarding->to_age());
 
     // Lookup forwarding
     {
@@ -624,11 +639,23 @@ private:
       }
     }
 
-    // Allocate object
-    const zaddress allocated_addr = _allocator->alloc_object(to_page, size);
-    if (is_null(allocated_addr)) {
-      // Allocation failed
-      return zaddress::null;
+    // TODO: Refactor everthing.
+    zaddress allocated_addr;
+    bool was_allocated_from_free_list = false;
+    if (_forwarding->is_promotion()) {
+      _forwarding->type();
+      allocated_addr = ZGeneration::young()->free_list_alloc_object(size, _forwarding->type());
+      was_allocated_from_free_list = allocated_addr != zaddress::null;
+    }
+
+    ZPage* const to_page = _targets->get(partition_id, _forwarding->to_age());
+    if (!was_allocated_from_free_list) {
+      // Allocate object
+      allocated_addr = _allocator->alloc_object(to_page, size);
+      if (is_null(allocated_addr)) {
+        // Allocation failed
+        return zaddress::null;
+      }
     }
 
     bool in_place = _forwarding->in_place_relocation();
@@ -653,7 +680,9 @@ private:
     if (to_addr != allocated_addr) {
       // Already relocated, undo allocation
       assert(!in_place, "sanity");
-      _allocator->undo_alloc_object(to_page, to_addr, size);
+      if (!was_allocated_from_free_list) {
+        _allocator->undo_alloc_object(to_page, to_addr, size);
+      }
       increase_other_forwarded(size);
     }
 
