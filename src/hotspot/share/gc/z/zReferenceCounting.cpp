@@ -294,48 +294,52 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     while (!dfs_stack.is_empty()) {
       oop obj = dfs_stack.pop();
 
-      // TODO: re-enable garbage tracing!
-      //ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p) {
-      //  zaddress a = ZBarrier::load_barrier_on_oop_field(p);
-      //  oop o = to_oop(a);
+      Klass* k = obj->klass();
+      const bool is_reference = k->is_instance_klass() && InstanceKlass::cast(k)->reference_type() != REF_NONE;
 
-      //  if (a == zaddress::null) {
-      //    return;
-      //  }
+      if (!is_reference) {
+        ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p){
+          zaddress a = ZBarrier::load_barrier_on_oop_field(p);
+          oop o = to_oop(a);
 
-      //  if (ZHeap::heap()->is_young(a)) {
-      //    return;
-      //  }
+          if (a == zaddress::null) {
+            return;
+          }
 
-      //  ZPage* page = ZHeap::heap()->page(a);
-      //  assert(page->is_in(a), "why you no in?");
+          ZPage* page = ZHeap::heap()->page(a);
+          assert(page->is_in(a), "why you no in?");
 
-      //  for (;;) {
-      //    markWord mark = o->mark();
-      //    int ref_count = ZRefCount::count(mark);
+          if (!page->is_old()) {
+            return;
+          }
 
-      //    if (ref_count == ZRefCount::Uncertain) {
-      //      break;
-      //    }
+          for (;;) {
+            markWord mark = o->mark();
+            int ref_count = ZRefCount::count(mark);
 
-      //    assert(ref_count > 0, "should be positive: %d", ref_count);
+            if (ref_count == ZRefCount::Uncertain) {
+              break;
+            }
 
-      //    markWord new_mark = ZRefCount::set_count(mark, ref_count - 1);
+            assert(ref_count > 0, "should be positive: %d", ref_count);
 
-      //    if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      //      // If we decrement an edge to zero, we traverse through more garbage.
-      //      if (page->is_allocating() && ref_count == 1) {
-      //        if (page->is_pardoned(a)) {
-      //          pardoned += ZUtils::object_size(a);
-      //          page->set_death_row(a);
-      //        } else {
-      //          dfs_stack.push(o);
-      //        }
-      //      }
-      //      break;
-      //    }
-      //  }
-      //});
+            markWord new_mark = ZRefCount::set_count(mark, ref_count - 1);
+
+            if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
+              // If we decrement an edge to zero, we traverse through more garbage.
+              if (page->is_allocating() && ref_count == 1) {
+                if (page->is_pardoned(a)) {
+                  pardoned += ZUtils::object_size(a);
+                  page->set_death_row(a);
+                } else {
+                  dfs_stack.push(o);
+                }
+              }
+              break;
+            }
+          }
+        });
+      }
 
       zaddress addr = to_zaddress(obj);
       int ref_count = ZRefCount::count(obj->mark());
