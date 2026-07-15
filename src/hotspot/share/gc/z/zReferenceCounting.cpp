@@ -300,11 +300,12 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       if (!is_reference) {
         ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p){
           zaddress a = ZBarrier::load_barrier_on_oop_field(p);
-          oop o = to_oop(a);
 
           if (a == zaddress::null) {
             return;
           }
+
+          oop o = to_oop(a);
 
           ZPage* page = ZHeap::heap()->page(a);
           assert(page->is_in(a), "why you no in?");

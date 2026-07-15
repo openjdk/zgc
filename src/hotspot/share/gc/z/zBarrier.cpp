@@ -276,6 +276,10 @@ zaddress ZBarrier::no_keep_alive_heap_store_slow_path(volatile zpointer* p, zadd
 zaddress ZBarrier::native_store_slow_path(zaddress addr) {
   if (!is_null(addr)) {
     mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+
+    if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+      ZGeneration::young()->on_root(addr);
+    }
   }
 
   return addr;

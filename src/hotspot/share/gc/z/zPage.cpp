@@ -63,6 +63,10 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
          "Page type/size mismatch");
   reset(age);
 
+  // TODO: Debug info for now
+  const uintptr_t start_value = static_cast<uintptr_t>(start());
+  assert(start_value <= ZAddressOffsetMax, "Offset out of bounds (" PTR_FORMAT " <= " PTR_FORMAT ")", start_value, ZAddressOffsetMax);
+
   if (is_old()) {
     remset_alloc();
     _livemap.initialize_bitmap(); // TODO: Check for redundancy

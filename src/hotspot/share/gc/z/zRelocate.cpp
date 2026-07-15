@@ -1395,6 +1395,8 @@ public:
 
       if (promotion) {
         new_page->set_is_flip_promoted();
+        assert(prev_page->start() == new_page->start(), "starts dont match"); // TODO debug
+        log_info(gc)("[p %p: %zx]", new_page, untype(new_page->start()));
         ZGeneration::young()->flip_promote(prev_page, new_page);
         // Defer promoted page registration
         promoted_pages.push(prev_page);
