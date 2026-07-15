@@ -215,14 +215,12 @@ inline bool is_store_barrier_no_keep_alive(oop base, ptrdiff_t offset) {
     return (decorators & AS_NO_KEEPALIVE) != 0;
   }
 
-  return false; // TODO: Re-enable
+  if ((decorators_known_strength & ON_WEAK_OOP_REF) != 0) {
+    return true;
+  }
 
-  //if ((decorators_known_strength & ON_WEAK_OOP_REF) != 0) {
-  //  return true;
-  //}
-
-  //assert((decorators_known_strength & ON_PHANTOM_OOP_REF) != 0, "Must be");
-  //return true;
+  assert((decorators_known_strength & ON_PHANTOM_OOP_REF) != 0, "Must be");
+  return true;
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>

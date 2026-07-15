@@ -288,6 +288,10 @@ zaddress ZBarrier::native_store_slow_path(zaddress addr) {
 zaddress ZBarrier::keep_alive_slow_path(zaddress addr) {
   if (!is_null(addr)) {
     mark<ZMark::Resurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+    // TODO: Embed beter with the resurrect mechanism to avoid on_root after marking termination
+    if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+      ZGeneration::young()->on_root(addr);
+    }
   }
 
   return addr;
