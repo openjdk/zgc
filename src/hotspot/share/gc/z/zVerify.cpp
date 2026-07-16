@@ -748,6 +748,13 @@ void ZVerify::after_relocation(ZForwarding* forwarding) {
     return;
   }
 
+  uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+  if (young_marks > 1) {
+    // Remsets completely processed already; entries could legitimately
+    // have been forgotten by now.
+    return;
+  }
+
   if (ZGeneration::young()->is_phase_mark() &&
       forwarding->relocated_remembered_fields_is_concurrently_scanned()) {
     // Can't verify to-space objects if concurrent YC rejected published
