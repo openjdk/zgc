@@ -390,6 +390,9 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   if (to_addr_final != to_addr && !was_free_list_allocated) {
     // Already relocated, try undo allocation
     ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
+  } else if (to_addr_final == to_addr && was_free_list_allocated) {
+    // Only promotions allocated for now, so only young has free list allocations
+    ZGeneration::young()->increase_freelist_promoted(size);
   }
 
   return to_addr_final;
@@ -606,6 +609,7 @@ private:
   ZForwarding*        _forwarding;
   ZRelocationTargets* _targets;
   ZGeneration* const  _generation;
+  size_t              _freelist_promoted;
   size_t              _other_promoted;
   size_t              _other_compacted;
   ZStringDedupContext _string_dedup_context;
@@ -643,7 +647,6 @@ private:
     zaddress allocated_addr;
     bool was_allocated_from_free_list = false;
     if (_forwarding->is_promotion()) {
-      _forwarding->type();
       allocated_addr = ZGeneration::young()->free_list_alloc_object(size, _forwarding->type());
       was_allocated_from_free_list = allocated_addr != zaddress::null;
     }
@@ -684,6 +687,8 @@ private:
         _allocator->undo_alloc_object(to_page, to_addr, size);
       }
       increase_other_forwarded(size);
+    } else if (was_allocated_from_free_list) {
+      _freelist_promoted += size;
     }
 
     if (!in_place) {
@@ -1008,6 +1013,7 @@ public:
       _forwarding(nullptr),
       _targets(targets),
       _generation(generation),
+      _freelist_promoted(0),
       _other_promoted(0),
       _other_compacted(0) {}
 
@@ -1017,6 +1023,7 @@ public:
     });
 
     // Report statistics on-behalf of non-worker threads
+    _generation->increase_freelist_promoted(_freelist_promoted);
     _generation->increase_promoted(_other_promoted);
     _generation->increase_compacted(_other_compacted);
   }

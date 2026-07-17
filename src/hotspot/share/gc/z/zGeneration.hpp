@@ -74,6 +74,7 @@ protected:
   ZRelocationSet        _relocation_set;
 
   Atomic<size_t>        _freed;
+  Atomic<size_t>        _freelist_promoted;
   Atomic<size_t>        _promoted;
   Atomic<size_t>        _compacted;
 
@@ -124,6 +125,8 @@ public:
   virtual bool should_record_stats() = 0;
   size_t freed() const;
   void increase_freed(size_t size);
+  size_t freelist_promoted() const;
+  void increase_freelist_promoted(size_t size);
   size_t promoted() const;
   void increase_promoted(size_t size);
   size_t compacted() const;

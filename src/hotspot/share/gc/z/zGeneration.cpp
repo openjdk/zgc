@@ -132,6 +132,7 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _relocate(this),
     _relocation_set(this),
     _freed(0),
+    _freelist_promoted(0),
     _promoted(0),
     _compacted(0),
     _phase(Phase::Relocate),
@@ -310,6 +311,7 @@ bool ZGeneration::is_relocate_queue_active() const {
 void ZGeneration::reset_statistics() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   _freed.store_relaxed(0u);
+  _freelist_promoted.store_relaxed(0u);
   _promoted.store_relaxed(0u);
   _compacted.store_relaxed(0u);
 }
@@ -320,6 +322,14 @@ size_t ZGeneration::freed() const {
 
 void ZGeneration::increase_freed(size_t size) {
   _freed.add_then_fetch(size, memory_order_relaxed);
+}
+
+size_t ZGeneration::freelist_promoted() const {
+  return _freelist_promoted.load_relaxed();;
+}
+
+void ZGeneration::increase_freelist_promoted(size_t size) {
+  _freelist_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
 size_t ZGeneration::promoted() const {
@@ -965,6 +975,9 @@ void ZGenerationYoung::relocate() {
 
   // Update statistics
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
+
+  log_info(gc)("Old Generation Free-list Promoted: " EXACTFMT " ("  PROPERFMT ")",
+               EXACTFMTARGS(freelist_promoted()), PROPERFMTARGS(freelist_promoted()));
 }
 
 void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
@@ -1027,6 +1040,10 @@ void ZGenerationYoung::on_old_to_old(zaddress addr) {
 }
 
 zaddress ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {
+  if (!ZAllocateInFreeList) {
+    return zaddress::null;
+  }
+
   return _old_ref_count.free_list_alloc_object(size, type);
 }
 
