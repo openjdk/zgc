@@ -1040,7 +1040,7 @@ void ZGenerationYoung::on_old_to_old(zaddress addr) {
 }
 
 zaddress ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {
-  if (!ZAllocateInFreeList) {
+  if (!ZAllocateInFreeList || !ZOldRefCount) {
     return zaddress::null;
   }
 

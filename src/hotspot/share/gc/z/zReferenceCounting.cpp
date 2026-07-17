@@ -261,6 +261,10 @@ void ZReferenceCounting::on_root(zaddress addr) {
 // TODO: Deal better with large arrays
 // TODO: Figure out when we can SuspendibleThreadSet::yield()
 void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator) {
+  if (!ZOldRefCount) {
+    return;
+  }
+
   Stack<oop, mtGC> dfs_stack;
   SuspendibleThreadSetJoiner sts;
   int allocating_page_count[2] = {};

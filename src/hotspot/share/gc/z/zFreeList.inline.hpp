@@ -87,6 +87,7 @@ zaddress ZFreeList<PageType>::allocate(size_t size) {
     st->print_cr("ZFreeList<%s>::allocate(size: 0x%zX)", page_type_str, size);
     print_on(st);
   });
+  precond(ZOldRefCount);
   precond(ZAllocateInFreeList);
 
   BlockHeader* blk = find_block(align_up(size, size_t(1) << AlignmentShift));
@@ -259,8 +260,8 @@ void ZFreeList<PageType>::free(zaddress_unsafe ptr, size_t size) {
     st->print_cr("ZFreeList<%s>::free(ptr: " PTR_FORMAT ", size: 0x%zX)", page_type_str, untype(ptr), size);
     print_on(st);
   });
-
-  assert(ptr != zaddress_unsafe::null, "sanity");
+  precond(ZOldRefCount);
+  precond(ptr != zaddress_unsafe::null);
   precond(is_aligned(untype(ptr), size_t(1) << AlignmentShift));
 
   BlockHeader* blk = reinterpret_cast<BlockHeader*>(ptr);
