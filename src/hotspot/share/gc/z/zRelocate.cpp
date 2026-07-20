@@ -380,8 +380,14 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
     return zaddress::null;
   }
 
+
   // Copy object
   ZUtils::object_copy_disjoint(from_addr, to_addr, size);
+
+  ZPage* to_page = ZHeap::heap()->page(to_addr); // TODO: optimize
+  if (forwarding->from_age() == ZPageAge::old) {
+    ZGeneration::young()->on_old_to_space_alloc(to_page, from_addr, to_addr, true);
+  }
 
   // Insert forwarding
   const zaddress to_addr_final = forwarding->insert(from_addr, to_addr, cursor);
@@ -390,9 +396,15 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   if (to_addr_final != to_addr && !was_free_list_allocated) {
     // Already relocated, try undo allocation
     ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
-  } else if (to_addr_final == to_addr && was_free_list_allocated) {
-    // Only promotions allocated for now, so only young has free list allocations
-    ZGeneration::young()->increase_freelist_promoted(size);
+  } else {
+    if (to_addr_final == to_addr && was_free_list_allocated) {
+      // Only promotions allocated for now, so only young has free list allocations
+      ZGeneration::young()->increase_freelist_promoted(size);
+    }
+
+    if (forwarding->from_age() == ZPageAge::old) {
+      ZGeneration::young()->on_mutator_old_to_old(forwarding, from_addr, to_addr);
+    }
   }
 
   return to_addr_final;
@@ -638,7 +650,7 @@ private:
       if (!is_null(to_addr)) {
         // Already relocated
         increase_other_forwarded(size);
-        update_remset_for_fields(from_addr, to_addr);
+        update_remset_for_fields(from_addr, to_addr, true /* was_mutator */);
         return to_addr;
       }
     }
@@ -671,11 +683,15 @@ private:
       ZUtils::object_copy_disjoint(from_addr, allocated_addr, size);
     }
 
+    if (_forwarding->from_age() == ZPageAge::old) {
+      ZGeneration::young()->on_old_to_space_alloc(to_page, from_addr, allocated_addr, false);
+    }
+
     if (in_place) {
       // In-place relocation has to update remembered sets before mutators can
       // clobber the memory. Otherwise, we lose information necessary to process
       // reference counts for the old generation.
-      update_remset_for_fields(from_addr, allocated_addr);
+      update_remset_for_fields(from_addr, allocated_addr, false /* was_mutator */);
     }
 
     // Insert forwarding
@@ -692,13 +708,13 @@ private:
     }
 
     if (!in_place) {
-      update_remset_for_fields(from_addr, to_addr);
+      update_remset_for_fields(from_addr, to_addr, to_addr != allocated_addr);
     }
 
     return to_addr;
   }
 
-  void update_remset_old_to_old(zaddress from_addr, zaddress to_addr) const {
+  void update_remset_old_to_old(zaddress from_addr, zaddress to_addr, bool was_mutator) const {
     // Old-to-old relocation - move existing remset bits
 
     // If a young generation collection started while the old generation
@@ -730,6 +746,12 @@ private:
     if (after_young_mark) {
       // After the first young mark, all remembered sets of forwardings have been
       // processed, and processing them again is dangerous for reference counting.
+      return;
+    }
+
+    if (before_young_mark && was_mutator) {
+      // Before young mark start, mutators help relocating remembered set entries,
+      // so we shouldn't do it again as that might conflict our counters.
       return;
     }
 
@@ -791,8 +813,11 @@ private:
         // field. It will take responsibility to add a new remember set entry if needed.
         _forwarding->relocated_remembered_fields_register(to_p, prev); // TODO: Doesn't respect the flag right now
       } else {
-        // If the active remset is prev, we have already migrated the remsets as
-        // part of the preceding remset scan. No need to do anything.
+        assert(before_young_mark, "must be");
+
+        // Forget current so subsequent remset scanning doesn't process the prev bits from fromspace.
+        from_page->forget_current(from_p);
+
         if (!ZGeneration::young()->remember(to_p)) { // TODO: Put into shared function?
           assert(!in_place, "impossible scenario");
           // During in-place relocation, we can only fail inserting the remembered set due to mutator
@@ -901,7 +926,7 @@ private:
     }
   }
 
-  void update_remset_for_fields(zaddress from_addr, zaddress to_addr) const {
+  void update_remset_for_fields(zaddress from_addr, zaddress to_addr, bool was_mutator) const {
     if (_forwarding->to_age() != ZPageAge::old) {
       // No remembered set in young pages
       return;
@@ -909,8 +934,8 @@ private:
 
     // Need to deal with remset when moving objects to the old generation
     if (_forwarding->from_age() == ZPageAge::old) {
-      update_remset_old_to_old(from_addr, to_addr);
-      ZGeneration::young()->on_old_to_old(to_addr);
+      update_remset_old_to_old(from_addr, to_addr, was_mutator);
+      ZGeneration::young()->on_old_to_old(to_addr, was_mutator);
       return;
     }
 
@@ -1402,8 +1427,6 @@ public:
 
       if (promotion) {
         new_page->set_is_flip_promoted();
-        assert(prev_page->start() == new_page->start(), "starts dont match"); // TODO debug
-        log_info(gc)("[p %p: %zx]", new_page, untype(new_page->start()));
         ZGeneration::young()->flip_promote(prev_page, new_page);
         // Defer promoted page registration
         promoted_pages.push(prev_page);

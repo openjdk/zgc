@@ -32,6 +32,7 @@ class ZPage;
 
 struct ZRememberedSetContaining {
   zaddress_unsafe _field_addr;
+  zpointer _field_value;
   zaddress_unsafe _addr;
 };
 

@@ -73,9 +73,7 @@ void ZRemembered::oops_do_forwarded_via_containing(GrowableArrayView<ZRemembered
       // Calculate the corresponding address in the to-object
       const zaddress to_addr_field = to_addr + field_offset;
 
-      const zaddress from_addr_field = zaddress(from_addr) + field_offset; // TODO: Not needed without the JVM flag
-      volatile zpointer* const from_field = (volatile zpointer*)untype(from_addr_field);
-      zpointer prev = AtomicAccess::load(from_field);
+      zpointer prev = containing._field_value; // TODO: This wastes memory before first young mark start and isn't needed.
 
       function((volatile zpointer*)untype(to_addr_field), prev);
     }

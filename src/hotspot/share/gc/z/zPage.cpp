@@ -204,6 +204,8 @@ void* ZPage::remset_current() {
 }
 
 void ZPage::free_object_to_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
+
   if (_type == ZPageType::small) {
     _free_list_small->free(addr, size);
   } else {

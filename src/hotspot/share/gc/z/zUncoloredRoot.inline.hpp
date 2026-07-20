@@ -88,10 +88,18 @@ inline void ZUncoloredRoot::mark_young_object(zaddress addr) {
 
 inline void ZUncoloredRoot::mark_invisible_object(zaddress addr) {
   ZBarrier::mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::DontFollow, ZMark::Strong>(addr);
+
+  if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+    ZGeneration::young()->on_root(addr);
+  }
 }
 
 inline void ZUncoloredRoot::keep_alive_object(zaddress addr) {
   ZBarrier::mark<ZMark::Resurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+
+  if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+    ZGeneration::young()->on_root(addr);
+  }
 }
 
 inline void ZUncoloredRoot::mark(zaddress_unsafe* p, uintptr_t color) {

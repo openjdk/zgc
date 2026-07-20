@@ -273,7 +273,10 @@ public:
   void on_failed_remember(zaddress addr);
   void on_forget(volatile zpointer* p, zaddress addr);
   void on_promotion(zaddress addr);
-  void on_old_to_old(zaddress addr);
+
+  void on_old_to_space_alloc(ZPage* to_page, zaddress from_addr, zaddress to_addr, bool mutator);
+  void on_old_to_old(zaddress addr, bool was_mutator);
+  void on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr);
 
   zaddress free_list_alloc_object(size_t size, ZPageType type);
 

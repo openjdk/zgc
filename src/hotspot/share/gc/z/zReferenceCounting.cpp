@@ -145,7 +145,6 @@ void ZReferenceCounting::decrement(zaddress addr) {
           // have to wait until the next GC cycle. So we pardon the object from
           // death row for this GC cycle.
           page->set_death_row(addr);
-          page->set_pardoned(addr);
         }
       }
       return;
@@ -156,13 +155,20 @@ void ZReferenceCounting::decrement(zaddress addr) {
 void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   bool forgotten = ZGeneration::young()->forget_previous(p);
 
-  if (is_null(addr) || ZHeap::heap()->is_young(addr)) {
+  if (is_null(addr)) {
     // Only count old-to-old edges.
     return;
   }
 
-  ZPage* page = ZHeap::heap()->page(p);
-  if (page->is_flip_promoted()) {
+  ZPage* p_page = ZHeap::heap()->page(p);
+
+  if (!p_page->is_old()) {
+    return;
+  }
+
+  ZPage* addr_page = ZHeap::heap()->page(addr);
+
+  if (!addr_page->is_old() || addr_page->is_flip_promoted()) {
     return;
   }
 
@@ -175,6 +181,11 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   // last increment. In the first store path, that means that the last increment
   // of the previous epoch and the first decrement of the current epoch effectively
   // cancel out, leaving there to be no need to update the old-to-old reference count.
+
+  if (addr_page->is_allocating()) {
+    addr_page->set_pardoned(addr);
+    OrderAccess::release();
+  }
 
   if (forgotten) {
     // TODO: Could return here instead. Now I explicitly both call increment and
@@ -204,6 +215,7 @@ void ZReferenceCounting::on_failed_remember(zaddress addr) {
   //              o2o
   //    old reloc compensates
   //  inc on failed curr insert
+  //  and clears from-space prev
   //
   //                                      o2o
   //                                always inc prev
@@ -226,17 +238,100 @@ void ZReferenceCounting::on_promotion(zaddress addr) {
   page->set_death_row(addr);
 }
 
-void ZReferenceCounting::on_old_to_old(zaddress addr) {
+void ZReferenceCounting::on_old_to_space_alloc(ZPage* to_page, zaddress from_addr, zaddress to_addr, bool mutator) { // TODO: Completeness for pardoning
+  to_page->set_pardoned(to_addr);
+
+  if (mutator) {
+    // TODO: No need for atomics
+    // Maintain one stake in the mutator old-to-old relocation until the GC gets to
+    // process the to-space object and add it to the right pardon/deathrow sets. It
+    // will then decrement the counter.
+    for (;;) {
+      markWord mark = to_oop(from_addr)->mark();
+      int ref_count = ZRefCount::count(mark);
+
+      if (ref_count == ZRefCount::Uncertain) {
+        break;
+      }
+
+      int new_ref_count = ref_count == ZRefCount::Max ? ZRefCount::Uncertain : ref_count + 1;
+      markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
+
+      if (to_oop(to_addr)->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
+        break;
+      }
+    }
+  }
+}
+
+// TODO: More helpful arguments
+void ZReferenceCounting::on_old_to_old(zaddress addr, bool was_mutator) {
   assert(ZHeap::heap()->is_old(addr), "must be old");
   assert(ZHeap::heap()->page(addr)->is_allocating(), "must be allocating");
 
+  ZPage* page = ZHeap::heap()->page(addr);
+  page->set_pardoned(addr);
+  OrderAccess::release(); // TODO: Embed in death row set?
+
+  // TODO: WARNING Ordering issue
   if (ZRefCount::count(to_oop(addr)->mark()) == 0) {
-    ZPage* page = ZHeap::heap()->page(addr);
-    if (ZGeneration::young()->is_phase_mark()) {
-      page->set_pardoned(addr);
-      OrderAccess::release(); // TODO: Embed in death row set?
-    }
     page->set_death_row(addr);
+  }
+
+  if (was_mutator) {
+    decrement(addr); // TODO: Dig up the street
+  }
+}
+
+void ZReferenceCounting::on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr) {
+  const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+  const bool before_young_mark = young_marks == 0;
+
+  if (!before_young_mark) {
+    // TODO: Comments
+    return;
+  }
+
+  ZPage* const from_page = forwarding->page();
+  const uintptr_t from_local_offset = from_page->local_offset(from_addr);
+
+  // Note: even with in-place relocation, the to_page could be another page
+  ZPage* const to_page = ZHeap::heap()->page(to_addr);
+
+  // Uses _relaxed version to handle that in-place relocation resets _top
+  assert(ZHeap::heap()->is_in_page_relaxed(from_page, from_addr), "Must be");
+  assert(to_page->is_in(to_addr), "Must be");
+
+  const size_t size = ZUtils::object_size(to_addr);
+
+  BitMap::Iterator iter = from_page->remset_iterator_limited_current(from_local_offset, size);
+
+  for (BitMap::idx_t field_bit : iter) {
+    const uintptr_t field_local_offset = ZRememberedSet::to_offset(field_bit);
+
+    // Add remset entry in the to-page
+    const uintptr_t offset = field_local_offset - from_local_offset;
+    const zaddress to_field = to_addr + offset;
+    const zaddress from_field = from_addr + offset;
+    volatile zpointer* const to_p = (volatile zpointer*)to_field;
+    volatile zpointer* const from_p = (volatile zpointer*)from_field;
+
+    // Forget current so subsequent remset scanning doesn't process the prev bits from fromspace.
+    from_page->forget_current(from_p);
+
+    if (!to_page->remember(to_p)) {
+      // It is impossible for the below load barrier to require relocation. If the mutator beat
+      // us to it with setting the current bit with its store barrier, then the forwarding table
+      // for the initial previous value that we have in prev, is guaranteed to have been relocated
+      // already by the mutator.
+      // When the remembering of to-space current bits fails, it's because another mutator set the
+      // bit, mistakenly assuming that this reference location had its first mutation since the
+      // last youg mark start. However, we know better that it didn't, we just hadn't moved the
+      // current bit over to to-space yet. So we compensate for this by incrementing the counter.
+      zpointer prev = AtomicAccess::load(from_p);
+      const zaddress addr = ZBarrier::load_barrier_on_oop_field_preloaded(nullptr, prev);
+      ZGeneration::young()->on_failed_remember(addr);
+    }
   }
 }
 
@@ -282,15 +377,22 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     const bool page_is_large = page->is_large();
 
     page->iterate_death_row([&](zaddress addr) {
+      oop obj = to_oop(addr);
+      int ref_count = ZRefCount::count(obj->mark());
+
+      // TODO too strong assert? assert(ref_count == 0, "must be zero: %d: %p", ref_count, (void*)addr);
+
+      if (ref_count != 0) {
+        return;
+      }
+
       OrderAccess::acquire(); // TODO: put acquire into iterator?
+                              // TODO: It's the ref count we care about though? Hmm.
+
       if (page->is_pardoned(addr)) {
         pardoned += ZUtils::object_size(addr);
         return;
       }
-
-      oop obj = to_oop(addr);
-      int ref_count = ZRefCount::count(obj->mark());
-      assert(ref_count == 0, "must be zero: %d: %p", ref_count, (void*)addr);
 
       dfs_stack.push(obj);
     });
@@ -333,6 +435,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
             if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
               // If we decrement an edge to zero, we traverse through more garbage.
               if (page->is_allocating() && ref_count == 1) {
+                OrderAccess::acquire(); // Acquire between observing ref count 0 and reading pardoned
                 if (page->is_pardoned(a)) {
                   pardoned += ZUtils::object_size(a);
                   page->set_death_row(a);
@@ -352,11 +455,12 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
       ZPage* page = ZHeap::heap()->page(addr);
 
-      // Unlink current remset entries
+      // Unlink current remset entries before zapping the object.
       const uintptr_t from_local_offset = page->local_offset(addr);
-      BitMap::Iterator iter = page->remset_iterator_limited_current(from_local_offset, ZUtils::object_size(addr));
+      const size_t size = ZUtils::object_size(addr);
+      BitMap::Iterator current_iter = page->remset_iterator_limited_current(from_local_offset, size);
 
-      for (BitMap::idx_t field_bit : iter) {
+      for (BitMap::idx_t field_bit : current_iter) {
         const uintptr_t field_local_offset = ZRememberedSet::to_offset(field_bit);
         const uintptr_t field_offset = field_local_offset - from_local_offset;
         const zaddress field_addr = addr + field_offset;
@@ -375,18 +479,20 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       }
     }
 
-    if (!page_is_large) {
-      // TODO: Cleanup
-      while (page->top() != page->end()) {
-        const size_t size = page->remaining();
-        zaddress addr = page->alloc_object_atomic(size);
-        if (addr != zaddress::null) {
-          page->free_object_to_free_list(unsafe(addr), size);
-        }
-      }
+    // TODO: Not sure what below code is up to, but GC threads use alloc_object without _atomic
+    // and hence racingly allocate into this memory, causing corruption.
+    //if (!page_is_large) {
+    //  // TODO: Cleanup
+    //  while (page->top() != page->end()) {
+    //    const size_t size = page->remaining();
+    //    zaddress addr = page->alloc_object_atomic(size);
+    //    if (addr != zaddress::null) {
+    //      page->free_object_to_free_list(unsafe(addr), size);
+    //    }
+    //  }
 
-      allocating_page_count[static_cast<int>(page->type())]++;
-    }
+    //  allocating_page_count[static_cast<int>(page->type())]++;
+    //}
   }
 
   log_info(gc)("Old Generation Reclaimed: %zu", freed);

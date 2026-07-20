@@ -584,6 +584,12 @@ void ZGenerationYoung::collect(ZYoungType type, ConcurrentGCTimer* timer) {
 
   abortpoint();
 
+  // TODO: Abstraction violation
+  // Free up unreferenced acyclic garbage in the old generation
+  _old_ref_count.process_death_row(_page_table, _page_allocator);
+
+  abortpoint();
+
   // Phase 5: Concurrent Reset Relocation Set
   concurrent_reset_relocation_set();
 
@@ -928,9 +934,6 @@ void ZGenerationYoung::mark_follow() {
   // Combine following with scanning the remembered set
   ZStatTimerYoung timer(ZSubPhaseConcurrentMarkFollowYoung);
   _remembered.scan_and_follow(&_mark);
-
-  // Free up unreferenced acyclic garbage in the old generation
-  _old_ref_count.process_death_row(_page_table, _page_allocator);
 }
 
 bool ZGenerationYoung::mark_end() {
@@ -1035,8 +1038,16 @@ void ZGenerationYoung::on_promotion(zaddress addr) {
   _old_ref_count.on_promotion(addr);
 }
 
-void ZGenerationYoung::on_old_to_old(zaddress addr) {
-  _old_ref_count.on_old_to_old(addr);
+void ZGenerationYoung::on_old_to_space_alloc(ZPage* to_page, zaddress from_addr, zaddress to_addr, bool mutator) {
+  _old_ref_count.on_old_to_space_alloc(to_page, from_addr, to_addr, mutator);
+}
+
+void ZGenerationYoung::on_old_to_old(zaddress addr, bool was_mutator) {
+  _old_ref_count.on_old_to_old(addr, was_mutator);
+}
+
+void ZGenerationYoung::on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr) {
+  _old_ref_count.on_mutator_old_to_old(forwarding, from_addr, to_addr);
 }
 
 zaddress ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {

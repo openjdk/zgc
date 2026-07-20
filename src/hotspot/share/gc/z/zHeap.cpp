@@ -343,6 +343,10 @@ void ZHeap::undo_alloc_object_for_relocation(zaddress addr, size_t size) {
 void ZHeap::keep_alive(oop obj) {
   const zaddress addr = to_zaddress(obj);
   ZBarrier::mark<ZMark::Resurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
+
+  if (ZOldRefCount && ZHeap::heap()->is_old(addr)) {
+    ZGeneration::young()->on_root(addr);
+  }
 }
 
 void ZHeap::mark_flush(Thread* thread) {

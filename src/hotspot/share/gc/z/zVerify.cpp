@@ -617,6 +617,13 @@ void ZVerify::before_relocation(ZForwarding* forwarding) {
     return;
   }
 
+  uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+  if (young_marks > 1) {
+    // Remsets completely processed already; entries could legitimately
+    // have been forgotten by now.
+    return;
+  }
+
   // Verify that the inactive remset is cleared
   if (ZGeneration::old()->active_remset_is_current()) {
     forwarding->page()->verify_remset_cleared_previous();
