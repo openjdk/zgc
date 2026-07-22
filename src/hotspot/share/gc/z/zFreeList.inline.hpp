@@ -195,7 +195,8 @@ uint32_t ZFreeList<PageType>::guaranteed_list_index(size_t size) const {
     return insertion_list_index(size);
   }
 
-  precond(size <= (size_t(1) << (FirstLevelIndexCount + AlignmentShift - 1)));
+  precond(size <= MaxAllocSize);
+
   //       9876543210
   // Eg: 0b0010101000, AlignmentShift=3, SecondLevelIndexCountShift=2
   //         FSS
