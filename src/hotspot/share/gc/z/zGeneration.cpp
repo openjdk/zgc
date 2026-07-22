@@ -55,6 +55,7 @@
 #include "gc/z/zWorkers.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/universe.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/continuation.hpp"
@@ -66,6 +67,7 @@
 #include "runtime/vmThread.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/events.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 static const ZStatPhaseGeneration ZPhaseGenerationYoung[] {
   ZStatPhaseGeneration("Young Generation", ZGenerationId::young),
@@ -133,6 +135,7 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _relocation_set(this),
     _freed(0),
     _freelist_promoted(0),
+    _freelist_availiable(0),
     _promoted(0),
     _compacted(0),
     _phase(Phase::Relocate),
@@ -330,6 +333,14 @@ size_t ZGeneration::freelist_promoted() const {
 
 void ZGeneration::increase_freelist_promoted(size_t size) {
   _freelist_promoted.add_then_fetch(size, memory_order_relaxed);
+}
+
+size_t ZGeneration::freelist_availiable() const {
+  return _freelist_availiable.load_relaxed();;
+}
+
+void ZGeneration::set_freelist_availiable(size_t size) {
+  _freelist_availiable.store_relaxed(size);
 }
 
 size_t ZGeneration::promoted() const {
@@ -923,6 +934,15 @@ void ZGenerationYoung::mark_start() {
 
   // Update statistics
   stat_heap()->at_mark_start(_page_allocator->update_and_stats(this));
+
+  // TODO: REMOVE ME!
+  LogTarget(Debug, gc, freelist) lt;
+  if (lt.is_enabled()) {
+    LogStream ls(lt);
+    ls.print_cr("=========== MARK START LIST ===========");
+    _old_ref_count.print_free_lists_on(&ls);
+    ls.print_cr("=========== MARK START LIST ===========");
+  }
 }
 
 void ZGenerationYoung::mark_roots() {
@@ -970,6 +990,15 @@ void ZGenerationYoung::relocate_start() {
   stat_heap()->at_relocate_start(_page_allocator->stats(this));
 
   _relocate.start();
+
+  // TODO: REMOVE ME!
+  LogTarget(Debug, gc, freelist) lt;
+  if (lt.is_enabled()) {
+    LogStream ls(lt);
+    ls.print_cr("=========== RELOCATE START LIST ===========");
+    _old_ref_count.print_free_lists_on(&ls);
+    ls.print_cr("=========== RELOCATE START LIST ===========");
+  }
 }
 
 void ZGenerationYoung::relocate() {
@@ -979,8 +1008,11 @@ void ZGenerationYoung::relocate() {
   // Update statistics
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
 
-  log_info(gc)("Old Generation Free-list Promoted: " EXACTFMT " ("  PROPERFMT ")",
-               EXACTFMTARGS(freelist_promoted()), PROPERFMTARGS(freelist_promoted()));
+  log_info(gc)("Old Generation Free-list Promoted: " EXACTFMT
+               " [%2.2f%% of Promoted] [%2.2f%% of Availiable]",
+               EXACTFMTARGS(freelist_promoted()),
+               percent_of(freelist_promoted(), promoted()),
+               percent_of(freelist_promoted(), freelist_availiable()));
 }
 
 void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
@@ -1050,9 +1082,9 @@ void ZGenerationYoung::on_mutator_old_to_old(ZForwarding* forwarding, zaddress f
   _old_ref_count.on_mutator_old_to_old(forwarding, from_addr, to_addr);
 }
 
-zaddress ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {
+ZReferenceCounting::FreeListAllocation ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {
   if (!ZAllocateInFreeList || !ZOldRefCount) {
-    return zaddress::null;
+    return {};
   }
 
   return _old_ref_count.free_list_alloc_object(size, type);

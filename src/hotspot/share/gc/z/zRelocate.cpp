@@ -360,15 +360,15 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   const size_t size = ZUtils::object_size(from_addr);
 
   // TODO: Refactor everything
-  zaddress to_addr;
-  bool was_free_list_allocated = false;
+  zaddress to_addr = zaddress::null;
+  ZReferenceCounting::FreeListAllocation free_list_allocation;
 
   if (forwarding->is_promotion()) {
-    to_addr = ZGeneration::young()->free_list_alloc_object(size, forwarding->type());
-    was_free_list_allocated = to_addr != zaddress::null;
+    free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, forwarding->type());
+    to_addr = free_list_allocation._address;
   }
 
-  if (!was_free_list_allocated) {
+  if (to_addr == zaddress::null) {
     const ZPageAge to_age = forwarding->to_age();
 
     to_addr = ZHeap::heap()->alloc_object_for_relocation(size, to_age);
@@ -386,18 +386,23 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
 
   ZPage* to_page = ZHeap::heap()->page(to_addr); // TODO: optimize
   if (forwarding->from_age() == ZPageAge::old) {
-    ZGeneration::young()->on_old_to_space_alloc(to_page, from_addr, to_addr, true);
+    ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
+    ZGeneration::young()->on_old_to_space_alloc(page, from_addr, to_addr, true);
   }
 
   // Insert forwarding
   const zaddress to_addr_final = forwarding->insert(from_addr, to_addr, cursor);
 
-  // TODO: Free list allocated object leak, another place we may race remove with insert.
-  if (to_addr_final != to_addr && !was_free_list_allocated) {
+  if (to_addr_final != to_addr) {
     // Already relocated, try undo allocation
-    ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
+    if (free_list_allocation._address != zaddress::null) {
+      // TODO: Change this so be symmtric, alloc gets FreeListAllocation, undo consumes it.
+      free_list_allocation._page->undo_alloc_object_from_free_list(unsafe(to_addr), size);
+    } else {
+      ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
+    }
   } else {
-    if (to_addr_final == to_addr && was_free_list_allocated) {
+    if (free_list_allocation._address != zaddress::null) {
       // Only promotions allocated for now, so only young has free list allocations
       ZGeneration::young()->increase_freelist_promoted(size);
     }
@@ -478,6 +483,18 @@ static void retire_target_page(ZGeneration* generation, ZPage* page) {
   // relocation completed.
   if (page->used() == 0) {
     ZHeap::heap()->free_page(page);
+  } else if (ZOldRefCount) {
+    // Put the remainder in the freelist.
+    // TODO: For shared pages this has the same race as the used statistics
+    //       above, need the same last reference does the retire fix so we do
+    //       not allocate when the page is still useful. After that we can
+    //       remove atomicity and the loop.
+    for (size_t size = page->remaining(); size != 0; size = page->remaining()) {
+      zaddress addr = page->alloc_object_atomic(size);
+      if (addr != zaddress::null) {
+        page->free_tail_to_free_list(unsafe(addr), size);
+      }
+    }
   }
 }
 
@@ -656,15 +673,17 @@ private:
     }
 
     // TODO: Refactor everthing.
-    zaddress allocated_addr;
-    bool was_allocated_from_free_list = false;
+    zaddress allocated_addr = zaddress::null;
+    ZReferenceCounting::FreeListAllocation free_list_allocation;
+
     if (_forwarding->is_promotion()) {
-      allocated_addr = ZGeneration::young()->free_list_alloc_object(size, _forwarding->type());
-      was_allocated_from_free_list = allocated_addr != zaddress::null;
+      free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, _forwarding->type());
+      allocated_addr = free_list_allocation._address;
     }
 
     ZPage* const to_page = _targets->get(partition_id, _forwarding->to_age());
-    if (!was_allocated_from_free_list) {
+
+    if (allocated_addr == zaddress::null) {
       // Allocate object
       allocated_addr = _allocator->alloc_object(to_page, size);
       if (is_null(allocated_addr)) {
@@ -684,7 +703,8 @@ private:
     }
 
     if (_forwarding->from_age() == ZPageAge::old) {
-      ZGeneration::young()->on_old_to_space_alloc(to_page, from_addr, allocated_addr, false);
+      ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
+      ZGeneration::young()->on_old_to_space_alloc(page, from_addr, allocated_addr, false);
     }
 
     if (in_place) {
@@ -696,14 +716,21 @@ private:
 
     // Insert forwarding
     const zaddress to_addr = _forwarding->insert(from_addr, allocated_addr, &cursor);
+
     if (to_addr != allocated_addr) {
       // Already relocated, undo allocation
       assert(!in_place, "sanity");
-      if (!was_allocated_from_free_list) {
-        _allocator->undo_alloc_object(to_page, to_addr, size);
+
+      if (free_list_allocation._address != zaddress::null) {
+        // TODO: Change this so be symmtric, alloc gets FreeListAllocation, undo consumes it.
+        free_list_allocation._page->undo_alloc_object_from_free_list(unsafe(allocated_addr), size);
+      } else {
+        // TODO: Fix wrong address undo.
+        // _allocator->undo_alloc_object(to_page, to_addr, size);
       }
+
       increase_other_forwarded(size);
-    } else if (was_allocated_from_free_list) {
+    } else if (free_list_allocation._address != zaddress::null) {
       _freelist_promoted += size;
     }
 

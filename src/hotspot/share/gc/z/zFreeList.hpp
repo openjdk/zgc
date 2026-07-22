@@ -44,6 +44,11 @@ public:
 
   zaddress allocate(size_t size);
   void free(zaddress_unsafe addr, size_t size);
+  // TODO: Cleanup interface.
+  void free_tail(zaddress_unsafe addr, size_t size);
+  void undo_allocate(zaddress_unsafe addr, size_t size);
+
+  size_t coalesce_free_list();
 
   static void print_size_classes();
 private:
@@ -60,29 +65,56 @@ private:
   static_assert(PageType != ZPageType::large, "Unsupported ZPageType");
   static constexpr bool IsSmallPage = PageType == ZPageType::small;
   // Inclusive
-  static constexpr int MinAllocSizeShift = IsSmallPage ? ZMinObjectAlignmentShift : ZMinObjectAlignmentMediumShift;
+  static constexpr int MinAllocSizeShift = IsSmallPage ? ZMinMinObjectSizeSmallShift : ZMinMinObjectSizeMediumShift;
+  static constexpr size_t MinAllocSize = size_t(1) << MinAllocSizeShift;
+
   // Exclusive, a fully free page is returned to the PageAllocator
   static constexpr int MaxFreeBlockSizeShift = IsSmallPage ? ZPageSizeSmallShift : ZPageSizeMediumMaxMaxShift;
+  static constexpr int MaxAllocSizeShift = MaxFreeBlockSizeShift - 3;
+  static constexpr size_t MaxAllocSize = size_t(1) << MaxAllocSizeShift;
 
-  // TODO: This seems partially incorrect.
-  static constexpr int AlignmentShift = MinAllocSizeShift;
-  static constexpr int SecondLevelIndexCountShift = 2;
-  static constexpr int FirstLevelIndexMax = MaxFreeBlockSizeShift - 1;
+  static constexpr int AlignmentShift = IsSmallPage ? ZMinObjectAlignmentSmallShift: ZMinObjectAlignmentMediumShift;
+
+  static constexpr size_t Alignment = size_t(1) << AlignmentShift;
+
+  static constexpr int SecondLevelIndexCountShift = IsSmallPage ? 2 : 3;
+
   static constexpr int SecondLevelIndexCount = 1 << SecondLevelIndexCountShift;
-  static constexpr int FirstLevelIndexShift = SecondLevelIndexCountShift + AlignmentShift;
-  static constexpr int FirstLevelIndexCount = FirstLevelIndexMax - FirstLevelIndexShift + 1;
-  static constexpr size_t SmallBlockSize = size_t(1) << FirstLevelIndexShift;
 
-  static constexpr int ListCount = FirstLevelIndexCount * SecondLevelIndexCount;
+  // First Level Min allocatable index, if smaller free blocks are possible they are put on the _non_alloc_blocks list.
+  static constexpr int MinFirstLevelIndex = MinAllocSizeShift;
+
+  // First Level Max allocatable index, we currently put all free blocks covering the largets allocation size in the final _blocks[ListCount - 1] list.
+  static constexpr int MaxFirstLevelIndex = MaxAllocSizeShift;
+
+  static constexpr int FirstLevelIndexCount = MaxFirstLevelIndex - MinFirstLevelIndex;
+
+  static constexpr int SpecialFirstLevelIndexCount = MAX2(SecondLevelIndexCountShift + AlignmentShift - MinAllocSizeShift, 0);
+
+  static constexpr int SpecialFirstLevelIndex = MinFirstLevelIndex + SpecialFirstLevelIndexCount;
+
+  static constexpr int SpecialIndexCount = (1 << SpecialFirstLevelIndexCount) - 1;
+
+  static constexpr size_t NonSpecialFirstLevelSize = Alignment * (SpecialIndexCount + 1);
+
+  // Lists [ SpecialIndex i * aligmnent, ..., FL+SL, ..., Largest Allocation Size ]
+  static constexpr int ListCount = SpecialIndexCount + ((MaxFirstLevelIndex - SpecialFirstLevelIndex) << SecondLevelIndexCountShift) + 1 /* MaxFirstLevelIndex list */;
 
   const ZPage& _page;
 
-  Atomic<uint64_t> _fl_bitmap;
+  // Tracking pressense of allocatable size class lists.
+  Atomic<uint64_t> _bitmap;
+
+  // This is the list used for blocks that are smaller than the smallest allocation, or have been returned via undo.
+  Atomic<BlockHeader*> _non_alloc_blocks;
+
+  // All the _fl_bitmap tracket lists
   Atomic<BlockHeader*> _blocks[ListCount];
 
-  static_assert(ListCount <= sizeof(_fl_bitmap) * 8);
+  static_assert(ListCount <= sizeof(_bitmap) * 8);
 
   void insert_block(BlockHeader* blk);
+  void insert_non_alloc_block(BlockHeader* blk);
 
   BlockHeader* find_block(size_t size);
 
@@ -104,6 +136,10 @@ private:
   ZPageLocalOffset calculate_offset(BlockHeader* blk) const;
   BlockHeader* calculate_block(ZPageLocalOffset offset) const;
 
+  void print_on_impl(outputStream* st, bool on_error) const;
+  void error_print_on(outputStream* st) const;
+
+public:
   void print_on(outputStream* st) const;
 };
 

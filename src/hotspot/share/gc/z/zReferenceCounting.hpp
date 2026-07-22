@@ -30,16 +30,29 @@
 #include "gc/z/zPageType.hpp"
 #include "utilities/resizableHashTable.hpp"
 
+class outputStream;
+class ZForwarding;
 class ZPage;
-class ZPageTable;
 class ZPageAllocator;
+class ZPageTable;
 
 // ZGC employes a deferred lazy reference counting scheme for old-to-old
 // edges in the object graph, allowing the young generation collections to
 // reclaim acycling garbage from the old generation.
 class ZReferenceCounting {
+public:
+  // TODO: Remove, just added for ease of sorting.
+  struct FreeListAllocation {
+    ZPage* _page = nullptr;
+    zaddress _address = zaddress::null;
+  };
 private:
-  ZArray<ZPage*> _allocating[2];
+  // TODO: Remove, just added for ease of sorting.
+  struct AllocPair {
+    ZPage* _page = nullptr;
+    size_t _free = 0u;
+  };
+  ZArray<AllocPair> _allocating[2];
   Atomic<int> _next_page_index[2];
 
   void increment(zaddress addr);
@@ -59,7 +72,8 @@ public:
 
   void process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator);
 
-  zaddress free_list_alloc_object(size_t size, ZPageType type);
+  FreeListAllocation free_list_alloc_object(size_t size, ZPageType type);
+  void print_free_lists_on(outputStream* st) const;
 };
 
 

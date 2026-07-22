@@ -25,15 +25,18 @@
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zFreeList.inline.hpp"
+#include "gc/z/zGeneration.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
+#include "gc/z/zUtils.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id)
   : _type(type),
@@ -48,7 +51,8 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _remembered_set(),
     _multi_partition_tracker(multi_partition_tracker),
     _relocate_promoted(false),
-    _flip_promoted() {
+    _flip_promoted(),
+    _free_list_unused() {
   if (ZOldRefCount) {
     if (_type == ZPageType::small) {
       _free_list_small = new ZFreeList<ZPageType::small>(*this);
@@ -203,6 +207,47 @@ void* ZPage::remset_current() {
   return _remembered_set.current();
 }
 
+size_t ZPage::coalesce_free_list() {
+  precond(!ZGeneration::young()->is_phase_relocate());
+  precond(is_allocating());
+
+  if (_type == ZPageType::small) {
+    return _free_list_small->coalesce_free_list();
+  } else {
+    return _free_list_medium->coalesce_free_list();
+  }
+}
+
+void ZPage::free_tail_to_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
+
+  if (_type == ZPageType::small) {
+    _free_list_small->free_tail(addr, size);
+  } else {
+    _free_list_medium->free_tail(addr, size);
+  }
+#ifdef ASSERT
+  // TODO: Use the right zap function instead.
+  const size_t header_size = 8;
+  ZUtils::fill(reinterpret_cast<uintptr_t*>(untype(addr) + header_size), ZUtils::bytes_to_words(size - header_size), 0xdeafbabedeafbabe);
+#endif
+}
+
+void ZPage::undo_alloc_object_from_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
+
+  if (_type == ZPageType::small) {
+    _free_list_small->undo_allocate(addr, size);
+  } else {
+    _free_list_medium->undo_allocate(addr, size);
+  }
+#ifdef ASSERT
+  // TODO: Use the right zap function instead.
+  const size_t header_size = 8;
+  ZUtils::fill(reinterpret_cast<uintptr_t*>(untype(addr) + header_size), ZUtils::bytes_to_words(size - header_size), 0xdeafbabedeafbabe);
+#endif
+}
+
 void ZPage::free_object_to_free_list(zaddress_unsafe addr, size_t size) {
   assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
 
@@ -213,8 +258,8 @@ void ZPage::free_object_to_free_list(zaddress_unsafe addr, size_t size) {
   }
 #ifdef ASSERT
   // TODO: Use the right zap function instead.
-  int header_size = 8;
-  memset(((char*)addr) + header_size, 0xdeafbabe, size - header_size);
+  const size_t header_size = 8;
+  ZUtils::fill(reinterpret_cast<uintptr_t*>(untype(addr) + header_size), ZUtils::bytes_to_words(size - header_size), 0xdeafbabedeafbabe);
 #endif
 }
 
@@ -228,6 +273,14 @@ zaddress ZPage::alloc_object_from_free_list(size_t size) {
     return _free_list_small->allocate(size);
   } else {
     return _free_list_medium->allocate(size);
+  }
+}
+
+void ZPage::print_free_list_on(outputStream* st) const {
+  if (_type == ZPageType::small) {
+    _free_list_small->print_on(st);
+  } else {
+    _free_list_medium->print_on(st);
   }
 }
 

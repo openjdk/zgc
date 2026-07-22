@@ -33,6 +33,7 @@
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
 
+class outputStream;
 class ZGeneration;
 class ZMultiPartitionTracker;
 template<ZPageType>
@@ -57,6 +58,7 @@ private:
   volatile bool                 _relocate_promoted;
   uint32_t                      _flip_promoted;
   union {
+    std::nullptr_t                _free_list_unused;
     ZFreeList<ZPageType::small>*  _free_list_small;
     ZFreeList<ZPageType::medium>* _free_list_medium;
   };
@@ -127,6 +129,7 @@ public:
 
   void clear_livemap_bits();
 
+  bool is_in(const ZVirtualMemory& vmem) const;
   bool is_in(zoffset offset) const;
   bool is_in(zaddress addr) const;
 
@@ -206,9 +209,13 @@ public:
   zaddress alloc_object(size_t size);
   zaddress alloc_object_atomic(size_t size);
 
+  size_t coalesce_free_list();
+  void free_tail_to_free_list(zaddress_unsafe addr, size_t size);
+  void undo_alloc_object_from_free_list(zaddress_unsafe addr, size_t size);
   void free_object_to_free_list(zaddress_unsafe addr, size_t size);
   void free_object_to_free_list(zaddress addr);
   zaddress alloc_object_from_free_list(size_t size);
+  void print_free_list_on(outputStream* st) const;
 
   bool undo_alloc_object(zaddress addr, size_t size);
   bool undo_alloc_object_atomic(zaddress addr, size_t size);

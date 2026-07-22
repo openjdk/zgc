@@ -185,6 +185,10 @@ inline bool ZPage::is_relocatable() const {
   return _seqnum < generation()->seqnum();
 }
 
+inline bool ZPage::is_in(const ZVirtualMemory& vmem) const {
+  return _virtual.contains(vmem);
+}
+
 inline bool ZPage::is_in(zoffset offset) const {
   return offset >= start() && offset < top();
 }

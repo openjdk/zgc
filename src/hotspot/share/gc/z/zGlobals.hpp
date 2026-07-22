@@ -60,12 +60,16 @@ const int         ZObjectSizeLimitSmallShift    = ZPageSizeSmallShift - 3; // 12
 // Object size limits
 const size_t      ZObjectSizeLimitSmall         = (size_t)1 << ZObjectSizeLimitSmallShift;
 extern size_t     ZObjectSizeLimitMedium;
+const int         ZMinMinObjectSizeShift        = 3;
+const int         ZMinMinObjectSizeSmallShift   = ZMinMinObjectSizeShift;
+const int         ZMinMinObjectSizeMediumShift  = ZObjectSizeLimitSmallShift;
 
 // Object Count shift
 const int         ZMaxObjectCountMediumShift    = 13;
 
 // Object alignment shifts
 const int         ZMinObjectAlignmentShift      = 3;
+const int         ZMinObjectAlignmentSmallShift = ZMinObjectAlignmentShift;
 const int         ZMinObjectAlignmentMediumShift= ZPageSizeMediumMinMaxShift - ZMaxObjectCountMediumShift;
 extern const int& ZObjectAlignmentSmallShift;
 extern int        ZObjectAlignmentMediumShift;

@@ -24,6 +24,7 @@
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
+#include "gc/z/zGeneration.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zHeap.hpp"
 #include "gc/z/zHeap.inline.hpp"
@@ -479,20 +480,10 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       }
     }
 
-    // TODO: Not sure what below code is up to, but GC threads use alloc_object without _atomic
-    // and hence racingly allocate into this memory, causing corruption.
-    //if (!page_is_large) {
-    //  // TODO: Cleanup
-    //  while (page->top() != page->end()) {
-    //    const size_t size = page->remaining();
-    //    zaddress addr = page->alloc_object_atomic(size);
-    //    if (addr != zaddress::null) {
-    //      page->free_object_to_free_list(unsafe(addr), size);
-    //    }
-    //  }
-
-    //  allocating_page_count[static_cast<int>(page->type())]++;
-    //}
+    if (!page_is_large) {
+     // TODO: Cleanup
+     allocating_page_count[static_cast<int>(page->type())]++;
+    }
   }
 
   log_info(gc)("Old Generation Reclaimed: %zu", freed);
@@ -506,6 +497,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
   // Clear all the pardoned bits to prepare for next GC cycle.
   ZGenerationPagesIterator pt_iter2(page_table, ZGenerationId::old, page_allocator);
+  size_t free_list_availiable = 0;
   for (ZPage* page; pt_iter2.next(&page);) {
     if (!page->is_allocating()) {
       // TODO: Construct iterator bitmap for faster iteration instead of filtering
@@ -517,19 +509,25 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     });
 
     if (!page->is_large()) {
-      _allocating[static_cast<int>(page->type())].push(page);
+      const size_t free_size = page->coalesce_free_list();
+      if (free_size != 0) {
+        free_list_availiable += free_size;
+        _allocating[static_cast<int>(page->type())].push({ page, free_size });
+      }
     }
   }
 
-  // TODO: Sort based free list bytes free
-  // TODO: Remove completely free pages
-  // _allocating.sort([](ZPage** e1, ZPage** e2) -> int {
-  //   return (*e1)->free_list_bytes() > (*e2)->free_list_bytes() ? -1 : 1;
-  // });
+  for (int i = 0; i < 2; i++) {
+    _allocating[i].sort([](AllocPair* e1, AllocPair* e2) {
+      return e1->_free > e2->_free ? -1 : 1;
+    });
+  }
 
+  log_info(gc, freelist)("Old Generation Free-List Availiable: %zu", free_list_availiable);
+  ZGeneration::young()->set_freelist_availiable(free_list_availiable);
 }
 
-zaddress ZReferenceCounting::free_list_alloc_object(size_t size, ZPageType type) {
+ZReferenceCounting::FreeListAllocation ZReferenceCounting::free_list_alloc_object(size_t size, ZPageType type) {
   precond(type != ZPageType::large);
   // TODO: Bound this? What is the trade-off with forcing bump-pointer alloc
   const int page_type_index = static_cast<int>(type);
@@ -537,14 +535,22 @@ zaddress ZReferenceCounting::free_list_alloc_object(size_t size, ZPageType type)
     const int page_index = _next_page_index[page_type_index].load_relaxed();
 
     if (page_index == _allocating[page_type_index].length()) {
-      return zaddress::null;
+      return {};
     }
-
-    const zaddress addr = _allocating[page_type_index].at(page_index)->alloc_object_from_free_list(size);
+    ZPage* const page = _allocating[page_type_index].at(page_index)._page;
+    const zaddress addr = page->alloc_object_from_free_list(size);
     if (addr != zaddress::null) {
-      return addr;
+      return {page, addr};
     }
 
     _next_page_index[page_type_index].compare_set(page_index, page_index + 1, memory_order_relaxed);
+  }
+}
+
+void ZReferenceCounting::print_free_lists_on(outputStream* st) const {
+  for (int type = 0; type < 2; type++) {
+    for (const AllocPair& pair : _allocating[type]) {
+      pair._page->print_free_list_on(st);
+    }
   }
 }
