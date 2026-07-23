@@ -187,16 +187,18 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
   _relocate.flip_age_pages(selector->not_selected_medium());
   _relocate.flip_age_pages(selector->not_selected_large());
 
-  // Perform a handshake between flip promotion and running the promotion barrier. This ensures
-  // that ZBarrierSet::on_slowpath_allocation_exit() observing a young page that was then racingly
-  // flip promoted, will run any stores without barriers to completion before responding to the
-  // handshake at the subsequent safepoint poll. This ensures that the flip promotion barriers always
-  // run after compiled code missing barriers, but before relocate start.
-  ZRendezvousHandshakeClosure cl;
-  Handshake::execute(&cl);
+  if (is_young()) {
+    // Perform a handshake between flip promotion and running the promotion barrier. This ensures
+    // that ZBarrierSet::on_slowpath_allocation_exit() observing a young page that was then racingly
+    // flip promoted, will run any stores without barriers to completion before responding to the
+    // handshake at the subsequent safepoint poll. This ensures that the flip promotion barriers always
+    // run after compiled code missing barriers, but before relocate start.
+    ZRendezvousHandshakeClosure cl;
+    Handshake::execute(&cl);
 
-  _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
-                                   _relocation_set.relocate_promoted_pages());
+    _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
+                                     _relocation_set.relocate_promoted_pages());
+  }
 }
 
 static double fragmentation_limit(ZGenerationId generation) {
@@ -269,9 +271,7 @@ void ZGeneration::select_relocation_set(bool promote_all) {
   _relocation_set.install(&selector);
 
   // Flip age young pages that were not selected
-  if (is_young()) {
-    flip_age_pages(&selector);
-  }
+  flip_age_pages(&selector);
 
   // Setup forwarding table
   ZRelocationSetIterator rs_iter(&_relocation_set);
@@ -1070,8 +1070,8 @@ void ZGenerationYoung::on_promotion(zaddress addr) {
   _old_ref_count.on_promotion(addr);
 }
 
-void ZGenerationYoung::on_old_to_space_alloc(ZPage* to_page, zaddress from_addr, zaddress to_addr, bool mutator) {
-  _old_ref_count.on_old_to_space_alloc(to_page, from_addr, to_addr, mutator);
+void ZGenerationYoung::on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator) {
+  _old_ref_count.on_old_to_space_alloc(to_page, to_addr, mutator);
 }
 
 void ZGenerationYoung::on_old_to_old(zaddress addr, bool was_mutator) {
@@ -1162,8 +1162,11 @@ void ZGenerationOld::collect(ConcurrentGCTimer* timer) {
   // Phase 6: Pause Verify
   pause_verify();
 
-  // Phase 7: Concurrent Select Relocation Set
-  concurrent_select_relocation_set();
+  {
+    ZDriverLocker locker; // TODO: Find a way of removing this.
+    // Phase 7: Concurrent Select Relocation Set
+    concurrent_select_relocation_set();
+  }
 
   abortpoint();
 

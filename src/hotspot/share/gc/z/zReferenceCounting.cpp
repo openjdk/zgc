@@ -173,6 +173,13 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
     return;
   }
 
+  // The fact that the mutator had a path to access the previous value means that
+  // it could have been loaded concurrently and become a root, after root processing
+  // has finished. Therefore, we must pardon the object from any death row processing.
+  if (addr_page->is_allocating()) {
+    addr_page->set_pardoned(addr);
+  }
+
   // The first store after young generation marking starts always needs to perform
   // the first decrement of the previously referred to object (i.e. addr). However,
   // if the remembered set entry from the previous bits was set, that means that we
@@ -182,13 +189,8 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   // last increment. In the first store path, that means that the last increment
   // of the previous epoch and the first decrement of the current epoch effectively
   // cancel out, leaving there to be no need to update the old-to-old reference count.
-
-  if (addr_page->is_allocating()) {
-    addr_page->set_pardoned(addr);
-    OrderAccess::release();
-  }
-
   if (!forgotten) {
+    OrderAccess::release();
     decrement(addr);
   }
 }
@@ -235,14 +237,14 @@ void ZReferenceCounting::on_promotion(zaddress addr) {
   page->set_death_row(addr);
 }
 
-void ZReferenceCounting::on_old_to_space_alloc(ZPage* to_page, zaddress from_addr, zaddress to_addr, bool mutator) { // TODO: Completeness for pardoning
+void ZReferenceCounting::on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator) { // TODO: Completeness for pardoning
   to_page->set_pardoned(to_addr);
 
   if (mutator) {
     // Maintain one stake in the mutator old-to-old relocation until the GC gets to
     // process the to-space object and add it to the right pardon/deathrow sets. It
     // will then decrement the counter.
-    markWord mark = to_oop(from_addr)->mark();
+    markWord mark = to_oop(to_addr)->mark();
     int ref_count = ZRefCount::count(mark);
 
     if (ref_count == ZRefCount::Uncertain) {
@@ -262,16 +264,13 @@ void ZReferenceCounting::on_old_to_old(zaddress addr, bool was_mutator) {
   assert(ZHeap::heap()->page(addr)->is_allocating(), "must be allocating");
 
   ZPage* page = ZHeap::heap()->page(addr);
-  page->set_pardoned(addr);
-  OrderAccess::release(); // TODO: Embed in death row set?
 
-  // TODO: WARNING Ordering issue
   if (ZRefCount::count(to_oop(addr)->mark()) == 0) {
     page->set_death_row(addr);
   }
 
   if (was_mutator) {
-    decrement(addr); // TODO: Dig up the street
+    decrement(addr);
   }
 }
 

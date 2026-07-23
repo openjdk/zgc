@@ -75,8 +75,6 @@ private:
   ZGeneration* generation();
   const ZGeneration* generation() const;
 
-  void reset_seqnum();
-
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id);
 
 public:
@@ -125,6 +123,7 @@ public:
 
   ZPage* reset(ZPageAge age);
   void reset_livemap();
+  void reset_seqnum();
   void reset_top_for_allocation();
 
   void clear_livemap_bits();

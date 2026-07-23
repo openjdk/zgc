@@ -387,7 +387,7 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   ZPage* to_page = ZHeap::heap()->page(to_addr); // TODO: optimize
   if (forwarding->from_age() == ZPageAge::old) {
     ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
-    ZGeneration::young()->on_old_to_space_alloc(page, from_addr, to_addr, true);
+    ZGeneration::young()->on_old_to_space_alloc(page, to_addr, true);
   }
 
   // Insert forwarding
@@ -704,7 +704,7 @@ private:
 
     if (_forwarding->from_age() == ZPageAge::old) {
       ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
-      ZGeneration::young()->on_old_to_space_alloc(page, from_addr, allocated_addr, false);
+      ZGeneration::young()->on_old_to_space_alloc(page, allocated_addr, false);
     }
 
     if (in_place) {
@@ -1435,34 +1435,59 @@ public:
 
     for (ZPage* prev_page; _iter.next(&prev_page);) {
       const ZPageAge from_age = prev_page->age();
-      const ZPageAge to_age = ZRelocate::compute_to_age(from_age);
-      assert(from_age != ZPageAge::old, "invalid age for a young collection");
+      if (from_age == ZPageAge::old) {
+        prev_page->log_msg(" (flip survived)");
 
-      // Figure out if this is proper promotion
-      const bool promotion = to_age == ZPageAge::old;
+        ZArray<zaddress> live_objects;
 
-      // Logging
-      prev_page->log_msg(promotion ? " (flip promoted)" : " (flip survived)");
+        prev_page->object_iterate([&](oop obj) {
+          live_objects.append(to_zaddress(obj));
 
-      // Setup to-space page
-      ZPage* const new_page = promotion
+        });
+
+        // TODO: Check if this is safe or if we need a new ZPage.
+        prev_page->clear_livemap_bits();
+        OrderAccess::fence();
+        prev_page->reset_seqnum();
+
+        for (zaddress addr: live_objects) {
+          ZGeneration::young()->on_old_to_old(addr, false /* was_mutator */); // TODO: More naming issues
+        }
+
+        //promoted_pages.push(prev_page); TODO: Should register somewhere so we dont leak the prev page
+      } else {
+        const ZPageAge to_age = ZRelocate::compute_to_age(from_age);
+        assert(from_age != ZPageAge::old, "invalid age for a young collection");
+
+        // Figure out if this is proper promotion
+        const bool promotion = to_age == ZPageAge::old;
+
+        // Logging
+        prev_page->log_msg(promotion ? " (flip promoted)" : " (flip survived)");
+
+        // Setup to-space page
+        ZPage* const new_page = promotion
           ? prev_page->clone_for_promotion()
           : prev_page->reset(to_age);
 
-      // Reset page for flip aging
-      new_page->reset_livemap();
+        // Reset page for flip aging
+        new_page->reset_livemap();
 
-      if (promotion) {
-        new_page->set_is_flip_promoted();
-        ZGeneration::young()->flip_promote(prev_page, new_page);
-        // Defer promoted page registration
-        promoted_pages.push(prev_page);
+        if (promotion) {
+          new_page->set_is_flip_promoted();
+          ZGeneration::young()->flip_promote(prev_page, new_page);
+          // Defer promoted page registration
+          promoted_pages.push(prev_page);
+        }
       }
 
       SuspendibleThreadSet::yield();
     }
 
-    ZGeneration::young()->register_flip_promoted(promoted_pages);
+    // TODO: Do something else for old gen to avoid leak
+    if (promoted_pages.length() != 0) {
+      ZGeneration::young()->register_flip_promoted(promoted_pages);
+    }
   }
 };
 
