@@ -33,6 +33,7 @@
 #include "gc/z/zHeap.hpp"
 #include "gc/z/zIterator.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
+#include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zVirtualMemory.inline.hpp"
@@ -107,9 +108,18 @@ inline uint32_t ZForwarding::partition_id() const {
   return _partition_id;
 }
 
+inline bool ZForwarding::is_young_to_young() const {
+  precond(_from_age <= _to_age);
+  return is_young(_to_age);
+}
+
 inline bool ZForwarding::is_promotion() const {
-  return _from_age != ZPageAge::old &&
-         _to_age == ZPageAge::old;
+  return is_young(_from_age) && is_old(_to_age);
+}
+
+inline bool ZForwarding::is_old_to_old() const {
+  precond(_from_age <= _to_age);
+  return is_old(_from_age);
 }
 
 template <typename Function>

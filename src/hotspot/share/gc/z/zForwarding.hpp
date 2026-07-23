@@ -112,7 +112,9 @@ public:
 
   uint32_t partition_id() const;
 
+  bool is_young_to_young() const;
   bool is_promotion() const;
+  bool is_old_to_old() const;
 
   // Visit from-objects
   template <typename Function>

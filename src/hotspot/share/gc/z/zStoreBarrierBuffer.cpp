@@ -204,7 +204,7 @@ void ZStoreBarrierBuffer::on_new_phase_remember(size_t i) {
     //  // Page is not part of the relocation set
     //  ZGeneration::young()->scan_remembered_field(p);
     //}
-  } else if (!page->is_flip_promoted()) {
+  } else if (!page->is_flip_promoted_current_young_collection()) {
     // The remembered set wasn't flipped in this phase shift,
     // so just add the remembered set entry.
     if (!ZGeneration::young()->remember(p) && !is_null(p_base)) {

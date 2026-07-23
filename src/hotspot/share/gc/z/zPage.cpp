@@ -29,11 +29,13 @@
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
-#include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageType.hpp"
+#include "gc/z/zRelocate.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
 #include "gc/z/zUtils.hpp"
 #include "gc/z/zUtils.inline.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -51,7 +53,7 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _remembered_set(),
     _multi_partition_tracker(multi_partition_tracker),
     _relocate_promoted(false),
-    _flip_promoted(),
+    _flip_aged(),
     _free_list_unused() {
   if (ZOldRefCount) {
     if (_type == ZPageType::small) {
@@ -83,21 +85,73 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t 
 ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker)
   : ZPage(type, age, vmem, multi_partition_tracker, -1u /* partition_id */) {}
 
-ZPage* ZPage::clone_for_promotion() const {
+ZPage* ZPage::clone(ZPageAge age) const {
+  precond(age >= this->age());
+
   // Only copy type and memory layouts, and also update _top. Let the rest be
   // lazily reconstructed when needed.
-  ZPage* const page = new ZPage(_type, ZPageAge::old, _virtual, _multi_partition_tracker, _single_partition_id);
+  ZPage* const page = new ZPage(_type, age, _virtual, _multi_partition_tracker, _single_partition_id);
   page->_top = _top;
 
   return page;
 }
 
-bool ZPage::is_flip_promoted() const {
-  return _flip_promoted == ZGeneration::young()->seqnum();
+ZPage* ZPage::inplace_relocate_page() {
+  const ZPageAge to_age = ZRelocate::compute_to_age(age());
+
+  if (::is_old(to_age)) {
+    return clone(to_age);
+  }
+
+  reset(to_age);
+
+  return this;
 }
 
-void ZPage::set_is_flip_promoted() {
-  _flip_promoted = ZGeneration::young()->seqnum();
+ZPage* ZPage::flip_age() {
+  if (is_old()) {
+    // Old to Old
+    precond(ZRelocate::compute_to_age(age()) == ZPageAge::old);
+
+    // TODO: Check if this is safe or if we need a new ZPage.
+    clear_livemap_bits();
+    OrderAccess::release();
+    reset(ZPageAge::old);
+    AtomicAccess::store(&_flip_aged, true);
+
+    return this;
+  }
+
+  const ZPageAge to_age = ZRelocate::compute_to_age(age());
+
+  if (is_young() && to_age == ZPageAge::promotion) {
+    // Young to Old (Promotion)
+    ZPage* const page = clone(to_age);
+    AtomicAccess::store(&page->_flip_aged, true);
+
+    return page;
+  }
+
+  // Young to Young
+  precond(::is_young(to_age));
+
+  reset(to_age);
+
+  AtomicAccess::store(&_flip_aged, true);
+
+  return this;
+}
+
+
+bool ZPage::is_flip_aged() const {
+  return AtomicAccess::load(&_flip_aged);
+}
+
+bool ZPage::is_flip_promoted() const {
+  return age() == ZPageAge::promotion && is_flip_aged();
+}
+bool ZPage::is_flip_promoted_current_young_collection() const {
+  return is_flip_promoted() && _seqnum_other == ZGeneration::young()->seqnum();
 }
 
 bool ZPage::allows_raw_null() const {
@@ -116,10 +170,27 @@ const ZGeneration* ZPage::generation() const {
   return ZGeneration::generation(_generation_id);
 }
 
+ZGeneration* ZPage::generation_other() {
+  return ZGeneration::generation(_generation_id == ZGenerationId::young ? ZGenerationId::old : ZGenerationId::young);
+}
+
+const ZGeneration* ZPage::generation_other() const {
+  return ZGeneration::generation(_generation_id == ZGenerationId::young ? ZGenerationId::old : ZGenerationId::young);
+}
+
+void ZPage::reset(ZPageAge age) {
+  _age = age;
+
+  _generation_id = ::is_old(age) ? ZGenerationId::old : ZGenerationId::young;
+
+  reset_seqnum();
+}
+
 void ZPage::reset_seqnum() {
   AtomicAccess::store(&_seqnum, generation()->seqnum());
-  AtomicAccess::store(&_seqnum_other, ZGeneration::generation(_generation_id == ZGenerationId::young ? ZGenerationId::old : ZGenerationId::young)->seqnum());
+  AtomicAccess::store(&_seqnum_other, generation_other()->seqnum());
 }
+
 
 void ZPage::remset_alloc() {
   // Remsets should only be allocated/initialized once and only for old pages.
@@ -131,18 +202,6 @@ void ZPage::remset_alloc() {
 
 void ZPage::clear_livemap_bits() {
   _livemap.clear_bits();
-}
-
-ZPage* ZPage::reset(ZPageAge age) {
-  _age = age;
-
-  _generation_id = age == ZPageAge::old
-      ? ZGenerationId::old
-      : ZGenerationId::young;
-
-  reset_seqnum();
-
-  return this;
 }
 
 void ZPage::reset_livemap() {

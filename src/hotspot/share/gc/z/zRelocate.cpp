@@ -385,7 +385,7 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   ZUtils::object_copy_disjoint(from_addr, to_addr, size);
 
   ZPage* to_page = ZHeap::heap()->page(to_addr); // TODO: optimize
-  if (forwarding->from_age() == ZPageAge::old) {
+  if (forwarding->is_old_to_old()) {
     ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
     ZGeneration::young()->on_old_to_space_alloc(page, to_addr, true);
   }
@@ -407,7 +407,7 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
       ZGeneration::young()->increase_freelist_promoted(size);
     }
 
-    if (forwarding->from_age() == ZPageAge::old) {
+    if (forwarding->is_old_to_old()) {
       ZGeneration::young()->on_mutator_old_to_old(forwarding, from_addr, to_addr);
     }
   }
@@ -702,7 +702,7 @@ private:
       ZUtils::object_copy_disjoint(from_addr, allocated_addr, size);
     }
 
-    if (_forwarding->from_age() == ZPageAge::old) {
+    if (_forwarding->is_old_to_old()) {
       ZPage* const page = free_list_allocation._address == zaddress::null ? to_page : free_list_allocation._page;
       ZGeneration::young()->on_old_to_space_alloc(page, allocated_addr, false);
     }
@@ -954,13 +954,13 @@ private:
   }
 
   void update_remset_for_fields(zaddress from_addr, zaddress to_addr, bool was_mutator) const {
-    if (_forwarding->to_age() != ZPageAge::old) {
+    if (_forwarding->is_young_to_young()) {
       // No remembered set in young pages
       return;
     }
 
     // Need to deal with remset when moving objects to the old generation
-    if (_forwarding->from_age() == ZPageAge::old) {
+    if (_forwarding->is_old_to_old()) {
       update_remset_old_to_old(from_addr, to_addr, was_mutator);
       ZGeneration::young()->on_old_to_old(to_addr, was_mutator);
       return;
@@ -994,20 +994,18 @@ private:
     _forwarding->in_place_relocation_start(relocated_watermark);
 
     ZPage* const from_page = _forwarding->page();
-
-    const ZPageAge to_age = _forwarding->to_age();
     const bool promotion = _forwarding->is_promotion();
 
-    // In-place relocation always happens through a new cloned page
-    ZPage* const to_page = to_age == ZPageAge::old ? from_page->clone_for_promotion()
-                                                   : from_page->reset(to_age); // TODO: naming
+    // Old In-place relocation always happens through a new cloned page
+    ZPage* const to_page = from_page->inplace_relocate_page();
+    postcond(_forwarding->is_young_to_young() || to_page != from_page);
 
     // Reset page for in-place relocation
     to_page->reset_top_for_allocation();
 
     // Verify that the inactive remset is clear when resetting the page for
     // in-place relocation.
-    if (from_page->age() == ZPageAge::old) {
+    if (from_page->is_old()) {
       const bool young_marks = ZGeneration::old()->active_remset_is_current();
 
       if (ZGeneration::old()->active_remset_is_current()) {
@@ -1017,7 +1015,7 @@ private:
       }
     }
 
-    if (to_age == ZPageAge::old) {
+    if (to_page->is_old()) {
       // TODO: IMPORTANT ensure we don't have a memory leak for the previous page
       ZHeap::heap()->in_place_replace_page(from_page, to_page);
     }
@@ -1111,7 +1109,7 @@ public:
     }
 
     // Old from-space pages need to deal with remset bits
-    if (_forwarding->from_age() == ZPageAge::old) {
+    if (_forwarding->is_old_to_old()) {
       _forwarding->relocated_remembered_fields_after_relocate();
     }
 
@@ -1408,13 +1406,13 @@ void ZRelocate::relocate(ZRelocationSet* relocation_set) {
 }
 
 ZPageAge ZRelocate::compute_to_age(ZPageAge from_age) {
-  if (from_age == ZPageAge::old) {
+  if (is_old(from_age)) {
     return ZPageAge::old;
   }
 
   const uint age = untype(from_age);
   if (age >= ZGeneration::young()->tenuring_threshold()) {
-    return ZPageAge::old;
+    return ZPageAge::promotion;
   }
 
   return to_zpageage(age + 1);
@@ -1434,20 +1432,17 @@ public:
     ZArray<ZPage*> promoted_pages;
 
     for (ZPage* prev_page; _iter.next(&prev_page);) {
-      const ZPageAge from_age = prev_page->age();
-      if (from_age == ZPageAge::old) {
+      if (prev_page->is_old()) {
         prev_page->log_msg(" (flip survived)");
 
         ZArray<zaddress> live_objects;
 
         prev_page->object_iterate([&](oop obj) {
           live_objects.append(to_zaddress(obj));
-
         });
 
-        prev_page->clear_livemap_bits();
-        OrderAccess::release();
-        prev_page->reset_seqnum();
+        ZPage* const aged_page = prev_page->flip_age();
+        postcond(aged_page == prev_page);
 
         for (zaddress addr: live_objects) {
           ZGeneration::young()->on_old_to_old(addr, false /* was_mutator */); // TODO: More naming issues
@@ -1455,25 +1450,22 @@ public:
 
         //promoted_pages.push(prev_page); TODO: Should register somewhere so we dont leak the prev page
       } else {
-        const ZPageAge to_age = ZRelocate::compute_to_age(from_age);
-        assert(from_age != ZPageAge::old, "invalid age for a young collection");
+        const ZPageAge to_age = ZRelocate::compute_to_age(prev_page->age());
+        postcond(to_age != ZPageAge::old);
 
         // Figure out if this is proper promotion
-        const bool promotion = to_age == ZPageAge::old;
+        const bool promotion = to_age == ZPageAge::promotion;
 
         // Logging
         prev_page->log_msg(promotion ? " (flip promoted)" : " (flip survived)");
 
         // Setup to-space page
-        ZPage* const new_page = promotion
-          ? prev_page->clone_for_promotion()
-          : prev_page->reset(to_age);
+        ZPage* const new_page = prev_page->flip_age();
 
         // Reset page for flip aging
         new_page->reset_livemap();
 
-        if (promotion) {
-          new_page->set_is_flip_promoted();
+        if (new_page->is_flip_promoted_current_young_collection()) {
           ZGeneration::young()->flip_promote(prev_page, new_page);
           // Defer promoted page registration
           promoted_pages.push(prev_page);

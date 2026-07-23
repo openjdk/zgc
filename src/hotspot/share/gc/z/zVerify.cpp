@@ -28,6 +28,7 @@
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zNMethod.hpp"
+#include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageAllocator.hpp"
 #include "gc/z/zResurrection.hpp"
 #include "gc/z/zRootsIterator.hpp"
@@ -612,7 +613,7 @@ void ZVerify::before_relocation(ZForwarding* forwarding) {
     return;
   }
 
-  if (forwarding->from_age() != ZPageAge::old) {
+  if (!forwarding->is_old_to_old()) {
     // Only supports verification of old-to-old relocations now
     return;
   }
@@ -734,8 +735,8 @@ void ZVerify::after_relocation_internal(ZForwarding* forwarding) {
   forwarding->address_unsafe_iterate_via_table([&](zaddress_unsafe from_addr) {
     // If no field in this object was in the store barrier buffer
     // when relocation started, we should be able to verify trivially
-    ZGeneration* const from_generation = forwarding->from_age() == ZPageAge::old ? (ZGeneration*)ZGeneration::old()
-                                                                           : (ZGeneration*)ZGeneration::young();
+    ZGeneration* const from_generation = forwarding->is_old_to_old() ? (ZGeneration*)ZGeneration::old()
+                                                                     : (ZGeneration*)ZGeneration::young();
     const zaddress to_addr = from_generation->remap_object(from_addr);
 
     cl.set_from_addr(from_addr);
@@ -750,7 +751,7 @@ void ZVerify::after_relocation(ZForwarding* forwarding) {
     return;
   }
 
-  if (forwarding->to_age() != ZPageAge::old) {
+  if (forwarding->is_young_to_young()) {
     // No remsets to verify in the young gen
     return;
   }

@@ -56,7 +56,7 @@ private:
   ZRememberedSet                _remembered_set;
   ZMultiPartitionTracker* const _multi_partition_tracker;
   volatile bool                 _relocate_promoted;
-  uint32_t                      _flip_promoted;
+  volatile bool                 _flip_aged;
   union {
     std::nullptr_t                _free_list_unused;
     ZFreeList<ZPageType::small>*  _free_list_small;
@@ -75,16 +75,27 @@ private:
   ZGeneration* generation();
   const ZGeneration* generation() const;
 
+  ZGeneration* generation_other();
+  const ZGeneration* generation_other() const;
+
+  void reset(ZPageAge to_age);
+  void reset_seqnum();
+
+  ZPage* clone(ZPageAge age) const;
+
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id);
 
 public:
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t partition_id);
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker);
 
-  ZPage* clone_for_promotion() const;
+  // TODO: Naming :)
+  ZPage* inplace_relocate_page();
+  ZPage* flip_age();
 
+  bool is_flip_aged() const;
   bool is_flip_promoted() const;
-  void set_is_flip_promoted();
+  bool is_flip_promoted_current_young_collection() const;
 
   uint32_t object_max_count() const;
   size_t object_alignment_shift() const;
@@ -121,9 +132,7 @@ public:
   bool is_allocating() const;
   bool is_relocatable() const;
 
-  ZPage* reset(ZPageAge age);
   void reset_livemap();
-  void reset_seqnum();
   void reset_top_for_allocation();
 
   void clear_livemap_bits();

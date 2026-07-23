@@ -267,7 +267,7 @@ bool ZForwarding::is_done() const {
 //
 
 void ZForwarding::relocated_remembered_fields_after_relocate() {
-  assert(from_age() == ZPageAge::old, "Only old pages have remsets");
+  assert(is_old(from_age()), "Only old pages have remsets");
 
   _relocated_remembered_fields_publish_young_seqnum = ZGeneration::young()->seqnum();
 

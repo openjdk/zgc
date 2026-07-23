@@ -198,7 +198,7 @@ zaddress ZObjectAllocator::PerAge::alloc_object(size_t size, ZAllocationFlags fl
 void ZObjectAllocator::PerAge::retire_pages() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
-  if (ZOldRefCount && _age == ZPageAge::old) {
+  if (ZOldRefCount && is_old(_age)) {
     const auto free_tail = [&](ZPage* page) {
       if (page != nullptr) {
         precond(page->is_allocating() || page->remaining() == 0);
