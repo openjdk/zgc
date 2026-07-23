@@ -370,13 +370,19 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
   ZGenerationPagesIterator pt_iter(page_table, ZGenerationId::old, page_allocator);
   for (ZPage* page; pt_iter.next(&page);) {
+    precond(dfs_stack.is_empty());
+
     if (!page->is_allocating()) {
       // TODO: Construct iterator bitmap for faster iteration instead of filtering
       continue;
     }
 
-    const bool page_is_large = page->is_large();
+    if (!page->is_large()) {
+      // TODO: Cleanup
+      allocating_page_count[static_cast<int>(page->type())]++;
+    }
 
+    // Push all objects in page to be reclaimed
     page->iterate_death_row([&](zaddress addr) {
       oop obj = to_oop(addr);
       int ref_count = ZRefCount::count(obj->mark());
@@ -398,6 +404,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       dfs_stack.push(obj);
     });
 
+    // Drain the stack, push all object field which should be reclaimed and reclaim the object.
     while (!dfs_stack.is_empty()) {
       oop obj = dfs_stack.pop();
 
@@ -405,6 +412,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       const bool is_reference = k->is_instance_klass() && InstanceKlass::cast(k)->reference_type() != REF_NONE;
 
       if (!is_reference) {
+        // Decrement all old object edges, push those to be reclaimed.
         ZIterator::basic_oop_iterate_safe(obj, [&](volatile zpointer* p){
           zaddress a = ZBarrier::load_barrier_on_oop_field(p);
 
@@ -414,10 +422,10 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
           oop o = to_oop(a);
 
-          ZPage* page = ZHeap::heap()->page(a);
-          assert(page->is_in(a), "why you no in?");
+          ZPage* const field_page = ZHeap::heap()->page(a);
+          assert(field_page->is_in(a), "why you no in?");
 
-          if (!page->is_old()) {
+          if (!field_page->is_old()) {
             return;
           }
 
@@ -435,11 +443,11 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
             if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
               // If we decrement an edge to zero, we traverse through more garbage.
-              if (page->is_allocating() && ref_count == 1) {
+              if (field_page->is_allocating() && ref_count == 1) {
                 OrderAccess::acquire(); // Acquire between observing ref count 0 and reading pardoned
-                if (page->is_pardoned(a)) {
+                if (field_page->is_pardoned(a)) {
                   pardoned += ZUtils::object_size(a);
-                  page->set_death_row(a);
+                  field_page->set_death_row(a);
                 } else {
                   dfs_stack.push(o);
                 }
@@ -450,16 +458,17 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
         });
       }
 
+      // Reclaim the object
       zaddress addr = to_zaddress(obj);
       int ref_count = ZRefCount::count(obj->mark());
       assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
 
-      ZPage* page = ZHeap::heap()->page(addr);
+      ZPage* const obj_page = ZHeap::heap()->page(addr);
 
       // Unlink current remset entries before zapping the object.
-      const uintptr_t from_local_offset = page->local_offset(addr);
+      const uintptr_t from_local_offset = obj_page->local_offset(addr);
       const size_t size = ZUtils::object_size(addr);
-      BitMap::Iterator current_iter = page->remset_iterator_limited_current(from_local_offset, size);
+      BitMap::Iterator current_iter = obj_page->remset_iterator_limited_current(from_local_offset, size);
 
       for (BitMap::idx_t field_bit : current_iter) {
         const uintptr_t field_local_offset = ZRememberedSet::to_offset(field_bit);
@@ -467,22 +476,17 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
         const zaddress field_addr = addr + field_offset;
         volatile zpointer* const p = (volatile zpointer*)field_addr;
 
-        page->forget_current(p);
+        obj_page->forget_current(p);
       }
 
-      page->unset_death_row(addr);
+      obj_page->unset_death_row(addr);
 
       freed += ZUtils::object_size(addr);
-      if (page_is_large) {
-        ZHeap::heap()->free_page(page);
+      if (obj_page->is_large()) {
+        ZHeap::heap()->free_page(obj_page);
       } else {
-        page->free_object_to_free_list(addr);
+        obj_page->free_object_to_free_list(addr);
       }
-    }
-
-    if (!page_is_large) {
-     // TODO: Cleanup
-     allocating_page_count[static_cast<int>(page->type())]++;
     }
   }
 
