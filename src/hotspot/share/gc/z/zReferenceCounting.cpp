@@ -188,13 +188,9 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
     OrderAccess::release();
   }
 
-  if (forgotten) {
-    // TODO: Could return here instead. Now I explicitly both call increment and
-    // decrement, purely to handle the death rows right.
-    increment(addr);
+  if (!forgotten) {
+    decrement(addr);
   }
-
-  decrement(addr);
 }
 
 void ZReferenceCounting::on_failed_remember(zaddress addr) {
@@ -243,25 +239,20 @@ void ZReferenceCounting::on_old_to_space_alloc(ZPage* to_page, zaddress from_add
   to_page->set_pardoned(to_addr);
 
   if (mutator) {
-    // TODO: No need for atomics
     // Maintain one stake in the mutator old-to-old relocation until the GC gets to
     // process the to-space object and add it to the right pardon/deathrow sets. It
     // will then decrement the counter.
-    for (;;) {
-      markWord mark = to_oop(from_addr)->mark();
-      int ref_count = ZRefCount::count(mark);
+    markWord mark = to_oop(from_addr)->mark();
+    int ref_count = ZRefCount::count(mark);
 
-      if (ref_count == ZRefCount::Uncertain) {
-        break;
-      }
-
-      int new_ref_count = ref_count == ZRefCount::Max ? ZRefCount::Uncertain : ref_count + 1;
-      markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
-
-      if (to_oop(to_addr)->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-        break;
-      }
+    if (ref_count == ZRefCount::Uncertain) {
+      return;
     }
+
+    int new_ref_count = ref_count == ZRefCount::Max ? ZRefCount::Uncertain : ref_count + 1;
+    markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
+
+    to_oop(to_addr)->set_mark(new_mark);
   }
 }
 
