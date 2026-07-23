@@ -163,7 +163,7 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
 
   ZPage* p_page = ZHeap::heap()->page(p);
 
-  if (!p_page->is_old()) {
+  if (!p_page->is_old() || p_page->is_flip_promoted()) {
     return;
   }
 
