@@ -26,6 +26,7 @@
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zArray.hpp"
 #include "gc/z/zFreeList.hpp"
+#include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageType.hpp"
 #include "logging/log.hpp"
@@ -53,7 +54,7 @@ void ZFreeList<PageType>::print_size_classes() {
 
   ls.print_cr("======= ZFreeList (%s) =======", IsSmallPage ? "Small" : "Medium");
 
-  if (MinAllocSize > Alignment) {
+  if (MinAllocSize > MinAlignment) {
     ls.print_cr("_non_alloc_blocks: <" EXACTFMT " and Undo Blocks", EXACTFMTARGS(MinAllocSize));
   } else {
     ls.print_cr("_non_alloc_blocks: Only Undo Blocks");
@@ -66,7 +67,7 @@ void ZFreeList<PageType>::print_size_classes() {
     ls.print("%02d: %4zu%s { ", fl, EXACTFMTARGS(fl_size));
 
     if (fl < SpecialFirstLevelIndex) {
-      for (size_t size = fl_size; size < fl_size_next; size += Alignment) {
+      for (size_t size = fl_size; size < fl_size_next; size += MinAlignment) {
         ls.print("%4zu%s ", EXACTFMTARGS(size));
       }
     } else if (fl < MaxFirstLevelIndex) {
@@ -88,6 +89,7 @@ void ZFreeList<PageType>::print_size_classes() {
 template <ZPageType PageType>
 ZFreeList<PageType>::ZFreeList(const ZPage& page)
   : _page(page),
+    _alignment(size_t(1) << (IsSmallPage ? ZObjectAlignmentSmallShift : ZObjectAlignmentMediumShift)),
     _bitmap(),
     _non_alloc_blocks(),
     _blocks() {
@@ -103,7 +105,7 @@ zaddress ZFreeList<PageType>::allocate(size_t size) {
   precond(ZOldRefCount);
   precond(ZAllocateInFreeList);
 
-  BlockHeader* blk = find_block(align_up(size, Alignment));
+  BlockHeader* blk = find_block(align_up(size, _alignment));
 
   if (blk == nullptr) {
     return zaddress::null;
@@ -111,14 +113,14 @@ zaddress ZFreeList<PageType>::allocate(size_t size) {
 
   uintptr_t blk_start = uintptr_t(blk);
 
-  postcond(is_aligned(blk_start, Alignment));
+  postcond(is_aligned(blk_start, _alignment));
   return zaddress(blk_start);
 }
 
 template <ZPageType PageType>
 typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::find_block(size_t size) {
   precond(size >= MinAllocSize);
-  precond(is_aligned(size, Alignment));
+  precond(is_aligned(size, _alignment));
 
   // There maybe blocks in insertion_list_index which we can fit in, but we do not want to linear scan the list.
   uint32_t ideal = guaranteed_list_index(size);
@@ -210,7 +212,7 @@ uint32_t ZFreeList<PageType>::guaranteed_list_index(size_t size) const {
 template <ZPageType PageType>
 uint32_t ZFreeList<PageType>::insertion_list_index(size_t size) const {
   if (size < NonSpecialFirstLevelSize) {
-    const uint32_t index = integer_cast<uint32_t>(size / Alignment) - 1;
+    const uint32_t index = integer_cast<uint32_t>(size / MinAlignment) - 1;
     postcond(index < SpecialIndexCount);
     return index;
   }
@@ -231,6 +233,8 @@ uint32_t ZFreeList<PageType>::insertion_list_index(size_t size) const {
 
 template <ZPageType PageType>
 void ZFreeList<PageType>::insert_block(BlockHeader* blk) {
+  precond(is_aligned(blk, _alignment));
+
   const size_t size = blk->size;
 
   if (size < MinAllocSize) {
@@ -307,11 +311,11 @@ void ZFreeList<PageType>::free(zaddress_unsafe ptr, size_t size) {
   });
   precond(ZOldRefCount);
   precond(ptr != zaddress_unsafe::null);
-  precond(is_aligned(untype(ptr), Alignment));
+  precond(is_aligned(untype(ptr), _alignment));
   precond(_page.is_in({ZAddress::offset(ptr), size}));
 
   BlockHeader* blk = reinterpret_cast<BlockHeader*>(ptr);
-  blk->size = integer_cast<uint32_t>(align_up(size, Alignment));
+  blk->size = integer_cast<uint32_t>(align_up(size, _alignment));
   insert_block(blk);
 }
 
@@ -324,11 +328,11 @@ void ZFreeList<PageType>::undo_allocate(zaddress_unsafe ptr, size_t size) {
   });
   precond(ZOldRefCount);
   precond(ptr != zaddress_unsafe::null);
-  precond(is_aligned(untype(ptr), Alignment));
+  precond(is_aligned(untype(ptr), _alignment));
   precond(_page.is_in({ZAddress::offset(ptr), size}));
 
   BlockHeader* blk = reinterpret_cast<BlockHeader*>(ptr);
-  blk->size = integer_cast<uint32_t>(align_up(size, Alignment));
+  blk->size = integer_cast<uint32_t>(align_up(size, _alignment));
   insert_non_alloc_block(blk);
 }
 
@@ -399,12 +403,12 @@ void ZFreeList<PageType>::free_tail(zaddress_unsafe ptr, size_t size) {
   });
   precond(ZOldRefCount);
   precond(ptr != zaddress_unsafe::null);
-  precond(is_aligned(untype(ptr), Alignment));
+  precond(is_aligned(untype(ptr), _alignment));
   precond(_page.is_in({ZAddress::offset(ptr), size}));
   precond(_page.end() == to_end_type(ZAddress::offset(ptr), size));
 
   BlockHeader* blk = reinterpret_cast<BlockHeader*>(ptr);
-  blk->size = integer_cast<uint32_t>(align_up(size, Alignment));
+  blk->size = integer_cast<uint32_t>(align_up(size, _alignment));
   insert_non_alloc_block(blk);
 }
 
@@ -451,8 +455,8 @@ void ZFreeList<PageType>::print_on_impl(outputStream* st, bool on_error) const {
     if (fl < SpecialFirstLevelIndex) {
       const size_t fl_size = size_t(1) << fl;
       const size_t fl_size_next = (fl_size << 1);
-      for (size_t size = fl_size; size < fl_size_next; size += Alignment) {
-        const int index = integer_cast<int>(size / Alignment) - 1;
+      for (size_t size = fl_size; size < fl_size_next; size += MinAlignment) {
+        const int index = integer_cast<int>(size / MinAlignment) - 1;
         const BlockHeader* const head = _blocks[index].load_acquire();
         if (head != nullptr) {
           st->print("[%02d](%02d, %2zu%s): ", index, fl, EXACTFMTARGS(size)); print_list(head);

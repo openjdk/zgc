@@ -73,9 +73,11 @@ private:
   static constexpr int MaxAllocSizeShift = MaxFreeBlockSizeShift - 3;
   static constexpr size_t MaxAllocSize = size_t(1) << MaxAllocSizeShift;
 
-  static constexpr int AlignmentShift = IsSmallPage ? ZMinObjectAlignmentSmallShift: ZMinObjectAlignmentMediumShift;
+  // TODO: Should we make this dynamic? It would affect all the calculates and
+  //       which list we create.
+  static constexpr int MinAlignmentShift = IsSmallPage ? ZMinObjectAlignmentSmallShift: ZMinObjectAlignmentMediumShift;
 
-  static constexpr size_t Alignment = size_t(1) << AlignmentShift;
+  static constexpr size_t MinAlignment = size_t(1) << MinAlignmentShift;
 
   static constexpr int SecondLevelIndexCountShift = IsSmallPage ? 2 : 3;
 
@@ -89,18 +91,19 @@ private:
 
   static constexpr int FirstLevelIndexCount = MaxFirstLevelIndex - MinFirstLevelIndex;
 
-  static constexpr int SpecialFirstLevelIndexCount = MAX2(SecondLevelIndexCountShift + AlignmentShift - MinAllocSizeShift, 0);
+  static constexpr int SpecialFirstLevelIndexCount = MAX2(SecondLevelIndexCountShift + MinAlignmentShift - MinAllocSizeShift, 0);
 
   static constexpr int SpecialFirstLevelIndex = MinFirstLevelIndex + SpecialFirstLevelIndexCount;
 
   static constexpr int SpecialIndexCount = (1 << SpecialFirstLevelIndexCount) - 1;
 
-  static constexpr size_t NonSpecialFirstLevelSize = Alignment * (SpecialIndexCount + 1);
+  static constexpr size_t NonSpecialFirstLevelSize = MinAlignment * (SpecialIndexCount + 1);
 
   // Lists [ SpecialIndex i * aligmnent, ..., FL+SL, ..., Largest Allocation Size ]
   static constexpr int ListCount = SpecialIndexCount + ((MaxFirstLevelIndex - SpecialFirstLevelIndex) << SecondLevelIndexCountShift) + 1 /* MaxFirstLevelIndex list */;
 
   const ZPage& _page;
+  const size_t _alignment;
 
   // Tracking pressense of allocatable size class lists.
   Atomic<uint64_t> _bitmap;
