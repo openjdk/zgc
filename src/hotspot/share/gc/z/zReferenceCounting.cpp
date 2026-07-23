@@ -102,6 +102,10 @@ void ZReferenceCounting::increment(zaddress addr) {
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
       if (page->is_allocating()) {
+        // Acquire the death-row/pardon view of a potentially concurrently
+        // flip-surviving page.
+        OrderAccess::acquire();
+
         // Increments imply that the last GC cycle still had a reference to the object.
         // That means it could have escaped into roots before or after root scanning.
         // So we have to conservatively pardon these objects from the death row.
@@ -137,6 +141,10 @@ void ZReferenceCounting::decrement(zaddress addr) {
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
       if (page->is_allocating()) {
+        // Acquire the death-row/pardon view of a potentially concurrently
+        // flip-surviving page.
+        OrderAccess::acquire();
+
         // Maintain death rows
         if (new_ref_count == ZRefCount::Uncertain) {
           page->unset_death_row(addr);
@@ -177,6 +185,10 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
   // it could have been loaded concurrently and become a root, after root processing
   // has finished. Therefore, we must pardon the object from any death row processing.
   if (addr_page->is_allocating()) {
+    // Acquire the death-row/pardon view of a potentially concurrently
+    // flip-surviving page.
+    OrderAccess::acquire();
+
     addr_page->set_pardoned(addr);
   }
 
@@ -340,6 +352,10 @@ void ZReferenceCounting::on_root(zaddress addr) {
     return;
   }
 
+  // Acquire the death-row/pardon view of a potentially concurrently
+  // flip-surviving page.
+  OrderAccess::acquire();
+
   page->set_pardoned(addr);
 }
 
@@ -366,6 +382,11 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       // TODO: Construct iterator bitmap for faster iteration instead of filtering
       continue;
     }
+
+    // Acquire the death-row/pardon view of a potentially concurrently
+    // flip-surviving page. This also acquires the is_allocating() check with
+    // respect to the death-row and pardon bits.
+    OrderAccess::acquire();
 
     if (!page->is_large()) {
       // TODO: Cleanup

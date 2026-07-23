@@ -1445,9 +1445,8 @@ public:
 
         });
 
-        // TODO: Check if this is safe or if we need a new ZPage.
         prev_page->clear_livemap_bits();
-        OrderAccess::fence();
+        OrderAccess::release();
         prev_page->reset_seqnum();
 
         for (zaddress addr: live_objects) {
