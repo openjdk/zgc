@@ -750,8 +750,10 @@ inline bool ZBarrier::mark_and_remember(volatile zpointer* p, zaddress addr, zpo
   }
 
   const bool remembered = remember(p);
-  if (ZOldRefCount && remembered) {
-    ZGeneration::young()->on_remember(p, addr);
+  if (ZOldRefCount) {
+    // Young-to-old edges are not reference counted, but their previous old
+    // value must still be pardoned when it belonged to the mark-start snapshot.
+    ZGeneration::young()->on_remember(p, addr, remembered);
   }
 
   return remembered;

@@ -272,7 +272,7 @@ public:
 
   // Old gen reference counting from young gen support
   void on_root(zaddress addr);
-  void on_remember(volatile zpointer* p, zaddress addr);
+  void on_remember(volatile zpointer* p, zaddress addr, bool remembered);
   void on_failed_remember(zaddress addr);
   void on_forget(volatile zpointer* p, zaddress addr);
   void on_promotion(zaddress addr);

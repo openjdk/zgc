@@ -161,33 +161,16 @@ void ZReferenceCounting::decrement(zaddress addr) {
   }
 }
 
-void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
-  bool forgotten = ZGeneration::young()->forget_previous(p);
-
+void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool remembered) {
   if (is_null(addr)) {
     // Only count old-to-old edges.
     return;
   }
 
   ZPage* p_page = ZHeap::heap()->page(p);
-
-  if (!p_page->is_old() || p_page->is_flip_promoted_current_young_collection()) {
-    return;
-  }
-
   ZPage* addr_page = ZHeap::heap()->page(addr);
 
   if (!addr_page->is_old()) {
-    return;
-  }
-
-  const bool addr_flip_promoted = addr_page->is_flip_promoted_current_young_collection();
-  const bool addr_reloc_promoted = !addr_flip_promoted &&
-                                   addr_page->is_promoted() &&
-                                   !ZGeneration::young()->is_phase_mark() &&
-                                   ZRefCount::count(to_oop(addr)->mark()) == 0;
-
-  if (addr_flip_promoted || addr_reloc_promoted) {
     return;
   }
 
@@ -200,6 +183,24 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
     OrderAccess::acquire();
 
     addr_page->set_pardoned(addr);
+  }
+
+  if (!p_page->is_old()) {
+    // Young-to-old edges are not reference counted, but their previous old
+    // value must be protected for the current death-row pass.
+    return;
+  }
+
+  const bool forgotten = !remembered || ZGeneration::young()->forget_previous(p);
+  const bool p_flip_promoted = p_page->is_flip_promoted_current_young_collection();
+  const bool addr_flip_promoted = addr_page->is_flip_promoted_current_young_collection();
+  const bool addr_reloc_promoted = !addr_flip_promoted &&
+                                   addr_page->is_promoted() &&
+                                   !ZGeneration::young()->is_phase_mark() &&
+                                   ZRefCount::count(to_oop(addr)->mark()) == 0;
+
+  if (!remembered || p_flip_promoted || addr_flip_promoted || addr_reloc_promoted) {
+    return;
   }
 
   // The first store after young generation marking starts always needs to perform
