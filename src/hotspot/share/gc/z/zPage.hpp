@@ -95,6 +95,7 @@ public:
 
   bool is_flip_aged() const;
   bool is_flip_promoted() const;
+  bool is_promoted() const;
   bool is_flip_promoted_current_young_collection() const;
 
   uint32_t object_max_count() const;

@@ -150,6 +150,11 @@ bool ZPage::is_flip_aged() const {
 bool ZPage::is_flip_promoted() const {
   return age() == ZPageAge::promotion && is_flip_aged();
 }
+
+bool ZPage::is_promoted() const {
+  return age() == ZPageAge::promotion;
+}
+
 bool ZPage::is_flip_promoted_current_young_collection() const {
   return is_flip_promoted() && _seqnum_other == ZGeneration::young()->seqnum();
 }

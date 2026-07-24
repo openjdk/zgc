@@ -177,7 +177,17 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr) {
 
   ZPage* addr_page = ZHeap::heap()->page(addr);
 
-  if (!addr_page->is_old() || addr_page->is_flip_promoted_current_young_collection()) {
+  if (!addr_page->is_old()) {
+    return;
+  }
+
+  const bool addr_flip_promoted = addr_page->is_flip_promoted_current_young_collection();
+  const bool addr_reloc_promoted = !addr_flip_promoted &&
+                                   addr_page->is_promoted() &&
+                                   !ZGeneration::young()->is_phase_mark() &&
+                                   ZRefCount::count(to_oop(addr)->mark()) == 0;
+
+  if (addr_flip_promoted || addr_reloc_promoted) {
     return;
   }
 
