@@ -174,9 +174,7 @@ void ZRelocationSetSelectorGroup::select_inner() {
   // Finalize selection
   for (int i = selected_from; i < _live_pages.length(); i++) {
     ZPage* const page = _live_pages.at(i);
-    if (page->is_young()) {
-      _not_selected_pages.append(page);
-    }
+    _not_selected_pages.append(page);
 
     // Update rejected totals per age
     rejected_live_bytes_per_age[untype(page->age())] += page->live_bytes();

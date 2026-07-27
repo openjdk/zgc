@@ -1162,11 +1162,8 @@ void ZGenerationOld::collect(ConcurrentGCTimer* timer) {
   // Phase 6: Pause Verify
   pause_verify();
 
-  {
-    ZDriverLocker locker; // TODO: Find a way of removing this.
-    // Phase 7: Concurrent Select Relocation Set
-    concurrent_select_relocation_set();
-  }
+  // Phase 7: Concurrent Select Relocation Set
+  concurrent_select_relocation_set();
 
   abortpoint();
 

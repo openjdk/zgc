@@ -395,6 +395,11 @@ inline void ZPage::unset_pardoned(zaddress addr) {
 
 inline bool ZPage::is_pardoned(zaddress addr) {
   assert(is_allocating(), "must be");
+  assert(is_old(), "must be");
+  if (_seqnum_other == ZGeneration::young()->seqnum()) {
+    // Freshly created/reset pages have all objects pardoned by definition.
+    return true;
+  }
   BitMap::idx_t index = dr_bit_index(addr);
   return _livemap.is_pardoned(index);
 }
