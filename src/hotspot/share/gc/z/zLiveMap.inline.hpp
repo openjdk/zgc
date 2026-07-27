@@ -246,7 +246,7 @@ inline void ZLiveMap::unset_pardoned(BitMap::idx_t index) {
   _bitmap.par_clear_bit(_bitmap.size() / 2 + index, memory_order_relaxed);
 }
 
-inline bool ZLiveMap::is_pardoned(BitMap::idx_t index) {
+inline bool ZLiveMap::is_pardoned(BitMap::idx_t index) const {
   return _bitmap.par_at(_bitmap.size() / 2 + index, memory_order_relaxed);
 }
 

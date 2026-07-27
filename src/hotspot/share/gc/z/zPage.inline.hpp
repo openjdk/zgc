@@ -393,7 +393,7 @@ inline void ZPage::unset_pardoned(zaddress addr) {
   _livemap.unset_pardoned(index);
 }
 
-inline bool ZPage::is_pardoned(zaddress addr) {
+inline bool ZPage::is_pardoned(zaddress addr) const {
   assert(is_allocating(), "must be");
   assert(is_old(), "must be");
   if (_seqnum_other == ZGeneration::young()->seqnum()) {

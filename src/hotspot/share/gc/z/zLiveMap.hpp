@@ -107,7 +107,7 @@ public:
 
   void set_pardoned(BitMap::idx_t index);
   void unset_pardoned(BitMap::idx_t index);
-  bool is_pardoned(BitMap::idx_t index);
+  bool is_pardoned(BitMap::idx_t index) const;
   template <typename Function>
   void iterate_pardoned(Function function, BitMap::idx_t used);
 };

@@ -180,7 +180,7 @@ public:
 
   void set_pardoned(zaddress addr);
   void unset_pardoned(zaddress addr);
-  bool is_pardoned(zaddress addr);
+  bool is_pardoned(zaddress addr) const;
   template <typename Function>
   void iterate_pardoned(Function function);
 
