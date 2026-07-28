@@ -115,6 +115,8 @@ public:
 
   bool is_initialized() const;
   void initialize(size_t page_size);
+  void initialize(ZRememberedSet* remset); // Used by old-to-old flip surviving
+  void uninitialize();
 
   bool at_current(uintptr_t offset) const;
   bool at_previous(uintptr_t offset) const;

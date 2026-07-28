@@ -345,6 +345,8 @@ public:
   uint32_t young_marks_since_old_reloc_start() const;
   bool active_remset_is_current() const;
 
+  void flip_survive(ZPage* from_page, ZPage* to_page);
+
   ZRelocateQueue* relocate_queue();
 
   // Serviceability

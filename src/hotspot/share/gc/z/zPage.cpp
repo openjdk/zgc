@@ -40,7 +40,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id)
+ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id, ZRememberedSet* remset)
   : _type(type),
     _generation_id(/* set in reset */),
     _age(/* set in reset */),
@@ -52,8 +52,9 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _livemap(object_max_count()),
     _remembered_set(),
     _multi_partition_tracker(multi_partition_tracker),
-    _relocate_promoted(false),
+    _relocate_promoted(),
     _flip_aged(),
+    _remset_flip_retained(),
     _free_list_unused() {
   if (ZOldRefCount) {
     if (_type == ZPageType::small) {
@@ -74,33 +75,47 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
   assert(start_value <= ZAddressOffsetMax, "Offset out of bounds (" PTR_FORMAT " <= " PTR_FORMAT ")", start_value, ZAddressOffsetMax);
 
   if (is_old()) {
-    remset_alloc();
+    if (remset != nullptr) {
+      remset_init(remset);
+    } else {
+      remset_alloc();
+    }
     _livemap.initialize_bitmap(); // TODO: Check for redundancy
   }
 }
 
 ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t partition_id)
-  : ZPage(type, age, vmem, nullptr /* multi_partition_tracker */, partition_id) {}
+  : ZPage(type, age, vmem, nullptr /* multi_partition_tracker */, partition_id, nullptr) {}
 
 ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker)
-  : ZPage(type, age, vmem, multi_partition_tracker, -1u /* partition_id */) {}
+  : ZPage(type, age, vmem, multi_partition_tracker, -1u /* partition_id */, nullptr /* remset */) {}
 
-ZPage* ZPage::clone(ZPageAge age) const {
+ZPage* ZPage::clone(ZPageAge age, ZRememberedSet* remset) {
   precond(age >= this->age());
 
   // Only copy type and memory layouts, and also update _top. Let the rest be
   // lazily reconstructed when needed.
-  ZPage* const page = new ZPage(_type, age, _virtual, _multi_partition_tracker, _single_partition_id);
+  ZPage* const page = new ZPage(_type, age, _virtual, _multi_partition_tracker, _single_partition_id, remset);
   page->_top = _top;
 
+  // Now that ownership of the remset has moved on to the new page, make sue we
+  // don't free it when the current page is freed.
+  _remset_flip_retained = true;
+
   return page;
+}
+
+ZPage::~ZPage() {
+  if (_remset_flip_retained) {
+    _remembered_set.uninitialize();
+  }
 }
 
 ZPage* ZPage::inplace_relocate_page() {
   const ZPageAge to_age = ZRelocate::compute_to_age(age());
 
   if (::is_old(to_age)) {
-    return clone(to_age);
+    return clone(to_age, nullptr);
   }
 
   reset(to_age);
@@ -113,20 +128,19 @@ ZPage* ZPage::flip_age() {
     // Old to Old
     precond(ZRelocate::compute_to_age(age()) == ZPageAge::old);
 
-    // TODO: Check if this is safe or if we need a new ZPage.
-    clear_livemap_bits();
-    OrderAccess::release();
-    reset(ZPageAge::old);
-    AtomicAccess::store(&_flip_aged, true);
+    ZPage* const page = clone(ZPageAge::old, &_remembered_set);
+    AtomicAccess::store(&page->_flip_aged, true);
 
-    return this;
+    // TODO: Make sure the old copy is safe deleted.
+
+    return page;
   }
 
   const ZPageAge to_age = ZRelocate::compute_to_age(age());
 
   if (is_young() && to_age == ZPageAge::promotion) {
     // Young to Old (Promotion)
-    ZPage* const page = clone(to_age);
+    ZPage* const page = clone(to_age, nullptr);
     AtomicAccess::store(&page->_flip_aged, true);
 
     return page;
@@ -203,6 +217,17 @@ void ZPage::remset_alloc() {
   assert(is_old(), "Only old pages need a remset");
 
   _remembered_set.initialize(size());
+}
+
+void ZPage::remset_init(ZRememberedSet* remset) {
+  assert(!_remembered_set.is_initialized(), "Should not be initialized");
+  assert(is_old(), "Only old pages need a remset");
+
+  _remembered_set.initialize(remset);
+}
+
+void ZPage::remset_uninit() {
+  _remembered_set.uninitialize();
 }
 
 void ZPage::clear_livemap_bits() {

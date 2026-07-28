@@ -57,6 +57,7 @@ private:
   ZMultiPartitionTracker* const _multi_partition_tracker;
   volatile bool                 _relocate_promoted;
   volatile bool                 _flip_aged;
+  bool                          _remset_flip_retained;
   union {
     std::nullptr_t                _free_list_unused;
     ZFreeList<ZPageType::small>*  _free_list_small;
@@ -81,13 +82,15 @@ private:
   void reset(ZPageAge to_age);
   void reset_seqnum();
 
-  ZPage* clone(ZPageAge age) const;
+  ZPage* clone(ZPageAge age, ZRememberedSet* remset);
 
-  ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id);
+  ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker, uint32_t partition_id, ZRememberedSet* remset);
 
 public:
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, uint32_t partition_id);
   ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPartitionTracker* multi_partition_tracker);
+
+  ~ZPage();
 
   // TODO: Naming :)
   ZPage* inplace_relocate_page();
@@ -187,6 +190,8 @@ public:
   void swap_remset_bitmaps();
 
   void remset_alloc();
+  void remset_init(ZRememberedSet* remset);
+  void remset_uninit();
 
   ZBitMap::ReverseIterator remset_reverse_iterator_previous();
   BitMap::Iterator remset_iterator_limited_current(uintptr_t l_offset, size_t size);

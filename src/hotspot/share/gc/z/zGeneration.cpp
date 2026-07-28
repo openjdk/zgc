@@ -1015,6 +1015,10 @@ void ZGenerationYoung::relocate() {
                percent_of(freelist_promoted(), freelist_availiable()));
 }
 
+void ZGenerationOld::flip_survive(ZPage* from_page, ZPage* to_page) {
+  _page_table->replace(from_page, to_page);
+}
+
 void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
   _page_table->replace(from_page, to_page);
 

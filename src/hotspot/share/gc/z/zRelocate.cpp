@@ -1435,18 +1435,14 @@ public:
       if (prev_page->is_old()) {
         prev_page->log_msg(" (flip survived)");
 
-        ZArray<zaddress> live_objects;
+        ZPage* const aged_page = prev_page->flip_age();
+
+        ZGeneration::old()->flip_survive(prev_page, aged_page);
+        // TODO: Should prune remset entries of dead objects after old mark end
 
         prev_page->object_iterate([&](oop obj) {
-          live_objects.append(to_zaddress(obj));
+          ZGeneration::young()->on_old_to_old(to_zaddress(obj), false /* was_mutator */); // TODO: More naming issues
         });
-
-        ZPage* const aged_page = prev_page->flip_age();
-        postcond(aged_page == prev_page);
-
-        for (zaddress addr: live_objects) {
-          ZGeneration::young()->on_old_to_old(addr, false /* was_mutator */); // TODO: More naming issues
-        }
 
         //promoted_pages.push(prev_page); TODO: Should register somewhere so we dont leak the prev page
       } else {
