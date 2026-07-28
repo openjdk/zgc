@@ -24,12 +24,10 @@
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zAbort.inline.hpp"
-#include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zCollectedHeap.hpp"
 #include "gc/z/zForwarding.inline.hpp"
-#include "gc/z/zGeneration.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zIndexDistributor.inline.hpp"
@@ -946,6 +944,8 @@ private:
           ZGeneration::young()->on_failed_remember(addr);
         }
       };
+      // TODO: This Pair-wise oop iteration is something we could have a general iterator for,
+      //       we added something similar in ZClonerOopClousre.
       ZIterator::basic_oop_iterate(to_oop(to_addr), doit);
       ZGeneration::young()->on_promotion(to_addr);
     } else {

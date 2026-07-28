@@ -156,13 +156,12 @@ ZPage* ZPage::flip_age() {
   return this;
 }
 
-
 bool ZPage::is_flip_aged() const {
   return AtomicAccess::load(&_flip_aged);
 }
 
 bool ZPage::is_flip_promoted() const {
-  return age() == ZPageAge::promotion && is_flip_aged();
+  return is_promoted() && is_flip_aged();
 }
 
 bool ZPage::is_promoted() const {

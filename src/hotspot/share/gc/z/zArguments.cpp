@@ -347,6 +347,7 @@ size_t ZArguments::heap_virtual_to_physical_ratio() {
 }
 
 CollectedHeap* ZArguments::create_heap() {
+  // TODO: Remove / fold into gc+init+freelist=debug
   ZFreeList<ZPageType::small>::print_size_classes();
   ZFreeList<ZPageType::medium>::print_size_classes();
   // ZCollectedHeap has an alignment greater than or equal to ZCacheLineSize,
