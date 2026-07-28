@@ -49,6 +49,7 @@
 #include "gc/z/zRemembered.hpp"
 #include "gc/z/zRootsIterator.hpp"
 #include "gc/z/zStat.hpp"
+#include "gc/z/zStoreBarrierBuffer.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zUncoloredRoot.inline.hpp"
 #include "gc/z/zVerify.hpp"

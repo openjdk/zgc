@@ -1140,34 +1140,6 @@ public:
   }
 };
 
-class ZRelocateStoreBufferInstallBasePointersThreadClosure : public ThreadClosure {
-public:
-  virtual void do_thread(Thread* thread) {
-    JavaThread* const jt = JavaThread::cast(thread);
-    ZStoreBarrierBuffer* buffer = ZThreadLocalData::store_barrier_buffer(jt);
-    buffer->install_base_pointers();
-  }
-};
-
-// Installs the object base pointers (object starts), for the fields written
-// in the store buffer. The code that searches for the object start uses that
-// liveness information stored in the pages. That information is lost when the
-// pages have been relocated and then destroyed.
-class ZRelocateStoreBufferInstallBasePointersTask : public ZTask {
-private:
-  ZJavaThreadsIterator _threads_iter;
-
-public:
-  ZRelocateStoreBufferInstallBasePointersTask(ZGeneration* generation)
-    : ZTask("ZRelocateStoreBufferInstallBasePointersTask"),
-      _threads_iter(generation->id_optional()) {}
-
-  virtual void work() {
-    ZRelocateStoreBufferInstallBasePointersThreadClosure fix_store_buffer_cl;
-    _threads_iter.apply(&fix_store_buffer_cl);
-  }
-};
-
 class ZRelocateTask : public ZRestartableTask {
 private:
   ZGeneration* const                        _generation;
@@ -1386,14 +1358,6 @@ public:
 };
 
 void ZRelocate::relocate(ZRelocationSet* relocation_set) {
-  {
-    // Install the store buffer's base pointers before the
-    // relocate task destroys the liveness information in
-    // the relocated pages.
-    ZRelocateStoreBufferInstallBasePointersTask buffer_task(_generation);
-    workers()->run(&buffer_task);
-  }
-
   {
     ZRelocateTask relocate_task(relocation_set, &_queue, &_iters, &_small_targets, &_medium_targets, &_shared_medium_targets);
     workers()->run(&relocate_task);
