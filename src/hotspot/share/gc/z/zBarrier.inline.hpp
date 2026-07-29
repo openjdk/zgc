@@ -736,6 +736,16 @@ inline void ZBarrier::no_keep_alive_store_barrier_on_heap_oop_field(volatile zpo
   barrier(is_store_good_fast_path, slow_path, color_store_good, nullptr, prev);
 }
 
+inline void ZBarrier::no_keep_alive_store_barrier_on_native_oop_field(volatile zpointer* p) {
+  const zpointer prev = load_atomic(p);
+
+  auto slow_path = [=](zaddress addr) -> zaddress {
+    return ZBarrier::no_keep_alive_native_store_slow_path(p, addr);
+  };
+
+  barrier(is_store_good_fast_path, slow_path, color_store_good, nullptr, prev);
+}
+
 inline bool ZBarrier::remember(volatile zpointer* p) {
   if (ZHeap::heap()->is_old(p)) {
     return ZGeneration::young()->remember(p);

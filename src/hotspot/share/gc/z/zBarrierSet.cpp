@@ -123,6 +123,10 @@ void ZBarrierSet::store_barrier_on_native_oop_field(volatile zpointer* p, bool h
   ZBarrier::store_barrier_on_native_oop_field(p, heal);
 }
 
+void ZBarrierSet::no_keep_alive_store_barrier_on_native_oop_field(volatile zpointer* p) {
+  ZBarrier::no_keep_alive_store_barrier_on_native_oop_field(p);
+}
+
 zaddress ZBarrierSet::load_barrier_on_oop_field(volatile zpointer* p) {
   return ZBarrier::load_barrier_on_oop_field(p);
 }
