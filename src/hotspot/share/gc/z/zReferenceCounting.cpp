@@ -711,7 +711,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     data->reset();
   }
 
-  log_info(gc, freelist)("Old Generation Free-List Availiable: %zu", free_list_availiable);
+  log_info(gc, freelist)("Old Generation Free-List Availiable: " PROPERFMT, PROPERFMTARGS(free_list_availiable));
   ZGeneration::young()->set_freelist_availiable(free_list_availiable);
 }
 
