@@ -934,15 +934,6 @@ void ZGenerationYoung::mark_start() {
 
   // Update statistics
   stat_heap()->at_mark_start(_page_allocator->update_and_stats(this));
-
-  // TODO: REMOVE ME!
-  LogTarget(Debug, gc, freelist) lt;
-  if (lt.is_enabled()) {
-    LogStream ls(lt);
-    ls.print_cr("=========== MARK START LIST ===========");
-    _old_ref_count.print_free_lists_on(&ls);
-    ls.print_cr("=========== MARK START LIST ===========");
-  }
 }
 
 void ZGenerationYoung::mark_roots() {
@@ -990,15 +981,6 @@ void ZGenerationYoung::relocate_start() {
   stat_heap()->at_relocate_start(_page_allocator->stats(this));
 
   _relocate.start();
-
-  // TODO: REMOVE ME!
-  LogTarget(Debug, gc, freelist) lt;
-  if (lt.is_enabled()) {
-    LogStream ls(lt);
-    ls.print_cr("=========== RELOCATE START LIST ===========");
-    _old_ref_count.print_free_lists_on(&ls);
-    ls.print_cr("=========== RELOCATE START LIST ===========");
-  }
 }
 
 void ZGenerationYoung::relocate() {

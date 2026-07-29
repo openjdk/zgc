@@ -22,17 +22,22 @@
  */
 
 #include "gc/shared/suspendibleThreadSet.hpp"
-#include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
-#include "gc/z/zGeneration.hpp"
+#include "gc/z/zArray.inline.hpp"
+#include "gc/z/zCPU.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
-#include "gc/z/zHeap.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
 #include "gc/z/zReferenceCounting.hpp"
+#include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zPageType.hpp"
+#include "gc/z/zValue.inline.hpp"
+#include "logging/log.hpp"
 #include "oops/access.inline.hpp"
 #include "runtime/atomicAccess.hpp"
+#include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "utilities/stack.inline.hpp"
 
 // We use "crow reference counting". Crows can count 1, 2, 3, many. In other
@@ -84,6 +89,57 @@ struct ZRefCount : public AllStatic {
 
   }
 };
+
+template <ZPageType PageType>
+ZReferenceCounting::CPUAllocPages<PageType>::CPUAllocPages(uint32_t cpu_id)
+  : _alloc_pages(),
+    _cpu_id(cpu_id),
+    _numa_id(ZNUMA::cpu_id_to_numa_id(cpu_id)),
+    _next_page_index() {}
+
+template <ZPageType PageType>
+void ZReferenceCounting::CPUAllocPages<PageType>::reset() {
+  _alloc_pages.clear();
+  for (Atomic<int>& index : _next_page_index) {
+    index.store_relaxed(0);
+  }
+}
+
+template <ZPageType PageType>
+void ZReferenceCounting::CPUAllocPages<PageType>::reserve(int capacity) {
+  _alloc_pages.reserve(capacity);
+}
+
+template <ZPageType PageType>
+void ZReferenceCounting::CPUAllocPages<PageType>::push(ZPage* page) {
+  _alloc_pages.push(page);
+}
+
+template <ZPageType PageType>
+bool ZReferenceCounting::CPUAllocPages<PageType>::free_list_alloc_object(size_t size, FreeListAllocation* allocation) {
+  const int size_class = log2i_ceil(size) - MinAllocSizeShift;
+  precond(size_class < SizeClasses);
+  precond(size_class >= 0);
+
+  for (;;) {
+    const int page_index = _next_page_index[size_class].load_relaxed();
+
+    if (page_index == _alloc_pages.length()) {
+      return false;
+    }
+
+    ZPage* const page = _alloc_pages.at(page_index);
+    const zaddress addr = page->alloc_object_from_free_list(size);
+    if (addr != zaddress::null) {
+      *allocation = {page, addr};
+      return true;
+    }
+    const bool success = _next_page_index[size_class].compare_set(page_index, page_index + 1, memory_order_relaxed);
+    if (success && page_index + 1 == _alloc_pages.length()) {
+      log_debug(gc, freelist)("{%02u, %01u} Exhausted " EXACTFMT " size class", _cpu_id, _numa_id, EXACTFMTARGS(size_t(1) << (size_class + MinAllocSizeShift)));
+    }
+  }
+}
 
 void ZReferenceCounting::increment(zaddress addr) {
   oop obj = to_oop(addr);
@@ -159,6 +215,12 @@ void ZReferenceCounting::decrement(zaddress addr) {
       return;
     }
   }
+}
+
+ZReferenceCounting::ZReferenceCounting()
+  : _small_allocation_pages(ZValueIdTagType{}),
+    _medium_allocation_pages(ZValueIdTagType{}) {
+  // TODO: This is called and the per cpu structures are allocated even if ZOldRefCount is off.
 }
 
 void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool remembered) {
@@ -378,9 +440,31 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     return;
   }
 
+  struct PerNUMAData {
+    struct AllocPair {
+      ZPage* _page = nullptr;
+      size_t _free = 0u;
+    };
+    int _allocating_page_count[2];
+    ZArray<AllocPair> _allocating_pages[2];
+    const uint32_t _numa_id;
+
+    PerNUMAData(uint32_t numa_id)
+      : _allocating_page_count(),
+        _allocating_pages(),
+        _numa_id(numa_id) {};
+
+    void reset() {
+      for (int i = 0; i < 2; i++) {
+        _allocating_page_count[i] = 0;
+        _allocating_pages[i].clear_and_deallocate();
+      }
+    }
+  };
+  static ZPerNUMA<PerNUMAData> allocating{ZValueIdTagType{}};
+
   Stack<oop, mtGC> dfs_stack;
   SuspendibleThreadSetJoiner sts;
-  int allocating_page_count[2] = {};
 
   size_t freed = 0;
   size_t pardoned = 0;
@@ -401,7 +485,8 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
     if (!page->is_large()) {
       // TODO: Cleanup
-      allocating_page_count[static_cast<int>(page->type())]++;
+      const uint32_t numa_id = page->is_multi_partition() ? 0 : page->single_partition_id();
+      allocating.get(numa_id)._allocating_page_count[static_cast<int>(page->type())]++;
     }
 
     // Push all objects in page to be reclaimed
@@ -515,10 +600,34 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
   log_info(gc)("Old Generation Reclaimed: %zu", freed);
   log_info(gc)("Old Generation Pardoned: %zu", pardoned);
 
-  for (int i = 0; i < 2; i++) {
-    _allocating[i].clear();
-    _allocating[i].reserve(allocating_page_count[i]);
-    _next_page_index[i].store_relaxed(0);
+  {
+    // Prepare data
+    ZPerNUMAIterator<PerNUMAData> data_iter(&allocating);
+    for (PerNUMAData* data; data_iter.next(&data);) {
+      for (int i = 0; i < 2; i++) {
+        precond(data->_allocating_pages[i].is_empty());
+        data->_allocating_pages[i].reserve(data->_allocating_page_count[i]);
+      }
+    }
+
+    const int cpu_per_numa = MAX2(1, integer_cast<int>(ZCPU::count() / ZNUMA::count()));
+
+    // Reset old allocators
+    ZPerCPUIterator<CPUAllocPages<ZPageType::small>> small_iter(&_small_allocation_pages);
+    for (CPUAllocPages<ZPageType::small>* alloc_pages; small_iter.next(&alloc_pages);) {
+      const uint32_t numa_id = alloc_pages->_numa_id;
+      const int small_pages_per_cpu = (allocating.get(numa_id)._allocating_page_count[0] + cpu_per_numa - 1) / cpu_per_numa;
+      alloc_pages->reset();
+      alloc_pages->reserve(small_pages_per_cpu);
+    }
+
+    ZPerCPUIterator<CPUAllocPages<ZPageType::medium>> medium_iter(&_medium_allocation_pages);
+    for (CPUAllocPages<ZPageType::medium>* alloc_pages; medium_iter.next(&alloc_pages);) {
+      const uint32_t numa_id = alloc_pages->_numa_id;
+      const int medium_pages_per_cpu = (allocating.get(numa_id)._allocating_page_count[1] + cpu_per_numa - 1) / cpu_per_numa;
+      alloc_pages->reset();
+      alloc_pages->reserve(medium_pages_per_cpu);
+    }
   }
 
   // Clear all the pardoned bits to prepare for next GC cycle.
@@ -538,15 +647,68 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
       const size_t free_size = page->coalesce_free_list();
       if (free_size != 0) {
         free_list_availiable += free_size;
-        _allocating[static_cast<int>(page->type())].push({ page, free_size });
+        const uint32_t numa_id = page->is_multi_partition() ? 0 : page->single_partition_id();
+        allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push({ page, free_size });
       }
     }
   }
 
-  for (int i = 0; i < 2; i++) {
-    _allocating[i].sort([](AllocPair* e1, AllocPair* e2) {
-      return e1->_free > e2->_free ? -1 : 1;
-    });
+  ZPerNUMAIterator<PerNUMAData> data_iter(&allocating);
+  for (PerNUMAData* data; data_iter.next(&data);) {
+    for (int i = 0; i < 2; i++) {
+      // Sort [small -> larger]
+      data->_allocating_pages[i].sort([](PerNUMAData::AllocPair* e1, PerNUMAData::AllocPair* e2) {
+        return e1->_free > e2->_free ? 1 : -1;
+      });
+    }
+
+    {
+    ZArray<PerNUMAData::AllocPair>& small_pages = data->_allocating_pages[0];
+      // Insert small pages
+      while (small_pages.is_nonempty()) {
+        const int pre_length = small_pages.length();
+
+        ZPerCPUIterator<CPUAllocPages<ZPageType::small>> small_iter(&_small_allocation_pages);
+        for (CPUAllocPages<ZPageType::small>* alloc_pages; small_pages.is_nonempty() && small_iter.next(&alloc_pages);) {
+          if (data->_numa_id != alloc_pages->_numa_id) {
+            // Wrong NUMA id
+            continue;
+          }
+          alloc_pages->push(small_pages.pop()._page);
+        }
+
+        if (pre_length == small_pages.length()) {
+          assert(false, "Something weird happened");
+          _small_allocation_pages.addr(0)->_alloc_pages.push(small_pages.pop()._page);
+        }
+      }
+    }
+
+    {
+      ZArray<PerNUMAData::AllocPair>& medium_pages = data->_allocating_pages[1];
+
+      // Insert medium pages
+      while (medium_pages.is_nonempty()) {
+        const int pre_length = medium_pages.length();
+
+        ZPerCPUIterator<CPUAllocPages<ZPageType::medium>> medium_iter(&_medium_allocation_pages);
+        for (CPUAllocPages<ZPageType::medium>* alloc_pages; medium_pages.is_nonempty() && medium_iter.next(&alloc_pages);) {
+          if (data->_numa_id != alloc_pages->_numa_id) {
+            // Wrong NUMA id
+            continue;
+          }
+          alloc_pages->push(medium_pages.pop()._page);
+        }
+
+        if (pre_length == medium_pages.length()) {
+          assert(false, "Something weird happened");
+          _medium_allocation_pages.addr(0)->_alloc_pages.push(medium_pages.pop()._page);
+        }
+      }
+    }
+
+    // Clearn and deallocate
+    data->reset();
   }
 
   log_info(gc, freelist)("Old Generation Free-List Availiable: %zu", free_list_availiable);
@@ -555,28 +717,24 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
 ZReferenceCounting::FreeListAllocation ZReferenceCounting::free_list_alloc_object(size_t size, ZPageType type) {
   precond(type != ZPageType::large);
-  // TODO: Bound this? What is the trade-off with forcing bump-pointer alloc
-  const int page_type_index = static_cast<int>(type);
-  for (;;) {
-    const int page_index = _next_page_index[page_type_index].load_relaxed();
-
-    if (page_index == _allocating[page_type_index].length()) {
-      return {};
-    }
-    ZPage* const page = _allocating[page_type_index].at(page_index)._page;
-    const zaddress addr = page->alloc_object_from_free_list(size);
-    if (addr != zaddress::null) {
-      return {page, addr};
-    }
-
-    _next_page_index[page_type_index].compare_set(page_index, page_index + 1, memory_order_relaxed);
+  if (type == ZPageType::large) {
+    return {};
   }
-}
 
-void ZReferenceCounting::print_free_lists_on(outputStream* st) const {
-  for (int type = 0; type < 2; type++) {
-    for (const AllocPair& pair : _allocating[type]) {
-      pair._page->print_free_list_on(st);
+  const uint32_t start_cpu_id = ZCPU::id();
+  const uint32_t num_cpu_id = ZCPU::count();
+
+  ZReferenceCounting::FreeListAllocation allocation{};
+
+  for (uint32_t i = 0; i < num_cpu_id; ++i) {
+    const uint32_t cpu_id = (start_cpu_id + i) % num_cpu_id;
+
+    if (type == ZPageType::small && _small_allocation_pages.get(cpu_id).free_list_alloc_object(size, &allocation)) {
+      break;
+    } else if (type == ZPageType::medium && _medium_allocation_pages.get(cpu_id).free_list_alloc_object(size, &allocation)) {
+      break;
     }
   }
+
+  return allocation;
 }
