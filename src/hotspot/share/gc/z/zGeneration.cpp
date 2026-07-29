@@ -990,11 +990,14 @@ void ZGenerationYoung::relocate() {
   // Update statistics
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
 
-  log_info(gc)("Old Generation Free-list Promoted: " EXACTFMT
+  const size_t promoted_size = promoted();
+  const size_t freelist_availiable_size = freelist_availiable();
+
+  log_info(gc)("Old Generation Free-list Promoted: " PROPERFMT
                " [%2.2f%% of Promoted] [%2.2f%% of Availiable]",
-               EXACTFMTARGS(freelist_promoted()),
-               percent_of(freelist_promoted(), promoted()),
-               percent_of(freelist_promoted(), freelist_availiable()));
+               PROPERFMTARGS(freelist_promoted()),
+               promoted_size == 0 ? 100. : percent_of(freelist_promoted(), promoted_size),
+               freelist_availiable_size == 0 ? 100. : percent_of(freelist_promoted(), freelist_availiable_size));
 }
 
 void ZGenerationOld::flip_survive(ZPage* from_page, ZPage* to_page) {

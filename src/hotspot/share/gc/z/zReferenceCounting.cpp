@@ -597,8 +597,8 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     }
   }
 
-  log_info(gc)("Old Generation Reclaimed: %zu", freed);
-  log_info(gc)("Old Generation Pardoned: %zu", pardoned);
+  log_info(gc)("Old Generation Reclaimed: " PROPERFMT, PROPERFMTARGS(freed));
+  log_info(gc)("Old Generation Pardoned: " PROPERFMT, PROPERFMTARGS(pardoned));
 
   {
     // Prepare data
