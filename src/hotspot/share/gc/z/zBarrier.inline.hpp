@@ -746,9 +746,16 @@ inline void ZBarrier::no_keep_alive_store_barrier_on_native_oop_field(volatile z
   barrier(is_store_good_fast_path, slow_path, color_store_good, nullptr, prev);
 }
 
-inline bool ZBarrier::remember(volatile zpointer* p) {
+inline bool ZBarrier::remember(volatile zpointer* p, zaddress addr) {
   if (ZHeap::heap()->is_old(p)) {
-    return ZGeneration::young()->remember(p);
+    const bool remembered = ZGeneration::young()->remember(p);
+    if (ZOldRefCount) {
+      // Young-to-old edges are not reference counted, but their previous old
+      // value must still be pardoned when it belonged to the mark-start snapshot.
+      ZGeneration::young()->on_remember(p, addr, remembered);
+    }
+
+    return remembered;
   }
 
   return false;
@@ -759,14 +766,7 @@ inline bool ZBarrier::mark_and_remember(volatile zpointer* p, zaddress addr, zpo
     mark<ZMark::DontResurrect, ZMark::AnyThread, ZMark::Follow, ZMark::Strong>(addr);
   }
 
-  const bool remembered = remember(p);
-  if (ZOldRefCount) {
-    // Young-to-old edges are not reference counted, but their previous old
-    // value must still be pardoned when it belonged to the mark-start snapshot.
-    ZGeneration::young()->on_remember(p, addr, remembered);
-  }
-
-  return remembered;
+  return remember(p, addr);
 }
 
 template <bool resurrect, bool gc_thread, bool follow, bool finalizable>
