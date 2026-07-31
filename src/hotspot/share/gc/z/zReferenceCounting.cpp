@@ -39,6 +39,7 @@
 #include "memory/allocation.hpp"
 #include "nmt/memTag.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/markWord.inline.hpp"
 #include "runtime/atomicAccess.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -55,26 +56,30 @@
 // object simply can not be reclaimed with reference counting. The reference
 // counts are embedded in the 4 bit age bits of the markWord of objects.
 struct ZRefCount : public AllStatic {
-  static constexpr int Min = -7;
-  static constexpr int Max = 7;
-  static constexpr int Uncertain = -8;
+  static constexpr int RefCountBits = markWord::refc_bits;
+  static constexpr int SignBit = RefCountBits - 1;
+  static constexpr uint Mask = right_n_bits(RefCountBits);
+  static constexpr uint SignMask = ~(uint)right_n_bits(SignBit);
+  static constexpr int Uncertain = (int)(SignMask);
+  static constexpr int Min = Uncertain + 1;
+  static constexpr int Max = -Min;
 
   static int count_impl(markWord mark) {
-    int age = mark.age();
-    int ref_count = age;
+    uint age = mark.refc();
+    int ref_count = (int)age;
 
-    if (age & 0b1000) {
+    if (is_set_nth_bit(age, SignBit)) {
       // Sign extend the integer
-      ref_count |= 0xFFFFFFF0;
+      ref_count |= SignMask;
     }
 
     return ref_count;
   }
 
   static markWord set_count_impl(markWord mark, int ref_count) {
-    int age = ref_count & 0xF;
+    uint age = (uint)ref_count & Mask;
 
-    return mark.set_age(age);
+    return mark.set_refc(age);
   }
 
   static int count(markWord mark) {
@@ -92,7 +97,6 @@ struct ZRefCount : public AllStatic {
     assert(count_impl(result) == ref_count, "invalid ref count");
 
     return result;
-
   }
 };
 
