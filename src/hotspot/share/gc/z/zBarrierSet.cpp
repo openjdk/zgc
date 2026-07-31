@@ -189,10 +189,6 @@ public:
     const zaddress obj = ZBarrier::load_barrier_on_oop_field(src_p);
 
     // Store barrier
-    // TODO: Add ZBarrier::remember and do not use ZGenerationYoung::remember
-    //       directly. The prev value is supposed to be null, so we should not
-    //       have an issue, but we want to be uniform.
-    // ZBarrier::remember(dst_p, zaddress::null);
 
     // Store barrier over null (or uninitialized) requires only remembered-set handling
     if (_is_dst_old) {
