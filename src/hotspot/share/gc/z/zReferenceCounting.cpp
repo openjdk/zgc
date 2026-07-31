@@ -688,7 +688,10 @@ public:
 };
 
 void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator) {
-  SuspendibleThreadSetJoiner sts;
+  // TODO: The task's page table iterators hold all deleted ZPage* via safe_delete.
+  //       Maybe we should add some hazard pointer style mechanism instead so we
+  //       only have to keep the ZPages we are interested in. This is also relevant
+  //       for all our promotion pages during relocation and selection.
 
   ZProcessDeathRowTask process_death_row_task(state(), page_table, page_allocator);
   ZGeneration::young()->workers()->run(&process_death_row_task);
@@ -704,6 +707,8 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
 
 void ZProcessDeathRowTask::work() {
+  SuspendibleThreadSetJoiner sts;
+
   Stack<oop, mtGC> dfs_stack;
 
   _pt_iter.do_pages([&](ZPage* page) {
@@ -711,6 +716,7 @@ void ZProcessDeathRowTask::work() {
 
     if (!page->is_allocating()) {
       // TODO: Construct iterator bitmap for faster iteration instead of filtering
+      SuspendibleThreadSet::yield();
       return true;
     }
 
@@ -809,11 +815,16 @@ void ZProcessDeathRowTask::work() {
       }
     }
 
+    // Yield once per page
+    // TODO: Maybe RAII stack object which does this.
+    SuspendibleThreadSet::yield();
     return true;
   });
 }
 
 void ZClearPardonAndCoalesceFreeListsTask::work() {
+  SuspendibleThreadSetJoiner sts;
+
   auto& free_list_availiable = _state->_per_worker_counters.get()._free_list_availiable;
   auto& allocating = _state->_per_worker_allocating.get();
 
@@ -821,6 +832,7 @@ void ZClearPardonAndCoalesceFreeListsTask::work() {
   _pt_iter.do_pages([&](ZPage* page) {
     if (!page->is_allocating()) {
       // TODO: Construct iterator bitmap for faster iteration instead of filtering
+      SuspendibleThreadSet::yield();
       return true;
     }
 
@@ -836,6 +848,10 @@ void ZClearPardonAndCoalesceFreeListsTask::work() {
         allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push({ page, free_size });
       }
     }
+
+    // Yield once per page
+    // TODO: Maybe RAII stack object which does this.
+    SuspendibleThreadSet::yield();
     return true;
   });
 }
