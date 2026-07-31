@@ -85,6 +85,7 @@ static const ZStatPhaseConcurrent ZPhaseConcurrentMarkYoung("Concurrent Mark", Z
 static const ZStatPhaseConcurrent ZPhaseConcurrentMarkContinueYoung("Concurrent Mark Continue", ZGenerationId::young);
 static const ZStatPhasePause      ZPhasePauseMarkEndYoung("Pause Mark End", ZGenerationId::young);
 static const ZStatPhaseConcurrent ZPhaseConcurrentMarkFreeYoung("Concurrent Mark Free", ZGenerationId::young);
+static const ZStatPhaseConcurrent ZPhaseConcurrentProcessOldDeathRow("Concurrent Process Old Death Row", ZGenerationId::young);
 static const ZStatPhaseConcurrent ZPhaseConcurrentResetRelocationSetYoung("Concurrent Reset Relocation Set", ZGenerationId::young);
 static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSetYoung("Concurrent Select Relocation Set", ZGenerationId::young);
 static const ZStatPhasePause      ZPhasePauseRelocateStartYoung("Pause Relocate Start", ZGenerationId::young);
@@ -597,8 +598,8 @@ void ZGenerationYoung::collect(ZYoungType type, ConcurrentGCTimer* timer) {
   abortpoint();
 
   // TODO: Abstraction violation
-  // Free up unreferenced acyclic garbage in the old generation
-  _old_ref_count.process_death_row(_page_table, _page_allocator);
+  // Phase X: Free up unreferenced acyclic garbage in the old generation
+  concurrent_process_old_death_row();
 
   abortpoint();
 
@@ -737,6 +738,15 @@ void ZGenerationYoung::concurrent_mark_continue() {
 void ZGenerationYoung::concurrent_mark_free() {
   ZStatTimerYoung timer(ZPhaseConcurrentMarkFreeYoung);
   mark_free();
+}
+
+void ZGenerationYoung::concurrent_process_old_death_row() {
+  if (!ZOldRefCount) {
+    return;
+  }
+
+  ZStatTimerYoung timer(ZPhaseConcurrentProcessOldDeathRow);
+  process_old_death_row();
 }
 
 void ZGenerationYoung::concurrent_reset_relocation_set() {
@@ -967,6 +977,10 @@ bool ZGenerationYoung::mark_end() {
   JvmtiTagMap::set_needs_cleaning();
 
   return true;
+}
+
+void ZGenerationYoung::process_old_death_row() {
+  _old_ref_count.process_death_row(_page_table, _page_allocator);
 }
 
 void ZGenerationYoung::relocate_start() {

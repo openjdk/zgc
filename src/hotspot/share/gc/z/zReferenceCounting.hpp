@@ -26,6 +26,7 @@
 
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zArray.hpp"
+#include "gc/z/zGeneration.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zLock.hpp"
 #include "gc/z/zPageType.hpp"
@@ -47,38 +48,14 @@ public:
     ZPage* _page = nullptr;
     zaddress _address = zaddress::null;
   };
+
+  struct State;
+
 private:
-  template <ZPageType PageType>
-  struct CPUAllocPages {
-    // static constexpr ZPageType PageType = ZPageType::small;
-    static_assert(PageType != ZPageType::large, "Unsupported ZPageType");
-    static constexpr bool IsSmallPage = PageType == ZPageType::small;
-    // Inclusive
-    static constexpr int MinAllocSizeShift = IsSmallPage ? ZMinMinObjectSizeSmallShift : ZMinMinObjectSizeMediumShift;
-    static constexpr size_t MinAllocSize = size_t(1) << MinAllocSizeShift;
+  State* _state;
 
-    // Exclusive, a fully free page is returned to the PageAllocator
-    static constexpr int MaxFreeBlockSizeShift = IsSmallPage ? ZPageSizeSmallShift : ZPageSizeMediumMaxMaxShift;
-    static constexpr int MaxAllocSizeShift = MaxFreeBlockSizeShift - 3;
-    static constexpr size_t MaxAllocSize = size_t(1) << MaxAllocSizeShift;
-
-    static constexpr int SizeClasses = MaxAllocSizeShift - MinAllocSizeShift + 1;
-
-    ZArray<ZPage*> _alloc_pages;
-    const uint32_t _cpu_id;
-    const uint32_t _numa_id;
-    Atomic<int> _next_page_index[SizeClasses];
-
-    CPUAllocPages(uint32_t cpu_id);
-
-    void reset();
-    void reserve(int capacity);
-    void push(ZPage* page);
-    bool free_list_alloc_object(size_t size, FreeListAllocation* allocation);
-  };
-
-  ZPerCPU<CPUAllocPages<ZPageType::small>> _small_allocation_pages;
-  ZPerCPU<CPUAllocPages<ZPageType::medium>> _medium_allocation_pages;
+  State* state();
+  const State* state() const;
 
   void increment(zaddress addr);
   void decrement(zaddress addr);

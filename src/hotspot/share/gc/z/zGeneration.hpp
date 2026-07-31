@@ -216,6 +216,7 @@ private:
   void mark_roots();
   void mark_follow();
   bool mark_end();
+  void process_old_death_row();
   void relocate_start();
   void relocate();
 
@@ -224,6 +225,7 @@ private:
   bool pause_mark_end();
   void concurrent_mark_continue();
   void concurrent_mark_free();
+  void concurrent_process_old_death_row();
   void concurrent_reset_relocation_set();
   void concurrent_select_relocation_set();
   void pause_relocate_start();
