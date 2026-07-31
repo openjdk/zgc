@@ -218,6 +218,8 @@ public:
 
   void clear_remset_previous();
 
+  void prune_dead_remset();
+
   void* remset_current();
 
   zaddress alloc_object(size_t size);

@@ -287,6 +287,20 @@ void ZPage::clear_remset_previous() {
   _remembered_set.clear_previous();
 }
 
+void ZPage::prune_dead_remset() {
+  _remembered_set.iterate_previous([&](uintptr_t local_offset) {
+    const zaddress field_addr = ZOffset::address(start() + local_offset);
+    const zaddress base = safe(find_base((volatile zpointer*)field_addr));
+
+    if (is_null(base) || field_addr - base >= ZUtils::object_size(base)) {
+      // In dead object
+      _remembered_set.unset_previous(local_offset);
+    }
+
+    return true;
+  });
+}
+
 void ZPage::swap_remset_bitmaps() {
   _remembered_set.swap_remset_bitmaps();
 }

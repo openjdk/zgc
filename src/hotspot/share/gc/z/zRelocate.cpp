@@ -1399,10 +1399,14 @@ public:
       if (prev_page->is_old()) {
         prev_page->log_msg(" (flip survived)");
 
+        // At this point, there might be dead remembered set entries. We must prune them
+        // before flipping the page to become is_allocating, so that concurrent remembered
+        // set scanning doesn't scan dead remembered set entries.
+        prev_page->prune_dead_remset();
+
         ZPage* const aged_page = prev_page->flip_age();
 
         ZGeneration::old()->flip_survive(prev_page, aged_page);
-        // TODO: Should prune remset entries of dead objects after old mark end
 
         prev_page->object_iterate([&](oop obj) {
           ZGeneration::young()->on_old_to_old(to_zaddress(obj), false /* was_mutator */); // TODO: More naming issues
