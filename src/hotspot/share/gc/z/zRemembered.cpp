@@ -159,25 +159,13 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
     OrderAccess::storestore();
   }
 
-  // TODO: We don't really need to clear the prev remset, but if we don't,
-  // the dead objects after marking, will still have prev bits set. We might
-  // want to refine this a bit.
-  //if (ZOldRefCount) {
-  //  // With old ref counting, remset is cleared incrementally with atomics
-  //  // collaboratively with the mutator.
-  //  if (!can_trust_live_bits) {
-  //    page->verify_remset_cleared_previous();
-  //  } else if (page->is_marked()) {
-  //    page->verify_remset_cleared_previous();
-  //  }
-  //  return result;
-  //}
-
-  // If we have consumed the remset entries above we also clear them.
-  // The exception is if the page is completely empty/garbage, where we don't
-  // want to race with an old collection modifying the remset as well.
-  if (!can_trust_live_bits || page->is_marked()) {
-    page->clear_remset_previous();
+  if (!ZOldRefCount) {
+    // If we have consumed the remset entries above we also clear them.
+    // The exception is if the page is completely empty/garbage, where we don't
+    // want to race with an old collection modifying the remset as well.
+    if (!can_trust_live_bits || page->is_marked()) {
+      page->clear_remset_previous();
+    }
   }
 
   return result;
