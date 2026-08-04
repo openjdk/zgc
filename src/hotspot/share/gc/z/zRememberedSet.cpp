@@ -90,14 +90,14 @@ ZBitMap::ReverseIterator ZRememberedSet::iterator_reverse_previous() {
 }
 
 BitMap::Iterator ZRememberedSet::iterator_limited_current(uintptr_t offset, size_t size) {
-  const size_t index = to_index(offset);;
+  const size_t index = to_index(offset);
   const size_t bit_size = to_bit_size(size);
 
   return BitMap::Iterator(*current(), index, index + bit_size);
 }
 
 ZBitMap::Iterator ZRememberedSet::iterator_limited_previous(uintptr_t offset, size_t size) {
-  const size_t index = to_index(offset);;
+  const size_t index = to_index(offset);
   const size_t bit_size = to_bit_size(size);
 
   return BitMap::Iterator(*previous(), index, index + bit_size);

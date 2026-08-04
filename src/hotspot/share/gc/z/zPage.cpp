@@ -283,6 +283,24 @@ void ZPage::verify_remset_cleared_previous() const {
   }
 }
 
+void ZPage::verify_remset_cleared_or_store_good_previous() {
+  if (!ZVerifyRemembered) {
+    return;
+  }
+
+  _remembered_set.iterate_previous([&](uintptr_t local_offset) {
+    const zaddress field_addr = ZOffset::address(start() + local_offset);
+    volatile zpointer* p = (volatile zpointer*)field_addr;
+    zpointer o = AtomicAccess::load(p);
+
+    if (!ZPointer::is_store_good_or_null(o)) {
+      fatal_msg(" previous remset bits should be cleared");
+    }
+
+    return true;
+  });
+}
+
 void ZPage::clear_remset_previous() {
   _remembered_set.clear_previous();
 }

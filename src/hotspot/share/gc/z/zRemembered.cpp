@@ -164,14 +164,17 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
     OrderAccess::storestore();
   }
 
-  if (!ZOldRefCount) {
-    // If we have consumed the remset entries above we also clear them.
-    // The exception is if the page is completely empty/garbage, where we don't
-    // want to race with an old collection modifying the remset as well.
-    if (!can_trust_live_bits || page->is_marked()) {
+  if (!can_trust_live_bits || page->is_marked()) {
+    if (ZOldRefCount) {
+      page->verify_remset_cleared_or_store_good_previous();
+    } else {
+      // If we have consumed the remset entries above we also clear them.
+      // The exception is if the page is completely empty/garbage, where we don't
+      // want to race with an old collection modifying the remset as well.
       page->clear_remset_previous();
     }
   }
+
 
   return result;
 }

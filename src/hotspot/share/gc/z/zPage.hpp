@@ -215,6 +215,7 @@ public:
 
   void verify_remset_cleared_current() const;
   void verify_remset_cleared_previous() const;
+  void verify_remset_cleared_or_store_good_previous();
 
   void clear_remset_previous();
 
