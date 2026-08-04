@@ -302,6 +302,7 @@ private:
   ZWeakRootsProcessor _weak_roots_processor;
   ZUnload             _unload;
   uint                _total_collections_at_start;
+  uint32_t            _young_seqnum_at_mark_end;
   uint32_t            _young_seqnum_at_reloc_start;
   ZOldTracer          _jfr_tracer;
 
@@ -344,6 +345,7 @@ public:
 
   uint total_collections_at_start() const;
 
+  uint32_t young_marks_since_old_mark_end() const;
   uint32_t young_marks_since_old_reloc_start() const;
   bool active_remset_is_current() const;
 

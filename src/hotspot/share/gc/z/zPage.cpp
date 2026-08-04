@@ -287,18 +287,41 @@ void ZPage::clear_remset_previous() {
   _remembered_set.clear_previous();
 }
 
-void ZPage::prune_dead_remset() {
-  _remembered_set.iterate_previous([&](uintptr_t local_offset) {
-    const zaddress field_addr = ZOffset::address(start() + local_offset);
-    const zaddress base = safe(find_base((volatile zpointer*)field_addr));
+void ZPage::prune_dead_remset_entries() {
+  const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
 
-    if (is_null(base) || field_addr - base >= ZUtils::object_size(base)) {
-      // In dead object
-      _remembered_set.unset_previous(local_offset);
-    }
+  // When pruning dead remembered set entries, we must keep in mind that the
+  // maintenance of these entries stop at old mark end. Then, the young collector
+  // starts filtering dead entries, acting as if they don't exist. Therefore, the
+  // location of the dead remembered set entries may be either in the current or
+  // previous bits, dependong on whether an even or odd number of young generation
+  // collections have started since old mark end.
 
-    return true;
-  });
+  if ((young_marks & 1) == 0) {
+    _remembered_set.iterate_current([&](uintptr_t local_offset) {
+      const zaddress field_addr = ZOffset::address(start() + local_offset);
+      const zaddress base = safe(find_base((volatile zpointer*)field_addr));
+
+      if (is_null(base) || field_addr - base >= ZUtils::object_size(base)) {
+        // In dead object
+        _remembered_set.unset_current(local_offset);
+      }
+
+      return true;
+    });
+  } else {
+    _remembered_set.iterate_previous([&](uintptr_t local_offset) {
+      const zaddress field_addr = ZOffset::address(start() + local_offset);
+      const zaddress base = safe(find_base((volatile zpointer*)field_addr));
+
+      if (is_null(base) || field_addr - base >= ZUtils::object_size(base)) {
+        // In dead object
+        _remembered_set.unset_previous(local_offset);
+      }
+
+      return true;
+    });
+  }
 }
 
 void ZPage::swap_remset_bitmaps() {

@@ -1104,6 +1104,7 @@ ZGenerationOld::ZGenerationOld(ZPageTable* page_table, ZPageAllocator* page_allo
     _weak_roots_processor(&_workers),
     _unload(&_workers),
     _total_collections_at_start(0),
+    _young_seqnum_at_mark_end(0),
     _young_seqnum_at_reloc_start(0),
     _jfr_tracer() {
   ZGeneration::_old = this;
@@ -1395,6 +1396,9 @@ bool ZGenerationOld::mark_end() {
 
   // Update statistics
   stat_heap()->at_mark_end(_page_allocator->stats(this));
+
+  // Need to know the remset parity when pruning dead remset entries
+  _young_seqnum_at_mark_end = ZGeneration::young()->seqnum();
 
   // Block resurrection of weak/phantom references
   ZResurrection::block();

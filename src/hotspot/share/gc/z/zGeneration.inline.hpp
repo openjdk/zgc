@@ -183,6 +183,15 @@ inline ReferenceDiscoverer* ZGenerationOld::reference_discoverer() {
   return &_reference_processor;
 }
 
+inline uint32_t ZGenerationOld::young_marks_since_old_mark_end() const {
+  // TODO: Fix assert
+  // assert(_young_seqnum_at_reloc_start != 0, "Must be set before used");
+
+  // The remembered set bits flip every time a new young collection starts
+  const uint32_t seqnum = ZGeneration::young()->seqnum();
+  return seqnum - _young_seqnum_at_mark_end;
+}
+
 inline uint32_t ZGenerationOld::young_marks_since_old_reloc_start() const {
   // TODO: Fix assert
   // assert(_young_seqnum_at_reloc_start != 0, "Must be set before used");

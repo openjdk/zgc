@@ -218,7 +218,7 @@ public:
 
   void clear_remset_previous();
 
-  void prune_dead_remset();
+  void prune_dead_remset_entries();
 
   void* remset_current();
 

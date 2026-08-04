@@ -609,13 +609,17 @@ bool ZRemembered::scan_field(volatile zpointer* p) const {
   const zaddress addr = ZBarrier::remset_barrier_on_oop_field_preloaded(p, prev);
 
   if (is_null(addr)) {
+    ZGeneration::young()->forget_previous(p);
     return false;
   }
 
   if (ZHeap::heap()->is_young(addr)) {
+    ZGeneration::young()->forget_previous(p);
     remember(p);
     return true;
-  } else if (ZOldRefCount) {
+  }
+
+  if (ZOldRefCount) {
     const bool first = !ZPointer::is_store_good(prev);
     // If the mutator performs a concurrent store, and hence the prev value
     // is store good, then we don't have the correct oop that increment, and

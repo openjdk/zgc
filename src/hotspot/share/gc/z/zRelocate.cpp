@@ -1402,7 +1402,7 @@ public:
         // At this point, there might be dead remembered set entries. We must prune them
         // before flipping the page to become is_allocating, so that concurrent remembered
         // set scanning doesn't scan dead remembered set entries.
-        prev_page->prune_dead_remset();
+        prev_page->prune_dead_remset_entries();
 
         ZPage* const aged_page = prev_page->flip_age();
 
