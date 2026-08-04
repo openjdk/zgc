@@ -283,7 +283,7 @@ zaddress ZBarrier::heap_store_slow_path(volatile zpointer* p, zaddress addr, zpo
 }
 
 zaddress ZBarrier::no_keep_alive_heap_store_slow_path(volatile zpointer* p, zaddress addr) {
-  remember(p);
+  remember(p, addr);
 
   return addr;
 }
