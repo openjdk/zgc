@@ -203,6 +203,7 @@ bool ZRememberedSetContainingInLiveIterator::next(ZRememberedSetContaining* cont
     }
 
     // Skip field outside object
+    ZGeneration::young()->forget_previous((volatile zpointer*)local._field_addr);
     _count_skipped++;
   }
 

@@ -184,12 +184,13 @@ void ZGeneration::free_empty_pages(ZRelocationSetSelector* selector, int bulk) {
   }
 }
 
+// TODO: Improve naming or split?!
 void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
-  _relocate.flip_age_pages(selector->not_selected_small());
-  _relocate.flip_age_pages(selector->not_selected_medium());
-  _relocate.flip_age_pages(selector->not_selected_large());
-
   if (is_young()) {
+    _relocate.flip_age_young_pages(selector->not_selected_small());
+    _relocate.flip_age_young_pages(selector->not_selected_medium());
+    _relocate.flip_age_young_pages(selector->not_selected_large());
+
     // Perform a handshake between flip promotion and running the promotion barrier. This ensures
     // that ZBarrierSet::on_slowpath_allocation_exit() observing a young page that was then racingly
     // flip promoted, will run any stores without barriers to completion before responding to the
@@ -200,6 +201,10 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
 
     _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
                                      _relocation_set.relocate_promoted_pages());
+  } else {
+    _relocate.flip_age_old_pages(selector->not_selected_small(), selector->selected_small());
+    _relocate.flip_age_old_pages(selector->not_selected_medium(), selector->selected_small());
+    _relocate.flip_age_old_pages(selector->not_selected_large(), selector->selected_small());
   }
 }
 

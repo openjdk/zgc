@@ -119,7 +119,8 @@ public:
 
   void relocate(ZRelocationSet* relocation_set);
 
-  void flip_age_pages(const ZArray<ZPage*>* pages);
+  void flip_age_old_pages(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages);
+  void flip_age_young_pages(const ZArray<ZPage*>* pages);
   void barrier_promoted_pages(const ZArray<ZPage*>* flip_promoted_pages,
                               const ZArray<ZPage*>* relocate_promoted_pages);
 

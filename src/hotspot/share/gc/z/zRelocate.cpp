@@ -1382,13 +1382,13 @@ ZPageAge ZRelocate::compute_to_age(ZPageAge from_age) {
   return to_zpageage(age + 1);
 }
 
-class ZFlipAgePagesTask : public ZTask {
+class ZFlipAgeYoungPagesTask : public ZTask {
 private:
   ZArrayParallelIterator<ZPage*> _iter;
 
 public:
-  ZFlipAgePagesTask(const ZArray<ZPage*>* pages)
-    : ZTask("ZFlipAgePagesTask"),
+  ZFlipAgeYoungPagesTask(const ZArray<ZPage*>* pages)
+    : ZTask("ZFlipAgeYoungPagesTask"),
       _iter(pages) {}
 
   virtual void work() {
@@ -1396,52 +1396,91 @@ public:
     ZArray<ZPage*> promoted_pages;
 
     for (ZPage* prev_page; _iter.next(&prev_page);) {
-      if (prev_page->is_old()) {
-        prev_page->log_msg(" (flip survived)");
+      const ZPageAge to_age = ZRelocate::compute_to_age(prev_page->age());
+      postcond(to_age != ZPageAge::old);
 
-        // At this point, there might be dead remembered set entries. We must prune them
-        // before flipping the page to become is_allocating, so that concurrent remembered
-        // set scanning doesn't scan dead remembered set entries.
-        prev_page->prune_dead_remset_entries();
+      // Figure out if this is proper promotion
+      const bool promotion = to_age == ZPageAge::promotion;
 
-        ZPage* const aged_page = prev_page->flip_age();
+      // Logging
+      prev_page->log_msg(promotion ? " (flip promoted)" : " (flip survived)");
 
-        ZGeneration::old()->flip_survive(prev_page, aged_page);
+      // Setup to-space page
+      ZPage* const new_page = prev_page->flip_age();
 
-        prev_page->object_iterate([&](oop obj) {
-          ZGeneration::young()->on_old_to_old(to_zaddress(obj), false /* was_mutator */); // TODO: More naming issues
-        });
+      // Reset page for flip aging
+      new_page->reset_livemap();
 
-        //promoted_pages.push(prev_page); TODO: Should register somewhere so we dont leak the prev page
-      } else {
-        const ZPageAge to_age = ZRelocate::compute_to_age(prev_page->age());
-        postcond(to_age != ZPageAge::old);
-
-        // Figure out if this is proper promotion
-        const bool promotion = to_age == ZPageAge::promotion;
-
-        // Logging
-        prev_page->log_msg(promotion ? " (flip promoted)" : " (flip survived)");
-
-        // Setup to-space page
-        ZPage* const new_page = prev_page->flip_age();
-
-        // Reset page for flip aging
-        new_page->reset_livemap();
-
-        if (new_page->is_flip_promoted_current_young_collection()) {
-          ZGeneration::young()->flip_promote(prev_page, new_page);
-          // Defer promoted page registration
-          promoted_pages.push(prev_page);
-        }
+      if (new_page->is_flip_promoted_current_young_collection()) {
+        ZGeneration::young()->flip_promote(prev_page, new_page);
+        // Defer promoted page registration
+        promoted_pages.push(prev_page);
       }
 
       SuspendibleThreadSet::yield();
     }
 
-    // TODO: Do something else for old gen to avoid leak
     if (promoted_pages.length() != 0) {
       ZGeneration::young()->register_flip_promoted(promoted_pages);
+    }
+  }
+};
+
+class ZFlipAgeOldPagesTask : public ZTask {
+private:
+  ZArrayParallelIterator<ZPage*> _not_selected_iter;
+  ZArrayParallelIterator<ZPage*> _selected_iter;
+
+public:
+  ZFlipAgeOldPagesTask(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages)
+    : ZTask("ZFlipAgeOldPagesTask"),
+      _not_selected_iter(not_selected_pages),
+      _selected_iter(selected_pages) {}
+
+  virtual void work() {
+    SuspendibleThreadSetJoiner sts_joiner;
+
+    for (ZPage* prev_page; _not_selected_iter.next(&prev_page);) {
+      prev_page->log_msg(" (flip survived)");
+
+      const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
+
+      if (young_marks <= 1) {
+        // At thnot_selected_is point, there might be dead remembered set entries. We must prune them
+        // befornot_selected_e flipping the page to become is_allocating, so that concurrent remembered
+        // set snot_selected_canning doesn't scan dead remembered set entries.
+        prev_page->prune_dead_remset_entries();
+      }
+
+      ZPage* const aged_page = prev_page->flip_age();
+
+      ZGeneration::old()->flip_survive(prev_page, aged_page);
+
+      prev_page->object_iterate([&](oop obj) {
+        ZGeneration::young()->on_old_to_old(to_zaddress(obj), false /* was_mutator */); // TODO: More naming issues
+      });
+
+      //promoted_pages.push(prev_page); TODO: Should register somewhere so we dont leak the prev page
+
+      SuspendibleThreadSet::yield();
+    }
+
+    // TODO: Do something else for old gen to avoid leak
+    //if (promoted_pages.length() != 0) {
+    //  ZGeneration::young()->register_flip_promoted(promoted_pages);
+    //}
+
+    for (ZPage* page; _selected_iter.next(&page);) {
+      const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
+
+      if (young_marks <= 1) {
+        // At thnot_selected_is point, there might be dead remembered set entries. We must prune them
+        // befornot_selected_e flipping the page to become is_allocating, so that concurrent remembered
+        // set snot_selected_canning doesn't scan dead remembered set entries.
+        page->prune_dead_remset_entries();
+      }
+
+      SuspendibleThreadSet::yield();
     }
   }
 };
@@ -1480,8 +1519,13 @@ public:
   }
 };
 
-void ZRelocate::flip_age_pages(const ZArray<ZPage*>* pages) {
-  ZFlipAgePagesTask flip_age_task(pages);
+void ZRelocate::flip_age_old_pages(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages) {
+  ZFlipAgeOldPagesTask flip_age_task(not_selected_pages, selected_pages);
+  workers()->run(&flip_age_task);
+}
+
+void ZRelocate::flip_age_young_pages(const ZArray<ZPage*>* pages) {
+  ZFlipAgeYoungPagesTask flip_age_task(pages);
   workers()->run(&flip_age_task);
 }
 

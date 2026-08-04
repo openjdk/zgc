@@ -290,6 +290,8 @@ void ZPage::clear_remset_previous() {
 void ZPage::prune_dead_remset_entries() {
   const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
 
+  assert(young_marks <= 1, "why is this invoked after the first YC after old mark end?");
+
   // When pruning dead remembered set entries, we must keep in mind that the
   // maintenance of these entries stop at old mark end. Then, the young collector
   // starts filtering dead entries, acting as if they don't exist. Therefore, the
@@ -297,7 +299,7 @@ void ZPage::prune_dead_remset_entries() {
   // previous bits, dependong on whether an even or odd number of young generation
   // collections have started since old mark end.
 
-  if ((young_marks & 1) == 0) {
+  if (young_marks == 0) {
     _remembered_set.iterate_current([&](uintptr_t local_offset) {
       const zaddress field_addr = ZOffset::address(start() + local_offset);
       const zaddress base = safe(find_base((volatile zpointer*)field_addr));
@@ -310,6 +312,8 @@ void ZPage::prune_dead_remset_entries() {
       return true;
     });
   } else {
+    assert(young_marks == 1, "must be");
+
     _remembered_set.iterate_previous([&](uintptr_t local_offset) {
       const zaddress field_addr = ZOffset::address(start() + local_offset);
       const zaddress base = safe(find_base((volatile zpointer*)field_addr));
