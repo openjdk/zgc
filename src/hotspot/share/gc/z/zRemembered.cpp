@@ -127,8 +127,13 @@ bool ZRemembered::should_scan_page(ZPage* page) const {
 }
 
 bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
-  const bool can_trust_live_bits =
-      page->is_relocatable() && !ZGeneration::old()->is_phase_mark();
+  // We have to filter and prune dead remset entries the first young marking
+  // after old mark end. Once they are pruned, subsequent remset scans don't
+  // need to filter and prune them again.
+
+  const bool can_trust_live_bits = page->is_relocatable() &&
+                                   !ZGeneration::old()->is_phase_mark() &&
+                                   ZGeneration::old()->young_marks_since_old_mark_end() == 1;
 
   bool result = false;
 
