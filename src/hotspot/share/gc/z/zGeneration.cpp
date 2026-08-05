@@ -1149,14 +1149,7 @@ void ZGenerationOld::collect(ConcurrentGCTimer* timer) {
   abortpoint();
 
   // Phase 2: Pause Mark End
-  for (;;) {
-    {
-      ZDriverLocker locker;
-      if (pause_mark_end()) {
-        break;
-      }
-    }
-
+  while (!pause_mark_end()) {
     // Phase 2.5: Concurrent Mark Continue
     concurrent_mark_continue();
 
