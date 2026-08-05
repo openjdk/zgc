@@ -217,13 +217,8 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
   }
 
   // Free-list Construction Support
-  struct AllocPair {
-    ZPage* _page = nullptr;
-    size_t _free = 0u;
-  };
-
   struct PerNUMAData {
-    ZArray<AllocPair> _allocating_pages[2]{};
+    ZArray<ZPage*> _allocating_pages[2]{};
   };
 
   ZPerWorker<ZPerNUMA<PerNUMAData>> _per_worker_allocating;
@@ -268,79 +263,51 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
       }
     }
 
-    // Create merged storage
-    ZPerNUMA<ZArray<AllocPair>> per_numa_pages[2];
-    for (int numa_id = 0; numa_id < numa_count; numa_id++) {
-      for (int i = 0; i < 2; i++) {
-        per_numa_pages[i].get(integer_cast<uint32_t>(numa_id)).reserve(per_numa_page_count[i].at(numa_id));
-      }
-    }
+    ZPerWorkerIterator<ZPerNUMA<PerNUMAData>> worker_iter(&_per_worker_allocating);
+    for (ZPerNUMA<PerNUMAData>* worker_data; worker_iter.next(&worker_data);) {
+      uint32_t numa_id;
+      ZPerNUMAIterator<PerNUMAData> numa_iter(worker_data);
+      for (PerNUMAData* numa_data; numa_iter.next(&numa_data, &numa_id);) {
+        // Insert all small pages
+        ZArray<ZPage*>& small_pages = numa_data->_allocating_pages[0];
+        while (small_pages.is_nonempty()) {
+          const int pre_length = small_pages.length();
 
-    { // Copy per worker
-      ZPerWorkerIterator<ZPerNUMA<PerNUMAData>> worker_iter(&_per_worker_allocating);
-      for (ZPerNUMA<PerNUMAData>* worker_data; worker_iter.next(&worker_data);) {
-        uint32_t numa_id;
-        ZPerNUMAIterator<PerNUMAData> numa_iter(worker_data);
-        for (PerNUMAData* numa_data; numa_iter.next(&numa_data, &numa_id);) {
-          for (int i = 0; i < 2; i++) {
-            per_numa_pages[i].get(numa_id).appendAll(&numa_data->_allocating_pages[i]);
+          ZPerCPUIterator<CPUAllocPages<ZPageType::small>> small_iter(&_small_allocation_pages);
+          for (CPUAllocPages<ZPageType::small>* alloc_pages; small_pages.is_nonempty() && small_iter.next(&alloc_pages);) {
+            if (numa_id != alloc_pages->_numa_id) {
+              // Wrong NUMA id
+              continue;
+            }
+            alloc_pages->push(small_pages.pop());
+          }
+
+          if (pre_length == small_pages.length()) {
+            assert(false, "Something weird happened");
+            _small_allocation_pages.addr(0)->_alloc_pages.push(small_pages.pop());
+          }
+        }
+
+        // Insert all medium pages
+        ZArray<ZPage*>& medium_pages = numa_data->_allocating_pages[1];
+        while (medium_pages.is_nonempty()) {
+          const int pre_length = medium_pages.length();
+
+          ZPerCPUIterator<CPUAllocPages<ZPageType::medium>> medium_iter(&_medium_allocation_pages);
+          for (CPUAllocPages<ZPageType::medium>* alloc_pages; medium_pages.is_nonempty() && medium_iter.next(&alloc_pages);) {
+            if (numa_id != alloc_pages->_numa_id) {
+              // Wrong NUMA id
+              continue;
+            }
+            alloc_pages->push(medium_pages.pop());
+          }
+
+          if (pre_length == medium_pages.length()) {
+            assert(false, "Something weird happened");
+            _medium_allocation_pages.addr(0)->_alloc_pages.push(medium_pages.pop());
           }
         }
       }
-    }
-
-    for (int numa_id = 0; numa_id < numa_count; numa_id++) {
-      // Sort page arrays
-      for (int i = 0; i < 2; i++) {
-        // Sort [small -> larger]
-        per_numa_pages[i].get(integer_cast<uint32_t>(numa_id)).sort([](AllocPair* e1, AllocPair* e2) {
-          return e1->_free > e2->_free ? 1 : -1;
-        });
-      }
-
-      // Insert all small pages
-      ZArray<AllocPair>& small_pages = per_numa_pages[0].get(integer_cast<uint32_t>(numa_id));
-      while (small_pages.is_nonempty()) {
-        const int pre_length = small_pages.length();
-
-        ZPerCPUIterator<CPUAllocPages<ZPageType::small>> small_iter(&_small_allocation_pages);
-        for (CPUAllocPages<ZPageType::small>* alloc_pages; small_pages.is_nonempty() && small_iter.next(&alloc_pages);) {
-          if (integer_cast<uint32_t>(numa_id) != alloc_pages->_numa_id) {
-            // Wrong NUMA id
-            continue;
-          }
-          alloc_pages->push(small_pages.pop()._page);
-        }
-
-        if (pre_length == small_pages.length()) {
-          assert(false, "Something weird happened");
-          _small_allocation_pages.addr(0)->_alloc_pages.push(small_pages.pop()._page);
-        }
-      }
-
-      // Insert all medium pages
-      ZArray<AllocPair>& medium_pages = per_numa_pages[1].get(integer_cast<uint32_t>(numa_id));
-      while (medium_pages.is_nonempty()) {
-        const int pre_length = medium_pages.length();
-
-        ZPerCPUIterator<CPUAllocPages<ZPageType::medium>> medium_iter(&_medium_allocation_pages);
-        for (CPUAllocPages<ZPageType::medium>* alloc_pages; medium_pages.is_nonempty() && medium_iter.next(&alloc_pages);) {
-          if (integer_cast<uint32_t>(numa_id) != alloc_pages->_numa_id) {
-            // Wrong NUMA id
-            continue;
-          }
-          alloc_pages->push(medium_pages.pop()._page);
-        }
-
-        if (pre_length == medium_pages.length()) {
-          assert(false, "Something weird happened");
-          _medium_allocation_pages.addr(0)->_alloc_pages.push(medium_pages.pop()._page);
-        }
-      }
-
-      // Clear and dealocate
-      small_pages.clear_and_deallocate();
-      medium_pages.clear_and_deallocate();
     }
   }
 
@@ -849,7 +816,7 @@ void ZClearPardonAndCoalesceFreeListsTask::work() {
       if (free_size != 0) {
         free_list_availiable += free_size;
         const uint32_t numa_id = page->is_multi_partition() ? 0 : page->single_partition_id();
-        allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push({ page, free_size });
+        allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push(page);
       }
     }
 
