@@ -465,6 +465,7 @@ void ZRemembered::remap_current(ZRemsetTableIterator* iter) {
     assert(entry._forwarding == nullptr, "Shouldn't be looking for forwardings");
     assert(entry._page != nullptr, "Must have found a page");
     assert(entry._page->is_old(), "Should only have found old pages");
+    assert(!entry._page->is_relocatable() || entry._page->is_marked(), "all dead pages should be freed by now");
 
     entry._page->oops_do_current_remembered(ZBarrier::load_barrier_on_oop_field);
   }

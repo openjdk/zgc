@@ -203,8 +203,10 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
                                      _relocation_set.relocate_promoted_pages());
   } else {
     _relocate.flip_age_old_pages(selector->not_selected_small(), selector->selected_small());
-    _relocate.flip_age_old_pages(selector->not_selected_medium(), selector->selected_small());
-    _relocate.flip_age_old_pages(selector->not_selected_large(), selector->selected_small());
+    _relocate.flip_age_old_pages(selector->not_selected_medium(), selector->selected_medium());
+
+    ZArray<ZPage*> selected_large;
+    _relocate.flip_age_old_pages(selector->not_selected_large(), &selected_large);
   }
 }
 
@@ -1147,7 +1149,14 @@ void ZGenerationOld::collect(ConcurrentGCTimer* timer) {
   abortpoint();
 
   // Phase 2: Pause Mark End
-  while (!pause_mark_end()) {
+  for (;;) {
+    {
+      ZDriverLocker locker;
+      if (pause_mark_end()) {
+        break;
+      }
+    }
+
     // Phase 2.5: Concurrent Mark Continue
     concurrent_mark_continue();
 
