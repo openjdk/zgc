@@ -187,89 +187,8 @@ bool ZForwarding::is_done() const {
   return _done.load_relaxed();
 }
 
-//
-// The relocated_remembered_fields are used when the old generation
-// collection is relocating objects, concurrently with the young
-// generation collection's remembered set scanning for the marking.
-//
-// When the OC is relocating objects, the old remembered set bits
-// for the from-space objects need to be moved over to the to-space
-// objects.
-//
-// The YC doesn't want to wait for the OC, so it eagerly helps relocating
-// objects with remembered set bits, so that it can perform marking on the
-// to-space copy of the object fields that are associated with the remembered
-// set bits.
-//
-// This requires some synchronization between the OC and YC, and this is
-// mainly done via the _relocated_remembered_fields_state in each ZForwarding.
-// The values corresponds to:
-//
-// none:      Starting state - neither OC nor YC has stated their intentions
-// published: The OC has completed relocating all objects, and published an array
-//            of all to-space fields that should have a remembered set entry.
-// reject:    The OC relocation of the page happened concurrently with the YC
-//            remset scanning. Two situations:
-//            a) The page had not been released yet: The YC eagerly relocated and
-//            scanned the to-space objects with remset entries.
-//            b) The page had been released: The YC accepts the array published in
-//            (published).
-// accept:    The YC found that the forwarding/page had already been relocated when
-//            the YC started.
-//
-// Central to this logic is the ZRemembered::scan_forwarding function, where
-// the YC tries to "retain" the forwarding/page. If it succeeds it means that
-// the OC has not finished (or maybe not even started) the relocation of all objects.
-//
-// When the YC manages to retaining the page it will bring the state from:
-//  none      -> reject - Started collecting remembered set info
-//  published -> reject - Rejected the OC's remembered set info
-//  reject    -> reject - An earlier YC had already handled the remembered set info
-//  accept    ->        - Invalid state - will not happen
-//
-// When the YC fails to retain the page the state transitions are:
-// none      -> x - The page was relocated before the YC started
-// published -> x - The OC completed relocation before YC visited this forwarding.
-//                  The YC will use the remembered set info collected by the OC.
-// reject    -> x - A previous YC has already handled the remembered set info
-// accept    -> x - See above
-//
-// x is:
-//  reject        - if the relocation finished while the current YC was running
-//  accept        - if the relocation finished before the current YC started
-//
-// Note the subtlety that even though the relocation could released the page
-// and made it non-retainable, the relocation code might not have gotten to
-// the point where the page is removed from the page table. It could also be
-// the case that the relocated page became in-place relocated, and we therefore
-// shouldn't be scanning it this YC.
-//
-// The (reject) state is the "dangerous" state, where both OC and YC work on
-// the same forwarding/page somewhat concurrently. While (accept) denotes that
-// that the entire relocation of a page (including freeing/reusing it) was
-// completed before the current YC started.
-//
-// After all remset entries of relocated objects have been scanned, the code
-// proceeds to visit all pages in the page table, to scan all pages not part
-// of the OC relocation set. Pages with virtual addresses that doesn't match
-// any of the once in the OC relocation set will be visited. Pages with
-// virtual address that *do* have a corresponding forwarding entry has two
-// cases:
-//
-// a) The forwarding entry is marked with (reject). This means that the
-//    corresponding page is guaranteed to be one that has been relocated by the
-//    current OC during the active YC. Any remset entry is guaranteed to have
-//    already been scanned by the scan_forwarding code.
-//
-// b) The forwarding entry is marked with (accept). This means that the page was
-//    *not* created by the OC relocation during this YC, which means that the
-//    page must be scanned.
-//
-
 void ZForwarding::relocated_remembered_fields_after_relocate() {
   assert(is_old(from_age()), "Only old pages have remsets");
-
-  _relocated_remembered_fields_publish_young_seqnum = ZGeneration::young()->seqnum();
 
   if (ZGeneration::young()->is_phase_mark()) {
     relocated_remembered_fields_publish();
@@ -281,16 +200,9 @@ void ZForwarding::relocated_remembered_fields_publish() {
   // used to have remembered set entries. Now publish the fields to
   // the YC.
 
-  const ZPublishState res = _relocated_remembered_fields_state.compare_exchange(ZPublishState::none, ZPublishState::published);
+  const bool res = _relocated_remembered_fields_state.compare_exchange(false, true);
 
-  // none:      OK to publish
-  // published: Not possible - this operation makes this transition
-  // reject:    YC started scanning the "from" page concurrently and rejects the fields
-  //            the OC collected.
-  // accept:    YC accepted the fields published by this function - not possible
-  //            because they weren't published before the CAS above
-
-  if (res == ZPublishState::none) {
+  if (!res) {
     // fields were successfully published
     log_debug(gc, remset)("Forwarding remset published       : " PTR_FORMAT " " PTR_FORMAT, untype(start()), untype(end()));
 
@@ -298,11 +210,6 @@ void ZForwarding::relocated_remembered_fields_publish() {
   }
 
   log_debug(gc, remset)("Forwarding remset discarded       : " PTR_FORMAT " " PTR_FORMAT, untype(start()), untype(end()));
-
-  // reject: YC scans the remset concurrently
-  // accept: YC accepted published remset - not possible, we just atomically published it
-  //         YC failed to retain page - not possible, since the current page is retainable
-  assert(res == ZPublishState::reject, "Unexpected value");
 
   // YC has rejected the stored values and will (or have already) find them them itself
   _relocated_remembered_fields_array.clear_and_deallocate();
@@ -312,42 +219,22 @@ void ZForwarding::relocated_remembered_fields_notify_concurrent_scan_of() {
   // Invariant: The page is being retained
   assert(ZGeneration::young()->is_phase_mark(), "Only called when");
 
-  const ZPublishState res = _relocated_remembered_fields_state.compare_exchange(ZPublishState::none, ZPublishState::reject);
+  const bool res = _relocated_remembered_fields_state.compare_exchange(false, true);
 
-  // none:      OC has not completed relocation
-  // published: OC has completed and published all relocated remembered fields
-  // reject:    A previous YC has already handled the field
-  // accept:    A previous YC has determined that there's no concurrency between
-  //            OC relocation and YC remembered fields scanning - not possible
-  //            since the page has been retained (still being relocated) and
-  //            we are in the process of scanning fields
-
-  if (res == ZPublishState::none) {
+  if (!res) {
     // Successfully notified and rejected any collected data from the OC
     log_debug(gc, remset)("Forwarding remset eager           : " PTR_FORMAT " " PTR_FORMAT, untype(start()), untype(end()));
 
     return;
   }
 
-  if (res == ZPublishState::published) {
-    // OC relocation already collected and published fields
+  // OC relocation already collected and published fields
 
-    // Still notify concurrent scanning and reject the collected data from the OC
-    const ZPublishState res2 = _relocated_remembered_fields_state.compare_exchange(ZPublishState::published, ZPublishState::reject);
-    assert(res2 == ZPublishState::published, "Should not fail");
+  log_debug(gc, remset)("Forwarding remset eager and reject: " PTR_FORMAT " " PTR_FORMAT, untype(start()), untype(end()));
 
-    log_debug(gc, remset)("Forwarding remset eager and reject: " PTR_FORMAT " " PTR_FORMAT, untype(start()), untype(end()));
-
-    // The YC rejected the publish fields and is responsible for the array
-    // Eagerly deallocate the memory
-    _relocated_remembered_fields_array.clear_and_deallocate();
-    return;
-  }
-
-  log_debug(gc, remset)("Forwarding remset redundant       : " PTR_FORMAT " " PTR_FORMAT, untype(start()), untype(end()));
-
-  // Previous YC already handled the remembered fields
-  assert(res == ZPublishState::reject, "Unexpected value");
+  // The YC rejected the publish fields and is responsible for the array
+  // Eagerly deallocate the memory
+  _relocated_remembered_fields_array.clear_and_deallocate();
 }
 
 bool ZForwarding::relocated_remembered_fields_published_contains(volatile zpointer* p) {

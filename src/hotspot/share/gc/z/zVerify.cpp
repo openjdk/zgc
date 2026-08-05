@@ -763,8 +763,10 @@ void ZVerify::after_relocation(ZForwarding* forwarding) {
     return;
   }
 
-  if (ZGeneration::young()->is_phase_mark() &&
-      forwarding->relocated_remembered_fields_is_concurrently_scanned()) {
+  if (ZGeneration::young()->is_phase_mark()
+    // TODO: What's this all about?
+    // && forwarding->relocated_remembered_fields_is_concurrently_scanned()
+    ) {
     // Can't verify to-space objects if concurrent YC rejected published
     // remset information, because that data is incomplete. The YC might
     // not have finished scanning the forwarding, and might be about to
@@ -785,8 +787,10 @@ void ZVerify::after_scan(ZForwarding* forwarding) {
     return;
   }
 
-  if (!ZGeneration::old()->is_phase_relocate() ||
-      !forwarding->relocated_remembered_fields_is_concurrently_scanned()) {
+  if (!ZGeneration::old()->is_phase_relocate()
+      // TODO: What's this all about?
+      // || !forwarding->relocated_remembered_fields_is_concurrently_scanned()
+    ) {
     // Only verify remembered set from remembered set scanning, when the
     // remembered set scanning rejected the publishing information of concurrent
     // old generation relocation

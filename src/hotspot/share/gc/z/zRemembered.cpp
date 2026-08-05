@@ -94,11 +94,12 @@ bool ZRemembered::should_scan_page(ZPage* page) const {
     return true;
   }
 
-  if (!forwarding->relocated_remembered_fields_is_concurrently_scanned()) {
+  if (page->is_allocating()) {
     // Safe to scan
     return true;
   }
 
+  // TODO: Look at what the comment below is saying
   // If we get here, we know that the old collection is concurrently relocating
   // objects. We need to be extremely careful not to scan a page that is
   // concurrently being in-place relocated because it's objects and previous

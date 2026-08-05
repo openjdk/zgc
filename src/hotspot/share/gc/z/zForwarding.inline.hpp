@@ -69,9 +69,8 @@ inline ZForwarding::ZForwarding(ZPage* page, ZPageAge to_age, size_t nentries)
     _ref_lock(),
     _ref_count(1),
     _done(false),
-    _relocated_remembered_fields_state(ZPublishState::none),
+    _relocated_remembered_fields_state(false),
     _relocated_remembered_fields_array(),
-    _relocated_remembered_fields_publish_young_seqnum(0),
     _in_place(false),
     _in_place_top_at_start(),
     _in_place_thread(nullptr) {}
@@ -317,28 +316,13 @@ inline void ZForwarding::relocated_remembered_fields_register(volatile zpointer*
   // Invariant: Page is being retained
   assert(ZGeneration::young()->is_phase_mark(), "Only called when");
 
-  const ZPublishState res = _relocated_remembered_fields_state.load_relaxed();
+  const bool res = _relocated_remembered_fields_state.load_relaxed();
 
-  // none:      Gather remembered fields
-  // published: Have already published fields - not possible since they haven't been
-  //            collected yet
-  // reject:    YC rejected fields collected by the OC
-  // accept:    YC has marked that there's no more concurrent scanning of relocated
-  //            fields - not possible since this code is still relocating objects
-
-  if (res == ZPublishState::none) {
+  if (!res) {
     _relocated_remembered_fields_array.push(p);
     _relocated_remembered_fields_array.push((volatile zpointer*)prev); // TODO: A bit hacky?
     return;
   }
-
-  assert(res == ZPublishState::reject, "Unexpected value");
-}
-
-// Returns true iff the page is being (or about to be) relocated by the OC
-// while the YC gathered the remembered fields of the "from" page.
-inline bool ZForwarding::relocated_remembered_fields_is_concurrently_scanned() const {
-  return _relocated_remembered_fields_state.load_relaxed() == ZPublishState::reject;
 }
 
 template <typename Function>
@@ -346,14 +330,9 @@ inline void ZForwarding::relocated_remembered_fields_apply_to_published(Function
   // Invariant: Page is not being retained
   assert(ZGeneration::young()->is_phase_mark(), "Only called when");
 
-  const ZPublishState res = _relocated_remembered_fields_state.load_acquire();
+  const bool res = _relocated_remembered_fields_state.load_acquire();
 
-  // none:      Nothing published - page had already been relocated before YC started
-  // published: OC relocated and published relocated remembered fields
-  // reject:    A previous YC concurrently scanned relocated remembered fields of the "from" page
-  // accept:    A previous YC marked that it didn't do (reject)
-
-  if (res == ZPublishState::published) {
+  if (res) {
     log_debug(gc, remset)("Forwarding remset accept          : " PTR_FORMAT " " PTR_FORMAT " (" PTR_FORMAT ", %s)",
         untype(start()), untype(end()), p2i(this), Thread::current()->name());
 
@@ -369,22 +348,10 @@ inline void ZForwarding::relocated_remembered_fields_apply_to_published(Function
     _relocated_remembered_fields_array.clear_and_deallocate();
   }
 
-  assert(_relocated_remembered_fields_publish_young_seqnum != 0, "Must have been set");
-  if (_relocated_remembered_fields_publish_young_seqnum == ZGeneration::young()->seqnum()) {
-    log_debug(gc, remset)("scan_forwarding failed retain unsafe " PTR_FORMAT, untype(start()));
-    // The page was relocated concurrently with the current young generation
-    // collection. Mark that it is unsafe (and unnecessary) to call scan_page
-    // on the page in the page table.
-    assert(res != ZPublishState::accept, "Unexpected");
-    _relocated_remembered_fields_state.store_relaxed(ZPublishState::reject);
-  } else {
-    log_debug(gc, remset)("scan_forwarding failed retain safe " PTR_FORMAT, untype(start()));
-    // Guaranteed that the page was fully relocated and removed from page table.
-    // Because of this we can signal to scan_page that any page found in page table
-    // of the same slot as the current forwarding is a page that is safe to scan,
-    // and in fact must be scanned.
-    _relocated_remembered_fields_state.store_relaxed(ZPublishState::accept);
-  }
+  log_debug(gc, remset)("scan_forwarding failed retain unsafe " PTR_FORMAT, untype(start()));
+  // The page was relocated concurrently with the current young generation
+  // collection. Mark that it is unsafe (and unnecessary) to call scan_page
+  // on the page in the page table.
 }
 
 #endif // SHARE_GC_Z_ZFORWARDING_INLINE_HPP
