@@ -512,8 +512,11 @@ public:
       ZForwarding* forwarding = entry._forwarding;
       ZPage* page = entry._page;
 
+      const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_reloc_start();
+      const bool first_yc = young_marks == 1;
+
       // Scan forwarding
-      if (forwarding != nullptr) {
+      if (forwarding != nullptr && first_yc) {
         bool found_roots = _remembered->scan_forwarding(forwarding, &context);
         ZVerify::after_scan(forwarding);
         if (found_roots) {
