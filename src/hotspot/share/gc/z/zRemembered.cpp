@@ -132,12 +132,24 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
   // need to filter and prune them again.
 
   const bool can_trust_live_bits = page->is_relocatable() &&
-                                   !ZGeneration::old()->is_phase_mark() &&
-                                   ZGeneration::old()->young_marks_since_old_mark_end() == 1;
-
+                                   !ZGeneration::old()->is_phase_mark();
+  const bool first_yc = ZGeneration::old()->young_marks_since_old_mark_end() == 1;
+  const bool skip_page = can_trust_live_bits && !page->is_marked();
   bool result = false;
 
-  if (!can_trust_live_bits) {
+  if (skip_page) {
+    // All objects are dead - do nothing
+    page->log_msg(" (scan_page_remembered_dead)");
+    return result;
+  }
+
+  if (can_trust_live_bits && first_yc) {
+    // We have full liveness info - Only scan remset entries in live objects
+    page->log_msg(" (scan_page_remembered_in_live)");
+    page->oops_do_remembered_in_live([&](volatile zpointer* p) {
+      result |= scan_field(p);
+    });
+  } else {
     // We don't have full liveness info - scan all remset entries
     page->log_msg(" (scan_page_remembered)");
     int count = 0;
@@ -146,15 +158,6 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
       count++;
     });
     page->log_msg(" (scan_page_remembered done: %d ignoring: " PTR_FORMAT " )", count, p2i(page->remset_current()));
-  } else if (page->is_marked()) {
-    // We have full liveness info - Only scan remset entries in live objects
-    page->log_msg(" (scan_page_remembered_in_live)");
-    page->oops_do_remembered_in_live([&](volatile zpointer* p) {
-      result |= scan_field(p);
-    });
-  } else {
-    page->log_msg(" (scan_page_remembered_dead)");
-    // All objects are dead - do nothing
   }
 
   if (ZVerifyRemembered) {
@@ -164,17 +167,14 @@ bool ZRemembered::scan_page_and_clear_remset(ZPage* page) const {
     OrderAccess::storestore();
   }
 
-  if (!can_trust_live_bits || page->is_marked()) {
-    if (ZOldRefCount) {
-      page->verify_remset_cleared_or_store_good_previous();
-    } else {
-      // If we have consumed the remset entries above we also clear them.
-      // The exception is if the page is completely empty/garbage, where we don't
-      // want to race with an old collection modifying the remset as well.
-      page->clear_remset_previous();
-    }
+  if (ZOldRefCount) {
+    page->verify_remset_cleared_or_store_good_previous();
+  } else {
+    // If we have consumed the remset entries above we also clear them.
+    // The exception is if the page is completely empty/garbage, where we don't
+    // want to race with an old collection modifying the remset as well.
+    page->clear_remset_previous();
   }
-
 
   return result;
 }
