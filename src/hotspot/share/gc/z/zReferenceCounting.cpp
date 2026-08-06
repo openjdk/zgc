@@ -394,12 +394,20 @@ ZReferenceCounting::ZReferenceCounting()
   : _state(ZOldRefCount ? new State() : nullptr) {}
 
 void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool remembered) {
+  ZPage* p_page = ZHeap::heap()->page(p);
+  const bool p_is_old = p_page->is_old();
+
+  bool forgotten = false;
+
+  if (p_is_old) {
+    forgotten = ZGeneration::young()->forget_previous(p);
+  }
+
   if (is_null(addr)) {
     // Only count old-to-old edges.
     return;
   }
 
-  ZPage* p_page = ZHeap::heap()->page(p);
   ZPage* addr_page = ZHeap::heap()->page(addr);
 
   if (!addr_page->is_old()) {
@@ -413,7 +421,7 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool r
     addr_page->set_pardoned(addr);
   }
 
-  if (!p_page->is_old()) {
+  if (!p_is_old) {
     // Young-to-old edges are not reference counted, but their previous old
     // value must be protected for the current death-row pass.
     return;
@@ -432,8 +440,6 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool r
                                    ZRefCount::count(to_oop(addr)->mark()) == 0;
 
   const bool suppressed_promoting_edge = p_flip_promoted || addr_flip_promoted || addr_reloc_promoted;
-
-  const bool forgotten = ZGeneration::young()->forget_previous(p);
 
   if (suppressed_promoting_edge) {
     assert(!forgotten, "why is there a prev bit on promoting edges?");
