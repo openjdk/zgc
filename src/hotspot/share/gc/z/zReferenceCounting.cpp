@@ -283,8 +283,8 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
           }
 
           if (pre_length == small_pages.length()) {
-            assert(false, "Something weird happened");
-            _small_allocation_pages.addr(0)->_alloc_pages.push(small_pages.pop());
+            assert(ZNUMA::is_faked(), "Something weird happened");
+            _small_allocation_pages.addr(0)->push(small_pages.pop());
           }
         }
 
@@ -303,8 +303,8 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
           }
 
           if (pre_length == medium_pages.length()) {
-            assert(false, "Something weird happened");
-            _medium_allocation_pages.addr(0)->_alloc_pages.push(medium_pages.pop());
+            assert(ZNUMA::is_faked(), "Something weird happened");
+            _medium_allocation_pages.addr(0)->push(medium_pages.pop());
           }
         }
       }
