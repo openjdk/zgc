@@ -26,7 +26,7 @@
 
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zArray.hpp"
-#include "gc/z/zGeneration.hpp"
+#include "gc/z/zBitMap.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zLock.hpp"
 #include "gc/z/zPageType.hpp"
@@ -52,6 +52,28 @@ public:
   struct State;
 
 private:
+  struct FoundDeathRow {
+    ZMovableBitMap _bitmaps[2];
+    int            _current;
+
+    FoundDeathRow();
+
+    void flip();
+    void register_page(ZPage* page);
+
+    void verify_previous() const;
+
+    template <typename Function>
+    void par_iterate_death_row_pages(ZPageTable* page_table, Function function);
+
+    BitMap& current_bitmap();
+    const BitMap& current_bitmap() const;
+    BitMap& previous_bitmap();
+    const BitMap& previous_bitmap() const;
+
+    static BitMap::idx_t page_to_index(const ZPage* page);
+  } _found_death_row;
+
   State* _state;
 
   State* state();
@@ -75,6 +97,11 @@ public:
   void on_root(zaddress addr);
 
   void process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator);
+
+  template <typename Function>
+  void par_iterate_death_row_pages(ZPageTable* page_table, Function function);
+
+  void flip_found_death_row();
 
   FreeListAllocation free_list_alloc_object(size_t size, ZPageType type);
 };

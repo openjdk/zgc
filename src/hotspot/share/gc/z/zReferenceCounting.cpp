@@ -41,6 +41,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/markWord.inline.hpp"
 #include "runtime/atomicAccess.hpp"
+#include "utilities/bitMap.inline.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/integerCast.hpp"
@@ -337,6 +338,56 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
   }
 };
 
+ZReferenceCounting::FoundDeathRow::FoundDeathRow()
+    // Array initialization requires copy constructors, which CHeapBitMap
+    // doesn't provide. Instantiate two instances, and populate an array
+    // with pointers to the two instances.
+  : _bitmaps{{ZAddressOffsetMax >> ZGranuleSizeShift, mtGC, true /* clear */},
+             {ZAddressOffsetMax >> ZGranuleSizeShift, mtGC, true /* clear */}},
+    _current{0} {}
+
+BitMap& ZReferenceCounting::FoundDeathRow::current_bitmap() {
+  return _bitmaps[_current];
+}
+
+const BitMap& ZReferenceCounting::FoundDeathRow::current_bitmap() const {
+  return _bitmaps[_current];
+}
+
+BitMap& ZReferenceCounting::FoundDeathRow::previous_bitmap() {
+  return _bitmaps[_current ^ 1];
+}
+
+const BitMap& ZReferenceCounting::FoundDeathRow::previous_bitmap() const {
+  return _bitmaps[_current ^ 1];
+}
+
+BitMap::idx_t ZReferenceCounting::FoundDeathRow::page_to_index(const ZPage* page) {
+  return untype(page->start()) >> ZGranuleSizeShift;
+}
+
+void ZReferenceCounting::FoundDeathRow::flip() {
+  _current ^= 1;
+}
+
+void ZReferenceCounting::FoundDeathRow::register_page(ZPage* page) {
+  current_bitmap().par_set_bit(page_to_index(page), memory_order_relaxed);
+}
+
+void ZReferenceCounting::FoundDeathRow::verify_previous() const {
+  // Should all have been claimed
+  postcond(previous_bitmap().find_first_set_bit(0u) == previous_bitmap().size());
+}
+
+template <typename Function>
+void ZReferenceCounting::FoundDeathRow::par_iterate_death_row_pages(ZPageTable* page_table, Function function) {
+  previous_bitmap().iterate([&](BitMap::idx_t index) {
+    if (previous_bitmap().par_clear_bit(index, memory_order_relaxed)) {
+      function(page_table->at(index));
+    }
+  });
+}
+
 ZReferenceCounting::State* ZReferenceCounting::state() {
   precond(ZOldRefCount);
   return _state;
@@ -397,7 +448,8 @@ void ZReferenceCounting::decrement(zaddress addr) {
 }
 
 ZReferenceCounting::ZReferenceCounting()
-  : _state(ZOldRefCount ? new State() : nullptr) {}
+  : _found_death_row(),
+    _state(ZOldRefCount ? new State() : nullptr) {}
 
 void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool remembered) {
   ZPage* p_page = ZHeap::heap()->page(p);
@@ -462,6 +514,7 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool r
   if (!forgotten) {
     if (addr_page->is_allocating()) {
       addr_page->set_death_row(addr);
+      _found_death_row.register_page(addr_page);
     }
     OrderAccess::release();
     decrement(addr);
@@ -508,6 +561,7 @@ void ZReferenceCounting::on_promotion(zaddress addr) {
 
   ZPage* page = ZHeap::heap()->page(addr);
   page->set_death_row(addr);
+  _found_death_row.register_page(page);
 }
 
 void ZReferenceCounting::on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator) { // TODO: Completeness for pardoning
@@ -647,20 +701,30 @@ static bool try_kill(ZPage* page, zaddress addr) {
 }
 
 class ZProcessDeathRowTask final : public ZTask {
-  ZReferenceCounting::State* _state;
-  ZGenerationPagesParallelIterator _pt_iter;
+  ZReferenceCounting::State* const _state;
+  ZPageTable* const _page_table;
+  ZPageAllocator* const _page_allocator;
+  ZReferenceCounting* const _reference_counting;
 
 public:
-  ZProcessDeathRowTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* page_allocator)
+  ZProcessDeathRowTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* _page_allocator, ZReferenceCounting* reference_counting)
     : ZTask("ZProcessDeathRowTask"),
       _state(state),
-      _pt_iter(page_table, ZGenerationId::old, page_allocator) {}
+      _page_table(page_table),
+      _page_allocator(_page_allocator),
+      _reference_counting(reference_counting) {
+    _page_allocator->enable_safe_destroy();
+  }
+
+  ~ZProcessDeathRowTask() {
+    _page_allocator->disable_safe_destroy();
+  }
 
   void work() final;
 };
 
 class ZCoalesceFreeListsTask final : public ZTask {
-  ZReferenceCounting::State* _state;
+  ZReferenceCounting::State* const _state;
   ZGenerationPagesParallelIterator _pt_iter;
 
 public:
@@ -678,7 +742,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
   //       only have to keep the ZPages we are interested in. This is also relevant
   //       for all our promotion pages during relocation and selection.
 
-  ZProcessDeathRowTask process_death_row_task(state(), page_table, page_allocator);
+  ZProcessDeathRowTask process_death_row_task(state(), page_table, page_allocator, this);
   ZGeneration::young()->workers()->run(&process_death_row_task);
 
   state()->log_free_counters();
@@ -688,22 +752,33 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
   state()->construct_free_list_allocator();
   state()->reset_per_worker_state();
+
+  _found_death_row.verify_previous();
+}
+
+template <typename Function>
+void ZReferenceCounting::par_iterate_death_row_pages(ZPageTable* page_table, Function function) {
+  _found_death_row.par_iterate_death_row_pages(page_table, function);
+}
+
+void ZReferenceCounting::flip_found_death_row() {
+  _found_death_row.flip();
 }
 
 void ZProcessDeathRowTask::work() {
   SuspendibleThreadSetJoiner sts;
 
   Stack<oop, mtGC> dfs_stack;
-
-  _pt_iter.do_pages([&](ZPage* page) {
+  _reference_counting->par_iterate_death_row_pages(_page_table, [&](ZPage* page) {
     precond(dfs_stack.is_empty());
 
-    if (!page->is_allocating()) {
-      // TODO: Construct iterator bitmap for faster iteration instead of filtering
+    if (!page->is_old() || !page->is_allocating()) {
       SuspendibleThreadSet::yield();
-      return true;
+      return;
     }
 
+    // TODO: Maybe the state should contain _found_death_row
+    // TODO: Should pages be pushed here for coalscing. To avoid a page table walk.
     // TODO: Break out functionality, we have so many nested function / lambda scopes with returns.
     // TODO: Clean up interface
     auto& freed = _state->_per_worker_counters.get()._freed;
@@ -801,7 +876,6 @@ void ZProcessDeathRowTask::work() {
     // Yield once per page
     // TODO: Maybe RAII stack object which does this.
     SuspendibleThreadSet::yield();
-    return true;
   });
 }
 

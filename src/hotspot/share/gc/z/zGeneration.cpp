@@ -982,6 +982,9 @@ bool ZGenerationYoung::mark_end() {
   // Notify JVMTI that some tagmap entry objects may have died.
   JvmtiTagMap::set_needs_cleaning();
 
+  // ...
+  _old_ref_count.flip_found_death_row();
+
   return true;
 }
 

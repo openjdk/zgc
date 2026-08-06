@@ -30,6 +30,7 @@ class ZMovableBitMap : public CHeapBitMap {
 public:
   ZMovableBitMap();
   ZMovableBitMap(ZMovableBitMap&& bitmap);
+  using CHeapBitMap::CHeapBitMap;
 
   void init(ZMovableBitMap* other);
   void uninit();
