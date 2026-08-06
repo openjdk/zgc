@@ -619,28 +619,31 @@ bool ZRemembered::scan_field(volatile zpointer* p) const {
   assert(ZGeneration::young()->is_phase_mark(), "Wrong phase");
 
   const zpointer prev = AtomicAccess::load(p);
+
+  if (ZPointer::is_store_good(prev)) {
+    // If the mutator wrote to this field this epoch, then it will take care
+    // of re-remembering and reference counting stake for the last increment
+    // of the previous epoch.
+    return false;
+  }
+
   const zaddress addr = ZBarrier::remset_barrier_on_oop_field_preloaded(p, prev);
 
+  // If the previous value was not store good, it is always the responsibility
+  // of the remembered set scanning to clear the previous bit
+  const bool forgotten = ZOldRefCount && ZGeneration::young()->forget_previous(p);
+
   if (is_null(addr)) {
-    ZGeneration::young()->forget_previous(p);
     return false;
   }
 
   if (ZHeap::heap()->is_young(addr)) {
-    ZGeneration::young()->forget_previous(p);
     remember(p);
     return true;
   }
 
-  if (ZOldRefCount) {
-    const bool first = !ZPointer::is_store_good(prev);
-    // If the mutator performs a concurrent store, and hence the prev value
-    // is store good, then we don't have the correct oop that increment, and
-    // hence we are going to have to let the mutator win with the job of
-    // clearing the prev entry in the remembered set.
-    if (first && ZGeneration::young()->forget_previous(p)) {
-      ZGeneration::young()->on_forget(p, addr);
-    }
+  if (forgotten) {
+    ZGeneration::young()->on_forget(p, addr);
   }
 
   return false;
