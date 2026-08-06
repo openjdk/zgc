@@ -202,11 +202,11 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
     _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
                                      _relocation_set.relocate_promoted_pages());
   } else {
-    _relocate.flip_age_old_pages(selector->not_selected_small(), selector->selected_small());
-    _relocate.flip_age_old_pages(selector->not_selected_medium(), selector->selected_medium());
+    _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_small(), selector->selected_small());
+    _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_medium(), selector->selected_medium());
 
     ZArray<ZPage*> selected_large;
-    _relocate.flip_age_old_pages(selector->not_selected_large(), &selected_large);
+    _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_large(), &selected_large);
   }
 }
 

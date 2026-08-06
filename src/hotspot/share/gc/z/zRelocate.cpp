@@ -36,6 +36,7 @@
 #include "gc/z/zObjectAllocator.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageAge.inline.hpp"
+#include "gc/z/zPageAllocator.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRelocationSet.inline.hpp"
 #include "gc/z/zRootsIterator.hpp"
@@ -1465,11 +1466,6 @@ public:
       SuspendibleThreadSet::yield();
     }
 
-    // TODO: Do something else for old gen to avoid leak
-    //if (promoted_pages.length() != 0) {
-    //  ZGeneration::young()->register_flip_promoted(promoted_pages);
-    //}
-
     for (ZPage* page; _selected_iter.next(&page);) {
       const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
 
@@ -1519,9 +1515,64 @@ public:
   }
 };
 
-void ZRelocate::flip_age_old_pages(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages) {
+// TODO: Move to separate file, merging with the ZGeneration rendezvous code?
+class ZRendezvousHandshakeClosure : public HandshakeClosure {
+public:
+  ZRendezvousHandshakeClosure()
+    : HandshakeClosure("ZRendezvous") {}
+
+  void do_thread(Thread* thread) {
+    // Does nothing
+  }
+};
+
+class ZRendezvousGCThreads: public VM_Operation {
+ public:
+  VMOp_Type type() const { return VMOp_ZRendezvousGCThreads; }
+
+  virtual bool evaluate_at_safepoint() const {
+    // We only care about synchronizing the GC threads.
+    // Leave the Java threads running.
+    return false;
+  }
+
+  virtual bool skip_thread_oop_barriers() const {
+    fatal("Concurrent VMOps should not call this");
+    return true;
+  }
+
+  virtual bool is_gc_operation() const {
+    return true;
+  }
+
+  void doit() {
+    // Light weight "handshake" of the GC threads
+    SuspendibleThreadSet::synchronize();
+    SuspendibleThreadSet::desynchronize();
+  };
+};
+
+void ZRelocate::flip_age_old_pages(ZPageAllocator* page_allocator, const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages) {
   ZFlipAgeOldPagesTask flip_age_task(not_selected_pages, selected_pages);
   workers()->run(&flip_age_task);
+
+  // TODO: Remove rendezvous code when we have better ZPage SMR.
+
+  // Perform a handshake to make sure concurrent threads are not operating on stale
+  // pages from before flip aging before we destroy them.
+  ZRendezvousHandshakeClosure cl;
+  Handshake::execute(&cl);
+
+  // GC threads are not part of the handshake above.
+  // Explicitly "handshake" them.
+  ZRendezvousGCThreads op;
+  VMThread::execute(&op);
+
+  for (int i = 0; i < not_selected_pages->length(); i++) {
+    // Delete non-relocating promoted pages from last cycle
+    ZPage* const page = not_selected_pages->at(i);
+    page_allocator->safe_destroy_page(page);
+  }
 }
 
 void ZRelocate::flip_age_young_pages(const ZArray<ZPage*>* pages) {
