@@ -399,7 +399,7 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool r
 
   bool forgotten = false;
 
-  if (p_is_old) {
+  if (p_is_old && remembered) {
     forgotten = ZGeneration::young()->forget_previous(p);
   }
 
