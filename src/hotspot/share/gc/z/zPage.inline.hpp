@@ -377,8 +377,7 @@ inline void ZPage::iterate_death_row(Function function) {
     function(addr);
     return true;
   };
-  BitMap::idx_t bits = is_large() ? 1u : used() >> object_alignment_shift();
-  _livemap.iterate_death_row(adapter, bits);
+  _livemap.iterate_death_row(adapter);
 }
 
 inline void ZPage::set_pardoned(zaddress addr) {
@@ -412,8 +411,7 @@ inline void ZPage::iterate_pardoned(Function function) {
     function(addr);
     return true;
   };
-  BitMap::idx_t bits = is_large() ? 1u : used() >> object_alignment_shift();
-  _livemap.iterate_pardoned(adapter, bits);
+  _livemap.iterate_pardoned(adapter);
 }
 
 // TODO: Look at callers of these guys; don't want double clearing

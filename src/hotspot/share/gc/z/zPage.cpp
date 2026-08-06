@@ -80,7 +80,6 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     } else {
       remset_alloc();
     }
-    _livemap.initialize_bitmap(); // TODO: Check for redundancy
   }
 }
 

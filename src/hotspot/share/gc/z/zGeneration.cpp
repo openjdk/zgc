@@ -628,10 +628,6 @@ void ZGenerationYoung::collect(ZYoungType type, ConcurrentGCTimer* timer) {
 
   // Phase 9: Concurrent Relocate
   concurrent_relocate();
-
-  // Phase 10: Clear pardons
-  // TODO: Delete after segmented bitmaps are implemented
-  clear_death_row_pardons();
 }
 
 class VM_ZMarkStartYoungAndOld : public VM_ZOperation {
@@ -991,10 +987,6 @@ bool ZGenerationYoung::mark_end() {
 
 void ZGenerationYoung::process_old_death_row() {
   _old_ref_count.process_death_row(_page_table, _page_allocator);
-}
-
-void ZGenerationYoung::clear_death_row_pardons() {
-  _old_ref_count.clear_pardons(_page_table, _page_allocator);
 }
 
 void ZGenerationYoung::relocate_start() {

@@ -669,17 +669,6 @@ public:
   void work() final;
 };
 
-class ZClearPardonTask final : public ZTask {
-  ZGenerationPagesParallelIterator _pt_iter;
-
-public:
-  ZClearPardonTask(ZPageTable* page_table, ZPageAllocator* page_allocator)
-    : ZTask("ZClearPardonTask"),
-      _pt_iter(page_table, ZGenerationId::old, page_allocator) {}
-
-  void work() final;
-};
-
 void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator) {
   // TODO: The task's page table iterators hold all deleted ZPage* via safe_delete.
   //       Maybe we should add some hazard pointer style mechanism instead so we
@@ -696,16 +685,6 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
   state()->construct_free_list_allocator();
   state()->reset_per_worker_state();
-}
-
-void ZReferenceCounting::clear_pardons(ZPageTable* page_table, ZPageAllocator* page_allocator) {
-  // TODO: The task's page table iterators hold all deleted ZPage* via safe_delete.
-  //       Maybe we should add some hazard pointer style mechanism instead so we
-  //       only have to keep the ZPages we are interested in. This is also relevant
-  //       for all our promotion pages during relocation and selection.
-
-  ZClearPardonTask clear_pardon_task(page_table, page_allocator);
-  ZGeneration::young()->workers()->run(&clear_pardon_task);
 }
 
 void ZProcessDeathRowTask::work() {
@@ -855,28 +834,6 @@ void ZCoalesceFreeListsTask::work() {
 }
 
 // TODO: Deal better with large arrays
-
-void ZClearPardonTask::work() {
-  SuspendibleThreadSetJoiner sts;
-
-  // Clear all the pardoned bits to prepare for next GC cycle.
-  _pt_iter.do_pages([&](ZPage* page) {
-    if (!page->is_allocating()) {
-      // TODO: Construct iterator bitmap for faster iteration instead of filtering
-      SuspendibleThreadSet::yield();
-      return true;
-    }
-
-    page->iterate_pardoned([&](zaddress addr) {
-      page->unset_pardoned(addr);
-    });
-
-    // Yield once per page
-    // TODO: Maybe RAII stack object which does this.
-    SuspendibleThreadSet::yield();
-    return true;
-  });
-}
 
 ZReferenceCounting::FreeListAllocation ZReferenceCounting::free_list_alloc_object(size_t size, ZPageType type) {
   precond(type != ZPageType::large);
