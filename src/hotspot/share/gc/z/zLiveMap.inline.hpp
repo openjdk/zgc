@@ -281,7 +281,7 @@ inline BitMap::idx_t  ZLiveMap::pardoned_index(BitMap::idx_t object_index) const
   return _bitmap.size() / 2 + object_index;
 }
 
-inline void ZLiveMap::set_pardoned(BitMap::idx_t object_index) {
+inline bool ZLiveMap::try_set_pardoned(BitMap::idx_t object_index) {
   lazy_reset_death_row_pardonded();
 
   const BitMap::idx_t index = pardoned_index(object_index);
@@ -293,7 +293,11 @@ inline void ZLiveMap::set_pardoned(BitMap::idx_t object_index) {
     reset_segment(segment);
   }
 
-  _bitmap.par_set_bit(index, memory_order_relaxed);
+  return _bitmap.par_set_bit(index, memory_order_relaxed);
+}
+
+inline void ZLiveMap::set_pardoned(BitMap::idx_t object_index) {
+  (void)try_set_pardoned(object_index);
 }
 
 inline void ZLiveMap::unset_pardoned(BitMap::idx_t object_index) {

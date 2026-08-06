@@ -116,6 +116,7 @@ public:
   void iterate_death_row(Function function);
 
   BitMap::idx_t pardoned_index(BitMap::idx_t object_index) const;
+  bool try_set_pardoned(BitMap::idx_t object_index);
   void set_pardoned(BitMap::idx_t object_index);
   void unset_pardoned(BitMap::idx_t object_index);
   bool is_pardoned(BitMap::idx_t object_index) const;

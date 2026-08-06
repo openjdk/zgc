@@ -386,6 +386,12 @@ inline void ZPage::set_pardoned(zaddress addr) {
   _livemap.set_pardoned(index);
 }
 
+inline bool ZPage::try_set_pardoned(zaddress addr) {
+  assert(is_allocating(), "must be");
+  BitMap::idx_t index = dr_bit_index(addr);
+  return _livemap.try_set_pardoned(index);
+}
+
 inline void ZPage::unset_pardoned(zaddress addr) {
   assert(is_allocating(), "must be");
   BitMap::idx_t index = dr_bit_index(addr);
