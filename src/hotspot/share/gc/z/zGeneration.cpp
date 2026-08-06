@@ -604,31 +604,34 @@ void ZGenerationYoung::collect(ZYoungType type, ConcurrentGCTimer* timer) {
 
   abortpoint();
 
-  // TODO: Abstraction violation
-  // Phase X: Free up unreferenced acyclic garbage in the old generation
+  // Phase 5: Free up unreferenced acyclic garbage in the old generation
   concurrent_process_old_death_row();
 
   abortpoint();
 
-  // Phase 5: Concurrent Reset Relocation Set
+  // Phase 6: Concurrent Reset Relocation Set
   concurrent_reset_relocation_set();
 
   abortpoint();
 
-  // Phase 6: Concurrent Select Relocation Set
+  // Phase 7: Concurrent Select Relocation Set
   concurrent_select_relocation_set();
 
   abortpoint();
 
-  // Phase 7: Pause Relocate Start
+  // Phase 8: Pause Relocate Start
   pause_relocate_start();
 
   // Note that we can't have an abortpoint here. We need
   // to let concurrent_relocate() call abort_page()
   // on the remaining entries in the relocation set.
 
-  // Phase 8: Concurrent Relocate
+  // Phase 9: Concurrent Relocate
   concurrent_relocate();
+
+  // Phase 10: Clear pardons
+  // TODO: Delete after segmented bitmaps are implemented
+  clear_death_row_pardons();
 }
 
 class VM_ZMarkStartYoungAndOld : public VM_ZOperation {
@@ -988,6 +991,10 @@ bool ZGenerationYoung::mark_end() {
 
 void ZGenerationYoung::process_old_death_row() {
   _old_ref_count.process_death_row(_page_table, _page_allocator);
+}
+
+void ZGenerationYoung::clear_death_row_pardons() {
+  _old_ref_count.clear_pardons(_page_table, _page_allocator);
 }
 
 void ZGenerationYoung::relocate_start() {

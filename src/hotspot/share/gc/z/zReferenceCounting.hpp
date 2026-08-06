@@ -75,6 +75,7 @@ public:
   void on_root(zaddress addr);
 
   void process_death_row(ZPageTable* page_table, ZPageAllocator* page_allocator);
+  void clear_pardons(ZPageTable* page_table, ZPageAllocator* page_allocator);
 
   FreeListAllocation free_list_alloc_object(size_t size, ZPageType type);
 };

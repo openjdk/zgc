@@ -217,6 +217,7 @@ private:
   void mark_follow();
   bool mark_end();
   void process_old_death_row();
+  void clear_death_row_pardons();
   void relocate_start();
   void relocate();
 

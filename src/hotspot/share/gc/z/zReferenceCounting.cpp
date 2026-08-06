@@ -100,6 +100,18 @@ struct ZRefCount : public AllStatic {
   }
 };
 
+void set_pardoned(ZPage* page, zaddress addr) {
+  if (!page->is_allocating()) {
+    return;
+  }
+
+  if (ZGeneration::young()->is_phase_relocate()) {
+    return;
+  }
+
+  page->set_pardoned(addr);
+}
+
 struct ZReferenceCounting::State : public CHeapObj<mtGC> {
   // Allocation Support
   template <ZPageType PageType>
@@ -355,12 +367,10 @@ void ZReferenceCounting::increment(zaddress addr) {
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      if (page->is_allocating()) {
-        // Increments imply that the last GC cycle still had a reference to the object.
-        // That means it could have escaped into roots before or after root scanning.
-        // So we have to conservatively pardon these objects from the death row.
-        page->set_pardoned(addr);
-      }
+      // Increments imply that the last GC cycle still had a reference to the object.
+      // That means it could have escaped into roots before or after root scanning.
+      // So we have to conservatively pardon these objects from the death row.
+      set_pardoned(page, addr);
 
       return;
     }
@@ -417,9 +427,7 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool r
   // The fact that the mutator had a path to access the previous value means that
   // it could have been loaded concurrently and become a root, after root processing
   // has finished. Therefore, we must pardon the object from any death row processing.
-  if (addr_page->is_allocating()) {
-    addr_page->set_pardoned(addr);
-  }
+  set_pardoned(addr_page, addr);
 
   if (!p_is_old) {
     // Young-to-old edges are not reference counted, but their previous old
@@ -507,7 +515,7 @@ void ZReferenceCounting::on_promotion(zaddress addr) {
 }
 
 void ZReferenceCounting::on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator) { // TODO: Completeness for pardoning
-  to_page->set_pardoned(to_addr);
+  set_pardoned(to_page, to_addr);
 
   if (mutator) {
     // Maintain one stake in the mutator old-to-old relocation until the GC gets to
@@ -601,11 +609,7 @@ void ZReferenceCounting::on_root(zaddress addr) {
     return;
   }
 
-  if (!page->is_allocating()) {
-    return;
-  }
-
-  page->set_pardoned(addr);
+  set_pardoned(page, addr);
 }
 
 static bool can_kill(zaddress addr) {
@@ -651,14 +655,26 @@ public:
 
   void work() final;
 };
-class ZClearPardonAndCoalesceFreeListsTask final : public ZTask {
+
+class ZCoalesceFreeListsTask final : public ZTask {
   ZReferenceCounting::State* _state;
   ZGenerationPagesParallelIterator _pt_iter;
 
 public:
-  ZClearPardonAndCoalesceFreeListsTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* page_allocator)
-    : ZTask("ZClearPardonAndCoalesceFreeListsTask"),
+  ZCoalesceFreeListsTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* page_allocator)
+    : ZTask("ZCoalesceFreeListsTask"),
       _state(state),
+      _pt_iter(page_table, ZGenerationId::old, page_allocator) {}
+
+  void work() final;
+};
+
+class ZClearPardonTask final : public ZTask {
+  ZGenerationPagesParallelIterator _pt_iter;
+
+public:
+  ZClearPardonTask(ZPageTable* page_table, ZPageAllocator* page_allocator)
+    : ZTask("ZClearPardonTask"),
       _pt_iter(page_table, ZGenerationId::old, page_allocator) {}
 
   void work() final;
@@ -675,13 +691,22 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
   state()->log_free_and_pardoned_counters();
 
-  ZClearPardonAndCoalesceFreeListsTask clear_and_coalese_task(state(), page_table, page_allocator);
-  ZGeneration::young()->workers()->run(&clear_and_coalese_task);
+  ZCoalesceFreeListsTask coalese_task(state(), page_table, page_allocator);
+  ZGeneration::young()->workers()->run(&coalese_task);
 
   state()->construct_free_list_allocator();
   state()->reset_per_worker_state();
 }
 
+void ZReferenceCounting::clear_pardons(ZPageTable* page_table, ZPageAllocator* page_allocator) {
+  // TODO: The task's page table iterators hold all deleted ZPage* via safe_delete.
+  //       Maybe we should add some hazard pointer style mechanism instead so we
+  //       only have to keep the ZPages we are interested in. This is also relevant
+  //       for all our promotion pages during relocation and selection.
+
+  ZClearPardonTask clear_pardon_task(page_table, page_allocator);
+  ZGeneration::young()->workers()->run(&clear_pardon_task);
+}
 
 void ZProcessDeathRowTask::work() {
   SuspendibleThreadSetJoiner sts;
@@ -799,7 +824,7 @@ void ZProcessDeathRowTask::work() {
   });
 }
 
-void ZClearPardonAndCoalesceFreeListsTask::work() {
+void ZCoalesceFreeListsTask::work() {
   SuspendibleThreadSetJoiner sts;
 
   auto& free_list_availiable = _state->_per_worker_counters.get()._free_list_availiable;
@@ -812,10 +837,6 @@ void ZClearPardonAndCoalesceFreeListsTask::work() {
       SuspendibleThreadSet::yield();
       return true;
     }
-
-    page->iterate_pardoned([&](zaddress addr) {
-      page->unset_pardoned(addr);
-    });
 
     if (!page->is_large()) {
       const size_t free_size = page->coalesce_free_list();
@@ -834,7 +855,28 @@ void ZClearPardonAndCoalesceFreeListsTask::work() {
 }
 
 // TODO: Deal better with large arrays
-// TODO: Figure out when we can SuspendibleThreadSet::yield()
+
+void ZClearPardonTask::work() {
+  SuspendibleThreadSetJoiner sts;
+
+  // Clear all the pardoned bits to prepare for next GC cycle.
+  _pt_iter.do_pages([&](ZPage* page) {
+    if (!page->is_allocating()) {
+      // TODO: Construct iterator bitmap for faster iteration instead of filtering
+      SuspendibleThreadSet::yield();
+      return true;
+    }
+
+    page->iterate_pardoned([&](zaddress addr) {
+      page->unset_pardoned(addr);
+    });
+
+    // Yield once per page
+    // TODO: Maybe RAII stack object which does this.
+    SuspendibleThreadSet::yield();
+    return true;
+  });
+}
 
 ZReferenceCounting::FreeListAllocation ZReferenceCounting::free_list_alloc_object(size_t size, ZPageType type) {
   precond(type != ZPageType::large);
