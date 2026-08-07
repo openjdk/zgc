@@ -82,7 +82,7 @@ private:
   void increment(zaddress addr);
   void decrement(zaddress addr);
 
-  bool try_kill(ZPage* page, zaddress addr, size_t& pardoned);
+  bool try_kill(ZPage* page, zaddress addr, size_t& pardoned, int observed_count);
 
   class ZProcessDeathRowTask;
 

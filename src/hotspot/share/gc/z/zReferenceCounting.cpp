@@ -666,20 +666,16 @@ void ZReferenceCounting::on_root(zaddress addr) {
   set_pardoned(page, addr);
 }
 
-static bool can_kill(zaddress addr) {
-  return ZRefCount::count(to_oop(addr)->mark()) == 0;
-}
-
-bool ZReferenceCounting::try_kill(ZPage* page, zaddress addr, size_t& pardoned) {
+bool ZReferenceCounting::try_kill(ZPage* page, zaddress addr, size_t& pardoned, int observed_count) {
   assert(page->is_old(), "must be old");
   assert(page->is_allocating(), "must be allocating");
 
-  // Unset might race with pardoned setting in on_remembered.
-  page->unset_death_row(addr);
-
-  if (!can_kill(addr)) {
+  if (observed_count != 0) {
     return false;
   }
+
+  // Unset might race with pardoned setting in on_remembered.
+  page->unset_death_row(addr);
 
   // Acquire the pardon after the ref count read
   OrderAccess::acquire();
@@ -789,7 +785,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
 
     // Push all objects in page to be reclaimed
     page->iterate_death_row([&](zaddress addr) {
-      if (_reference_counting->try_kill(page, addr, pardoned)) {
+      if (_reference_counting->try_kill(page, addr, pardoned, ZRefCount::count(to_oop(addr)->mark()))) {
         oop obj = to_oop(addr);
         dfs_stack.push(obj);
       }
@@ -830,11 +826,12 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
 
             assert(ref_count > 0, "should be positive: %d", ref_count);
 
-            markWord new_mark = ZRefCount::set_count(mark, ref_count - 1);
+            int new_ref_count = ref_count - 1;
+            markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
             if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
               // If we decrement an edge to zero, we traverse through more garbage.
-              if (field_page->is_allocating() && _reference_counting->try_kill(field_page, a, pardoned)) {
+              if (field_page->is_allocating() && _reference_counting->try_kill(field_page, a, pardoned, new_ref_count)) {
                 dfs_stack.push(o);
               }
               break;
