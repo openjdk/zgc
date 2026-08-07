@@ -266,6 +266,17 @@ inline void ZLiveMap::unset_death_row(BitMap::idx_t object_index) {
   _bitmap.par_clear_bit(index, memory_order_relaxed);
 }
 
+inline bool ZLiveMap::is_in_death_row(BitMap::idx_t object_index) {
+  if (!is_death_row_pardoned_reset()) {
+    return false;
+  }
+
+  const BitMap::idx_t index = death_row_index(object_index);
+  const BitMap::idx_t segment = index_to_segment(index);
+  return is_segment_live(segment) &&                  // Segment is live
+         _bitmap.par_at(index, memory_order_relaxed); // Object has death row bit
+}
+
 template <typename Function>
 inline void ZLiveMap::iterate_death_row(Function function) {
   // Death Row bits survive a reset.

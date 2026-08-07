@@ -428,9 +428,8 @@ void ZReferenceCounting::increment(zaddress addr) {
   }
 }
 
-void ZReferenceCounting::decrement(zaddress addr) {
+int ZReferenceCounting::decrement(zaddress addr) {
   oop obj = to_oop(addr);
-  ZPage* page = ZHeap::heap()->page(addr);
 
   for (;;) {
     markWord mark = obj->mark();
@@ -439,14 +438,14 @@ void ZReferenceCounting::decrement(zaddress addr) {
     if (ref_count == ZRefCount::Uncertain) {
       // We can not reliably decrement from the uncertain count using
       // crow reference counting. Leave it in place.
-      return;
+      return ref_count;
     }
 
     int new_ref_count = ref_count == ZRefCount::Min ? ZRefCount::Uncertain : (ref_count - 1);
     markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
     if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      return;
+      return ref_count;
     }
   }
 }
@@ -516,12 +515,15 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool r
   // of the previous epoch and the first decrement of the current epoch effectively
   // cancel out, leaving there to be no need to update the old-to-old reference count.
   if (!forgotten) {
-    if (addr_page->is_allocating()) {
+    // This release orders setting pardon before setting death row, as well as setting
+    // pardon before decrementing.
+    OrderAccess::release();
+
+    if (decrement(addr) == 1 && addr_page->is_allocating()) {
+      // A decrement to zero requires a death row request
       addr_page->set_death_row(addr);
       _found_death_row.register_page(addr_page);
     }
-    OrderAccess::release();
-    decrement(addr);
   }
 }
 
@@ -597,7 +599,14 @@ void ZReferenceCounting::on_old_to_old(zaddress addr, bool was_mutator) {
   ZPage* page = ZHeap::heap()->page(addr);
 
   if (was_mutator) {
-    decrement(addr);
+    // Release to order setting pardon before the death row bit and decrement.
+    OrderAccess::release();
+
+    if (decrement(addr) == 1) {
+      // Decrement to zero; register death row request
+      page->set_death_row(addr);
+      _found_death_row.register_page(page);
+    }
   }
 }
 
@@ -666,19 +675,37 @@ void ZReferenceCounting::on_root(zaddress addr) {
   set_pardoned(page, addr);
 }
 
-bool ZReferenceCounting::try_kill(ZPage* page, zaddress addr, size_t& pardoned, int observed_count) {
+bool ZReferenceCounting::try_kill_root(ZPage* page, zaddress addr, size_t& pardoned) {
   assert(page->is_old(), "must be old");
   assert(page->is_allocating(), "must be allocating");
 
-  // Unset might race with pardoned setting in on_remembered.
-  page->unset_death_row(addr);
+  // Check if the ref count has remained at zero since the 1 -> 0 transition. It
+  // might have gotten incremented since then. If so, there will be pardon bits.
 
-  if (observed_count != 0) {
+  if (ZRefCount::count(to_oop(addr)->mark_acquire()) != 0) {
+    // When the observed count is not zero, we should try to remove the death row
+    // bit. But we have to verify after if it should be concurrently set again
+    // due to racing store barriers.
+    page->set_pardoned(addr);
+    OrderAccess::release();
+    page->unset_death_row(addr);
+
+    // Ensure the death row clearing happens-before the ref count reload.
+    OrderAccess::fence();
+
+    // Check for concurrent decrements after clearing the death row bit, in order
+    // to make sure we don't lose track of objects that are dead.
+    if (ZRefCount::count(to_oop(addr)->mark_acquire()) == 0) {
+      page->set_death_row(addr);
+      _found_death_row.register_page(page);
+    }
+
     return false;
   }
 
-  // Acquire the pardon after the ref count read
-  OrderAccess::acquire();
+  // The mark_acquire() ensures checking for pardon bits is acquired across the
+  // zero ref count observation. This ensures that a mutator decrementing to zero
+  // will be caught as always having a pardon bit.
 
   if (!page->is_pardoned(addr)) {
     return true;
@@ -692,6 +719,37 @@ bool ZReferenceCounting::try_kill(ZPage* page, zaddress addr, size_t& pardoned, 
   page->set_death_row(addr);
   _found_death_row.register_page(page);
   return false;
+}
+
+bool ZReferenceCounting::try_kill_followed(ZPage* page, zaddress addr, size_t& pardoned, int observed_count) {
+  assert(page->is_old(), "must be old");
+  assert(page->is_allocating(), "must be allocating");
+
+  if (observed_count != 0) {
+    // Not even a candidate for freeing
+    return false;
+  }
+
+  if (page->is_in_death_row(addr)) {
+    return false;
+  }
+
+  // A root worker publishes its pardon before clearing the death-row bit.
+  // Acquire that publication after observing the bit clear.
+  OrderAccess::acquire();
+
+  if (page->is_pardoned(addr)) {
+    // Can't kill if death row owned or pardoned
+    OrderAccess::release();
+    // When a followed object is pardoned, there is no need to re-insert death row
+    // row bits as none were cleared.
+    pardoned += ZUtils::object_size(addr);
+    page->set_death_row(addr);
+    _found_death_row.register_page(page);
+    return false;
+  }
+
+  return true;
 }
 
 class ZReferenceCounting::ZProcessDeathRowTask final : public ZTask {
@@ -785,7 +843,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
 
     // Push all objects in page to be reclaimed
     page->iterate_death_row([&](zaddress addr) {
-      if (_reference_counting->try_kill(page, addr, pardoned, ZRefCount::count(to_oop(addr)->mark()))) {
+      if (_reference_counting->try_kill_root(page, addr, pardoned)) {
         oop obj = to_oop(addr);
         dfs_stack.push(obj);
       }
@@ -829,9 +887,10 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
             int new_ref_count = ref_count - 1;
             markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
-            if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
+            if (o->cas_set_mark(new_mark, mark, memory_order_acquire) == mark) {
               // If we decrement an edge to zero, we traverse through more garbage.
-              if (field_page->is_allocating() && _reference_counting->try_kill(field_page, a, pardoned, new_ref_count)) {
+              if (field_page->is_allocating() &&
+                  _reference_counting->try_kill_followed(field_page, a, pardoned, new_ref_count)) {
                 dfs_stack.push(o);
               }
               break;
@@ -867,6 +926,8 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
       } else {
         obj_page->free_object_to_free_list(addr);
       }
+
+      obj_page->unset_death_row(addr);
     }
 
     // Yield once per page

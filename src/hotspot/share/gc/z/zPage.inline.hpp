@@ -369,6 +369,11 @@ inline void ZPage::unset_death_row(zaddress addr) {
   _livemap.unset_death_row(index);
 }
 
+inline bool ZPage::is_in_death_row(zaddress addr) {
+  BitMap::idx_t index = dr_bit_index(addr);
+  return _livemap.is_in_death_row(index);
+}
+
 template <typename Function>
 inline void ZPage::iterate_death_row(Function function) {
   assert(is_allocating(), "must be");

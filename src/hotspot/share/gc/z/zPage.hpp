@@ -175,6 +175,7 @@ public:
   BitMap::idx_t dr_bit_index(zaddress addr) const; // TODO: private?
   void set_death_row(zaddress addr);
   void unset_death_row(zaddress addr);
+  bool is_in_death_row(zaddress addr);
   template <typename Function>
   void iterate_death_row(Function function);
 

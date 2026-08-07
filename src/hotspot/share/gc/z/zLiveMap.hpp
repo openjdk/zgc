@@ -112,6 +112,7 @@ public:
   BitMap::idx_t death_row_index(BitMap::idx_t object_index) const;
   void set_death_row(BitMap::idx_t object_index);
   void unset_death_row(BitMap::idx_t object_index);
+  bool is_in_death_row(BitMap::idx_t object_index);
   template <typename Function>
   void iterate_death_row(Function function);
 

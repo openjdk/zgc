@@ -80,9 +80,11 @@ private:
   const State* state() const;
 
   void increment(zaddress addr);
-  void decrement(zaddress addr);
+  // Returns the fetched value before the decrement
+  int decrement(zaddress addr);
 
-  bool try_kill(ZPage* page, zaddress addr, size_t& pardoned, int observed_count);
+  bool try_kill_root(ZPage* page, zaddress addr, size_t& pardoned);
+  bool try_kill_followed(ZPage* page, zaddress addr, size_t& pardoned, int observed_count);
 
   class ZProcessDeathRowTask;
 
