@@ -670,12 +670,12 @@ bool ZReferenceCounting::try_kill(ZPage* page, zaddress addr, size_t& pardoned, 
   assert(page->is_old(), "must be old");
   assert(page->is_allocating(), "must be allocating");
 
+  // Unset might race with pardoned setting in on_remembered.
+  page->unset_death_row(addr);
+
   if (observed_count != 0) {
     return false;
   }
-
-  // Unset might race with pardoned setting in on_remembered.
-  page->unset_death_row(addr);
 
   // Acquire the pardon after the ref count read
   OrderAccess::acquire();
