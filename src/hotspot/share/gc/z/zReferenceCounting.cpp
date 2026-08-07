@@ -197,20 +197,24 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
   // Death Row Counters Support
   struct Counters {
     size_t _freed = 0;
+    size_t _pardoned = 0;
     size_t _free_list_availiable = 0;
   };
 
   ZPerWorker<Counters> _per_worker_counters;
 
-  void log_free_counters() {
+  void log_free_and_pardoned_counters() {
     size_t freed = 0;
+    size_t pardoned = 0;
 
     ZPerWorkerIterator<State::Counters> counters_iter{&_per_worker_counters};
     for (State::Counters* counters; counters_iter.next(&counters);) {
       freed += counters->_freed;
+      pardoned += counters->_pardoned;
     }
 
     log_info(gc)("Old Generation Reclaimed: " PROPERFMT, PROPERFMTARGS(freed));
+    log_info(gc)("Old Generation Pardoned: " PROPERFMT, PROPERFMTARGS(pardoned));
   }
 
   void record_and_log_free_list_availiable_counters() {
@@ -666,13 +670,12 @@ static bool can_kill(zaddress addr) {
   return ZRefCount::count(to_oop(addr)->mark()) == 0;
 }
 
-static bool try_kill(ZPage* page, zaddress addr) {
+static bool try_kill(ZPage* page, zaddress addr, size_t& pardoned) {
   assert(page->is_old(), "must be old");
   assert(page->is_allocating(), "must be allocating");
 
-  if (page->is_pardoned(addr)) {
-    return false;
-  }
+  // Unset might race with pardoned setting in on_remembered.
+  page->unset_death_row(addr);
 
   if (!can_kill(addr)) {
     return false;
@@ -681,23 +684,17 @@ static bool try_kill(ZPage* page, zaddress addr) {
   // Acquire the pardon after the ref count read
   OrderAccess::acquire();
 
-  if (page->is_pardoned(addr)) {
-    return false;
+  if (!page->is_pardoned(addr)) {
+    return true;
   }
 
-  // Once we have established there is no pardon *after* checking can_kill,
-  // we can feel certain no mutator can reach this object.
-  // However, we have to ensure that only one of the parallel GC threads claims
-  // the killing of this object by setting the pardon bit.
+  pardoned += ZUtils::object_size(addr);
 
-  if (!page->try_set_pardoned(addr)) {
-    // Another GC thread beat us to it and claimed the killing of this object.
-    return false;
-  }
-
-  // Only the thread that succeeds with claiming the kill unsets the death row.
-  page->unset_death_row(addr);
-  return true;
+  // When the object is pardoned, we have to set the death row back. At this point,
+  // we are no longer racing with the death row setting of the mutator; it has
+  // already been set.
+  page->set_death_row(addr);
+  return false;
 }
 
 class ZProcessDeathRowTask final : public ZTask {
@@ -745,7 +742,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
   ZProcessDeathRowTask process_death_row_task(state(), page_table, page_allocator, this);
   ZGeneration::young()->workers()->run(&process_death_row_task);
 
-  state()->log_free_counters();
+  state()->log_free_and_pardoned_counters();
 
   ZCoalesceFreeListsTask coalese_task(state(), page_table, page_allocator);
   ZGeneration::young()->workers()->run(&coalese_task);
@@ -781,6 +778,7 @@ void ZProcessDeathRowTask::work() {
     // TODO: Should pages be pushed here for coalscing. To avoid a page table walk.
     // TODO: Break out functionality, we have so many nested function / lambda scopes with returns.
     // TODO: Clean up interface
+    auto& pardoned = _state->_per_worker_counters.get()._pardoned;
     auto& freed = _state->_per_worker_counters.get()._freed;
 
     // Acquire the death-row/pardon view of a potentially concurrently
@@ -790,7 +788,7 @@ void ZProcessDeathRowTask::work() {
 
     // Push all objects in page to be reclaimed
     page->iterate_death_row([&](zaddress addr) {
-      if (try_kill(page, addr)) {
+      if (try_kill(page, addr, pardoned)) {
         oop obj = to_oop(addr);
         dfs_stack.push(obj);
       }
@@ -835,7 +833,7 @@ void ZProcessDeathRowTask::work() {
 
             if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
               // If we decrement an edge to zero, we traverse through more garbage.
-              if (field_page->is_allocating() && try_kill(field_page, a)) {
+              if (field_page->is_allocating() && try_kill(field_page, a, pardoned)) {
                 dfs_stack.push(o);
               }
               break;

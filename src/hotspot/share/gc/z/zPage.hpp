@@ -179,7 +179,6 @@ public:
   void iterate_death_row(Function function);
 
   void set_pardoned(zaddress addr);
-  bool try_set_pardoned(zaddress addr);
   void unset_pardoned(zaddress addr);
   bool is_pardoned(zaddress addr) const;
   template <typename Function>
