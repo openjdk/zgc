@@ -82,6 +82,10 @@ private:
   void increment(zaddress addr);
   void decrement(zaddress addr);
 
+  bool try_kill(ZPage* page, zaddress addr, size_t& pardoned);
+
+  class ZProcessDeathRowTask;
+
 public:
   ZReferenceCounting();
 

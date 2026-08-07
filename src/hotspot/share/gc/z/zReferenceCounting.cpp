@@ -670,7 +670,7 @@ static bool can_kill(zaddress addr) {
   return ZRefCount::count(to_oop(addr)->mark()) == 0;
 }
 
-static bool try_kill(ZPage* page, zaddress addr, size_t& pardoned) {
+bool ZReferenceCounting::try_kill(ZPage* page, zaddress addr, size_t& pardoned) {
   assert(page->is_old(), "must be old");
   assert(page->is_allocating(), "must be allocating");
 
@@ -694,10 +694,11 @@ static bool try_kill(ZPage* page, zaddress addr, size_t& pardoned) {
   // we are no longer racing with the death row setting of the mutator; it has
   // already been set.
   page->set_death_row(addr);
+  _found_death_row.register_page(page);
   return false;
 }
 
-class ZProcessDeathRowTask final : public ZTask {
+class ZReferenceCounting::ZProcessDeathRowTask final : public ZTask {
   ZReferenceCounting::State* const _state;
   ZPageTable* const _page_table;
   ZPageAllocator* const _page_allocator;
@@ -762,7 +763,7 @@ void ZReferenceCounting::flip_found_death_row() {
   _found_death_row.flip();
 }
 
-void ZProcessDeathRowTask::work() {
+void ZReferenceCounting::ZProcessDeathRowTask::work() {
   SuspendibleThreadSetJoiner sts;
 
   Stack<oop, mtGC> dfs_stack;
@@ -788,7 +789,7 @@ void ZProcessDeathRowTask::work() {
 
     // Push all objects in page to be reclaimed
     page->iterate_death_row([&](zaddress addr) {
-      if (try_kill(page, addr, pardoned)) {
+      if (_reference_counting->try_kill(page, addr, pardoned)) {
         oop obj = to_oop(addr);
         dfs_stack.push(obj);
       }
@@ -833,7 +834,7 @@ void ZProcessDeathRowTask::work() {
 
             if (o->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
               // If we decrement an edge to zero, we traverse through more garbage.
-              if (field_page->is_allocating() && try_kill(field_page, a, pardoned)) {
+              if (field_page->is_allocating() && _reference_counting->try_kill(field_page, a, pardoned)) {
                 dfs_stack.push(o);
               }
               break;
