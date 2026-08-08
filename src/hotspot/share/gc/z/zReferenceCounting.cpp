@@ -598,15 +598,18 @@ void ZReferenceCounting::on_old_to_old(zaddress addr, bool was_mutator) {
 
   ZPage* page = ZHeap::heap()->page(addr);
 
-  if (was_mutator) {
-    // Release to order setting pardon before the death row bit and decrement.
-    OrderAccess::release();
+  // Release to order setting pardon before the death row bit and decrement.
+  OrderAccess::release();
 
+  if (was_mutator) {
     if (decrement(addr) == 1) {
       // Decrement to zero; register death row request
       page->set_death_row(addr);
       _found_death_row.register_page(page);
     }
+  } else if (ZRefCount::count(to_oop(addr)->mark()) == 0) {
+    page->set_death_row(addr);
+    _found_death_row.register_page(page);
   }
 }
 
