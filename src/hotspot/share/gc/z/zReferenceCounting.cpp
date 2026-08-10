@@ -839,9 +839,9 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
   ZCoalesceFreeListsTask coalese_task(state(), page_table);
   ZGeneration::young()->workers()->run(&coalese_task);
 
+  state()->record_and_log_free_list_availiable_counters();
   state()->construct_free_list_allocator();
   state()->reset_per_worker_state();
-  state()->record_and_log_free_list_availiable_counters();
 
   _found_death_row.verify_previous();
 }
