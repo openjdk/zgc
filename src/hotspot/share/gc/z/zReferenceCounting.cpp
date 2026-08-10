@@ -202,6 +202,7 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
   // Death Row Counters Support
   struct Counters {
     size_t _freed = 0;
+    size_t _large_freed = 0;
     size_t _pardoned = 0;
     size_t _free_list_availiable = 0;
   };
@@ -210,15 +211,18 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
 
   void log_free_and_pardoned_counters() {
     size_t freed = 0;
+    size_t large_freed = 0;
     size_t pardoned = 0;
 
     ZPerWorkerIterator<State::Counters> counters_iter{&_per_worker_counters};
     for (State::Counters* counters; counters_iter.next(&counters);) {
       freed += counters->_freed;
+      large_freed += counters->_large_freed;
       pardoned += counters->_pardoned;
     }
 
     log_info(gc)("Old Generation Reclaimed: " PROPERFMT, PROPERFMTARGS(freed));
+    log_info(gc)("Old Generation Reclaimed(large): " PROPERFMT, PROPERFMTARGS(large_freed));
     log_info(gc)("Old Generation Pardoned: " PROPERFMT, PROPERFMTARGS(pardoned));
   }
 
@@ -807,7 +811,6 @@ public:
 class ZCoalesceFreeListsTask final : public ZTask {
   ZReferenceCounting::State* const _state;
   ZPageTable* const _page_table;
-  ZPageAllocator* const _page_allocator;
 
 public:
   ZCoalesceFreeListsTask(ZReferenceCounting::State* state, ZPageTable* page_table)
@@ -869,6 +872,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
     // TODO: Clean up interface
     auto& pardoned = _state->_per_worker_counters.get()._pardoned;
     auto& freed = _state->_per_worker_counters.get()._freed;
+    auto& large_freed = _state->_per_worker_counters.get()._large_freed;
 
     // Acquire the death-row/pardon view of a potentially concurrently
     // flip-surviving page. This also acquires the is_allocating() check with
@@ -954,10 +958,11 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
         obj_page->forget_current(p);
       }
 
-      freed += ZUtils::object_size(addr);
       if (obj_page->is_large()) {
+        large_freed += ZUtils::object_size(addr);
         ZHeap::heap()->free_page(obj_page);
       } else {
+        freed += ZUtils::object_size(addr);
         obj_page->free_object_to_free_list(addr);
         _state->register_free_page(obj_page);
       }
