@@ -70,8 +70,6 @@ private:
     const BitMap& current_bitmap() const;
     BitMap& previous_bitmap();
     const BitMap& previous_bitmap() const;
-
-    static BitMap::idx_t page_to_index(const ZPage* page);
   } _found_death_row;
 
   State* _state;

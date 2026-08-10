@@ -25,6 +25,7 @@
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zArray.inline.hpp"
+#include "gc/z/zBitMap.inline.hpp"
 #include "gc/z/zCPU.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
@@ -101,7 +102,11 @@ struct ZRefCount : public AllStatic {
   }
 };
 
-void set_pardoned(ZPage* page, zaddress addr) {
+static BitMap::idx_t page_to_index(const ZPage* page) {
+  return untype(page->start()) >> ZGranuleSizeShift;
+}
+
+static void set_pardoned(ZPage* page, zaddress addr) {
   if (!page->is_allocating()) {
     return;
   }
@@ -340,6 +345,30 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
       }
     }
   }
+
+  // TODO: Cleanup interface
+  ZBitMap _to_coalesce{0};
+
+  void initialize_bitmap() {
+    _to_coalesce.initialize(ZAddressOffsetMax >> ZGranuleSizeShift, true /* clear */);
+  }
+
+  void register_free_page(ZPage* page) {
+    _to_coalesce.par_set_bit(page_to_index(page), memory_order_relaxed);
+  }
+
+  template <typename Function>
+  void par_iterate_to_coalesce_pages(ZPageTable* page_table, Function function) {
+    _to_coalesce.iterate([&](BitMap::idx_t index) {
+      if (_to_coalesce.par_clear_bit(index, memory_order_relaxed)) {
+        function(page_table->at(index));
+      }
+    });
+  }
+
+  void release_bitmap() {
+    _to_coalesce.resize(0, false /* clear */);
+  }
 };
 
 ZReferenceCounting::FoundDeathRow::FoundDeathRow()
@@ -364,10 +393,6 @@ BitMap& ZReferenceCounting::FoundDeathRow::previous_bitmap() {
 
 const BitMap& ZReferenceCounting::FoundDeathRow::previous_bitmap() const {
   return _bitmaps[_current ^ 1];
-}
-
-BitMap::idx_t ZReferenceCounting::FoundDeathRow::page_to_index(const ZPage* page) {
-  return untype(page->start()) >> ZGranuleSizeShift;
 }
 
 void ZReferenceCounting::FoundDeathRow::flip() {
@@ -762,13 +787,14 @@ class ZReferenceCounting::ZProcessDeathRowTask final : public ZTask {
   ZReferenceCounting* const _reference_counting;
 
 public:
-  ZProcessDeathRowTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* _page_allocator, ZReferenceCounting* reference_counting)
+  ZProcessDeathRowTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* page_allocator, ZReferenceCounting* reference_counting)
     : ZTask("ZProcessDeathRowTask"),
       _state(state),
       _page_table(page_table),
-      _page_allocator(_page_allocator),
+      _page_allocator(page_allocator),
       _reference_counting(reference_counting) {
     _page_allocator->enable_safe_destroy();
+    _state->initialize_bitmap();
   }
 
   ~ZProcessDeathRowTask() {
@@ -780,13 +806,18 @@ public:
 
 class ZCoalesceFreeListsTask final : public ZTask {
   ZReferenceCounting::State* const _state;
-  ZGenerationPagesParallelIterator _pt_iter;
+  ZPageTable* const _page_table;
+  ZPageAllocator* const _page_allocator;
 
 public:
-  ZCoalesceFreeListsTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* page_allocator)
+  ZCoalesceFreeListsTask(ZReferenceCounting::State* state, ZPageTable* page_table)
     : ZTask("ZCoalesceFreeListsTask"),
       _state(state),
-      _pt_iter(page_table, ZGenerationId::old, page_allocator) {}
+      _page_table(page_table) {}
+
+  ~ZCoalesceFreeListsTask() {
+    _state->release_bitmap();
+  }
 
   void work() final;
 };
@@ -802,7 +833,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
 
   state()->log_free_and_pardoned_counters();
 
-  ZCoalesceFreeListsTask coalese_task(state(), page_table, page_allocator);
+  ZCoalesceFreeListsTask coalese_task(state(), page_table);
   ZGeneration::young()->workers()->run(&coalese_task);
 
   state()->construct_free_list_allocator();
@@ -928,6 +959,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
         ZHeap::heap()->free_page(obj_page);
       } else {
         obj_page->free_object_to_free_list(addr);
+        _state->register_free_page(obj_page);
       }
 
       obj_page->unset_death_row(addr);
@@ -946,24 +978,19 @@ void ZCoalesceFreeListsTask::work() {
   auto& allocating = _state->_per_worker_allocating.get();
 
   // Clear all the pardoned bits to prepare for next GC cycle.
-  _pt_iter.do_pages([&](ZPage* page) {
-    if (!page->is_allocating()) {
-      // TODO: Construct iterator bitmap for faster iteration instead of filtering
-      SuspendibleThreadSet::yield();
-      return true;
-    }
+  _state->par_iterate_to_coalesce_pages(_page_table, [&](ZPage* page) {
+    precond(page->is_allocating());
+    precond(page->is_old());
+    precond(!page->is_large());
 
-    if (!page->is_large()) {
-      const size_t free_size = page->coalesce_free_list();
-      if (free_size != 0) {
-        free_list_availiable += free_size;
-        const uint32_t numa_id = page->is_multi_partition() ? 0 : page->single_partition_id();
-        allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push(page);
-      }
+    const size_t free_size = page->coalesce_free_list();
+    if (free_size != 0) {
+      free_list_availiable += free_size;
+      const uint32_t numa_id = page->is_multi_partition() ? 0 : page->single_partition_id();
+      allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push(page);
     }
 
     // Yield once per page
-    // TODO: Maybe RAII stack object which does this.
     SuspendibleThreadSet::yield();
     return true;
   });
