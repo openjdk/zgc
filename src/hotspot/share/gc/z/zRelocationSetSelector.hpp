@@ -58,6 +58,20 @@ public:
   size_t relocate() const;
 };
 
+class ZRelocationSetLiveStats {
+  friend class ZRelocationSetSelector;
+
+private:
+  size_t _small[ZPageAgeCount];
+  size_t _medium[ZPageAgeCount];
+  size_t _large[ZPageAgeCount];
+
+public:
+  size_t small(ZPageAge age) const;
+  size_t medium(ZPageAge age) const;
+  size_t large(ZPageAge age) const;
+
+};
 class ZRelocationSetSelectorStats {
   friend class ZRelocationSetSelector;
 
@@ -79,7 +93,7 @@ public:
 class ZRelocationSetSelectorGroup {
 private:
   static constexpr int NumPartitionsShift = 11;
-  static constexpr int NumPartitions = int(1) << NumPartitionsShift;
+  static constexpr int NumPartitions = (int(1) << NumPartitionsShift) + 1;
 
   const char* const                _name;
   const ZPageType                  _page_type;
@@ -91,6 +105,7 @@ private:
   ZArray<ZPage*>                   _not_selected_pages;
   size_t                           _forwarding_entries;
   ZRelocationSetSelectorGroupStats _stats[ZPageAgeCount];
+  bool                             _is_young;
 
   bool is_disabled();
   bool is_selectable();
@@ -106,6 +121,7 @@ public:
                               ZPageType page_type,
                               size_t max_page_size,
                               size_t object_size_limit,
+                              ZGenerationId generation_id,
                               double fragmentation_limit);
 
   void register_live_page(ZPage* page);
@@ -122,17 +138,19 @@ public:
 
 class ZRelocationSetSelector : public StackObj {
 private:
+  ZRelocationSetLiveStats     _live_stats;
   ZRelocationSetSelectorGroup _small;
   ZRelocationSetSelectorGroup _medium;
   ZRelocationSetSelectorGroup _large;
   ZArray<ZPage*>              _empty_pages;
+  ZGenerationId               _generation_id;
 
   size_t total() const;
   size_t empty() const;
   size_t relocate() const;
 
 public:
-  ZRelocationSetSelector(double fragmentation_limit);
+  ZRelocationSetSelector(ZGenerationId generation_id, double fragmentation_limit);
 
   void register_live_page(ZPage* page);
   void register_empty_page(ZPage* page);
@@ -151,6 +169,7 @@ public:
   const ZArray<ZPage*>* not_selected_large() const;
   size_t forwarding_entries() const;
 
+  const ZRelocationSetLiveStats& live_stats() const;
   ZRelocationSetSelectorStats stats() const;
 };
 

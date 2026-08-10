@@ -24,6 +24,8 @@
 #include "gc/shared/gc_globals.hpp"
 #include "gc/z/zArray.inline.hpp"
 #include "gc/z/zForwarding.inline.hpp"
+#include "gc/z/zGeneration.inline.hpp"
+#include "gc/z/zGenerationId.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zRelocationSetSelector.inline.hpp"
@@ -45,6 +47,7 @@ ZRelocationSetSelectorGroup::ZRelocationSetSelectorGroup(const char* name,
                                                          ZPageType page_type,
                                                          size_t max_page_size,
                                                          size_t object_size_limit,
+                                                         ZGenerationId generation_id,
                                                          double fragmentation_limit)
   : _name(name),
     _page_type(page_type),
@@ -55,7 +58,8 @@ ZRelocationSetSelectorGroup::ZRelocationSetSelectorGroup(const char* name,
     _live_pages(),
     _not_selected_pages(),
     _forwarding_entries(0),
-    _stats() {}
+    _stats(),
+    _is_young(generation_id == ZGenerationId::young) {}
 
 bool ZRelocationSetSelectorGroup::is_disabled() {
   // Only medium pages can be disabled
@@ -171,17 +175,30 @@ void ZRelocationSetSelectorGroup::select_inner() {
   size_t rejected_live_bytes_per_age[ZPageAgeCount] = {};
   size_t rejected_npages_per_age[ZPageAgeCount] = {};
 
+  const uint tenuring_threshold = _is_young ? ZGeneration::young()->tenuring_threshold() : ZPageAgeCount;
+
   // Finalize selection
   for (int i = selected_from; i < _live_pages.length(); i++) {
     ZPage* const page = _live_pages.at(i);
-    _not_selected_pages.append(page);
+    if (untype(page->age()) >= tenuring_threshold) {
+      // Swap in promoting page and select the page
+      ::swap(_live_pages.at(selected_from), _live_pages.at(i));
+      selected_from++;
+      selected_forwarding_entries += ZForwarding::nentries(page);
+    } else {
+      _not_selected_pages.append(page);
 
-    // Update rejected totals per age
-    rejected_live_bytes_per_age[untype(page->age())] += page->live_bytes();
-    rejected_npages_per_age[untype(page->age())] += 1;
+      // Update rejected totals per age
+      rejected_live_bytes_per_age[untype(page->age())] += page->live_bytes();
+      rejected_npages_per_age[untype(page->age())] += 1;
+    }
   }
   _live_pages.trunc_to(selected_from);
   _forwarding_entries = selected_forwarding_entries;
+
+  for (ZPage* page : _not_selected_pages) {
+    postcond(untype(page->age()) < tenuring_threshold);
+  }
 
   // Update statistics
   for (uint i = 0; i < ZPageAgeCount; ++i) {
@@ -224,11 +241,13 @@ void ZRelocationSetSelectorGroup::select() {
   event.commit((u8)_page_type, s._npages_candidates, s._total, s._empty, s._npages_selected, s._relocate);
 }
 
-ZRelocationSetSelector::ZRelocationSetSelector(double fragmentation_limit)
-  : _small("Small", ZPageType::small, ZPageSizeSmall, ZObjectSizeLimitSmall, fragmentation_limit),
-    _medium("Medium", ZPageType::medium, ZPageSizeMediumMax, ZObjectSizeLimitMedium, fragmentation_limit),
-    _large("Large", ZPageType::large, 0 /* max_page_size */, 0 /* object_size_limit */, fragmentation_limit),
-    _empty_pages() {}
+ZRelocationSetSelector::ZRelocationSetSelector(ZGenerationId generation_id, double fragmentation_limit)
+  : _live_stats(),
+    _small("Small", ZPageType::small, ZPageSizeSmall, ZObjectSizeLimitSmall, generation_id, fragmentation_limit),
+    _medium("Medium", ZPageType::medium, ZPageSizeMediumMax, ZObjectSizeLimitMedium, generation_id, fragmentation_limit),
+    _large("Large", ZPageType::large, 0 /* max_page_size */, 0 /* object_size_limit */, generation_id, fragmentation_limit),
+    _empty_pages(),
+    _generation_id(generation_id) {}
 
 void ZRelocationSetSelector::select() {
   // Select pages to relocate. The resulting relocation set will be
@@ -246,6 +265,10 @@ void ZRelocationSetSelector::select() {
 
   // Send event
   event.commit(total(), empty(), relocate());
+}
+
+const ZRelocationSetLiveStats& ZRelocationSetSelector::live_stats() const {
+  return _live_stats;
 }
 
 ZRelocationSetSelectorStats ZRelocationSetSelector::stats() const {

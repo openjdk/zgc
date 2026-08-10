@@ -230,7 +230,7 @@ static double fragmentation_limit(ZGenerationId generation) {
 
 void ZGeneration::select_relocation_set(bool promote_all) {
   // Register relocatable pages with selector
-  ZRelocationSetSelector selector(fragmentation_limit(_id));
+  ZRelocationSetSelector selector(_id, fragmentation_limit(_id));
   {
     ZGenerationPagesIterator pt_iter(_page_table, _id, _page_allocator);
     for (ZPage* page; pt_iter.next(&page);) {
@@ -264,17 +264,15 @@ void ZGeneration::select_relocation_set(bool promote_all) {
 
     // Reclaim remaining empty pages
     free_empty_pages(&selector, 0 /* bulk */);
+
+    // Select tenuring threashold
+    if (is_young()) {
+      ZGeneration::young()->select_tenuring_threshold(selector.live_stats(), promote_all);
+    }
   }
 
   // Select relocation set
   selector.select();
-
-  // Selecting tenuring threshold must be done after select
-  // which produces the liveness data, but before install,
-  // which consumes the tenuring threshold.
-  if (is_young()) {
-    ZGeneration::young()->select_tenuring_threshold(selector.stats(), promote_all);
-  }
 
   // Install relocation set
   _relocation_set.install(&selector);
@@ -760,7 +758,7 @@ void ZGenerationYoung::concurrent_reset_relocation_set() {
   reset_relocation_set();
 }
 
-void ZGenerationYoung::select_tenuring_threshold(ZRelocationSetSelectorStats stats, bool promote_all) {
+void ZGenerationYoung::select_tenuring_threshold(const ZRelocationSetLiveStats& stats, bool promote_all) {
   const char* reason = "";
   if (promote_all) {
     _tenuring_threshold = 0;
@@ -775,7 +773,7 @@ void ZGenerationYoung::select_tenuring_threshold(ZRelocationSetSelectorStats sta
   log_info(gc, reloc)("Using tenuring threshold: %d (%s)", _tenuring_threshold, reason);
 }
 
-uint ZGenerationYoung::compute_tenuring_threshold(ZRelocationSetSelectorStats stats) {
+uint ZGenerationYoung::compute_tenuring_threshold(const ZRelocationSetLiveStats& stats) {
   size_t young_live_total = 0;
   size_t young_live_last = 0;
   double young_life_expectancy_sum = 0.0;
@@ -783,7 +781,7 @@ uint ZGenerationYoung::compute_tenuring_threshold(ZRelocationSetSelectorStats st
   uint last_populated_age = 0;
 
   for (ZPageAge age : ZPageAgeRangeAll) {
-    const size_t young_live = stats.small(age).live() + stats.medium(age).live() + stats.large(age).live();
+    const size_t young_live = stats.small(age) + stats.medium(age) + stats.large(age);
     if (young_live > 0) {
       last_populated_age = untype(age);
       if (young_live_last > 0) {
