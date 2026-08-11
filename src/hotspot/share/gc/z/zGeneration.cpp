@@ -1101,6 +1101,10 @@ ZReferenceCounting::FreeListAllocation ZGenerationYoung::free_list_alloc_object(
   return _old_ref_count.free_list_alloc_object(size, type);
 }
 
+void ZGenerationYoung::on_free_list_insert(const ZPage* page) {
+  _old_ref_count.on_free_list_insert(page);
+}
+
 ZGenerationTracer* ZGenerationYoung::jfr_tracer() {
   return &_jfr_tracer;
 }
@@ -1346,6 +1350,9 @@ void ZGenerationOld::concurrent_remap_young_roots() {
 
 void ZGenerationOld::mark_start() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
+
+  // ZGeneration::young()->mark_start() is assumed to have just ran
+  _young_seqnum_at_mark_start = ZGeneration::young()->seqnum();
 
   // Verification
   ClassLoaderDataGraph::verify_claimed_marks_cleared(ClassLoaderData::_claim_strong);

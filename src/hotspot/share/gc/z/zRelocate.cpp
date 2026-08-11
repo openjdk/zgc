@@ -482,7 +482,7 @@ static void retire_target_page(ZGeneration* generation, ZPage* page) {
   // relocation completed.
   if (page->used() == 0) {
     ZHeap::heap()->free_page(page);
-  } else if (ZOldRefCount) {
+  } else if (ZOldRefCount && page->is_old()) {
     // Put the remainder in the freelist.
     // TODO: For shared pages this has the same race as the used statistics
     //       above, need the same last reference does the retire fix so we do

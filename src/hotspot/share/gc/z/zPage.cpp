@@ -31,6 +31,7 @@
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageType.hpp"
+#include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
 #include "gc/z/zUtils.hpp"
@@ -365,6 +366,7 @@ size_t ZPage::coalesce_free_list() {
 }
 
 void ZPage::free_tail_to_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_old(), "Reference-counting may only free objects on old pages");
   assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
 
   if (_type == ZPageType::small) {
@@ -372,6 +374,9 @@ void ZPage::free_tail_to_free_list(zaddress_unsafe addr, size_t size) {
   } else {
     _free_list_medium->free_tail(addr, size);
   }
+
+  ZGeneration::young()->on_free_list_insert(this);
+
 #ifdef ASSERT
   // TODO: Use the right zap function instead.
   const size_t header_size = 8;
@@ -380,6 +385,7 @@ void ZPage::free_tail_to_free_list(zaddress_unsafe addr, size_t size) {
 }
 
 void ZPage::undo_alloc_object_from_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_old(), "Reference-counting may only free objects on old pages");
   assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
 
   if (_type == ZPageType::small) {
@@ -387,6 +393,8 @@ void ZPage::undo_alloc_object_from_free_list(zaddress_unsafe addr, size_t size) 
   } else {
     _free_list_medium->undo_allocate(addr, size);
   }
+
+  ZGeneration::young()->on_free_list_insert(this);
 #ifdef ASSERT
   // TODO: Use the right zap function instead.
   const size_t header_size = 8;
@@ -395,6 +403,7 @@ void ZPage::undo_alloc_object_from_free_list(zaddress_unsafe addr, size_t size) 
 }
 
 void ZPage::free_object_to_free_list(zaddress_unsafe addr, size_t size) {
+  assert(is_old(), "Reference-counting may only free objects on old pages");
   assert(is_allocating(), "Reference-counting may only free objects on allocating pages");
 
   if (_type == ZPageType::small) {
@@ -402,6 +411,8 @@ void ZPage::free_object_to_free_list(zaddress_unsafe addr, size_t size) {
   } else {
     _free_list_medium->free(addr, size);
   }
+
+  ZGeneration::young()->on_free_list_insert(this);
 #ifdef ASSERT
   // TODO: Use the right zap function instead.
   const size_t header_size = 8;

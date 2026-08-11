@@ -46,6 +46,7 @@ private:
 public:
   ZBitMap(idx_t size_in_bits);
   ZBitMap(const ZBitMap& other);
+  using CHeapBitMap::CHeapBitMap;
 
   bool par_set_bit_pair(idx_t bit, bool finalizable, bool& inc_live);
 

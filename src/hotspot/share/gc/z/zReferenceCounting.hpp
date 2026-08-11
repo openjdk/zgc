@@ -108,6 +108,8 @@ public:
   void flip_found_death_row();
 
   FreeListAllocation free_list_alloc_object(size_t size, ZPageType type);
+
+  void on_free_list_insert(const ZPage* page);
 };
 
 
