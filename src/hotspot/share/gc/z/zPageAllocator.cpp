@@ -2094,7 +2094,7 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
   const size_t soft_limit = heuristic_max_capacity();
 
   uint32_t highest_available_id = start_partition;
-  size_t highest_availiable = 0;
+  size_t highest_available = 0;
 
   for (uint32_t i = 0; i < num_partitions; ++i) {
     const uint32_t partition_id = (start_partition + i) % num_partitions;
@@ -2109,10 +2109,10 @@ bool ZPageAllocator::claim_capacity(ZPageAllocation* allocation, ZPageAllocation
     }
 
     const ZPartition& partition = _partitions.get(partition_id);
-    const size_t partition_availiable = partition.available(attempt, partition.static_max_capacity());
-    if (partition_availiable > highest_availiable) {
+    const size_t partition_available = partition.available(attempt, partition.static_max_capacity());
+    if (partition_available > highest_available) {
       highest_available_id = partition_id;
-      highest_availiable = partition_availiable;
+      highest_available = partition_available;
     }
   }
 

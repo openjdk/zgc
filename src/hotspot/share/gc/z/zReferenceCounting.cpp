@@ -204,7 +204,7 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
     size_t _freed = 0;
     size_t _large_freed = 0;
     size_t _pardoned = 0;
-    size_t _free_list_availiable = 0;
+    size_t _free_list_available = 0;
   };
 
   ZPerWorker<Counters> _per_worker_counters;
@@ -226,16 +226,16 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
     log_info(gc)("Old Generation Pardoned: " PROPERFMT, PROPERFMTARGS(pardoned));
   }
 
-  void record_and_log_free_list_availiable_counters() {
-    size_t free_list_availiable = 0;
+  void record_and_log_free_list_available_counters() {
+    size_t free_list_available = 0;
 
     ZPerWorkerIterator<State::Counters> counters_iter{&_per_worker_counters};
     for (State::Counters* counters; counters_iter.next(&counters);) {
-      free_list_availiable += counters->_free_list_availiable;
+      free_list_available += counters->_free_list_available;
     }
 
-    log_info(gc, freelist)("Old Generation Free-List Availiable: " PROPERFMT, PROPERFMTARGS(free_list_availiable));
-    ZGeneration::young()->set_freelist_availiable(free_list_availiable);
+    log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT, PROPERFMTARGS(free_list_available));
+    ZGeneration::young()->set_freelist_available(free_list_available);
   }
 
   // Free-list Construction Support
@@ -835,7 +835,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
   ZCoalesceFreeListsTask coalese_task(state(), page_table);
   ZGeneration::young()->workers()->run(&coalese_task);
 
-  state()->record_and_log_free_list_availiable_counters();
+  state()->record_and_log_free_list_available_counters();
   state()->construct_free_list_allocator();
   state()->reset_per_worker_state();
 
@@ -975,7 +975,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
 void ZCoalesceFreeListsTask::work() {
   SuspendibleThreadSetJoiner sts;
 
-  auto& free_list_availiable = _state->_per_worker_counters.get()._free_list_availiable;
+  auto& free_list_available = _state->_per_worker_counters.get()._free_list_available;
   auto& allocating = _state->_per_worker_allocating.get();
 
   // Clear all the pardoned bits to prepare for next GC cycle.
@@ -986,7 +986,7 @@ void ZCoalesceFreeListsTask::work() {
 
     const size_t free_size = page->coalesce_free_list();
     if (free_size != 0) {
-      free_list_availiable += free_size;
+      free_list_available += free_size;
       const uint32_t numa_id = page->is_multi_partition() ? 0 : page->single_partition_id();
       allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push(page);
     }

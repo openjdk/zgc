@@ -137,7 +137,7 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _relocation_set(this),
     _freed(0),
     _freelist_promoted(0),
-    _freelist_availiable(0),
+    _freelist_available(0),
     _promoted(0),
     _compacted(0),
     _phase(Phase::Relocate),
@@ -342,12 +342,12 @@ void ZGeneration::increase_freelist_promoted(size_t size) {
   _freelist_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
-size_t ZGeneration::freelist_availiable() const {
-  return _freelist_availiable.load_relaxed();;
+size_t ZGeneration::freelist_available() const {
+  return _freelist_available.load_relaxed();;
 }
 
-void ZGeneration::set_freelist_availiable(size_t size) {
-  _freelist_availiable.store_relaxed(size);
+void ZGeneration::set_freelist_available(size_t size) {
+  _freelist_available.store_relaxed(size);
 }
 
 size_t ZGeneration::promoted() const {
@@ -1013,13 +1013,13 @@ void ZGenerationYoung::relocate() {
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
 
   const size_t promoted_size = promoted();
-  const size_t freelist_availiable_size = freelist_availiable();
+  const size_t freelist_available_size = freelist_available();
 
   log_info(gc)("Old Generation Free-list Promoted: " PROPERFMT
-               " [%2.2f%% of Promoted] [%2.2f%% of Availiable]",
+               " [%2.2f%% of Promoted] [%2.2f%% of Available]",
                PROPERFMTARGS(freelist_promoted()),
                promoted_size == 0 ? 100. : percent_of(freelist_promoted(), promoted_size),
-               freelist_availiable_size == 0 ? 100. : percent_of(freelist_promoted(), freelist_availiable_size));
+               freelist_available_size == 0 ? 100. : percent_of(freelist_promoted(), freelist_available_size));
 }
 
 void ZGenerationOld::flip_survive(ZPage* from_page, ZPage* to_page) {
