@@ -43,6 +43,22 @@
 #include "utilities/vmError.hpp"
 #include <cstdint>
 
+inline bool ZNextBlockDescriptor::is_null() const {
+  return _size == 0;
+}
+
+inline ZNextBlockDescriptor ZNextBlockDescriptor::split_off_tail(uint32_t size) {
+  precond(size <= _size);
+
+  if (_size <= size) {
+    return {};
+  }
+
+  _size -= size;
+
+  return {size, ZPageLocalOffset(uint32_t(_next) + _size)};
+}
+
 template <ZPageType PageType>
 void ZFreeList<PageType>::print_size_classes() {
   if (!ZOldRefCount) {
@@ -105,20 +121,20 @@ zaddress ZFreeList<PageType>::allocate(size_t size) {
   precond(ZOldRefCount);
   precond(ZAllocateInFreeList);
 
-  BlockHeader* blk = find_block(align_up(size, _alignment));
+  const ZNextBlockDescriptor blk = find_block(align_up(size, _alignment));
 
-  if (blk == nullptr) {
+  if (blk.is_null()) {
     return zaddress::null;
   }
 
-  uintptr_t blk_start = uintptr_t(blk);
-
-  postcond(is_aligned(blk_start, _alignment));
-  return zaddress(blk_start);
+  postcond(blk._size >= size);
+  // TODO: Cleanup usage of zaddress vs zaddress_unsafe vs new type for
+  // dereferencable but not yet initalized heap memory.
+  return safe(from_local_offset(blk._next));
 }
 
 template <ZPageType PageType>
-typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::find_block(size_t size) {
+ZNextBlockDescriptor ZFreeList<PageType>::find_block(size_t size) {
   precond(size >= MinAllocSize);
   precond(is_aligned(size, _alignment));
 
@@ -126,23 +142,27 @@ typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::find_block(size_
   uint32_t ideal = guaranteed_list_index(size);
   assert(ideal < ListCount, "sanity");
 
-  BlockHeader* blk = nullptr;
-  while (blk == nullptr) {
+  ZNextBlockDescriptor blk;
+  uint32_t list_index;
+  while (blk.is_null()) {
     // If the first-level index is out of bounds, the request cannot be fulfilled
     uint64_t available = _bitmap.load_relaxed() & (~UCONST64(0) << ideal);
 
     if (available == 0) {
       // Free lists exhausted
-      return nullptr;
+      return blk;
     }
 
-    uint32_t list_index = count_trailing_zeros(available);
-    blk = remove_block(list_index);
+    list_index = count_trailing_zeros(available);
+    blk = remove_block(list_index, size);
   }
 
+  postcond(blk._size >= size);
+
   // If the block can be split, we split it in order to minimize internal fragmentation
-  if (blk->size != size) {
-    BlockHeader* remainder_blk = split_block(blk, size);
+  if (blk._size != size) {
+    const ZNextBlockDescriptor remainder_blk = blk.split_off_tail(blk._size - size);
+    precond(remainder_blk._size < MinAllocSize || list_index > insertion_list_index(remainder_blk._size));
     insert_block(remainder_blk);
   }
 
@@ -150,45 +170,25 @@ typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::find_block(size_
 }
 
 template <ZPageType PageType>
-typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::split_block(BlockHeader* blk, size_t size) {
-  size_t remainder_size = blk->size - size;
-
-  // Shrink blk to size
-  blk->size = integer_cast<uint32_t>(size);
-
-  // Use a portion of blk's memory for the new block
-  BlockHeader* remainder_blk = reinterpret_cast<BlockHeader*>((uintptr_t)blk + blk->size);
-  remainder_blk->size = integer_cast<uint32_t>(remainder_size);
-
-  return remainder_blk;
+ZPageLocalOffset ZFreeList<PageType>::to_local_offset(zaddress_unsafe addr) const {
+  return static_cast<ZPageLocalOffset>(_page.local_offset(addr));
 }
 
 template <ZPageType PageType>
-typename ZFreeList<PageType>::ZPageLocalOffset ZFreeList<PageType>::calculate_offset(BlockHeader* blk) const {
-  if (blk == nullptr) {
-    return ZPageLocalOffset::invalid;
-  }
-
-  return static_cast<ZPageLocalOffset>(_page.local_offset(to_zaddress_unsafe(reinterpret_cast<uintptr_t>(blk))));
+zaddress_unsafe ZFreeList<PageType>::from_local_offset(ZPageLocalOffset offset) const {
+  return ZOffset::address_unsafe(_page.global_offset(static_cast<uint32_t>(offset)));
 }
 
 template <ZPageType PageType>
-typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::calculate_block(ZPageLocalOffset offset) const {
-  if (offset == ZPageLocalOffset::invalid) {
-    return nullptr;
-  }
-
-  return reinterpret_cast<BlockHeader*>(ZOffset::address_unsafe(_page.global_offset(static_cast<uint32_t>(offset))));
+ZNextBlockDescriptor ZFreeList<PageType>::blk_get_next(ZNextBlockDescriptor blk) const {
+  // TODO: Cleanup types
+  return *reinterpret_cast<ZNextBlockDescriptor*>(from_local_offset(blk._next));
 }
 
 template <ZPageType PageType>
-typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::blk_get_next(BlockHeader* blk) {
-  return calculate_block(blk->next);
-}
-
-template <ZPageType PageType>
-void ZFreeList<PageType>::blk_set_next(BlockHeader* blk, BlockHeader* next) {
-  blk->next = calculate_offset(next);
+void ZFreeList<PageType>::blk_set_next(ZNextBlockDescriptor blk, ZNextBlockDescriptor next) {
+  // TODO: Cleanup types
+  *reinterpret_cast<ZNextBlockDescriptor*>(from_local_offset(blk._next)) = next;
 }
 
 template <ZPageType PageType>
@@ -232,10 +232,10 @@ uint32_t ZFreeList<PageType>::insertion_list_index(size_t size) const {
 }
 
 template <ZPageType PageType>
-void ZFreeList<PageType>::insert_block(BlockHeader* blk) {
-  precond(is_aligned(blk, _alignment));
+void ZFreeList<PageType>::insert_block(ZNextBlockDescriptor blk) {
+  precond(is_aligned(uint32_t(blk._next), _alignment));
 
-  const size_t size = blk->size;
+  const size_t size = blk._size;
 
   if (size < MinAllocSize) {
     // Add non alloc free block
@@ -243,11 +243,10 @@ void ZFreeList<PageType>::insert_block(BlockHeader* blk) {
     return;
   }
 
-
   uint32_t list_index = insertion_list_index(size);
 
   for (;;) {
-    BlockHeader* head = _blocks[list_index].load_acquire();
+    ZNextBlockDescriptor head = _blocks[list_index].load_acquire();
     blk_set_next(blk, head);
     if (_blocks[list_index].compare_set(head, blk, memory_order_release)) {
       break;
@@ -266,35 +265,50 @@ void ZFreeList<PageType>::insert_block(BlockHeader* blk) {
 }
 
 template <ZPageType PageType>
-typename ZFreeList<PageType>::BlockHeader* ZFreeList<PageType>::remove_block(uint32_t list_index) {
+ZNextBlockDescriptor ZFreeList<PageType>::remove_block(uint32_t list_index, uint32_t size) {
   for (;;) {
-    BlockHeader* head = _blocks[list_index].load_acquire();
+    const ZNextBlockDescriptor head = _blocks[list_index].load_acquire();
 
-    if (head == nullptr) {
+    if (head.is_null()) {
       break;
     }
 
-    BlockHeader* next = blk_get_next(head);
-    if (_blocks[list_index].compare_set(head, next)) {
-      return head;
+    const uint32_t remaining_size = head._size - size;
+    if (remaining_size >= MinAllocSize && insertion_list_index(remaining_size) == list_index) {
+      // Same index
+      ZNextBlockDescriptor next = head;
+      const ZNextBlockDescriptor tail = next.split_off_tail(size);
+      postcond(next._size == remaining_size);
+
+      if (_blocks[list_index].compare_set(head, next)) {
+        return tail;
+      }
+    } else {
+      // New list index, remove whole block
+      ZNextBlockDescriptor next = blk_get_next(head);
+      if (_blocks[list_index].compare_set(head, next)) {
+        return head;
+      }
     }
+
   }
 
+  // TODO: Clean up clearing semantics
   for (;;) {
     uint64_t current_word = _bitmap.load_relaxed();
     uint64_t new_word = current_word & ~(UCONST64(1) << list_index);
     if (current_word == new_word ||
         _bitmap.compare_set(current_word, new_word, memory_order_relaxed)) {
-      return nullptr;
+      return {};
     }
   }
 }
 
 template <ZPageType PageType>
-void ZFreeList<PageType>::insert_non_alloc_block(BlockHeader* blk) {
+void ZFreeList<PageType>::insert_non_alloc_block(ZNextBlockDescriptor blk) {
   // Add non alloc free block
   for (;;) {
-    BlockHeader* head = _non_alloc_blocks.load_acquire();
+    ZNextBlockDescriptor head = _non_alloc_blocks.load_acquire();
     blk_set_next(blk, head);
     if (_non_alloc_blocks.compare_set(head, blk, memory_order_release)) {
       return;
@@ -314,9 +328,7 @@ void ZFreeList<PageType>::free(zaddress_unsafe ptr, size_t size) {
   precond(is_aligned(untype(ptr), _alignment));
   precond(_page.is_in({ZAddress::offset(ptr), size}));
 
-  BlockHeader* blk = reinterpret_cast<BlockHeader*>(ptr);
-  blk->size = integer_cast<uint32_t>(align_up(size, _alignment));
-  insert_block(blk);
+  insert_block({integer_cast<uint32_t>(align_up(size, _alignment)), to_local_offset(ptr)});
 }
 
 template <ZPageType PageType>
@@ -331,9 +343,7 @@ void ZFreeList<PageType>::undo_allocate(zaddress_unsafe ptr, size_t size) {
   precond(is_aligned(untype(ptr), _alignment));
   precond(_page.is_in({ZAddress::offset(ptr), size}));
 
-  BlockHeader* blk = reinterpret_cast<BlockHeader*>(ptr);
-  blk->size = integer_cast<uint32_t>(align_up(size, _alignment));
-  insert_non_alloc_block(blk);
+  insert_non_alloc_block({integer_cast<uint32_t>(align_up(size, _alignment)), to_local_offset(ptr)});
 }
 
 template <ZPageType PageType>
@@ -344,18 +354,18 @@ size_t ZFreeList<PageType>::coalesce_free_list() {
     error_print_on(st);
   });
 
-  ZArray<BlockHeader*> blocks;
+  ZArray<ZNextBlockDescriptor> blocks;
 
-  const auto push_list_blocks= [&](BlockHeader* head) {
-    for (BlockHeader* block = head; block != nullptr; block = calculate_block(block->next)) {
+  const auto push_list_blocks= [&](ZNextBlockDescriptor head) {
+    for (ZNextBlockDescriptor block = head; !block.is_null(); block = blk_get_next(block)) {
       blocks.push(block);
     }
   };
 
   // Acquire all the free blocks, clear the free-list
-  push_list_blocks(_non_alloc_blocks.exchange(nullptr, memory_order_acquire));
+  push_list_blocks(_non_alloc_blocks.exchange({}, memory_order_acquire));
   for (auto& head : _blocks) {
-    push_list_blocks(head.exchange(nullptr, memory_order_acquire));
+    push_list_blocks(head.exchange({}, memory_order_acquire));
   }
   _bitmap.store_relaxed(0u);
 
@@ -363,33 +373,33 @@ size_t ZFreeList<PageType>::coalesce_free_list() {
     return 0;
   }
 
-  blocks.sort([](BlockHeader** e1, BlockHeader** e2) {
-    precond(*e1 != *e2);
-    return reinterpret_cast<uintptr_t>(*e1) < reinterpret_cast<uintptr_t>(*e2) ? -1 : 1;
+  blocks.sort([](ZNextBlockDescriptor* e1, ZNextBlockDescriptor* e2) {
+    precond(e1->_next != e2->_next);
+    return e1->_next < e2->_next ? -1 : 1;
   });
 
 
   size_t total_free_size = 0;
-  BlockHeader* last_block = nullptr;
-  for (BlockHeader* block : blocks) {
-    if (last_block == nullptr) {
+  ZNextBlockDescriptor last_block{};
+  for (ZNextBlockDescriptor block : blocks) {
+    if (last_block.is_null()) {
       last_block = block;
     } else {
-      const uintptr_t last_block_end_addr = reinterpret_cast<uintptr_t>(last_block) + last_block->size;
-      const uintptr_t block_start_addr = reinterpret_cast<uintptr_t>(block);
+      const uintptr_t last_block_end_addr = untype(from_local_offset(last_block._next)) + last_block._size;
+      const uintptr_t block_start_addr = untype(from_local_offset(block._next));
       if (last_block_end_addr == block_start_addr) {
-        last_block->size += block->size;
+        last_block._size += block._size;
       } else {
         // Insert the last block
         insert_block(last_block);
-        total_free_size += last_block->size;
+        total_free_size += last_block._size;
         last_block = block;
       }
     }
   }
-  postcond(last_block != nullptr);
+  postcond(!last_block.is_null());
   insert_block(last_block);
-  total_free_size += last_block->size;
+  total_free_size += last_block._size;
 
   return total_free_size;
 }
@@ -404,28 +414,27 @@ void ZFreeList<PageType>::free_tail(zaddress_unsafe ptr, size_t size) {
   precond(ZOldRefCount);
   precond(ptr != zaddress_unsafe::null);
   precond(is_aligned(untype(ptr), _alignment));
+  precond(is_aligned(size, _alignment));
   precond(_page.is_in({ZAddress::offset(ptr), size}));
   precond(_page.end() == to_end_type(ZAddress::offset(ptr), size));
 
-  BlockHeader* blk = reinterpret_cast<BlockHeader*>(ptr);
-  blk->size = integer_cast<uint32_t>(align_up(size, _alignment));
-  insert_non_alloc_block(blk);
+  insert_non_alloc_block({integer_cast<uint32_t>(size), to_local_offset(ptr)});
 }
 
 template <ZPageType PageType>
 void ZFreeList<PageType>::print_on_impl(outputStream* st, bool on_error) const {
-  const auto print_list = [&](const BlockHeader* head) {
-    const auto print_block = [&](const BlockHeader* block) {
-      precond(block != nullptr);
+  const auto print_list = [&](const ZNextBlockDescriptor head) {
+    const auto print_block = [&](const ZNextBlockDescriptor block) {
+      precond(!block.is_null());
 
-      st->print(PTR_FORMAT "@", p2i(block));
-      st->print("{ size: " EXACTFMT ", next: 0x%08X }", EXACTFMTARGS(block->size), static_cast<uint32_t>(block->next));
+      st->print(PTR_FORMAT "@", untype(from_local_offset(block._next)));
+      st->print("{ size: " EXACTFMT ", next: 0x%08X }", EXACTFMTARGS(block._size), static_cast<uint32_t>(block._next));
     };
 
     print_block(head);
 
     int max_print_blocks = 10;
-    for (const BlockHeader* block = calculate_block(head->next); block != nullptr; block = calculate_block(block->next)) {
+    for (ZNextBlockDescriptor block = blk_get_next(head); !block.is_null(); block = blk_get_next(block)) {
       st->print(" -> ");
       print_block(block);
       if (max_print_blocks-- == 0) {
@@ -436,17 +445,17 @@ void ZFreeList<PageType>::print_on_impl(outputStream* st, bool on_error) const {
   };
 
   {
-    const BlockHeader* const head = _non_alloc_blocks.load_acquire();
+    const ZNextBlockDescriptor head = _non_alloc_blocks.load_acquire();
 
     const auto bitmap = _bitmap.load_relaxed();
-    if (!on_error && bitmap == 0 && head == nullptr) {
+    if (!on_error && bitmap == 0 && head.is_null()) {
       return;
     }
 
     st->print_cr("bitmap: 0x%08zX", _bitmap.load_relaxed());
     st->print("page: "); _page.print_on(st);
 
-    if (head != nullptr) {
+    if (!head.is_null()) {
       st->print("_non_alloc_blocks: "); print_list(head);
     }
   }
@@ -457,8 +466,8 @@ void ZFreeList<PageType>::print_on_impl(outputStream* st, bool on_error) const {
       const size_t fl_size_next = (fl_size << 1);
       for (size_t size = fl_size; size < fl_size_next; size += MinAlignment) {
         const int index = integer_cast<int>(size / MinAlignment) - 1;
-        const BlockHeader* const head = _blocks[index].load_acquire();
-        if (head != nullptr) {
+        const ZNextBlockDescriptor head = _blocks[index].load_acquire();
+        if (!head.is_null()) {
           st->print("[%02d](%02d, %2zu%s): ", index, fl, EXACTFMTARGS(size)); print_list(head);
         }
       }
@@ -466,14 +475,14 @@ void ZFreeList<PageType>::print_on_impl(outputStream* st, bool on_error) const {
       for (int sl = 0; sl < SecondLevelIndexCount; sl++) {
         const int index = SpecialIndexCount + (fl - SpecialFirstLevelIndex) * SecondLevelIndexCount + sl;
         precond(index < ListCount);
-        const BlockHeader* const head = _blocks[index].load_acquire();
-        if (head != nullptr) {
+        const ZNextBlockDescriptor head = _blocks[index].load_acquire();
+        if (!head.is_null()) {
           st->print("[%02d](%02d, %02d): ", index, fl, sl); print_list(head);
         }
       }
     } else {
-        const BlockHeader* const head = _blocks[ListCount - 1].load_acquire();
-        if (head != nullptr) {
+        const ZNextBlockDescriptor head = _blocks[ListCount - 1].load_acquire();
+        if (!head.is_null()) {
           st->print("[%02d](%02d, " EXACTFMT "): ", ListCount - 1, fl, EXACTFMTARGS(MaxAllocSize)); print_list(head);
         }
     }

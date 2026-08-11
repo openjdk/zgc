@@ -31,9 +31,37 @@
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include <cstdint>
 
 class ZPage;
 class outputStream;
+
+// TODO: Try to move these into the free list. But need to sort out PrimitiveConversions.
+enum class ZPageLocalOffset : uint32_t {};
+
+struct ZNextBlockDescriptor {
+  uint32_t _size{};
+  ZPageLocalOffset _next{};
+
+  bool is_null() const;
+  ZNextBlockDescriptor split_off_tail(uint32_t size);
+};
+
+template<>
+struct PrimitiveConversions::Translate<ZNextBlockDescriptor> : public std::true_type {
+  typedef ZNextBlockDescriptor Value;
+  typedef uint64_t Decayed;
+
+  static Decayed decay(Value v) {
+    return (uint64_t(v._next) << 32) | uint64_t(v._size);
+  }
+  static Value recover(Decayed d) {
+    const Value value{uint32_t(d & 0xFFFFFFFF), ZPageLocalOffset(d >> 32)};
+    postcond(d == decay(value));
+    return value;
+  }
+};
+
 
 // Free list based on a flattened two level segregated fit. It has been
 // carefully adjusted specifically for the size classes of a ZPage.
@@ -52,14 +80,6 @@ public:
 
   static void print_size_classes();
 private:
-  enum class ZPageLocalOffset : uint32_t {
-    invalid = -1u,
-  };
-
-  struct BlockHeader {
-    uint32_t size;
-    ZPageLocalOffset next;
-  };
 
   // static constexpr ZPageType PageType = ZPageType::small;
   static_assert(PageType != ZPageType::large, "Unsupported ZPageType");
@@ -109,35 +129,31 @@ private:
   Atomic<uint64_t> _bitmap;
 
   // This is the list used for blocks that are smaller than the smallest allocation, or have been returned via undo.
-  Atomic<BlockHeader*> _non_alloc_blocks;
+  Atomic<ZNextBlockDescriptor> _non_alloc_blocks;
 
   // All the _fl_bitmap tracket lists
-  Atomic<BlockHeader*> _blocks[ListCount];
+  Atomic<ZNextBlockDescriptor> _blocks[ListCount];
 
   static_assert(ListCount <= sizeof(_bitmap) * 8);
 
-  void insert_block(BlockHeader* blk);
-  void insert_non_alloc_block(BlockHeader* blk);
+  void insert_block(ZNextBlockDescriptor blk);
+  void insert_non_alloc_block(ZNextBlockDescriptor blk);
 
-  BlockHeader* find_block(size_t size);
+  ZNextBlockDescriptor find_block(size_t size);
 
   // If blk is not nullptr, blk is removed, otherwise the head of the free-list
   // corresponding to mapping is removed.
-  BlockHeader* remove_block(uint32_t list_index);
-
-  // size is the number of bytes that should remain in blk. blk is shrinked to
-  // size and a new block with the remaining blk->size - size is returned.
-  BlockHeader* split_block(BlockHeader* blk, size_t size);
+  ZNextBlockDescriptor remove_block(uint32_t list_index, uint32_t size);
 
   // The following methods are calculated differently depending on the configuration.
-  inline BlockHeader* blk_get_next(BlockHeader* blk);
-  inline void blk_set_next(BlockHeader* blk, BlockHeader* next);
+  inline ZNextBlockDescriptor blk_get_next(ZNextBlockDescriptor blk) const;
+  inline void blk_set_next(ZNextBlockDescriptor blk, ZNextBlockDescriptor next);
 
   uint32_t guaranteed_list_index(size_t size) const;
   uint32_t insertion_list_index(size_t size) const;
 
-  ZPageLocalOffset calculate_offset(BlockHeader* blk) const;
-  BlockHeader* calculate_block(ZPageLocalOffset offset) const;
+  ZPageLocalOffset to_local_offset(zaddress_unsafe addr) const;
+  zaddress_unsafe from_local_offset(ZPageLocalOffset offset) const;
 
   void print_on_impl(outputStream* st, bool on_error) const;
   void error_print_on(outputStream* st) const;
