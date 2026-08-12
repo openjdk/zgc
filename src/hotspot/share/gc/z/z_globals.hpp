@@ -43,6 +43,9 @@
   product(bool, ZAllocateInFreeList, true, DIAGNOSTIC,                      \
           "Perform reference counting among old objects")                   \
                                                                             \
+  product(bool, ZMaintainOldFreeLists, false,                               \
+          "Perform reference counting among old objects")                   \
+                                                                            \
   product(double, ZAllocationSpikeTolerance, 2.0,                           \
           "Allocation spike tolerance factor")                              \
                                                                             \

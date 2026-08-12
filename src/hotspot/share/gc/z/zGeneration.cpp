@@ -26,6 +26,7 @@
 #include "gc/shared/classUnloadingContext.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcVMOperations.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zAdaptiveHeap.inline.hpp"
@@ -38,12 +39,14 @@
 #include "gc/z/zForwarding.hpp"
 #include "gc/z/zForwardingTable.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
+#include "gc/z/zGenerationId.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zJNICritical.hpp"
 #include "gc/z/zMark.inline.hpp"
 #include "gc/z/zObjectAllocator.hpp"
 #include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageAllocator.hpp"
+#include "gc/z/zPageTable.inline.hpp"
 #include "gc/z/zRelocationSet.inline.hpp"
 #include "gc/z/zRelocationSetSelector.inline.hpp"
 #include "gc/z/zRemembered.hpp"
@@ -101,6 +104,7 @@ static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSetOld("Concur
 static const ZStatPhasePause      ZPhasePauseRelocateStartOld("Pause Relocate Start", ZGenerationId::old);
 static const ZStatPhaseConcurrent ZPhaseConcurrentRelocatedOld("Concurrent Relocate", ZGenerationId::old);
 static const ZStatPhaseConcurrent ZPhaseConcurrentRemapRootsOld("Concurrent Remap Roots", ZGenerationId::old);
+static const ZStatPhaseConcurrent ZPhaseConcurrentCreateFreeListsOld("Concurrent Create Free-Lists", ZGenerationId::old);
 
 static const ZStatSubPhase ZSubPhaseConcurrentMarkRootsYoung("Concurrent Mark Roots", ZGenerationId::young);
 static const ZStatSubPhase ZSubPhaseConcurrentMarkFollowYoung("Concurrent Mark Follow", ZGenerationId::young);
@@ -1102,6 +1106,8 @@ ZReferenceCounting::FreeListAllocation ZGenerationYoung::free_list_alloc_object(
 }
 
 void ZGenerationYoung::on_free_list_insert(const ZPage* page) {
+  precond(!page->is_large());
+  precond(page->is_old());
   _old_ref_count.on_free_list_insert(page);
 }
 
@@ -1208,6 +1214,13 @@ void ZGenerationOld::collect(ConcurrentGCTimer* timer) {
 
   // Phase 10: Concurrent Relocate
   concurrent_relocate();
+
+  if (ZOldRefCount && ZMaintainOldFreeLists) {
+    abortpoint();
+
+    ZDriverLocker locker;
+    concurrent_create_freelists();
+  }
 }
 
 void ZGenerationOld::flip_mark_start() {
@@ -1346,6 +1359,28 @@ void ZGenerationOld::concurrent_relocate() {
 void ZGenerationOld::concurrent_remap_young_roots() {
   ZStatTimerOld timer(ZPhaseConcurrentRemapRootsOld);
   remap_young_roots();
+}
+
+void ZGenerationOld::concurrent_create_freelists() {
+  ZStatTimerOld timer(ZPhaseConcurrentCreateFreeListsOld);
+  ZGenerationPagesIterator pt_iter(_page_table, ZGenerationId::old, _page_allocator);
+  for (ZPage* page; pt_iter.next(&page);) {
+    if (page->age() != ZPageAge::old) {
+      continue;
+    }
+    postcond(page->is_allocating());
+
+    // Clear live map for death row and pardon
+    page->reset_livemap();
+
+    // Turn the old page to a promotion page
+    page->make_old_page_promotion_page();
+
+    if (!page->is_large()) {
+      // Make availiable for allocation
+      ZGeneration::young()->on_free_list_insert(page);
+    }
+  }
 }
 
 void ZGenerationOld::mark_start() {

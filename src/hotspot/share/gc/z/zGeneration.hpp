@@ -332,6 +332,7 @@ private:
   void pause_relocate_start();
   void concurrent_relocate();
   void concurrent_remap_young_roots();
+  void concurrent_create_freelists();
 
 public:
   ZGenerationOld(ZPageTable* page_table, ZPageAllocator* page_allocator);

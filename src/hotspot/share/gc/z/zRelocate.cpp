@@ -45,11 +45,13 @@
 #include "gc/z/zStringDedup.inline.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zUncoloredRoot.inline.hpp"
+#include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zValue.inline.hpp"
 #include "gc/z/zVerify.hpp"
 #include "gc/z/zWorkers.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/atomicAccess.hpp"
+#include "utilities/align.hpp"
 #include "utilities/debug.hpp"
 
 static const ZStatCriticalPhase ZCriticalPhaseRelocationStall("Relocation Stall");
@@ -1443,6 +1445,8 @@ public:
 
     for (ZPage* prev_page; _not_selected_iter.next(&prev_page);) {
       prev_page->log_msg(" (flip survived)");
+      precond(prev_page->is_old());
+      precond(prev_page->is_relocatable());
 
       const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
 
@@ -1457,11 +1461,45 @@ public:
 
       ZGeneration::old()->flip_survive(prev_page, aged_page);
 
+      precond(aged_page->virtual_memory() == prev_page->virtual_memory());
+      const size_t page_object_alignment = aged_page->object_alignment();
+      zoffset_end next_potential_free_start = to_zoffset_end(aged_page->start());
       prev_page->object_iterate([&](oop obj) {
         ZGeneration::young()->on_old_to_old(to_zaddress(obj), false /* was_mutator */); // TODO: More naming issues
+
+        if (ZMaintainOldFreeLists && !prev_page->is_large()) {
+          // Build free-list
+          precond(is_aligned(untype(to_zaddress(obj)), page_object_alignment));
+
+          const zoffset obj_offset = ZAddress::offset(to_zaddress(obj));
+          const size_t aligned_object_size = align_up(ZUtils::object_size(to_zaddress(obj)), page_object_alignment);
+
+          if (next_potential_free_start != obj_offset) {
+            const zoffset free_start = to_zoffset(next_potential_free_start);
+            const size_t free_size = obj_offset - free_start;
+            aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+          }
+
+          // Set next potential start
+          next_potential_free_start = to_zoffset_end(obj_offset, aligned_object_size);
+        }
       });
 
-      //promoted_pages.push(prev_page); TODO: Should register somewhere so we dont leak the prev page
+      postcond(!ZMaintainOldFreeLists || prev_page->is_large() || next_potential_free_start != to_zoffset_end(aged_page->start()));
+      postcond(next_potential_free_start <= aged_page->end());
+
+      if (ZMaintainOldFreeLists && !prev_page->is_large() && next_potential_free_start != aged_page->end()) {
+        if (aged_page->end() != aged_page->top()) {
+          // Alloc the tail
+          [[maybe_unused]] zaddress addr = aged_page->alloc_object(aged_page->remaining());
+        }
+        // Free tail
+        const zoffset free_start = to_zoffset(next_potential_free_start);
+        const size_t free_size = aged_page->end() - free_start;
+        aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+      }
+
+
 
       SuspendibleThreadSet::yield();
     }

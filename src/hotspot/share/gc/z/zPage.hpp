@@ -95,6 +95,7 @@ public:
   // TODO: Naming :)
   ZPage* inplace_relocate_page();
   ZPage* flip_age();
+  void make_old_page_promotion_page();
 
   bool is_flip_aged() const;
   bool is_flip_promoted() const;

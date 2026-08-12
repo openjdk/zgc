@@ -163,6 +163,13 @@ ZPage* ZPage::flip_age() {
   return this;
 }
 
+void ZPage::make_old_page_promotion_page() {
+  precond(ZMaintainOldFreeLists);
+  precond(age() == ZPageAge::old);
+  precond(is_allocating());
+  _age = ZPageAge::promotion;
+}
+
 bool ZPage::is_flip_aged() const {
   return AtomicAccess::load(&_flip_aged);
 }
