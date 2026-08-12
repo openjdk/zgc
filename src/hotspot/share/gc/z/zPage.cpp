@@ -57,7 +57,7 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _flip_aged(),
     _remset_flip_retained(),
     _free_list_unused() {
-  if (ZOldRefCount) {
+  if (ZOldRefCount && is_old()) {
     if (_type == ZPageType::small) {
       _free_list_small = new ZFreeList<ZPageType::small>(*this);
     } else {
@@ -80,6 +80,13 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
       remset_init(remset);
     } else {
       remset_alloc();
+    }
+    if (ZOldRefCount) {
+      if (_type == ZPageType::small) {
+        _free_list_small = new ZFreeList<ZPageType::small>(*this);
+      } else {
+        _free_list_medium = new ZFreeList<ZPageType::medium>(*this);
+      }
     }
   }
 }
@@ -108,6 +115,13 @@ ZPage* ZPage::clone(ZPageAge age, ZRememberedSet* remset) {
 ZPage::~ZPage() {
   if (_remset_flip_retained) {
     _remembered_set.uninitialize();
+  }
+  if (ZOldRefCount && is_old()) {
+    if (_type == ZPageType::small) {
+      delete _free_list_small;
+    } else {
+      delete _free_list_medium;
+    }
   }
 }
 
