@@ -1034,5 +1034,7 @@ ZReferenceCounting::FreeListAllocation ZReferenceCounting::free_list_alloc_objec
 }
 
 void ZReferenceCounting::on_free_list_insert(const ZPage* page) {
-  _state->register_free_page(page);
+  if (page->age() == ZPageAge::promotion) {
+    _state->register_free_page(page);
+  }
 }
