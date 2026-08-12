@@ -57,13 +57,6 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _flip_aged(),
     _remset_flip_retained(),
     _free_list_unused() {
-  if (ZOldRefCount && is_old()) {
-    if (_type == ZPageType::small) {
-      _free_list_small = new ZFreeList<ZPageType::small>(*this);
-    } else {
-      _free_list_medium = new ZFreeList<ZPageType::medium>(*this);
-    }
-  }
   assert(!_virtual.is_null(), "Should not be null");
   assert((_type == ZPageType::small && size() == ZPageSizeSmall) ||
          (_type == ZPageType::medium && ZPageSizeMediumMin <= size() && size() <= ZPageSizeMediumMax) ||
