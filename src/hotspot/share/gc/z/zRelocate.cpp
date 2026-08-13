@@ -364,8 +364,8 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   zaddress to_addr = zaddress::null;
   ZReferenceCounting::FreeListAllocation free_list_allocation;
 
-  if (forwarding->is_promotion()) {
-    free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, forwarding->type());
+  if (is_old(forwarding->to_age())) {
+    free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, forwarding->type(), forwarding->to_age());
     to_addr = free_list_allocation._address;
   }
 
@@ -404,8 +404,12 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
     }
   } else {
     if (free_list_allocation._address != zaddress::null) {
-      // Only promotions allocated for now, so only young has free list allocations
-      ZGeneration::young()->increase_freelist_promoted(size);
+      if (forwarding->is_promotion()) {
+        // TODO: Cleanup these counters
+        ZGeneration::young()->increase_freelist_promoted(size);
+      } else {
+        ZGeneration::old()->increase_freelist_compacted(size);
+      }
     }
 
     if (forwarding->is_old_to_old()) {
@@ -640,6 +644,7 @@ private:
   ZRelocationTargets* _targets;
   ZGeneration* const  _generation;
   size_t              _freelist_promoted;
+  size_t              _freelist_compacted;
   size_t              _other_promoted;
   size_t              _other_compacted;
   ZStringDedupContext _string_dedup_context;
@@ -677,8 +682,8 @@ private:
     zaddress allocated_addr = zaddress::null;
     ZReferenceCounting::FreeListAllocation free_list_allocation;
 
-    if (_forwarding->is_promotion()) {
-      free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, _forwarding->type());
+    if (is_old(_forwarding->to_age())) {
+      free_list_allocation = ZGeneration::young()->free_list_alloc_object(size, _forwarding->type(), _forwarding->to_age());
       allocated_addr = free_list_allocation._address;
     }
 
@@ -732,7 +737,11 @@ private:
 
       increase_other_forwarded(size);
     } else if (free_list_allocation._address != zaddress::null) {
-      _freelist_promoted += size;
+      if (_forwarding->is_promotion()) {
+        _freelist_promoted += size;
+      } else {
+        _freelist_compacted += size;
+      }
     }
 
     if (!in_place) {
@@ -1067,6 +1076,7 @@ public:
       _targets(targets),
       _generation(generation),
       _freelist_promoted(0),
+      _freelist_compacted(0),
       _other_promoted(0),
       _other_compacted(0) {}
 
@@ -1077,6 +1087,7 @@ public:
 
     // Report statistics on-behalf of non-worker threads
     _generation->increase_freelist_promoted(_freelist_promoted);
+    _generation->increase_freelist_compacted(_freelist_compacted);
     _generation->increase_promoted(_other_promoted);
     _generation->increase_compacted(_other_compacted);
   }
@@ -1443,6 +1454,8 @@ public:
   virtual void work() {
     SuspendibleThreadSetJoiner sts_joiner;
 
+    size_t free_list_availiabe = 0;
+
     for (ZPage* prev_page; _not_selected_iter.next(&prev_page);) {
       prev_page->log_msg(" (flip survived)");
       precond(prev_page->is_old());
@@ -1478,6 +1491,7 @@ public:
             const zoffset free_start = to_zoffset(next_potential_free_start);
             const size_t free_size = obj_offset - free_start;
             aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+            free_list_availiabe += free_size;
           }
 
           // Set next potential start
@@ -1485,24 +1499,34 @@ public:
         }
       });
 
-      postcond(!ZMaintainOldFreeLists || prev_page->is_large() || next_potential_free_start != to_zoffset_end(aged_page->start()));
-      postcond(next_potential_free_start <= aged_page->end());
 
-      if (ZMaintainOldFreeLists && !prev_page->is_large() && next_potential_free_start != aged_page->end()) {
-        if (aged_page->end() != aged_page->top()) {
-          // Alloc the tail
-          [[maybe_unused]] zaddress addr = aged_page->alloc_object(aged_page->remaining());
+      if (ZMaintainOldFreeLists) {
+        postcond(prev_page->is_large() || next_potential_free_start != to_zoffset_end(aged_page->start()));
+        postcond(next_potential_free_start <= aged_page->end());
+
+        if (!prev_page->is_large() && next_potential_free_start != aged_page->end()) {
+          if (aged_page->end() != aged_page->top()) {
+            // Alloc the tail
+            [[maybe_unused]] zaddress addr = aged_page->alloc_object(aged_page->remaining());
+          }
+          // Free tail
+          const zoffset free_start = to_zoffset(next_potential_free_start);
+          const size_t free_size = aged_page->end() - free_start;
+          aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+          free_list_availiabe += free_size;
         }
-        // Free tail
-        const zoffset free_start = to_zoffset(next_potential_free_start);
-        const size_t free_size = aged_page->end() - free_start;
-        aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
-      }
 
+        if (ZAllocateInOldFreeList && !prev_page->is_large()) {
+          // Register the page
+          ZGeneration::young()->register_old_alloction_page(aged_page);
+        }
+      }
 
 
       SuspendibleThreadSet::yield();
     }
+
+    ZGeneration::old()->increase_freelist_available(free_list_availiabe);
 
     for (ZPage* page; _selected_iter.next(&page);) {
       const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
@@ -1593,7 +1617,6 @@ class ZRendezvousGCThreads: public VM_Operation {
 void ZRelocate::flip_age_old_pages(ZPageAllocator* page_allocator, const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages) {
   ZFlipAgeOldPagesTask flip_age_task(not_selected_pages, selected_pages);
   workers()->run(&flip_age_task);
-
   // TODO: Remove rendezvous code when we have better ZPage SMR.
 
   // Perform a handshake to make sure concurrent threads are not operating on stale

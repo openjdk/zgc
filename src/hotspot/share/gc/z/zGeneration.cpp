@@ -209,6 +209,12 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
     _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_small(), selector->selected_small());
     _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_medium(), selector->selected_medium());
 
+    if (ZOldRefCount && ZMaintainOldFreeLists && ZAllocateInOldFreeList) {
+      ZGeneration::young()->construct_old_allocator();
+
+      log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT, PROPERFMTARGS(ZGeneration::old()->freelist_available()));
+    }
+
     ZArray<ZPage*> selected_large;
     _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_large(), &selected_large);
   }
@@ -326,6 +332,7 @@ void ZGeneration::reset_statistics() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   _freed.store_relaxed(0u);
   _freelist_promoted.store_relaxed(0u);
+  _freelist_compacted.store_relaxed(0u);
   _promoted.store_relaxed(0u);
   _compacted.store_relaxed(0u);
 }
@@ -346,8 +353,20 @@ void ZGeneration::increase_freelist_promoted(size_t size) {
   _freelist_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
+size_t ZGeneration::freelist_compacted() const {
+  return _freelist_compacted.load_relaxed();;
+}
+
+void ZGeneration::increase_freelist_compacted(size_t size) {
+  _freelist_compacted.add_then_fetch(size, memory_order_relaxed);
+}
+
 size_t ZGeneration::freelist_available() const {
   return _freelist_available.load_relaxed();;
+}
+
+void ZGeneration::increase_freelist_available(size_t size) {
+  _freelist_available.add_then_fetch(size, memory_order_relaxed);
 }
 
 void ZGeneration::set_freelist_available(size_t size) {
@@ -1097,18 +1116,38 @@ void ZGenerationYoung::on_mutator_old_to_old(ZForwarding* forwarding, zaddress f
   _old_ref_count.on_mutator_old_to_old(forwarding, from_addr, to_addr);
 }
 
-ZReferenceCounting::FreeListAllocation ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type) {
-  if (!ZAllocateInFreeList || !ZOldRefCount) {
+ZReferenceCounting::FreeListAllocation ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type, ZPageAge to_age) {
+  if (!ZOldRefCount) {
     return {};
   }
 
-  return _old_ref_count.free_list_alloc_object(size, type);
+  if (!ZAllocateInFreeList && to_age == ZPageAge::promotion) {
+    return {};
+  }
+
+  if (!ZAllocateInOldFreeList && to_age == ZPageAge::old) {
+    return {};
+  }
+
+  return _old_ref_count.free_list_alloc_object(size, type, to_age);
 }
 
 void ZGenerationYoung::on_free_list_insert(const ZPage* page) {
   precond(!page->is_large());
   precond(page->is_old());
   _old_ref_count.on_free_list_insert(page);
+}
+
+void ZGenerationYoung::register_old_alloction_page(ZPage* page) {
+  _old_ref_count.register_old_alloction_page(page);
+}
+
+void ZGenerationYoung::construct_old_allocator() {
+  _old_ref_count.construct_old_allocator();
+}
+
+void ZGenerationYoung::reset_old_allocator() {
+  _old_ref_count.reset_old_allocator();
 }
 
 ZGenerationTracer* ZGenerationYoung::jfr_tracer() {
@@ -1362,7 +1401,16 @@ void ZGenerationOld::concurrent_remap_young_roots() {
 }
 
 void ZGenerationOld::concurrent_create_freelists() {
+  precond(ZOldRefCount);
+  precond(ZMaintainOldFreeLists);
+
   ZStatTimerOld timer(ZPhaseConcurrentCreateFreeListsOld);
+
+  if (ZAllocateInOldFreeList) {
+    set_freelist_available(0);
+    young()->reset_old_allocator();
+  }
+
   ZGenerationPagesIterator pt_iter(_page_table, ZGenerationId::old, _page_allocator);
   for (ZPage* page; pt_iter.next(&page);) {
     if (page->age() != ZPageAge::old) {
@@ -1583,6 +1631,15 @@ void ZGenerationOld::relocate() {
 
   // Update statistics
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
+
+  const size_t compacted_size = compacted();
+  const size_t freelist_available_size = freelist_available();
+
+  log_info(gc)("Old Generation Free-list Compacted: " PROPERFMT
+               " [%2.2f%% of Compacted] [%2.2f%% of Available]",
+               PROPERFMTARGS(freelist_compacted()),
+               compacted_size == 0 ? 100. : percent_of(freelist_compacted(), compacted_size),
+               freelist_available_size == 0 ? 100. : percent_of(freelist_compacted(), freelist_available_size));
 }
 
 class ZRemapOopClosure : public OopClosure {

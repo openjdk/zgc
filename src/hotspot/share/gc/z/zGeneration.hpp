@@ -75,6 +75,7 @@ protected:
 
   Atomic<size_t>        _freed;
   Atomic<size_t>        _freelist_promoted;
+  Atomic<size_t>        _freelist_compacted;
   Atomic<size_t>        _freelist_available;
   Atomic<size_t>        _promoted;
   Atomic<size_t>        _compacted;
@@ -128,7 +129,10 @@ public:
   void increase_freed(size_t size);
   size_t freelist_promoted() const;
   void increase_freelist_promoted(size_t size);
+  size_t freelist_compacted() const;
+  void increase_freelist_compacted(size_t size);
   size_t freelist_available() const;
+  void increase_freelist_available(size_t size);
   void set_freelist_available(size_t size);
   size_t promoted() const;
   void increase_promoted(size_t size);
@@ -283,9 +287,12 @@ public:
   void on_old_to_old(zaddress addr, bool was_mutator);
   void on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr);
 
-  ZReferenceCounting::FreeListAllocation free_list_alloc_object(size_t size, ZPageType type);
+  ZReferenceCounting::FreeListAllocation free_list_alloc_object(size_t size, ZPageType type, ZPageAge to_age);
 
   void on_free_list_insert(const ZPage* page);
+  void register_old_alloction_page(ZPage* page);
+  void construct_old_allocator();
+  void reset_old_allocator();
 
   // Serviceability
   ZGenerationTracer* jfr_tracer();

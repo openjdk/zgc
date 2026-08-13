@@ -29,6 +29,7 @@
 #include "gc/z/zBitMap.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zLock.hpp"
+#include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zValue.hpp"
 #include "utilities/resizableHashTable.hpp"
@@ -107,9 +108,13 @@ public:
 
   void flip_found_death_row();
 
-  FreeListAllocation free_list_alloc_object(size_t size, ZPageType type);
+  FreeListAllocation free_list_alloc_object(size_t size, ZPageType type, ZPageAge to_age);
 
   void on_free_list_insert(const ZPage* page);
+
+  void register_old_alloction_page(ZPage* page);
+  void construct_old_allocator();
+  void reset_old_allocator();
 };
 
 
