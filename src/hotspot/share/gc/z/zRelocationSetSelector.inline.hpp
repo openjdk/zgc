@@ -85,11 +85,9 @@ inline const ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorStats::larg
 }
 
 inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size_t live_bytes) const {
-  if (_is_young) {
-    // TODO: Do better?
-
-    // For now we simply do not pre-filter young pages as we do not want flip promotion
-    return !page->is_large();
+  if (_promote_all) {
+    // Flip promote everything
+    return false;
   }
 
   if (page->is_small()) {
@@ -99,7 +97,7 @@ inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size
 
     const size_t garbage = ZPageSizeSmall - live_bytes;
 
-    return garbage > _page_fragmentation_limit;
+    return garbage > page_fragmentation_limit(page->age());
   }
 
   if (page->is_medium()) {
@@ -111,7 +109,7 @@ inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size
     // using log2 and bit-shift.
     const size_t size = page->size();
     const int shift = ZPageSizeMediumMaxShift - log2i_exact(size);
-    const size_t page_fragmentation_limit = _page_fragmentation_limit >> shift;
+    const size_t page_fragmentation_limit = _page_fragmentation_limit[untype(page->age())] >> shift;
 
     const size_t garbage = size - live_bytes;
 
@@ -122,12 +120,32 @@ inline bool ZRelocationSetSelectorGroup::pre_filter_page(const ZPage* page, size
   return false;
 }
 
+inline double ZRelocationSetSelectorGroup::fragmentation_limit(ZPageAge age) const {
+  return _fragmentation_limit[static_cast<uint>(age)];
+}
+
+inline size_t ZRelocationSetSelectorGroup::page_fragmentation_limit(ZPageAge age) const {
+  return _page_fragmentation_limit[static_cast<uint>(age)];
+}
+
+inline ZRelocationSetSelectorGroupStats& ZRelocationSetSelectorGroup::stats(ZPageAge age) {
+  return _stats[static_cast<uint>(age)];
+}
+
+inline ZArray<ZPage*>& ZRelocationSetSelectorGroup::live_pages(ZPageAge age) {
+  if (is_old(age)) {
+    return _live_pages;
+  }
+
+  return _live_pages_young[static_cast<uint>(age)];
+}
+
 inline void ZRelocationSetSelectorGroup::register_live_page(ZPage* page) {
   const size_t live = page->live_bytes();
 
   // Pre-filter out pages that are guaranteed to not be selected
   if (pre_filter_page(page, live)) {
-    _live_pages.append(page);
+    live_pages(page->age()).append(page);
   } else {
     _not_selected_pages.append(page);
   }

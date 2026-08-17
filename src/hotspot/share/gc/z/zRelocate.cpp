@@ -1422,6 +1422,8 @@ public:
       // Setup to-space page
       ZPage* const new_page = prev_page->flip_age();
 
+      // TODO: Consider building free-lists for promotion pages.
+
       // Reset page for flip aging
       new_page->reset_livemap();
 
