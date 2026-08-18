@@ -104,7 +104,12 @@ static const ZStatPhaseConcurrent ZPhaseConcurrentSelectRelocationSetOld("Concur
 static const ZStatPhasePause      ZPhasePauseRelocateStartOld("Pause Relocate Start", ZGenerationId::old);
 static const ZStatPhaseConcurrent ZPhaseConcurrentRelocatedOld("Concurrent Relocate", ZGenerationId::old);
 static const ZStatPhaseConcurrent ZPhaseConcurrentRemapRootsOld("Concurrent Remap Roots", ZGenerationId::old);
-static const ZStatPhaseConcurrent ZPhaseConcurrentCreateFreeListsOld("Concurrent Create Free-Lists", ZGenerationId::old);
+static const ZStatPhaseConcurrent ZPhaseConcurrentInstallPromotionFreeListsOld("Concurrent Install Promotion Free-Lists", ZGenerationId::old);
+
+static const ZStatSubPhase ZSubPhaseConcurrentFlipPromotedYoung("Concurrent FP", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentFlipPromotedOld("Concurrent FP", ZGenerationId::old);
+static const ZStatSubPhase ZSubPhaseConcurrentInstallOldFreeListsOld("Concurrent Install Old Free-Lists", ZGenerationId::old);
+static const ZStatSubPhase ZSubPhaseConcurrentPromoteBarrierFlipPromotedYoung("Concurrent Promote Barrier FP", ZGenerationId::young);
 
 static const ZStatSubPhase ZSubPhaseConcurrentMarkRootsYoung("Concurrent Mark Roots", ZGenerationId::young);
 static const ZStatSubPhase ZSubPhaseConcurrentMarkFollowYoung("Concurrent Mark Follow", ZGenerationId::young);
@@ -191,9 +196,13 @@ void ZGeneration::free_empty_pages(ZRelocationSetSelector* selector, int bulk) {
 // TODO: Improve naming or split?!
 void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
   if (is_young()) {
-    _relocate.flip_age_young_pages(selector->not_selected_small());
-    _relocate.flip_age_young_pages(selector->not_selected_medium());
-    _relocate.flip_age_young_pages(selector->not_selected_large());
+    {
+      ZStatTimerYoung timer(ZSubPhaseConcurrentFlipPromotedYoung);
+
+      _relocate.flip_age_young_pages(selector->not_selected_small());
+      _relocate.flip_age_young_pages(selector->not_selected_medium());
+      _relocate.flip_age_young_pages(selector->not_selected_large());
+    }
 
     // Perform a handshake between flip promotion and running the promotion barrier. This ensures
     // that ZBarrierSet::on_slowpath_allocation_exit() observing a young page that was then racingly
@@ -203,20 +212,32 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
     ZRendezvousHandshakeClosure cl;
     Handshake::execute(&cl);
 
-    _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
-                                     _relocation_set.relocate_promoted_pages());
+    {
+      ZStatTimerYoung timer(ZSubPhaseConcurrentPromoteBarrierFlipPromotedYoung);
+
+      _relocate.barrier_promoted_pages(_relocation_set.flip_promoted_pages(),
+                                       _relocation_set.relocate_promoted_pages());
+    }
   } else {
-    _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_small(), selector->selected_small());
-    _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_medium(), selector->selected_medium());
+
+    {
+      ZStatTimerOld timer(ZSubPhaseConcurrentFlipPromotedOld);
+
+      _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_small(), selector->selected_small());
+      _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_medium(), selector->selected_medium());
+
+      ZArray<ZPage*> selected_large;
+      _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_large(), &selected_large);
+    }
 
     if (ZOldRefCount && ZMaintainOldFreeLists && ZAllocateInOldFreeList) {
+      ZStatTimerOld timer(ZSubPhaseConcurrentInstallOldFreeListsOld);
+
       ZGeneration::young()->construct_old_allocator();
 
       log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT, PROPERFMTARGS(ZGeneration::old()->freelist_available()));
     }
 
-    ZArray<ZPage*> selected_large;
-    _relocate.flip_age_old_pages(_page_allocator, selector->not_selected_large(), &selected_large);
   }
 }
 
@@ -1386,7 +1407,7 @@ void ZGenerationOld::concurrent_create_freelists() {
   precond(ZOldRefCount);
   precond(ZMaintainOldFreeLists);
 
-  ZStatTimerOld timer(ZPhaseConcurrentCreateFreeListsOld);
+  ZStatTimerOld timer(ZPhaseConcurrentInstallPromotionFreeListsOld);
 
   if (ZAllocateInOldFreeList) {
     set_freelist_available(0);

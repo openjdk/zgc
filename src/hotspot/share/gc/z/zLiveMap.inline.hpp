@@ -146,7 +146,7 @@ inline size_t ZLiveMap::do_object(ObjectClosure* cl, zaddress addr) const {
 }
 
 template <typename Function>
-inline bool ZLiveMap::iterate_segment(BitMap::idx_t segment, Function function) {
+inline bool ZLiveMap::iterate_segment(BitMap::idx_t segment, Function function) const {
   assert(is_segment_live(segment), "Must be");
 
   const BitMap::idx_t start_index = segment_start(segment);
@@ -156,7 +156,7 @@ inline bool ZLiveMap::iterate_segment(BitMap::idx_t segment, Function function) 
 }
 
 template <typename Function>
-inline void ZLiveMap::iterate(ZGenerationId id, Function function) {
+inline void ZLiveMap::iterate(ZGenerationId id, Function function) const {
   if (!is_marked(id)) {
     return;
   }

@@ -27,6 +27,7 @@
 #include "gc/z/zArray.inline.hpp"
 #include "gc/z/zBitMap.inline.hpp"
 #include "gc/z/zCPU.inline.hpp"
+#include "gc/z/zDefer.inline.hpp"
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zHeap.inline.hpp"
 #include "gc/z/zLock.inline.hpp"
@@ -35,6 +36,7 @@
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageType.hpp"
+#include "gc/z/zStat.hpp"
 #include "gc/z/zTask.hpp"
 #include "gc/z/zValue.inline.hpp"
 #include "logging/log.hpp"
@@ -49,6 +51,11 @@
 #include "utilities/integerCast.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stack.inline.hpp"
+
+static const ZStatSubPhase ZSubPhaseConcurrentDeathRow("Concurrent Death Row", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentCoalesceFreeList("Concurrent Coalesce Free List", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentDeathRowPage("Concurrent Death Row Page", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentCoalesceFreeListPage("Concurrent Coalesce Free List Page", ZGenerationId::young);
 
 // We use "crow reference counting". Crows can count 1, 2, 3, many. In other
 // words, it can't really distinguish between 4 and 5. For us, the counts get
@@ -456,7 +463,9 @@ template <typename Function>
 void ZReferenceCounting::FoundDeathRow::par_iterate_death_row_pages(ZPageTable* page_table, Function function) {
   previous_bitmap().iterate([&](BitMap::idx_t index) {
     if (previous_bitmap().par_clear_bit(index, memory_order_relaxed)) {
-      function(page_table->at(index));
+      if (!function(page_table->at(index))) {
+        return;
+      }
     }
   });
 }
@@ -824,7 +833,7 @@ bool ZReferenceCounting::try_kill_followed(ZPage* page, zaddress addr, size_t& p
   return true;
 }
 
-class ZReferenceCounting::ZProcessDeathRowTask final : public ZTask {
+class ZReferenceCounting::ZProcessDeathRowTask final : public ZRestartableTask {
   ZReferenceCounting::State* const _state;
   ZPageTable* const _page_table;
   ZPageAllocator* const _page_allocator;
@@ -832,7 +841,7 @@ class ZReferenceCounting::ZProcessDeathRowTask final : public ZTask {
 
 public:
   ZProcessDeathRowTask(ZReferenceCounting::State* state, ZPageTable* page_table, ZPageAllocator* page_allocator, ZReferenceCounting* reference_counting)
-    : ZTask("ZProcessDeathRowTask"),
+    : ZRestartableTask("ZProcessDeathRowTask"),
       _state(state),
       _page_table(page_table),
       _page_allocator(page_allocator),
@@ -850,7 +859,7 @@ public:
   void work() final;
 };
 
-class ZCoalesceFreeListsTask final : public ZTask {
+class ZCoalesceFreeListsTask final : public ZRestartableTask {
   ZReferenceCounting::State* const _state;
   ZPageTable* const _page_table;
   ZBitMap _to_coalesce;
@@ -866,7 +875,7 @@ class ZCoalesceFreeListsTask final : public ZTask {
 
 public:
   ZCoalesceFreeListsTask(ZReferenceCounting::State* state, ZPageTable* page_table)
-    : ZTask("ZCoalesceFreeListsTask"),
+    : ZRestartableTask("ZCoalesceFreeListsTask"),
       _state(state),
       _page_table(page_table),
       _to_coalesce(_state->_to_coalesce) {}
@@ -880,13 +889,21 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
   //       only have to keep the ZPages we are interested in. This is also relevant
   //       for all our promotion pages during relocation and selection.
 
-  ZProcessDeathRowTask process_death_row_task(state(), page_table, page_allocator, this);
-  ZGeneration::young()->workers()->run(&process_death_row_task);
+  {
+    ZStatTimerYoung timer(ZSubPhaseConcurrentDeathRow);
+
+    ZProcessDeathRowTask process_death_row_task(state(), page_table, page_allocator, this);
+    ZGeneration::young()->workers()->run(&process_death_row_task);
+  }
 
   state()->log_free_and_pardoned_counters();
 
-  ZCoalesceFreeListsTask coalese_task(state(), page_table);
-  ZGeneration::young()->workers()->run(&coalese_task);
+  {
+    ZStatTimerYoung timer(ZSubPhaseConcurrentCoalesceFreeList);
+
+    ZCoalesceFreeListsTask coalese_task(state(), page_table);
+    ZGeneration::young()->workers()->run(&coalese_task);
+  }
 
   state()->record_and_log_free_list_available_counters();
   state()->construct_free_list_promotion_allocator();
@@ -909,11 +926,16 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
 
   Stack<oop, mtGC> dfs_stack;
   _reference_counting->par_iterate_death_row_pages(_page_table, [&](ZPage* page) {
+    ZStatTimerWorker timer(ZSubPhaseConcurrentDeathRowPage);
+
+    ZDefer deferred_yield{[&]() {
+      SuspendibleThreadSet::yield();
+    }};
+
     precond(dfs_stack.is_empty());
 
     if (!page->is_old() || !page->is_allocating()) {
-      SuspendibleThreadSet::yield();
-      return;
+      return !ZGeneration::young()->should_worker_resize();
     }
 
     // TODO: Maybe the state should contain _found_death_row
@@ -1019,9 +1041,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
       obj_page->unset_death_row(addr);
     }
 
-    // Yield once per page
-    // TODO: Maybe RAII stack object which does this.
-    SuspendibleThreadSet::yield();
+    return !ZGeneration::young()->should_worker_resize();
   });
 }
 
@@ -1033,6 +1053,7 @@ void ZCoalesceFreeListsTask::work() {
 
   // Clear all the pardoned bits to prepare for next GC cycle.
   par_iterate_to_coalesce_pages(_page_table, [&](ZPage* page) {
+    ZStatTimerWorker timer(ZSubPhaseConcurrentCoalesceFreeListPage);
     precond(page->is_old());
     precond(page->is_allocating());
     precond(!page->is_large());
@@ -1046,7 +1067,7 @@ void ZCoalesceFreeListsTask::work() {
 
     // Yield once per page
     SuspendibleThreadSet::yield();
-    return true;
+    return !ZGeneration::young()->should_worker_resize();
   });
 }
 

@@ -77,7 +77,7 @@ private:
   size_t do_object(ObjectClosure* cl, zaddress addr) const;
 
   template <typename Function>
-  bool iterate_segment(BitMap::idx_t segment, Function function);
+  bool iterate_segment(BitMap::idx_t segment, Function function) const;
 
 public:
   ZLiveMap(uint32_t object_max_count);
@@ -99,7 +99,7 @@ public:
   void inc_live(uint32_t objects, size_t bytes);
 
   template <typename Function>
-  void iterate(ZGenerationId id, Function function);
+  void iterate(ZGenerationId id, Function function) const;
 
   BitMap::idx_t find_base_bit(BitMap::idx_t index);
   BitMap::idx_t find_base_bit_in_segment(BitMap::idx_t start, BitMap::idx_t index);

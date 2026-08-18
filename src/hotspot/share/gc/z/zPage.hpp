@@ -167,7 +167,7 @@ public:
   size_t live_bytes() const;
 
   template <typename Function>
-  void object_iterate(Function function);
+  void object_iterate(Function function) const;
 
   bool remember(volatile zpointer* p);
   bool forget_previous(volatile zpointer* p);

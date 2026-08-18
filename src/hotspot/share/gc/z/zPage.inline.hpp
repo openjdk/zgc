@@ -321,7 +321,7 @@ inline size_t ZPage::live_bytes() const {
 }
 
 template <typename Function>
-inline void ZPage::object_iterate(Function function) {
+inline void ZPage::object_iterate(Function function) const {
   auto do_bit = [&](BitMap::idx_t index) -> bool {
     const oop obj = object_from_bit_index(index);
 

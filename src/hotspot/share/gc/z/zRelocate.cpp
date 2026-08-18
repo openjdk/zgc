@@ -56,6 +56,8 @@
 
 static const ZStatCriticalPhase ZCriticalPhaseRelocationStall("Relocation Stall");
 static const ZStatSubPhase ZSubPhaseConcurrentRelocateRememberedSetFlipPromotedYoung("Concurrent Relocate Remset FP", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentFreeListPageYoung("Concurrent FP Free-List Page", ZGenerationId::young);
+static const ZStatSubPhase ZSubPhaseConcurrentFreeListPageOld("Concurrent FP Free-List Page", ZGenerationId::old);
 
 ZRelocateQueue::ZRelocateQueue()
   : _lock(),
@@ -1422,8 +1424,6 @@ public:
       // Setup to-space page
       ZPage* const new_page = prev_page->flip_age();
 
-      // TODO: Consider building free-lists for promotion pages.
-
       // Reset page for flip aging
       new_page->reset_livemap();
 
@@ -1442,21 +1442,93 @@ public:
   }
 };
 
-class ZFlipAgeOldPagesTask : public ZTask {
+template <typename Function>
+static size_t object_iterate_and_construct_free_list(const ZPage* prev_page, ZPage* aged_page, Function function) {
+  precond(aged_page->virtual_memory() == prev_page->virtual_memory());
+  precond(aged_page->is_flip_aged());
+  precond(aged_page->is_old());
+  precond(aged_page->age() != ZPageAge::old || ZMaintainOldFreeLists);
+  precond(aged_page->age() != ZPageAge::promotion || ZFlipPromotionFreeLists);
+
+  size_t free_list_available = 0;
+
+  const size_t page_object_alignment = aged_page->object_alignment();
+  zoffset_end next_potential_free_start = to_zoffset_end(aged_page->start());
+
+  prev_page->object_iterate([&](oop obj) {
+    // Invoke iteration callback
+    function(obj);
+
+    if (prev_page->is_large()) {
+      // No free lists for large pages
+      return;
+    }
+
+    // Build free-list
+    precond(is_aligned(untype(to_zaddress(obj)), page_object_alignment));
+
+    const zoffset obj_offset = ZAddress::offset(to_zaddress(obj));
+    const size_t aligned_object_size = align_up(ZUtils::object_size(to_zaddress(obj)), page_object_alignment);
+
+    if (next_potential_free_start != obj_offset) {
+      const zoffset free_start = to_zoffset(next_potential_free_start);
+      const size_t free_size = obj_offset - free_start;
+      aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+      free_list_available += free_size;
+    }
+
+    // Set next potential start
+    next_potential_free_start = to_zoffset_end(obj_offset, aligned_object_size);
+  });
+
+  if (prev_page->is_large()) {
+    // No free lists for large pages
+    postcond(free_list_available == 0);
+    return 0;
+  }
+
+  postcond(next_potential_free_start != to_zoffset_end(aged_page->start()));
+  postcond(next_potential_free_start <= aged_page->end());
+
+  if (next_potential_free_start != aged_page->end()) {
+    if (aged_page->end() != aged_page->top()) {
+      // Alloc the tail
+      [[maybe_unused]] zaddress addr = aged_page->alloc_object(aged_page->remaining());
+    }
+    // Free tail
+    const zoffset free_start = to_zoffset(next_potential_free_start);
+    const size_t free_size = aged_page->end() - free_start;
+    aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
+    free_list_available += free_size;
+  }
+
+  if (ZAllocateInOldFreeList && aged_page->age() == ZPageAge::old) {
+    // Register the page
+    ZGeneration::young()->register_old_alloction_page(aged_page);
+  }
+
+  return free_list_available;
+}
+
+class ZFlipAgeOldPagesTask : public ZRestartableTask {
 private:
   ZArrayParallelIterator<ZPage*> _not_selected_iter;
   ZArrayParallelIterator<ZPage*> _selected_iter;
+  size_t                         _free_list_available;
 
 public:
   ZFlipAgeOldPagesTask(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages)
-    : ZTask("ZFlipAgeOldPagesTask"),
+    : ZRestartableTask("ZFlipAgeOldPagesTask"),
       _not_selected_iter(not_selected_pages),
-      _selected_iter(selected_pages) {}
+      _selected_iter(selected_pages),
+      _free_list_available(0) {}
+
+  ~ZFlipAgeOldPagesTask() {
+    ZGeneration::old()->increase_freelist_available(_free_list_available);
+  }
 
   virtual void work() {
     SuspendibleThreadSetJoiner sts_joiner;
-
-    size_t free_list_availiabe = 0;
 
     for (ZPage* prev_page; _not_selected_iter.next(&prev_page);) {
       prev_page->log_msg(" (flip survived)");
@@ -1476,59 +1548,24 @@ public:
 
       ZGeneration::old()->flip_survive(prev_page, aged_page);
 
-      precond(aged_page->virtual_memory() == prev_page->virtual_memory());
-      const size_t page_object_alignment = aged_page->object_alignment();
-      zoffset_end next_potential_free_start = to_zoffset_end(aged_page->start());
-      prev_page->object_iterate([&](oop obj) {
+      auto function = [&](oop obj) {
         ZGeneration::young()->on_old_to_old(to_zaddress(obj), false /* was_mutator */); // TODO: More naming issues
+      };
 
-        if (ZMaintainOldFreeLists && !prev_page->is_large()) {
-          // Build free-list
-          precond(is_aligned(untype(to_zaddress(obj)), page_object_alignment));
+      if (ZOldRefCount && ZMaintainOldFreeLists) {
+        ZStatTimerWorker timer(ZSubPhaseConcurrentFreeListPageOld);
 
-          const zoffset obj_offset = ZAddress::offset(to_zaddress(obj));
-          const size_t aligned_object_size = align_up(ZUtils::object_size(to_zaddress(obj)), page_object_alignment);
-
-          if (next_potential_free_start != obj_offset) {
-            const zoffset free_start = to_zoffset(next_potential_free_start);
-            const size_t free_size = obj_offset - free_start;
-            aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
-            free_list_availiabe += free_size;
-          }
-
-          // Set next potential start
-          next_potential_free_start = to_zoffset_end(obj_offset, aligned_object_size);
-        }
-      });
-
-
-      if (ZMaintainOldFreeLists) {
-        postcond(prev_page->is_large() || next_potential_free_start != to_zoffset_end(aged_page->start()));
-        postcond(next_potential_free_start <= aged_page->end());
-
-        if (!prev_page->is_large() && next_potential_free_start != aged_page->end()) {
-          if (aged_page->end() != aged_page->top()) {
-            // Alloc the tail
-            [[maybe_unused]] zaddress addr = aged_page->alloc_object(aged_page->remaining());
-          }
-          // Free tail
-          const zoffset free_start = to_zoffset(next_potential_free_start);
-          const size_t free_size = aged_page->end() - free_start;
-          aged_page->free_object_to_free_list(ZOffset::address_unsafe(free_start), free_size);
-          free_list_availiabe += free_size;
-        }
-
-        if (ZAllocateInOldFreeList && !prev_page->is_large()) {
-          // Register the page
-          ZGeneration::young()->register_old_alloction_page(aged_page);
-        }
+        _free_list_available += object_iterate_and_construct_free_list(prev_page, aged_page, function);
+      } else {
+        prev_page->object_iterate(function);
       }
 
+      if (ZGeneration::old()->should_worker_resize()) {
+        return;
+      }
 
       SuspendibleThreadSet::yield();
     }
-
-    ZGeneration::old()->increase_freelist_available(free_list_availiabe);
 
     for (ZPage* page; _selected_iter.next(&page);) {
       const uint32_t young_marks = ZGeneration::old()->young_marks_since_old_mark_end();
@@ -1540,22 +1577,32 @@ public:
         page->prune_dead_remset_entries();
       }
 
+      if (ZGeneration::old()->should_worker_resize()) {
+        return;
+      }
+
       SuspendibleThreadSet::yield();
     }
   }
 };
 
-class ZPromoteBarrierTask : public ZTask {
+class ZPromoteBarrierTask : public ZRestartableTask {
 private:
   ZArrayParallelIterator<ZPage*> _flip_promoted_iter;
   ZArrayParallelIterator<ZPage*> _relocate_promoted_iter;
+  size_t                         _free_list_available;
 
 public:
   ZPromoteBarrierTask(const ZArray<ZPage*>* flip_promoted_pages,
                       const ZArray<ZPage*>* relocate_promoted_pages)
-    : ZTask("ZPromoteBarrierTask"),
+    : ZRestartableTask("ZPromoteBarrierTask"),
       _flip_promoted_iter(flip_promoted_pages),
-      _relocate_promoted_iter(relocate_promoted_pages) {}
+      _relocate_promoted_iter(relocate_promoted_pages),
+      _free_list_available(0) {}
+
+  ~ZPromoteBarrierTask() {
+    ZGeneration::young()->increase_freelist_available(_free_list_available);
+  }
 
   virtual void work() {
     SuspendibleThreadSetJoiner sts_joiner;
@@ -1566,15 +1613,32 @@ public:
         // contained zpointers are store good. The marking code ensures that for non-null
         // pointers, but null pointers are ignored. This code ensures that even null pointers
         // are made store good, for the promoted objects.
-        page->object_iterate([&](oop obj) {
+        auto promote = [&](oop obj) {
           ZIterator::basic_oop_iterate_safe(obj, ZBarrier::promote_barrier_on_young_oop_field);
-        });
+        };
+
+        if (ZOldRefCount && ZFlipPromotionFreeLists && iter == &_flip_promoted_iter) {
+          ZStatTimerWorker timer(ZSubPhaseConcurrentFreeListPageYoung);
+
+          ZPage* const aged_page = ZHeap::heap()->page(ZOffset::address(page->start()));
+
+          _free_list_available += object_iterate_and_construct_free_list(page, aged_page, promote);
+        } else {
+          page->object_iterate(promote);
+        }
+
+        if (ZGeneration::young()->should_worker_resize()) {
+          return;
+        }
 
         SuspendibleThreadSet::yield();
       }
     };
 
     promote_barriers(&_flip_promoted_iter);
+    if (ZGeneration::young()->should_worker_resize()) {
+      return;
+    }
     promote_barriers(&_relocate_promoted_iter);
   }
 };

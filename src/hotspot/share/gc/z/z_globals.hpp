@@ -46,6 +46,9 @@
   product(bool, ZMaintainOldFreeLists, false,                               \
           "Perform reference counting among old objects")                   \
                                                                             \
+  product(bool, ZFlipPromotionFreeLists, false,                             \
+          "Danger! Probably breaks ZReferenceCounting::on_remember")        \
+                                                                            \
   product(bool, ZAllocateInOldFreeList, true, DIAGNOSTIC,                   \
           "Perform reference counting among old objects")                   \
                                                                             \
