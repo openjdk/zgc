@@ -391,7 +391,7 @@ private:
   const size_t _used_high;
   const size_t _used_low;
   const size_t _used_generation;
-  const size_t _freelist_available;
+  const size_t _freelist_available_at_start;
   const size_t _freelist_promoted;
   const size_t _freelist_compacted;
   const size_t _freed;
@@ -406,7 +406,7 @@ public:
                       size_t used_high,
                       size_t used_low,
                       size_t used_generation,
-                      size_t freelist_available,
+                      size_t freelist_available_at_start,
                       size_t freelist_promoted,
                       size_t freelist_compacted,
                       size_t freed,
@@ -420,7 +420,7 @@ public:
   size_t used_high() const;
   size_t used_low() const;
   size_t used_generation() const;
-  size_t freelist_available() const;
+  size_t freelist_available_at_start() const;
   size_t freelist_promoted() const;
   size_t freelist_compacted() const;
   size_t freed() const;

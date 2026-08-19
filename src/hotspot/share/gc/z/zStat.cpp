@@ -1847,10 +1847,12 @@ size_t ZStatHeap::free(size_t used, size_t capacity) const {
   return _at_initialize.max_capacity - used;
 }
 
-size_t ZStatHeap::freelist_available(const ZPageAllocatorStats& stats) const {
-  const size_t freelist_allocated = stats.freelist_promoted() + stats.freelist_compacted();
-  assert(freelist_allocated <= stats.freelist_available(), "Invalid free-list statistics");
-  return stats.freelist_available() - freelist_allocated;
+size_t ZStatHeap::freelist_available(size_t freelist_available_at_start,
+                                     size_t freelist_promoted,
+                                     size_t freelist_compacted) const {
+  const size_t freelist_allocated = freelist_promoted + freelist_compacted;
+  assert(freelist_allocated <= freelist_available_at_start, "Invalid free-list statistics");
+  return freelist_available_at_start - freelist_allocated;
 }
 
 size_t ZStatHeap::mutator_allocated(size_t used_generation, size_t freed, size_t relocated) const {
@@ -1896,7 +1898,9 @@ void ZStatHeap::at_mark_start(const ZPageAllocatorStats& stats) {
   _at_mark_start.free = free(stats.used(), stats.capacity());
   _at_mark_start.used = stats.used();
   _at_mark_start.used_generation = stats.used_generation();
-  _at_mark_start.freelist_available = freelist_available(stats);
+  _at_mark_start.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                         stats.freelist_promoted(),
+                                                         stats.freelist_compacted());
   _at_mark_start.allocation_stalls = stats.allocation_stalls();
 }
 
@@ -1907,7 +1911,9 @@ void ZStatHeap::at_mark_end(const ZPageAllocatorStats& stats) {
   _at_mark_end.free = free(stats.used(), stats.capacity());
   _at_mark_end.used = stats.used();
   _at_mark_end.used_generation = stats.used_generation();
-  _at_mark_end.freelist_available = freelist_available(stats);
+  _at_mark_end.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                       stats.freelist_promoted(),
+                                                       stats.freelist_compacted());
   _at_mark_end.mutator_allocated = mutator_allocated(stats.used_generation(), 0 /* reclaimed */, 0 /* relocated */);
   _at_mark_end.allocation_stalls = stats.allocation_stalls();
 }
@@ -1936,7 +1942,9 @@ void ZStatHeap::at_relocate_start(const ZPageAllocatorStats& stats) {
   _at_relocate_start.free = free(stats.used(), stats.capacity());
   _at_relocate_start.used = stats.used();
   _at_relocate_start.used_generation = stats.used_generation();
-  _at_relocate_start.freelist_available = freelist_available(stats);
+  _at_relocate_start.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                             stats.freelist_promoted(),
+                                                             stats.freelist_compacted());
   _at_relocate_start.live = _at_mark_end.live - promoted;
   _at_relocate_start.garbage = garbage(stats.freed(), compacted, promoted);
   _at_relocate_start.mutator_allocated = mutator_allocated(stats.used_generation(), stats.freed(), stats.compacted());
@@ -1962,7 +1970,9 @@ void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_st
   _at_relocate_end.used_high = stats.used_high();
   _at_relocate_end.used_low = stats.used_low();
   _at_relocate_end.used_generation = stats.used_generation();
-  _at_relocate_end.freelist_available = freelist_available(stats);
+  _at_relocate_end.freelist_available = freelist_available(stats.freelist_available_at_start(),
+                                                           stats.freelist_promoted(),
+                                                           stats.freelist_compacted());
   _at_relocate_end.live = _at_mark_end.live - MIN2(promoted, _at_mark_end.live);
   _at_relocate_end.garbage = garbage(stats.freed(), compacted, promoted);
   _at_relocate_end.mutator_allocated = mutator_allocated(stats.used_generation(), stats.freed(), stats.compacted());

@@ -146,7 +146,7 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _relocation_set(this),
     _freed(0),
     _freelist_promoted(0),
-    _freelist_available(0),
+    _freelist_available_at_start(0),
     _promoted(0),
     _compacted(0),
     _phase(Phase::Relocate),
@@ -235,7 +235,8 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
 
       ZGeneration::young()->construct_old_allocator();
 
-      log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT, PROPERFMTARGS(ZGeneration::old()->freelist_available()));
+      log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT,
+                             PROPERFMTARGS(ZGeneration::old()->freelist_available_at_start()));
     }
 
   }
@@ -335,10 +336,10 @@ void ZGeneration::reset_statistics() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
 
   if (is_young()) {
-    const size_t freelist_available = _freelist_available.load_relaxed();
+    const size_t freelist_available_at_start = _freelist_available_at_start.load_relaxed();
     const size_t freelist_promoted = _freelist_promoted.load_relaxed();
-    assert(freelist_promoted <= freelist_available, "Invalid free-list statistics");
-    _freelist_available.store_relaxed(freelist_available - freelist_promoted);
+    assert(freelist_promoted <= freelist_available_at_start, "Invalid free-list statistics");
+    _freelist_available_at_start.store_relaxed(freelist_available_at_start - freelist_promoted);
   }
 
   _freed.store_relaxed(0u);
@@ -372,16 +373,16 @@ void ZGeneration::increase_freelist_compacted(size_t size) {
   _freelist_compacted.add_then_fetch(size, memory_order_relaxed);
 }
 
-size_t ZGeneration::freelist_available() const {
-  return _freelist_available.load_relaxed();;
+size_t ZGeneration::freelist_available_at_start() const {
+  return _freelist_available_at_start.load_relaxed();;
 }
 
-void ZGeneration::increase_freelist_available(size_t size) {
-  _freelist_available.add_then_fetch(size, memory_order_relaxed);
+void ZGeneration::increase_freelist_available_at_start(size_t size) {
+  _freelist_available_at_start.add_then_fetch(size, memory_order_relaxed);
 }
 
-void ZGeneration::set_freelist_available(size_t size) {
-  _freelist_available.store_relaxed(size);
+void ZGeneration::set_freelist_available_at_start(size_t size) {
+  _freelist_available_at_start.store_relaxed(size);
 }
 
 size_t ZGeneration::promoted() const {
@@ -1047,13 +1048,13 @@ void ZGenerationYoung::relocate() {
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
 
   const size_t promoted_size = promoted();
-  const size_t freelist_available_size = freelist_available();
+  const size_t freelist_available_at_start = this->freelist_available_at_start();
 
   log_info(gc)("Old Generation Free-list Promoted: " PROPERFMT
                " [%2.2f%% of Promoted] [%2.2f%% of Available]",
                PROPERFMTARGS(freelist_promoted()),
                promoted_size == 0 ? 100. : percent_of(freelist_promoted(), promoted_size),
-               freelist_available_size == 0 ? 100. : percent_of(freelist_promoted(), freelist_available_size));
+               freelist_available_at_start == 0 ? 100. : percent_of(freelist_promoted(), freelist_available_at_start));
 }
 
 void ZGenerationOld::flip_survive(ZPage* from_page, ZPage* to_page) {
@@ -1418,7 +1419,7 @@ void ZGenerationOld::concurrent_create_freelists() {
   ZStatTimerOld timer(ZPhaseConcurrentInstallPromotionFreeListsOld);
 
   if (ZAllocateInOldFreeList) {
-    set_freelist_available(0);
+    set_freelist_available_at_start(0);
     young()->reset_old_allocator();
   }
 
@@ -1644,13 +1645,13 @@ void ZGenerationOld::relocate() {
   stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
 
   const size_t compacted_size = compacted();
-  const size_t freelist_available_size = freelist_available();
+  const size_t freelist_available_at_start = this->freelist_available_at_start();
 
   log_info(gc)("Old Generation Free-list Compacted: " PROPERFMT
                " [%2.2f%% of Compacted] [%2.2f%% of Available]",
                PROPERFMTARGS(freelist_compacted()),
                compacted_size == 0 ? 100. : percent_of(freelist_compacted(), compacted_size),
-               freelist_available_size == 0 ? 100. : percent_of(freelist_compacted(), freelist_available_size));
+               freelist_available_at_start == 0 ? 100. : percent_of(freelist_compacted(), freelist_available_at_start));
 }
 
 class ZRemapOopClosure : public OopClosure {

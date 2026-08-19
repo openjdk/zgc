@@ -1895,7 +1895,7 @@ ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
                              _collection_stats[(int)generation->id()]._used_high,
                              _collection_stats[(int)generation->id()]._used_low,
                              used_generation(generation->id()),
-                             generation->freelist_available(),
+                             generation->freelist_available_at_start(),
                              generation->freelist_promoted(),
                              generation->freelist_compacted(),
                              generation->freed(),

@@ -76,7 +76,7 @@ protected:
   Atomic<size_t>        _freed;
   Atomic<size_t>        _freelist_promoted;
   Atomic<size_t>        _freelist_compacted;
-  Atomic<size_t>        _freelist_available;
+  Atomic<size_t>        _freelist_available_at_start;
   Atomic<size_t>        _promoted;
   Atomic<size_t>        _compacted;
 
@@ -131,9 +131,9 @@ public:
   void increase_freelist_promoted(size_t size);
   size_t freelist_compacted() const;
   void increase_freelist_compacted(size_t size);
-  size_t freelist_available() const;
-  void increase_freelist_available(size_t size);
-  void set_freelist_available(size_t size);
+  size_t freelist_available_at_start() const;
+  void increase_freelist_available_at_start(size_t size);
+  void set_freelist_available_at_start(size_t size);
   size_t promoted() const;
   void increase_promoted(size_t size);
   size_t compacted() const;

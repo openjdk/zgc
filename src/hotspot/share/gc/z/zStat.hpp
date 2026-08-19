@@ -717,7 +717,9 @@ private:
   size_t capacity_high() const;
   size_t capacity_low() const;
   size_t free(size_t used, size_t capacity) const;
-  size_t freelist_available(const ZPageAllocatorStats& stats) const;
+  size_t freelist_available(size_t freelist_available_at_start,
+                            size_t freelist_promoted,
+                            size_t freelist_compacted) const;
   size_t mutator_allocated(size_t used, size_t freed, size_t relocated) const;
   size_t garbage(size_t freed, size_t relocated, size_t promoted) const;
   size_t reclaimed(size_t freed, size_t relocated, size_t promoted) const;

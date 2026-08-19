@@ -1524,7 +1524,7 @@ public:
       _free_list_available(0) {}
 
   ~ZFlipAgeOldPagesTask() {
-    ZGeneration::old()->increase_freelist_available(_free_list_available);
+    ZGeneration::old()->increase_freelist_available_at_start(_free_list_available);
   }
 
   virtual void work() {
@@ -1601,7 +1601,7 @@ public:
       _free_list_available(0) {}
 
   ~ZPromoteBarrierTask() {
-    ZGeneration::young()->increase_freelist_available(_free_list_available);
+    ZGeneration::young()->increase_freelist_available_at_start(_free_list_available);
   }
 
   virtual void work() {

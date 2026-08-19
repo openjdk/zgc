@@ -239,7 +239,7 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
     }
 
     log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT, PROPERFMTARGS(free_list_available));
-    ZGeneration::young()->set_freelist_available(free_list_available);
+    ZGeneration::young()->set_freelist_available_at_start(free_list_available);
   }
 
   struct FreeListAllocator {
