@@ -333,6 +333,14 @@ bool ZGeneration::is_relocate_queue_active() const {
 
 void ZGeneration::reset_statistics() {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
+
+  if (is_young()) {
+    const size_t freelist_available = _freelist_available.load_relaxed();
+    const size_t freelist_promoted = _freelist_promoted.load_relaxed();
+    assert(freelist_promoted <= freelist_available, "Invalid free-list statistics");
+    _freelist_available.store_relaxed(freelist_available - freelist_promoted);
+  }
+
   _freed.store_relaxed(0u);
   _freelist_promoted.store_relaxed(0u);
   _freelist_compacted.store_relaxed(0u);

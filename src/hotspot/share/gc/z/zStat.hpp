@@ -660,6 +660,7 @@ private:
     size_t free;
     size_t used;
     size_t used_generation;
+    size_t freelist_available;
     size_t allocation_stalls;
   } _at_mark_start;
 
@@ -668,6 +669,7 @@ private:
     size_t free;
     size_t used;
     size_t used_generation;
+    size_t freelist_available;
     size_t live;
     size_t garbage;
     size_t mutator_allocated;
@@ -679,6 +681,7 @@ private:
     size_t free;
     size_t used;
     size_t used_generation;
+    size_t freelist_available;
     size_t live;
     size_t garbage;
     size_t mutator_allocated;
@@ -699,6 +702,7 @@ private:
     size_t used_high;
     size_t used_low;
     size_t used_generation;
+    size_t freelist_available;
     size_t live;
     size_t garbage;
     size_t mutator_allocated;
@@ -713,6 +717,7 @@ private:
   size_t capacity_high() const;
   size_t capacity_low() const;
   size_t free(size_t used, size_t capacity) const;
+  size_t freelist_available(const ZPageAllocatorStats& stats) const;
   size_t mutator_allocated(size_t used, size_t freed, size_t relocated) const;
   size_t garbage(size_t freed, size_t relocated, size_t promoted) const;
   size_t reclaimed(size_t freed, size_t relocated, size_t promoted) const;

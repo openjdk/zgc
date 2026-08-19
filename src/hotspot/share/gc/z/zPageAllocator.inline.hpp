@@ -32,6 +32,9 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t heuristic_max_capacity,
                                                 size_t used_high,
                                                 size_t used_low,
                                                 size_t used_generation,
+                                                size_t freelist_available,
+                                                size_t freelist_promoted,
+                                                size_t freelist_compacted,
                                                 size_t freed,
                                                 size_t promoted,
                                                 size_t compacted,
@@ -42,6 +45,9 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t heuristic_max_capacity,
     _used_high(used_high),
     _used_low(used_low),
     _used_generation(used_generation),
+    _freelist_available(freelist_available),
+    _freelist_promoted(freelist_promoted),
+    _freelist_compacted(freelist_compacted),
     _freed(freed),
     _promoted(promoted),
     _compacted(compacted),
@@ -69,6 +75,18 @@ inline size_t ZPageAllocatorStats::used_low() const {
 
 inline size_t ZPageAllocatorStats::used_generation() const {
   return _used_generation;
+}
+
+inline size_t ZPageAllocatorStats::freelist_available() const {
+  return _freelist_available;
+}
+
+inline size_t ZPageAllocatorStats::freelist_promoted() const {
+  return _freelist_promoted;
+}
+
+inline size_t ZPageAllocatorStats::freelist_compacted() const {
+  return _freelist_compacted;
 }
 
 inline size_t ZPageAllocatorStats::freed() const {
