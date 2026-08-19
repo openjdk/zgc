@@ -752,7 +752,11 @@ void ZStatPhaseGeneration::register_end(ConcurrentGCTimer* timer, const Ticks& s
   generation->stat_relocation()->print_page_summary();
   if (generation->is_young()) {
     generation->stat_relocation()->print_age_table();
+    if (ZOldRefCount) {
+      ZGeneration::young()->stat_reference_counting()->print();
+    }
   }
+  generation->stat_freelist()->print();
 
   generation->stat_heap()->print(generation);
 
@@ -1806,6 +1810,114 @@ void ZStatReferences::print() {
   ref_print("Weak", _weak);
   ref_print("Final", _final);
   ref_print("Phantom", _phantom);
+}
+
+//
+// Stat reference counting
+//
+ZStatReferenceCounting::ZStatReferenceCounting()
+  : _death_row_roots(),
+    _processed(),
+    _freelist_freed(),
+    _page_freed(),
+    _pardoned() {}
+
+void ZStatReferenceCounting::at_process_death_row(size_t death_row_roots,
+                                                   size_t processed,
+                                                   size_t freelist_freed,
+                                                   size_t page_freed,
+                                                   size_t pardoned) {
+  _death_row_roots = death_row_roots;
+  _processed = processed;
+  _freelist_freed = freelist_freed;
+  _page_freed = page_freed;
+  _pardoned = pardoned;
+}
+
+void ZStatReferenceCounting::print() const {
+  LogTarget(Info, gc, refcount) lt;
+  if (!lt.is_enabled()) {
+    return;
+  }
+
+  ZStatTablePrinter table(24, 16);
+  lt.print("Reference Counting:");
+  lt.print("%s", table()
+           .fill()
+           .right("Bytes")
+           .end());
+  lt.print("%s", table()
+           .left("Death Row Roots:")
+           .right(PROPERFMT, PROPERFMTARGS(_death_row_roots))
+           .end());
+  lt.print("%s", table()
+           .left("Processed:")
+           .right(PROPERFMT, PROPERFMTARGS(_processed))
+           .end());
+  lt.print("%s", table()
+           .left("Free List Freed:")
+           .right(PROPERFMT, PROPERFMTARGS(_freelist_freed))
+           .end());
+  lt.print("%s", table()
+           .left("Page Freed:")
+           .right(PROPERFMT, PROPERFMTARGS(_page_freed))
+           .end());
+  lt.print("%s", table()
+           .left("Pardoned:")
+           .right(PROPERFMT, PROPERFMTARGS(_pardoned))
+           .end());
+}
+
+//
+// Stat free list
+//
+ZStatFreeList::ZStatFreeList(ZGenerationId id)
+  : _id(id),
+    _available_at_start(),
+    _freelist_promoted(),
+    _freelist_compacted(),
+    _promoted(),
+    _compacted() {}
+
+void ZStatFreeList::at_relocate_end(const ZPageAllocatorStats& stats) {
+  _available_at_start = stats.freelist_available_at_start();
+  _freelist_promoted = stats.freelist_promoted();
+  _freelist_compacted = stats.freelist_compacted();
+  _promoted = stats.promoted() + _freelist_promoted;
+  _compacted = stats.compacted() + _freelist_compacted;
+}
+
+void ZStatFreeList::print() const {
+  const bool is_young = _id == ZGenerationId::young;
+  const size_t used = is_young ? _freelist_promoted : _freelist_compacted;
+  const size_t total = is_young ? _promoted : _compacted;
+
+  precond(used <= _available_at_start);
+  precond(used <= total);
+
+  LogTarget(Info, gc, freelist) lt;
+  if (_available_at_start == 0 || total == 0 || !lt.is_enabled()) {
+    return;
+  }
+
+  ZStatTablePrinter table(16, 16);
+  lt.print("Free List:");
+  lt.print("%s", table()
+           .fill()
+           .right("Available")
+           .right("Used")
+           .right("Total")
+           .right("Of Total")
+           .right("Of Available")
+           .end());
+  lt.print("%s", table()
+           .left(is_young ? "Promoted:" : "Compacted:")
+           .right(PROPERFMT, PROPERFMTARGS(_available_at_start))
+           .right(PROPERFMT, PROPERFMTARGS(used))
+           .right(PROPERFMT, PROPERFMTARGS(total))
+           .right("%.2f%%", percent_of(used, total))
+           .right("%.2f%%", percent_of(used, _available_at_start))
+           .end());
 }
 
 //

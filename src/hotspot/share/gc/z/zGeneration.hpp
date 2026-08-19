@@ -88,6 +88,7 @@ protected:
   ZStatWorkers          _stat_workers;
   ZStatMark             _stat_mark;
   ZStatRelocation       _stat_relocation;
+  ZStatFreeList         _stat_freelist;
 
   ConcurrentGCTimer*    _gc_timer;
 
@@ -148,6 +149,7 @@ public:
   ZStatWorkers* stat_workers();
   ZStatMark* stat_mark();
   ZStatRelocation* stat_relocation();
+  ZStatFreeList* stat_freelist();
 
   void at_collection_start(ConcurrentGCTimer* gc_timer);
   void at_collection_end();
@@ -207,11 +209,12 @@ class ZGenerationYoung : public ZGeneration {
   friend class ZYoungTypeSetter;
 
 private:
-  ZYoungType         _active_type;
-  uint               _tenuring_threshold;
-  ZRemembered        _remembered;
-  ZReferenceCounting _old_ref_count;
-  ZYoungTracer       _jfr_tracer;
+  ZYoungType             _active_type;
+  uint                   _tenuring_threshold;
+  ZRemembered            _remembered;
+  ZReferenceCounting     _old_ref_count;
+  ZStatReferenceCounting _stat_reference_counting;
+  ZYoungTracer           _jfr_tracer;
 
   void flip_mark_start();
   void flip_relocate_start();
@@ -248,6 +251,7 @@ public:
 
   // Statistics
   bool should_record_stats();
+  ZStatReferenceCounting* stat_reference_counting();
 
   // Support for promoting object to the old generation
   void flip_promote(ZPage* from_page, ZPage* to_page);

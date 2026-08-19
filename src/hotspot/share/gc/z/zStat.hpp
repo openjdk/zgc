@@ -591,6 +591,49 @@ public:
 };
 
 //
+// Stat reference counting
+//
+class ZStatReferenceCounting {
+private:
+  size_t _death_row_roots;
+  size_t _processed;
+  size_t _freelist_freed;
+  size_t _page_freed;
+  size_t _pardoned;
+
+public:
+  ZStatReferenceCounting();
+
+  void at_process_death_row(size_t death_row_roots,
+                            size_t processed,
+                            size_t freelist_freed,
+                            size_t whole_page_freed,
+                            size_t pardoned);
+
+  void print() const;
+};
+
+//
+// Stat free list
+//
+class ZStatFreeList {
+private:
+  const ZGenerationId _id;
+  size_t _available_at_start;
+  size_t _freelist_promoted;
+  size_t _freelist_compacted;
+  size_t _promoted;
+  size_t _compacted;
+
+public:
+  ZStatFreeList(ZGenerationId id);
+
+  void at_relocate_end(const ZPageAllocatorStats& stats);
+
+  void print() const;
+};
+
+//
 // Stat nmethods
 //
 class ZStatNMethods : public AllStatic {

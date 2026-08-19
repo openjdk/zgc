@@ -156,6 +156,7 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _stat_workers(),
     _stat_mark(),
     _stat_relocation(),
+    _stat_freelist(id),
     _gc_timer(nullptr) {}
 
 ZWorkers* ZGeneration::workers() {
@@ -234,9 +235,6 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
       ZStatTimerOld timer(ZSubPhaseConcurrentInstallOldFreeListsOld);
 
       ZGeneration::young()->construct_old_allocator();
-
-      log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT,
-                             PROPERFMTARGS(ZGeneration::old()->freelist_available_at_start()));
     }
 
   }
@@ -581,6 +579,7 @@ ZGenerationYoung::ZGenerationYoung(ZPageTable* page_table,
     _tenuring_threshold(0),
     _remembered(page_table, old_forwarding_table, page_allocator),
     _old_ref_count(),
+    _stat_reference_counting(),
     _jfr_tracer() {
   ZGeneration::_young = this;
 }
@@ -1045,16 +1044,9 @@ void ZGenerationYoung::relocate() {
   _relocate.relocate(&_relocation_set);
 
   // Update statistics
-  stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
-
-  const size_t promoted_size = promoted();
-  const size_t freelist_available_at_start = this->freelist_available_at_start();
-
-  log_info(gc)("Old Generation Free-list Promoted: " PROPERFMT
-               " [%2.2f%% of Promoted] [%2.2f%% of Available]",
-               PROPERFMTARGS(freelist_promoted()),
-               promoted_size == 0 ? 100. : percent_of(freelist_promoted(), promoted_size),
-               freelist_available_at_start == 0 ? 100. : percent_of(freelist_promoted(), freelist_available_at_start));
+  const ZPageAllocatorStats stats = _page_allocator->stats(this);
+  stat_heap()->at_relocate_end(stats, should_record_stats());
+  stat_freelist()->at_relocate_end(stats);
 }
 
 void ZGenerationOld::flip_survive(ZPage* from_page, ZPage* to_page) {
@@ -1642,16 +1634,9 @@ void ZGenerationOld::relocate() {
   _relocate.relocate(&_relocation_set);
 
   // Update statistics
-  stat_heap()->at_relocate_end(_page_allocator->stats(this), should_record_stats());
-
-  const size_t compacted_size = compacted();
-  const size_t freelist_available_at_start = this->freelist_available_at_start();
-
-  log_info(gc)("Old Generation Free-list Compacted: " PROPERFMT
-               " [%2.2f%% of Compacted] [%2.2f%% of Available]",
-               PROPERFMTARGS(freelist_compacted()),
-               compacted_size == 0 ? 100. : percent_of(freelist_compacted(), compacted_size),
-               freelist_available_at_start == 0 ? 100. : percent_of(freelist_compacted(), freelist_available_at_start));
+  const ZPageAllocatorStats stats = _page_allocator->stats(this);
+  stat_heap()->at_relocate_end(stats, should_record_stats());
+  stat_freelist()->at_relocate_end(stats);
 }
 
 class ZRemapOopClosure : public OopClosure {

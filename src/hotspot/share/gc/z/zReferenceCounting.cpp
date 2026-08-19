@@ -205,6 +205,8 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
 
   // Death Row Counters Support
   struct Counters {
+    size_t _death_row_roots = 0;
+    size_t _processed = 0;
     size_t _freed = 0;
     size_t _large_freed = 0;
     size_t _pardoned = 0;
@@ -213,24 +215,30 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
 
   ZPerWorker<Counters> _per_worker_counters;
 
-  void log_free_and_pardoned_counters() {
+  void record_death_row_counters() {
+    size_t death_row_roots = 0;
+    size_t processed = 0;
     size_t freed = 0;
     size_t large_freed = 0;
     size_t pardoned = 0;
 
     ZPerWorkerIterator<State::Counters> counters_iter{&_per_worker_counters};
     for (State::Counters* counters; counters_iter.next(&counters);) {
+      death_row_roots += counters->_death_row_roots;
+      processed += counters->_processed;
       freed += counters->_freed;
       large_freed += counters->_large_freed;
       pardoned += counters->_pardoned;
     }
 
-    log_info(gc)("Old Generation Reclaimed: " PROPERFMT, PROPERFMTARGS(freed));
-    log_info(gc)("Old Generation Reclaimed(large): " PROPERFMT, PROPERFMTARGS(large_freed));
-    log_info(gc)("Old Generation Pardoned: " PROPERFMT, PROPERFMTARGS(pardoned));
+    ZGeneration::young()->stat_reference_counting()->at_process_death_row(death_row_roots,
+                                                                           processed,
+                                                                           freed,
+                                                                           large_freed,
+                                                                           pardoned);
   }
 
-  void record_and_log_free_list_available_counters() {
+  void record_free_list_available_counters() {
     size_t free_list_available = 0;
 
     ZPerWorkerIterator<State::Counters> counters_iter{&_per_worker_counters};
@@ -238,7 +246,6 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
       free_list_available += counters->_free_list_available;
     }
 
-    log_info(gc, freelist)("Old Generation Free-List Available: " PROPERFMT, PROPERFMTARGS(free_list_available));
     ZGeneration::young()->set_freelist_available_at_start(free_list_available);
   }
 
@@ -896,7 +903,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     ZGeneration::young()->workers()->run(&process_death_row_task);
   }
 
-  state()->log_free_and_pardoned_counters();
+  state()->record_death_row_counters();
 
   {
     ZStatTimerYoung timer(ZSubPhaseConcurrentCoalesceFreeList);
@@ -905,7 +912,7 @@ void ZReferenceCounting::process_death_row(ZPageTable* page_table, ZPageAllocato
     ZGeneration::young()->workers()->run(&coalese_task);
   }
 
-  state()->record_and_log_free_list_available_counters();
+  state()->record_free_list_available_counters();
   state()->construct_free_list_promotion_allocator();
   state()->reset_per_worker_state_promotion();
 
@@ -943,6 +950,8 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
     // TODO: Break out functionality, we have so many nested function / lambda scopes with returns.
     // TODO: Clean up interface
     auto& pardoned = _state->_per_worker_counters.get()._pardoned;
+    auto& death_row_roots = _state->_per_worker_counters.get()._death_row_roots;
+    auto& processed = _state->_per_worker_counters.get()._processed;
     auto& freed = _state->_per_worker_counters.get()._freed;
     auto& large_freed = _state->_per_worker_counters.get()._large_freed;
 
@@ -953,6 +962,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
 
     // Push all objects in page to be reclaimed
     page->iterate_death_row([&](zaddress addr) {
+      death_row_roots += ZUtils::object_size(addr);
       if (_reference_counting->try_kill_root(page, addr, pardoned)) {
         oop obj = to_oop(addr);
         dfs_stack.push(obj);
@@ -1030,11 +1040,12 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
         obj_page->forget_current(p);
       }
 
+      processed += size;
       if (obj_page->is_large()) {
-        large_freed += ZUtils::object_size(addr);
+        large_freed += size;
         ZHeap::heap()->free_page(obj_page);
       } else {
-        freed += ZUtils::object_size(addr);
+        freed += size;
         obj_page->free_object_to_free_list(addr);
       }
 

@@ -107,6 +107,14 @@ inline ZStatRelocation* ZGeneration::stat_relocation() {
   return &_stat_relocation;
 }
 
+inline ZStatFreeList* ZGeneration::stat_freelist() {
+  return &_stat_freelist;
+}
+
+inline ZStatReferenceCounting* ZGenerationYoung::stat_reference_counting() {
+  return &_stat_reference_counting;
+}
+
 inline ZPageTable* ZGeneration::page_table() const {
   return _page_table;
 }
