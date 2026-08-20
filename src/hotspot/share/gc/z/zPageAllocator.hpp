@@ -396,6 +396,7 @@ private:
   const size_t _freelist_compacted;
   const size_t _freed;
   const size_t _promoted;
+  const size_t _flip_promoted;
   const size_t _compacted;
   const size_t _allocation_stalls;
 
@@ -411,6 +412,7 @@ public:
                       size_t freelist_compacted,
                       size_t freed,
                       size_t promoted,
+                      size_t flip_promoted,
                       size_t compacted,
                       size_t allocation_stalls);
 
@@ -425,6 +427,7 @@ public:
   size_t freelist_compacted() const;
   size_t freed() const;
   size_t promoted() const;
+  size_t flip_promoted() const;
   size_t compacted() const;
   size_t allocation_stalls() const;
 };

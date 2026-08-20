@@ -37,6 +37,7 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t heuristic_max_capacity,
                                                 size_t freelist_compacted,
                                                 size_t freed,
                                                 size_t promoted,
+                                                size_t flip_promoted,
                                                 size_t compacted,
                                                 size_t allocation_stalls)
   : _heuristic_max_capacity(heuristic_max_capacity),
@@ -50,6 +51,7 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t heuristic_max_capacity,
     _freelist_compacted(freelist_compacted),
     _freed(freed),
     _promoted(promoted),
+    _flip_promoted(flip_promoted),
     _compacted(compacted),
     _allocation_stalls(allocation_stalls) {}
 
@@ -95,6 +97,10 @@ inline size_t ZPageAllocatorStats::freed() const {
 
 inline size_t ZPageAllocatorStats::promoted() const {
   return _promoted;
+}
+
+inline size_t ZPageAllocatorStats::flip_promoted() const {
+  return _flip_promoted;
 }
 
 inline size_t ZPageAllocatorStats::compacted() const {

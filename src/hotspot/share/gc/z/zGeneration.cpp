@@ -148,6 +148,7 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _freelist_promoted(0),
     _freelist_available_at_start(0),
     _promoted(0),
+    _flip_promoted(0),
     _compacted(0),
     _phase(Phase::Relocate),
     _seqnum(1),
@@ -344,6 +345,7 @@ void ZGeneration::reset_statistics() {
   _freelist_promoted.store_relaxed(0u);
   _freelist_compacted.store_relaxed(0u);
   _promoted.store_relaxed(0u);
+  _flip_promoted.store_relaxed(0u);
   _compacted.store_relaxed(0u);
 }
 
@@ -389,6 +391,14 @@ size_t ZGeneration::promoted() const {
 
 void ZGeneration::increase_promoted(size_t size) {
   _promoted.add_then_fetch(size, memory_order_relaxed);
+}
+
+size_t ZGeneration::flip_promoted() const {
+  return _flip_promoted.load_relaxed();
+}
+
+void ZGeneration::increase_flip_promoted(size_t size) {
+  _flip_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
 size_t ZGeneration::compacted() const {
@@ -1060,6 +1070,7 @@ void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
   _page_allocator->promote_used(from_page, to_page);
   increase_freed(from_page->size());
   increase_promoted(from_page->live_bytes());
+  increase_flip_promoted(from_page->live_bytes());
 }
 
 void ZGenerationYoung::in_place_relocate_promote(ZPage* from_page, ZPage* to_page) {

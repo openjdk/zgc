@@ -1880,7 +1880,8 @@ void ZStatFreeList::at_relocate_end(const ZPageAllocatorStats& stats) {
   _available_at_start = stats.freelist_available_at_start();
   _freelist_promoted = stats.freelist_promoted();
   _freelist_compacted = stats.freelist_compacted();
-  _promoted = stats.promoted() + _freelist_promoted;
+  assert(stats.flip_promoted() <= stats.promoted(), "Invalid promotion statistics");
+  _promoted = stats.promoted() - stats.flip_promoted() + _freelist_promoted;
   _compacted = stats.compacted() + _freelist_compacted;
 }
 

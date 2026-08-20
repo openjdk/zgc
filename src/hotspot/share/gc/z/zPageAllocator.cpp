@@ -1900,6 +1900,7 @@ ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
                              generation->freelist_compacted(),
                              generation->freed(),
                              generation->promoted(),
+                             generation->flip_promoted(),
                              generation->compacted(),
                              _stalled.size());
 }

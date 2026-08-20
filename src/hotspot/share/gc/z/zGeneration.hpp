@@ -78,6 +78,7 @@ protected:
   Atomic<size_t>        _freelist_compacted;
   Atomic<size_t>        _freelist_available_at_start;
   Atomic<size_t>        _promoted;
+  Atomic<size_t>        _flip_promoted;
   Atomic<size_t>        _compacted;
 
   Phase                 _phase;
@@ -137,6 +138,8 @@ public:
   void set_freelist_available_at_start(size_t size);
   size_t promoted() const;
   void increase_promoted(size_t size);
+  size_t flip_promoted() const;
+  void increase_flip_promoted(size_t size);
   size_t compacted() const;
   void increase_compacted(size_t size);
 
