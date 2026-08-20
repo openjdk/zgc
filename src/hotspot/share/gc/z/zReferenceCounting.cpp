@@ -470,10 +470,10 @@ template <typename Function>
 void ZReferenceCounting::FoundDeathRow::par_iterate_death_row_pages(ZPageTable* page_table, Function function) {
   previous_bitmap().iterate([&](BitMap::idx_t index) {
     if (previous_bitmap().par_clear_bit(index, memory_order_relaxed)) {
-      if (!function(page_table->at(index))) {
-        return;
-      }
+      return function(page_table->at(index));
     }
+
+    return true;
   });
 }
 
@@ -875,8 +875,10 @@ class ZCoalesceFreeListsTask final : public ZRestartableTask {
   void par_iterate_to_coalesce_pages(ZPageTable* page_table, Function function) {
     _to_coalesce.iterate([&](BitMap::idx_t index) {
       if (_to_coalesce.par_clear_bit(index, memory_order_relaxed)) {
-        function(page_table->at(index));
+        return function(page_table->at(index));
       }
+
+      return true;
     });
   }
 
