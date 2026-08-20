@@ -391,17 +391,17 @@ private:
   const size_t _used_high;
   const size_t _used_low;
   const size_t _used_generation;
-  const size_t _freelist_available_at_start;
-  const size_t _freelist_promoted;
-  const size_t _mutator_freelist_promoted;
-  const size_t _freelist_compacted;
-  const size_t _mutator_freelist_compacted;
+  size_t _freelist_available_at_start[ZPageTypeCount];
+  size_t _freelist_promoted[ZPageTypeCount];
+  size_t _mutator_freelist_promoted[ZPageTypeCount];
+  size_t _freelist_compacted[ZPageTypeCount];
+  size_t _mutator_freelist_compacted[ZPageTypeCount];
   const size_t _freed;
-  const size_t _promoted;
-  const size_t _mutator_promoted;
-  const size_t _flip_promoted;
-  const size_t _compacted;
-  const size_t _mutator_compacted;
+  size_t _promoted[ZPageTypeCount];
+  size_t _mutator_promoted[ZPageTypeCount];
+  size_t _flip_promoted[ZPageTypeCount];
+  size_t _compacted[ZPageTypeCount];
+  size_t _mutator_compacted[ZPageTypeCount];
   const size_t _allocation_stalls;
 
 public:
@@ -411,17 +411,17 @@ public:
                       size_t used_high,
                       size_t used_low,
                       size_t used_generation,
-                      size_t freelist_available_at_start,
-                      size_t freelist_promoted,
-                      size_t mutator_freelist_promoted,
-                      size_t freelist_compacted,
-                      size_t mutator_freelist_compacted,
+                      const size_t freelist_available_at_start[ZPageTypeCount],
+                      const size_t freelist_promoted[ZPageTypeCount],
+                      const size_t mutator_freelist_promoted[ZPageTypeCount],
+                      const size_t freelist_compacted[ZPageTypeCount],
+                      const size_t mutator_freelist_compacted[ZPageTypeCount],
                       size_t freed,
-                      size_t promoted,
-                      size_t mutator_promoted,
-                      size_t flip_promoted,
-                      size_t compacted,
-                      size_t mutator_compacted,
+                      const size_t promoted[ZPageTypeCount],
+                      const size_t mutator_promoted[ZPageTypeCount],
+                      const size_t flip_promoted[ZPageTypeCount],
+                      const size_t compacted[ZPageTypeCount],
+                      const size_t mutator_compacted[ZPageTypeCount],
                       size_t allocation_stalls);
 
   size_t heuristic_max_capacity() const;
@@ -430,16 +430,26 @@ public:
   size_t used_high() const;
   size_t used_low() const;
   size_t used_generation() const;
+  size_t freelist_available_at_start(ZPageType type) const;
   size_t freelist_available_at_start() const;
+  size_t freelist_promoted(ZPageType type) const;
   size_t freelist_promoted() const;
+  size_t mutator_freelist_promoted(ZPageType type) const;
   size_t mutator_freelist_promoted() const;
+  size_t freelist_compacted(ZPageType type) const;
   size_t freelist_compacted() const;
+  size_t mutator_freelist_compacted(ZPageType type) const;
   size_t mutator_freelist_compacted() const;
   size_t freed() const;
+  size_t promoted(ZPageType type) const;
   size_t promoted() const;
+  size_t mutator_promoted(ZPageType type) const;
   size_t mutator_promoted() const;
+  size_t flip_promoted(ZPageType type) const;
   size_t flip_promoted() const;
+  size_t compacted(ZPageType type) const;
   size_t compacted() const;
+  size_t mutator_compacted(ZPageType type) const;
   size_t mutator_compacted() const;
   size_t allocation_stalls() const;
 };

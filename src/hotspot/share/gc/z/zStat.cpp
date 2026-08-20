@@ -1882,35 +1882,55 @@ ZStatFreeList::ZStatFreeList(ZGenerationId id)
     _mutator_relocated() {}
 
 void ZStatFreeList::at_relocate_end(const ZPageAllocatorStats& stats) {
-  _available_at_start = stats.freelist_available_at_start();
-
   const bool is_young = _id == ZGenerationId::young;
-  assert(!is_young || stats.flip_promoted() <= stats.promoted(), "Invalid promotion statistics");
+  for (uint i = 0; i < ZFreeListPageTypeCount; i++) {
+    const ZPageType type = static_cast<ZPageType>(i);
+    _available_at_start[i] = stats.freelist_available_at_start(type);
 
-  const size_t freelist = is_young ? stats.freelist_promoted() : stats.freelist_compacted();
-  const size_t mutator_freelist = is_young ? stats.mutator_freelist_promoted() : stats.mutator_freelist_compacted();
-  const size_t mutator_relocated = is_young ? stats.mutator_promoted() : stats.mutator_compacted();
-  const size_t relocated = is_young ? stats.promoted() - stats.flip_promoted() : stats.compacted();
+    const size_t freelist = is_young ? stats.freelist_promoted(type) : stats.freelist_compacted(type);
+    const size_t mutator_freelist = is_young ? stats.mutator_freelist_promoted(type) : stats.mutator_freelist_compacted(type);
+    const size_t mutator_relocated = is_young ? stats.mutator_promoted(type) : stats.mutator_compacted(type);
+    const size_t relocated = is_young ? stats.promoted(type) - stats.flip_promoted(type) : stats.compacted(type);
 
-  assert(mutator_freelist <= freelist, "Invalid free-list statistics");
-  assert(mutator_freelist <= mutator_relocated, "Invalid mutator free-list statistics");
-  assert(mutator_relocated <= relocated, "Invalid mutator relocation statistics");
+    assert(!is_young || stats.flip_promoted(type) <= stats.promoted(type), "Invalid promotion statistics");
+    assert(mutator_freelist <= freelist, "Invalid free-list statistics");
+    assert(mutator_freelist <= mutator_relocated, "Invalid mutator free-list statistics");
+    assert(mutator_relocated <= relocated, "Invalid mutator relocation statistics");
 
-  _worker_freelist = freelist - mutator_freelist;
-  _mutator_freelist = mutator_freelist;
-  _worker_relocated = relocated - mutator_relocated;
-  _mutator_relocated = mutator_relocated;
+    _worker_freelist[i] = freelist - mutator_freelist;
+    _mutator_freelist[i] = mutator_freelist;
+    _worker_relocated[i] = relocated - mutator_relocated;
+    _mutator_relocated[i] = mutator_relocated;
+  }
 }
 
 void ZStatFreeList::print() const {
-  const size_t used = _worker_freelist + _mutator_freelist;
-  const size_t relocated = _worker_relocated + _mutator_relocated;
-
-  precond(used <= _available_at_start);
-  precond(used <= relocated);
-
   LogTarget(Info, gc, freelist) lt;
-  if (_available_at_start == 0 || relocated == 0 || !lt.is_enabled()) {
+  if (!lt.is_enabled()) {
+    return;
+  }
+
+  size_t available_total = 0;
+  size_t worker_freelist_total = 0;
+  size_t mutator_freelist_total = 0;
+  size_t worker_relocated_total = 0;
+  size_t mutator_relocated_total = 0;
+  for (uint i = 0; i < ZFreeListPageTypeCount; i++) {
+    const size_t used = _worker_freelist[i] + _mutator_freelist[i];
+    const size_t relocated = _worker_relocated[i] + _mutator_relocated[i];
+    precond(used <= _available_at_start[i]);
+    precond(used <= relocated);
+
+    available_total += _available_at_start[i];
+    worker_freelist_total += _worker_freelist[i];
+    mutator_freelist_total += _mutator_freelist[i];
+    worker_relocated_total += _worker_relocated[i];
+    mutator_relocated_total += _mutator_relocated[i];
+  }
+
+  const size_t used_total = worker_freelist_total + mutator_freelist_total;
+  const size_t relocated_total = worker_relocated_total + mutator_relocated_total;
+  if (available_total == 0 || relocated_total == 0) {
     return;
   }
 
@@ -1924,29 +1944,43 @@ void ZStatFreeList::print() const {
            .right("Of Available")
            .right("Of Relocated")
            .end());
-  lt.print("%s", table()
-           .left("Worker:")
-           .right("-")
-           .right(PROPERFMT, PROPERFMTARGS(_worker_relocated))
-           .right(PROPERFMT, PROPERFMTARGS(_worker_freelist))
-           .right_percent(_worker_freelist, _available_at_start)
-           .right_percent(_worker_freelist, _worker_relocated)
-           .end());
-  lt.print("%s", table()
-           .left("Mutator:")
-           .right("-")
-           .right(PROPERFMT, PROPERFMTARGS(_mutator_relocated))
-           .right(PROPERFMT, PROPERFMTARGS(_mutator_freelist))
-           .right_percent(_mutator_freelist, _available_at_start)
-           .right_percent(_mutator_freelist, _mutator_relocated)
-           .end());
+  for (uint i = 0; i < ZFreeListPageTypeCount; i++) {
+    const char* const name = i == untype(ZPageType::small) ? "Small" : "Medium";
+    const size_t used = _worker_freelist[i] + _mutator_freelist[i];
+    const size_t relocated = _worker_relocated[i] + _mutator_relocated[i];
+    lt.print("%s", table()
+             .left("%s Worker:", name)
+             .right("-")
+             .right(PROPERFMT, PROPERFMTARGS(_worker_relocated[i]))
+             .right(PROPERFMT, PROPERFMTARGS(_worker_freelist[i]))
+             .right_percent(_worker_freelist[i], _available_at_start[i])
+             .right_percent(_worker_freelist[i], _worker_relocated[i])
+             .end());
+    lt.print("%s", table()
+             .left("%s Mutator:", name)
+             .right("-")
+             .right(PROPERFMT, PROPERFMTARGS(_mutator_relocated[i]))
+             .right(PROPERFMT, PROPERFMTARGS(_mutator_freelist[i]))
+             .right_percent(_mutator_freelist[i], _available_at_start[i])
+             .right_percent(_mutator_freelist[i], _mutator_relocated[i])
+             .end());
+    lt.print("%s", table()
+             .left("%s Total:", name)
+             .right(PROPERFMT, PROPERFMTARGS(_available_at_start[i]))
+             .right(PROPERFMT, PROPERFMTARGS(relocated))
+             .right(PROPERFMT, PROPERFMTARGS(used))
+             .right_percent(used, _available_at_start[i])
+             .right_percent(used, relocated)
+             .end());
+  }
+  // TODO: Total might % might be missleading.
   lt.print("%s", table()
            .left("Total:")
-           .right(PROPERFMT, PROPERFMTARGS(_available_at_start))
-           .right(PROPERFMT, PROPERFMTARGS(relocated))
-           .right(PROPERFMT, PROPERFMTARGS(used))
-           .right_percent(used, _available_at_start)
-           .right_percent(used, relocated)
+           .right(PROPERFMT, PROPERFMTARGS(available_total))
+           .right(PROPERFMT, PROPERFMTARGS(relocated_total))
+           .right(PROPERFMT, PROPERFMTARGS(used_total))
+           .right_percent(used_total, available_total)
+           .right_percent(used_total, relocated_total)
            .end());
 }
 

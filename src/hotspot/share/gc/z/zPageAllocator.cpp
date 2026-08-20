@@ -1889,13 +1889,34 @@ void ZPageAllocator::update_collection_stats(ZGenerationId id) {
 }
 
 ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
-  const size_t freelist_promoted = generation->freelist_promoted();
-  const size_t mutator_freelist_promoted = generation->mutator_freelist_promoted();
-  const size_t freelist_compacted = generation->freelist_compacted();
-  const size_t mutator_freelist_compacted = generation->mutator_freelist_compacted();
+  size_t freelist_available_at_start[ZPageTypeCount];
+  size_t freelist_promoted[ZPageTypeCount];
+  size_t mutator_freelist_promoted[ZPageTypeCount];
+  size_t freelist_compacted[ZPageTypeCount];
+  size_t mutator_freelist_compacted[ZPageTypeCount];
+  size_t promoted[ZPageTypeCount];
+  size_t mutator_promoted[ZPageTypeCount];
+  size_t flip_promoted[ZPageTypeCount];
+  size_t compacted[ZPageTypeCount];
+  size_t mutator_compacted[ZPageTypeCount];
 
-  assert(mutator_freelist_promoted <= freelist_promoted, "Invalid free-list statistics");
-  assert(mutator_freelist_compacted <= freelist_compacted, "Invalid free-list statistics");
+  for (uint i = 0; i < ZPageTypeCount; i++) {
+    const ZPageType type = static_cast<ZPageType>(i);
+    freelist_available_at_start[i] = generation->freelist_available_at_start(type);
+    freelist_promoted[i] = generation->freelist_promoted(type);
+    mutator_freelist_promoted[i] = generation->mutator_freelist_promoted(type);
+    freelist_compacted[i] = generation->freelist_compacted(type);
+    mutator_freelist_compacted[i] = generation->mutator_freelist_compacted(type);
+    mutator_promoted[i] = generation->mutator_promoted(type);
+    flip_promoted[i] = generation->flip_promoted(type);
+    mutator_compacted[i] = generation->mutator_compacted(type);
+
+    assert(mutator_freelist_promoted[i] <= freelist_promoted[i], "Invalid free-list statistics");
+    assert(mutator_freelist_compacted[i] <= freelist_compacted[i], "Invalid free-list statistics");
+
+    promoted[i] = generation->uncompensated_promoted(type) + freelist_promoted[i] - mutator_freelist_promoted[i];
+    compacted[i] = generation->uncompensated_compacted(type) + freelist_compacted[i] - mutator_freelist_compacted[i];
+  }
 
   return ZPageAllocatorStats(heuristic_max_capacity(),
                              capacity(),
@@ -1903,17 +1924,17 @@ ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
                              _collection_stats[(int)generation->id()]._used_high,
                              _collection_stats[(int)generation->id()]._used_low,
                              used_generation(generation->id()),
-                             generation->freelist_available_at_start(),
+                             freelist_available_at_start,
                              freelist_promoted,
                              mutator_freelist_promoted,
                              freelist_compacted,
                              mutator_freelist_compacted,
                              generation->freed(),
-                             generation->uncompensated_promoted() + freelist_promoted - mutator_freelist_promoted,
-                             generation->mutator_promoted(),
-                             generation->flip_promoted(),
-                             generation->uncompensated_compacted() + freelist_compacted - mutator_freelist_compacted,
-                             generation->mutator_compacted(),
+                             promoted,
+                             mutator_promoted,
+                             flip_promoted,
+                             compacted,
+                             mutator_compacted,
                              _stalled.size());
 }
 

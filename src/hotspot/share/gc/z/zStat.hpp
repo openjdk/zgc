@@ -620,11 +620,11 @@ public:
 class ZStatFreeList {
 private:
   const ZGenerationId _id;
-  size_t _available_at_start;
-  size_t _worker_freelist;
-  size_t _mutator_freelist;
-  size_t _worker_relocated;
-  size_t _mutator_relocated;
+  size_t _available_at_start[ZFreeListPageTypeCount];
+  size_t _worker_freelist[ZFreeListPageTypeCount];
+  size_t _mutator_freelist[ZFreeListPageTypeCount];
+  size_t _worker_relocated[ZFreeListPageTypeCount];
+  size_t _mutator_relocated[ZFreeListPageTypeCount];
 
 public:
   ZStatFreeList(ZGenerationId id);

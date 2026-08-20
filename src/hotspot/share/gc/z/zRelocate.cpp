@@ -407,9 +407,9 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   } else {
     if (free_list_allocation._address != zaddress::null) {
       if (forwarding->is_promotion()) {
-        ZGeneration::young()->increase_mutator_freelist_promoted(size);
+        ZGeneration::young()->increase_mutator_freelist_promoted(free_list_allocation._page->type(), size);
       } else {
-        ZGeneration::old()->increase_mutator_freelist_compacted(size);
+        ZGeneration::old()->increase_mutator_freelist_compacted(free_list_allocation._page->type(), size);
       }
     }
 
@@ -478,9 +478,9 @@ static ZPage* alloc_page(ZForwarding* forwarding) {
 
 static void retire_target_page(ZGeneration* generation, ZPage* page) {
   if (generation->is_young() && page->is_old()) {
-    generation->increase_uncompensated_promoted(page->used());
+    generation->increase_uncompensated_promoted(page->type(), page->used());
   } else {
-    generation->increase_uncompensated_compacted(page->used());
+    generation->increase_uncompensated_compacted(page->type(), page->used());
   }
 
   // Free target page if it is empty. We can end up with an empty target
@@ -644,10 +644,10 @@ private:
   ZForwarding*        _forwarding;
   ZRelocationTargets* _targets;
   ZGeneration* const  _generation;
-  size_t              _freelist_promoted;
-  size_t              _freelist_compacted;
-  size_t              _mutator_promoted;
-  size_t              _mutator_compacted;
+  size_t              _freelist_promoted[ZPageTypeCount];
+  size_t              _freelist_compacted[ZPageTypeCount];
+  size_t              _mutator_promoted[ZPageTypeCount];
+  size_t              _mutator_compacted[ZPageTypeCount];
   ZStringDedupContext _string_dedup_context;
 
   size_t object_alignment() const {
@@ -656,10 +656,11 @@ private:
 
   void increase_mutator_forwarded(size_t unaligned_object_size) {
     const size_t aligned_size = align_up(unaligned_object_size, object_alignment());
+    const uint type_index = untype(_forwarding->type());
     if (_forwarding->is_promotion()) {
-      _mutator_promoted += aligned_size;
+      _mutator_promoted[type_index] += aligned_size;
     } else {
-      _mutator_compacted += aligned_size;
+      _mutator_compacted[type_index] += aligned_size;
     }
   }
 
@@ -739,9 +740,9 @@ private:
       increase_mutator_forwarded(size);
     } else if (free_list_allocation._address != zaddress::null) {
       if (_forwarding->is_promotion()) {
-        _freelist_promoted += size;
+        _freelist_promoted[untype(free_list_allocation._page->type())] += size;
       } else {
-        _freelist_compacted += size;
+        _freelist_compacted[untype(free_list_allocation._page->type())] += size;
       }
     }
 
@@ -1076,10 +1077,10 @@ public:
       _forwarding(nullptr),
       _targets(targets),
       _generation(generation),
-      _freelist_promoted(0),
-      _freelist_compacted(0),
-      _mutator_promoted(0),
-      _mutator_compacted(0) {}
+      _freelist_promoted(),
+      _freelist_compacted(),
+      _mutator_promoted(),
+      _mutator_compacted() {}
 
   ~ZRelocateWork() {
     _targets->apply_and_clear_targets([&](ZPage* page) {
@@ -1087,10 +1088,13 @@ public:
     });
 
     // Report statistics on-behalf of non-worker threads
-    _generation->increase_freelist_promoted(_freelist_promoted);
-    _generation->increase_freelist_compacted(_freelist_compacted);
-    _generation->increase_mutator_promoted(_mutator_promoted);
-    _generation->increase_mutator_compacted(_mutator_compacted);
+    for (uint i = 0; i < ZPageTypeCount; i++) {
+      const ZPageType type = static_cast<ZPageType>(i);
+      _generation->increase_freelist_promoted(type, _freelist_promoted[i]);
+      _generation->increase_freelist_compacted(type, _freelist_compacted[i]);
+      _generation->increase_mutator_promoted(type, _mutator_promoted[i]);
+      _generation->increase_mutator_compacted(type, _mutator_compacted[i]);
+    }
   }
 
   void finish_in_place_relocation() {
@@ -1513,17 +1517,19 @@ class ZFlipAgeOldPagesTask : public ZRestartableTask {
 private:
   ZArrayParallelIterator<ZPage*> _not_selected_iter;
   ZArrayParallelIterator<ZPage*> _selected_iter;
-  Atomic<size_t>                 _free_list_available;
+  Atomic<size_t>                 _free_list_available[ZPageTypeCount];
 
 public:
   ZFlipAgeOldPagesTask(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages)
     : ZRestartableTask("ZFlipAgeOldPagesTask"),
       _not_selected_iter(not_selected_pages),
       _selected_iter(selected_pages),
-      _free_list_available(0) {}
+      _free_list_available() {}
 
   ~ZFlipAgeOldPagesTask() {
-    ZGeneration::old()->increase_freelist_available_at_start(_free_list_available.load_relaxed());
+    for (uint i = 0; i < ZPageTypeCount; i++) {
+      ZGeneration::old()->increase_freelist_available_at_start(static_cast<ZPageType>(i), _free_list_available[i].load_relaxed());
+    }
   }
 
   virtual void work() {
@@ -1554,7 +1560,7 @@ public:
       if (ZOldRefCount && ZMaintainOldFreeLists) {
         ZStatTimerWorker timer(ZSubPhaseConcurrentFreeListPageOld);
 
-        _free_list_available.add_then_fetch(object_iterate_and_construct_free_list(prev_page, aged_page, function), memory_order_relaxed);
+        _free_list_available[untype(aged_page->type())].add_then_fetch(object_iterate_and_construct_free_list(prev_page, aged_page, function), memory_order_relaxed);
       } else {
         prev_page->object_iterate(function);
       }
@@ -1589,7 +1595,7 @@ class ZPromoteBarrierTask : public ZRestartableTask {
 private:
   ZArrayParallelIterator<ZPage*> _flip_promoted_iter;
   ZArrayParallelIterator<ZPage*> _relocate_promoted_iter;
-  Atomic<size_t>                 _free_list_available;
+  Atomic<size_t>                 _free_list_available[ZPageTypeCount];
 
 public:
   ZPromoteBarrierTask(const ZArray<ZPage*>* flip_promoted_pages,
@@ -1597,10 +1603,12 @@ public:
     : ZRestartableTask("ZPromoteBarrierTask"),
       _flip_promoted_iter(flip_promoted_pages),
       _relocate_promoted_iter(relocate_promoted_pages),
-      _free_list_available(0) {}
+      _free_list_available() {}
 
   ~ZPromoteBarrierTask() {
-    ZGeneration::young()->increase_freelist_available_at_start(_free_list_available.load_relaxed());
+    for (uint i = 0; i < ZPageTypeCount; i++) {
+      ZGeneration::young()->increase_freelist_available_at_start(static_cast<ZPageType>(i), _free_list_available[i].load_relaxed());
+    }
   }
 
   virtual void work() {
@@ -1621,7 +1629,7 @@ public:
 
           ZPage* const aged_page = ZHeap::heap()->page(ZOffset::address(page->start()));
 
-          _free_list_available.add_then_fetch(object_iterate_and_construct_free_list(page, aged_page, promote), memory_order_relaxed);
+          _free_list_available[untype(aged_page->type())].add_then_fetch(object_iterate_and_construct_free_list(page, aged_page, promote), memory_order_relaxed);
         } else {
           page->object_iterate(promote);
         }

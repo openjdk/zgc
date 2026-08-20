@@ -210,7 +210,7 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
     size_t _freed[ZPageAgeOldCount] = {};
     size_t _large_freed[ZPageAgeOldCount] = {};
     size_t _pardoned[ZPageAgeOldCount] = {};
-    size_t _free_list_available = {};
+    size_t _free_list_available[ZPageTypeCount] = {};
   };
 
   ZPerWorker<Counters> _per_worker_counters;
@@ -241,14 +241,18 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
   }
 
   void record_free_list_available_counters() {
-    size_t free_list_available = 0;
+    size_t free_list_available[ZPageTypeCount] = {};
 
     ZPerWorkerIterator<State::Counters> counters_iter{&_per_worker_counters};
     for (State::Counters* counters; counters_iter.next(&counters);) {
-      free_list_available += counters->_free_list_available;
+      for (uint i = 0; i < ZPageTypeCount; i++) {
+        free_list_available[i] += counters->_free_list_available[i];
+      }
     }
 
-    ZGeneration::young()->set_freelist_available_at_start(free_list_available);
+    for (uint i = 0; i < ZPageTypeCount; i++) {
+      ZGeneration::young()->set_freelist_available_at_start(static_cast<ZPageType>(i), free_list_available[i]);
+    }
   }
 
   struct FreeListAllocator {
@@ -1095,7 +1099,7 @@ void ZCoalesceFreeListsTask::work() {
 
     const size_t free_size = page->coalesce_free_list();
     if (free_size != 0) {
-      free_list_available += free_size;
+      free_list_available[untype(page->type())] += free_size;
       const uint32_t numa_id = page->is_multi_partition() ? 0 : page->single_partition_id();
       allocating.get(numa_id)._allocating_pages[static_cast<int>(page->type())].push(page);
     }
