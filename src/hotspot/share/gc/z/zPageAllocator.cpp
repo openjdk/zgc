@@ -1889,6 +1889,14 @@ void ZPageAllocator::update_collection_stats(ZGenerationId id) {
 }
 
 ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
+  const size_t freelist_promoted = generation->freelist_promoted();
+  const size_t mutator_freelist_promoted = generation->mutator_freelist_promoted();
+  const size_t freelist_compacted = generation->freelist_compacted();
+  const size_t mutator_freelist_compacted = generation->mutator_freelist_compacted();
+
+  assert(mutator_freelist_promoted <= freelist_promoted, "Invalid free-list statistics");
+  assert(mutator_freelist_compacted <= freelist_compacted, "Invalid free-list statistics");
+
   return ZPageAllocatorStats(heuristic_max_capacity(),
                              capacity(),
                              _used,
@@ -1896,15 +1904,15 @@ ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
                              _collection_stats[(int)generation->id()]._used_low,
                              used_generation(generation->id()),
                              generation->freelist_available_at_start(),
-                             generation->freelist_promoted(),
-                             generation->mutator_freelist_promoted(),
-                             generation->freelist_compacted(),
-                             generation->mutator_freelist_compacted(),
+                             freelist_promoted,
+                             mutator_freelist_promoted,
+                             freelist_compacted,
+                             mutator_freelist_compacted,
                              generation->freed(),
-                             generation->promoted(),
+                             generation->uncompensated_promoted() + freelist_promoted - mutator_freelist_promoted,
                              generation->mutator_promoted(),
                              generation->flip_promoted(),
-                             generation->compacted(),
+                             generation->uncompensated_compacted() + freelist_compacted - mutator_freelist_compacted,
                              generation->mutator_compacted(),
                              _stalled.size());
 }

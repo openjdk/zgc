@@ -148,10 +148,10 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _freelist_promoted(0),
     _mutator_freelist_promoted(0),
     _freelist_available_at_start(0),
-    _promoted(0),
+    _uncompensated_promoted(0),
     _mutator_promoted(0),
     _flip_promoted(0),
-    _compacted(0),
+    _uncompensated_compacted(0),
     _mutator_compacted(0),
     _phase(Phase::Relocate),
     _seqnum(1),
@@ -349,10 +349,10 @@ void ZGeneration::reset_statistics() {
   _mutator_freelist_promoted.store_relaxed(0u);
   _freelist_compacted.store_relaxed(0u);
   _mutator_freelist_compacted.store_relaxed(0u);
-  _promoted.store_relaxed(0u);
+  _uncompensated_promoted.store_relaxed(0u);
   _mutator_promoted.store_relaxed(0u);
   _flip_promoted.store_relaxed(0u);
-  _compacted.store_relaxed(0u);
+  _uncompensated_compacted.store_relaxed(0u);
   _mutator_compacted.store_relaxed(0u);
 }
 
@@ -410,12 +410,12 @@ void ZGeneration::set_freelist_available_at_start(size_t size) {
   _freelist_available_at_start.store_relaxed(size);
 }
 
-size_t ZGeneration::promoted() const {
-  return _promoted.load_relaxed();;
+size_t ZGeneration::uncompensated_promoted() const {
+  return _uncompensated_promoted.load_relaxed();;
 }
 
-void ZGeneration::increase_promoted(size_t size) {
-  _promoted.add_then_fetch(size, memory_order_relaxed);
+void ZGeneration::increase_uncompensated_promoted(size_t size) {
+  _uncompensated_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
 size_t ZGeneration::mutator_promoted() const {
@@ -423,7 +423,7 @@ size_t ZGeneration::mutator_promoted() const {
 }
 
 void ZGeneration::increase_mutator_promoted(size_t size) {
-  increase_promoted(size);
+  increase_uncompensated_promoted(size);
   _mutator_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
@@ -435,12 +435,12 @@ void ZGeneration::increase_flip_promoted(size_t size) {
   _flip_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
-size_t ZGeneration::compacted() const {
-  return _compacted.load_relaxed();;
+size_t ZGeneration::uncompensated_compacted() const {
+  return _uncompensated_compacted.load_relaxed();;
 }
 
-void ZGeneration::increase_compacted(size_t size) {
-  _compacted.add_then_fetch(size, memory_order_relaxed);
+void ZGeneration::increase_uncompensated_compacted(size_t size) {
+  _uncompensated_compacted.add_then_fetch(size, memory_order_relaxed);
 }
 
 size_t ZGeneration::mutator_compacted() const {
@@ -448,7 +448,7 @@ size_t ZGeneration::mutator_compacted() const {
 }
 
 void ZGeneration::increase_mutator_compacted(size_t size) {
-  increase_compacted(size);
+  increase_uncompensated_compacted(size);
   _mutator_compacted.add_then_fetch(size, memory_order_relaxed);
 }
 
@@ -1112,7 +1112,7 @@ void ZGenerationYoung::flip_promote(ZPage* from_page, ZPage* to_page) {
   // Update statistics
   _page_allocator->promote_used(from_page, to_page);
   increase_freed(from_page->size());
-  increase_promoted(from_page->live_bytes());
+  increase_uncompensated_promoted(from_page->live_bytes());
   increase_flip_promoted(from_page->live_bytes());
 }
 

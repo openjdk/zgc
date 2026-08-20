@@ -1890,11 +1890,7 @@ void ZStatFreeList::at_relocate_end(const ZPageAllocatorStats& stats) {
   const size_t freelist = is_young ? stats.freelist_promoted() : stats.freelist_compacted();
   const size_t mutator_freelist = is_young ? stats.mutator_freelist_promoted() : stats.mutator_freelist_compacted();
   const size_t mutator_relocated = is_young ? stats.mutator_promoted() : stats.mutator_compacted();
-  const size_t relocated =
-      is_young ? stats.promoted() + stats.freelist_promoted() -
-                     stats.mutator_freelist_promoted() - stats.flip_promoted()
-               : stats.compacted() + stats.freelist_compacted() -
-                     stats.mutator_freelist_compacted();
+  const size_t relocated = is_young ? stats.promoted() - stats.flip_promoted() : stats.compacted();
 
   assert(mutator_freelist <= freelist, "Invalid free-list statistics");
   assert(mutator_freelist <= mutator_relocated, "Invalid mutator free-list statistics");
@@ -2081,13 +2077,8 @@ void ZStatHeap::at_relocate_start(const ZPageAllocatorStats& stats) {
   assert(stats.compacted() == 0, "Nothing should have been compacted");
   assert(stats.freelist_compacted() == 0, "Nothing should have been compacted");
 
-  assert(stats.mutator_freelist_promoted() <= stats.freelist_promoted(), "Invalid free-list statistics");
-  assert(stats.mutator_freelist_promoted() <= stats.mutator_promoted(), "Invalid mutator free-list statistics");
-  assert(stats.mutator_freelist_compacted() <= stats.freelist_compacted(), "Invalid free-list statistics");
-  assert(stats.mutator_freelist_compacted() <= stats.mutator_compacted(), "Invalid mutator free-list statistics");
-
-  const size_t promoted = stats.promoted() + stats.freelist_promoted() - stats.mutator_freelist_promoted();
-  const size_t compacted = stats.compacted() + stats.freelist_compacted() - stats.mutator_freelist_compacted();
+  const size_t promoted = stats.promoted();
+  const size_t compacted = stats.compacted();
 
   _at_relocate_start.capacity = stats.capacity();
   _at_relocate_start.free = free(stats.used(), stats.capacity());
@@ -2108,13 +2099,8 @@ void ZStatHeap::at_relocate_start(const ZPageAllocatorStats& stats) {
 void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_stats) {
   ZLocker<ZLock> locker(&_stat_lock);
 
-  assert(stats.mutator_freelist_promoted() <= stats.freelist_promoted(), "Invalid free-list statistics");
-  assert(stats.mutator_freelist_promoted() <= stats.mutator_promoted(), "Invalid mutator free-list statistics");
-  assert(stats.mutator_freelist_compacted() <= stats.freelist_compacted(), "Invalid free-list statistics");
-  assert(stats.mutator_freelist_compacted() <= stats.mutator_compacted(), "Invalid mutator free-list statistics");
-
-  const size_t promoted = stats.promoted() + stats.freelist_promoted() - stats.mutator_freelist_promoted();
-  const size_t compacted = stats.compacted() + stats.freelist_compacted() - stats.mutator_freelist_compacted();
+  const size_t promoted = stats.promoted();
+  const size_t compacted = stats.compacted();
 
   _at_relocate_end.capacity = stats.capacity();
   _at_relocate_end.capacity_high = capacity_high();

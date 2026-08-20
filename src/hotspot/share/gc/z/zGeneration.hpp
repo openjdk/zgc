@@ -79,10 +79,10 @@ protected:
   Atomic<size_t>        _freelist_compacted;
   Atomic<size_t>        _mutator_freelist_compacted;
   Atomic<size_t>        _freelist_available_at_start;
-  Atomic<size_t>        _promoted;
+  Atomic<size_t>        _uncompensated_promoted;
   Atomic<size_t>        _mutator_promoted;
   Atomic<size_t>        _flip_promoted;
-  Atomic<size_t>        _compacted;
+  Atomic<size_t>        _uncompensated_compacted;
   Atomic<size_t>        _mutator_compacted;
 
   Phase                 _phase;
@@ -144,14 +144,14 @@ public:
   size_t freelist_available_at_start() const;
   void increase_freelist_available_at_start(size_t size);
   void set_freelist_available_at_start(size_t size);
-  size_t promoted() const;
-  void increase_promoted(size_t size);
+  size_t uncompensated_promoted() const;
+  void increase_uncompensated_promoted(size_t size);
   size_t mutator_promoted() const;
   void increase_mutator_promoted(size_t size);
   size_t flip_promoted() const;
   void increase_flip_promoted(size_t size);
-  size_t compacted() const;
-  void increase_compacted(size_t size);
+  size_t uncompensated_compacted() const;
+  void increase_uncompensated_compacted(size_t size);
   size_t mutator_compacted() const;
   void increase_mutator_compacted(size_t size);
 

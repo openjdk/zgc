@@ -478,9 +478,9 @@ static ZPage* alloc_page(ZForwarding* forwarding) {
 
 static void retire_target_page(ZGeneration* generation, ZPage* page) {
   if (generation->is_young() && page->is_old()) {
-    generation->increase_promoted(page->used());
+    generation->increase_uncompensated_promoted(page->used());
   } else {
-    generation->increase_compacted(page->used());
+    generation->increase_uncompensated_compacted(page->used());
   }
 
   // Free target page if it is empty. We can end up with an empty target
