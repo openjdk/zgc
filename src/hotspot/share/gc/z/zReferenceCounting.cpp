@@ -205,37 +205,39 @@ struct ZReferenceCounting::State : public CHeapObj<mtGC> {
 
   // Death Row Counters Support
   struct Counters {
-    size_t _death_row_roots = 0;
-    size_t _processed = 0;
-    size_t _freed = 0;
-    size_t _large_freed = 0;
-    size_t _pardoned = 0;
-    size_t _free_list_available = 0;
+    size_t _death_row_roots[ZPageAgeOldCount] = {};
+    size_t _processed[ZPageAgeOldCount] = {};
+    size_t _freed[ZPageAgeOldCount] = {};
+    size_t _large_freed[ZPageAgeOldCount] = {};
+    size_t _pardoned[ZPageAgeOldCount] = {};
+    size_t _free_list_available = {};
   };
 
   ZPerWorker<Counters> _per_worker_counters;
 
   void record_death_row_counters() {
-    size_t death_row_roots = 0;
-    size_t processed = 0;
-    size_t freed = 0;
-    size_t large_freed = 0;
-    size_t pardoned = 0;
+    size_t death_row_roots[ZPageAgeOldCount] = {};
+    size_t processed[ZPageAgeOldCount] = {};
+    size_t freed[ZPageAgeOldCount] = {};
+    size_t large_freed[ZPageAgeOldCount] = {};
+    size_t pardoned[ZPageAgeOldCount] = {};
 
     ZPerWorkerIterator<State::Counters> counters_iter{&_per_worker_counters};
     for (State::Counters* counters; counters_iter.next(&counters);) {
-      death_row_roots += counters->_death_row_roots;
-      processed += counters->_processed;
-      freed += counters->_freed;
-      large_freed += counters->_large_freed;
-      pardoned += counters->_pardoned;
+      for (uint i = 0; i < ZPageAgeOldCount; i++) {
+        death_row_roots[i] += counters->_death_row_roots[i];
+        processed[i] += counters->_processed[i];
+        freed[i] += counters->_freed[i];
+        large_freed[i] += counters->_large_freed[i];
+        pardoned[i] += counters->_pardoned[i];
+      }
     }
 
     ZGeneration::young()->stat_reference_counting()->at_process_death_row(death_row_roots,
-                                                                           processed,
-                                                                           freed,
-                                                                           large_freed,
-                                                                           pardoned);
+                                                                          processed,
+                                                                          freed,
+                                                                          large_freed,
+                                                                          pardoned);
   }
 
   void record_free_list_available_counters() {
@@ -962,14 +964,17 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
     // respect to the death-row and pardon bits.
     OrderAccess::acquire();
 
-    // Push all objects in page to be reclaimed
-    page->iterate_death_row([&](zaddress addr) {
-      death_row_roots += ZUtils::object_size(addr);
-      if (_reference_counting->try_kill_root(page, addr, pardoned)) {
-        oop obj = to_oop(addr);
-        dfs_stack.push(obj);
-      }
-    });
+    {
+      const size_t counter_index = ZPageAgeRangeOld.index(page->age());
+      // Push all objects in page to be reclaimed
+      page->iterate_death_row([&](zaddress addr) {
+        death_row_roots[counter_index] += ZUtils::object_size(addr);
+        if (_reference_counting->try_kill_root(page, addr, pardoned[counter_index])) {
+          oop obj = to_oop(addr);
+          dfs_stack.push(obj);
+        }
+      });
+    }
 
     // Drain the stack, push all object field which should be reclaimed and reclaim the object.
     while (!dfs_stack.is_empty()) {
@@ -989,10 +994,10 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
 
           oop o = to_oop(a);
 
-          ZPage* const field_page = ZHeap::heap()->page(a);
-          assert(field_page->is_in(a), "why you no in?");
+          ZPage* const obj_page = ZHeap::heap()->page(a);
+          assert(obj_page->is_in(a), "why you no in?");
 
-          if (!field_page->is_old()) {
+          if (!obj_page->is_old()) {
             return;
           }
 
@@ -1010,9 +1015,10 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
             markWord new_mark = ZRefCount::set_count(mark, new_ref_count);
 
             if (o->cas_set_mark(new_mark, mark, memory_order_acquire) == mark) {
+              const size_t counter_index = ZPageAgeRangeOld.index(obj_page->age());
               // If we decrement an edge to zero, we traverse through more garbage.
-              if (field_page->is_allocating() &&
-                  _reference_counting->try_kill_followed(field_page, a, pardoned, new_ref_count)) {
+              if (obj_page->is_allocating() &&
+                  _reference_counting->try_kill_followed(obj_page, a, pardoned[counter_index], new_ref_count)) {
                 dfs_stack.push(o);
               }
               break;
@@ -1027,6 +1033,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
       assert(ref_count == 0, "must be zero: %d: %p", ref_count, cast_from_oop<void*>(obj));
 
       ZPage* const obj_page = ZHeap::heap()->page(addr);
+      const size_t counter_index = ZPageAgeRangeOld.index(obj_page->age());
 
       // Unlink current remset entries before zapping the object.
       const uintptr_t from_local_offset = obj_page->local_offset(addr);
@@ -1042,13 +1049,28 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
         obj_page->forget_current(p);
       }
 
-      processed += size;
+      processed[counter_index] += size;
       if (obj_page->is_large()) {
-        large_freed += size;
+        large_freed[counter_index] += size;
+        // TODO: Only really relevant for Old generation stats during an OC.
+        //       Not sure how we feel about this outside the OC.
+        ZGeneration::old()->increase_freed(obj_page->size());
         ZHeap::heap()->free_page(obj_page);
       } else {
-        freed += size;
-        obj_page->free_object_to_free_list(addr);
+        freed[counter_index] += size;
+        if (obj_page->is_promoted()) {
+          obj_page->free_object_to_free_list(addr);
+        } else if(ZMaintainOldFreeLists) {
+          // TODO: For now we just add these to the undo list so we can use them
+          //       after the old relocation is over. However we might be able to
+          //       insert these blocks if we are during old relocation to make
+          //       them also availiable for old-to-old relocations, there is no
+          //       ABA, the only thing is that we might be to late and the old
+          //       allocator has already discarded this page as not eligable.
+          //       However if we do this we need to fix our accoutning which does
+          //       not expect the freelist availiable to grow.
+          obj_page->undo_alloc_object_from_free_list(unsafe(addr), size);
+        }
       }
 
       obj_page->unset_death_row(addr);

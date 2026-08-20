@@ -1822,16 +1822,18 @@ ZStatReferenceCounting::ZStatReferenceCounting()
     _page_freed(),
     _pardoned() {}
 
-void ZStatReferenceCounting::at_process_death_row(size_t death_row_roots,
-                                                   size_t processed,
-                                                   size_t freelist_freed,
-                                                   size_t page_freed,
-                                                   size_t pardoned) {
-  _death_row_roots = death_row_roots;
-  _processed = processed;
-  _freelist_freed = freelist_freed;
-  _page_freed = page_freed;
-  _pardoned = pardoned;
+void ZStatReferenceCounting::at_process_death_row(size_t death_row_roots[ZPageAgeOldCount],
+                                                  size_t processed[ZPageAgeOldCount],
+                                                  size_t freelist_freed[ZPageAgeOldCount],
+                                                  size_t page_freed[ZPageAgeOldCount],
+                                                  size_t pardoned[ZPageAgeOldCount]) {
+  for (uint i = 0; i < ZPageAgeOldCount; i++) {
+    _death_row_roots[i] = death_row_roots[i];
+    _processed[i] = processed[i];
+    _freelist_freed[i] = freelist_freed[i];
+    _page_freed[i] = page_freed[i];
+    _pardoned[i] = pardoned[i];
+  }
 }
 
 void ZStatReferenceCounting::print() const {
@@ -1840,32 +1842,27 @@ void ZStatReferenceCounting::print() const {
     return;
   }
 
-  ZStatTablePrinter table(24, 16);
+  ZStatTablePrinter table(16, 16);
   lt.print("Reference Counting:");
   lt.print("%s", table()
-           .fill()
-           .right("Bytes")
-           .end());
-  lt.print("%s", table()
-           .left("Death Row Roots:")
-           .right(PROPERFMT, PROPERFMTARGS(_death_row_roots))
-           .end());
-  lt.print("%s", table()
-           .left("Processed:")
-           .right(PROPERFMT, PROPERFMTARGS(_processed))
-           .end());
-  lt.print("%s", table()
-           .left("Free List Freed:")
-           .right(PROPERFMT, PROPERFMTARGS(_freelist_freed))
-           .end());
-  lt.print("%s", table()
-           .left("Page Freed:")
-           .right(PROPERFMT, PROPERFMTARGS(_page_freed))
-           .end());
-  lt.print("%s", table()
-           .left("Pardoned:")
-           .right(PROPERFMT, PROPERFMTARGS(_pardoned))
-           .end());
+                     .fill()
+                     .right("DR Roots")
+                     .right("Processed")
+                     .right("FL Freed")
+                     .right("Page Freed")
+                     .right("Pardoned")
+                     .end());
+  for (ZPageAge age : ZPageAgeRangeOld) {
+    const size_t i = ZPageAgeRangeOld.index(age);
+    lt.print("%s", table()
+                       .left("%s:", name(age))
+                       .right(PROPERFMT, PROPERFMTARGS(_death_row_roots[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_processed[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_freelist_freed[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_page_freed[i]))
+                       .right(PROPERFMT, PROPERFMTARGS(_pardoned[i]))
+                       .end());
+  }
 }
 
 //

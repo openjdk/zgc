@@ -29,6 +29,7 @@
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zLock.hpp"
 #include "gc/z/zMetronome.hpp"
+#include "gc/z/zPageAge.hpp"
 #include "gc/z/zRelocationSetSelector.hpp"
 #include "gc/z/zThread.hpp"
 #include "gc/z/zTracer.hpp"
@@ -595,20 +596,20 @@ public:
 //
 class ZStatReferenceCounting {
 private:
-  size_t _death_row_roots;
-  size_t _processed;
-  size_t _freelist_freed;
-  size_t _page_freed;
-  size_t _pardoned;
+  size_t _death_row_roots[ZPageAgeOldCount];
+  size_t _processed[ZPageAgeOldCount];
+  size_t _freelist_freed[ZPageAgeOldCount];
+  size_t _page_freed[ZPageAgeOldCount];
+  size_t _pardoned[ZPageAgeOldCount];
 
 public:
   ZStatReferenceCounting();
 
-  void at_process_death_row(size_t death_row_roots,
-                            size_t processed,
-                            size_t freelist_freed,
-                            size_t whole_page_freed,
-                            size_t pardoned);
+  void at_process_death_row(size_t death_row_roots[ZPageAgeOldCount],
+                            size_t processed[ZPageAgeOldCount],
+                            size_t freelist_freed[ZPageAgeOldCount],
+                            size_t whole_page_freed[ZPageAgeOldCount],
+                            size_t pardoned[ZPageAgeOldCount]);
 
   void print() const;
 };

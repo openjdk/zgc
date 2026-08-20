@@ -1514,7 +1514,7 @@ class ZFlipAgeOldPagesTask : public ZRestartableTask {
 private:
   ZArrayParallelIterator<ZPage*> _not_selected_iter;
   ZArrayParallelIterator<ZPage*> _selected_iter;
-  size_t                         _free_list_available;
+  Atomic<size_t>                 _free_list_available;
 
 public:
   ZFlipAgeOldPagesTask(const ZArray<ZPage*>* not_selected_pages, const ZArray<ZPage*>* selected_pages)
@@ -1524,7 +1524,7 @@ public:
       _free_list_available(0) {}
 
   ~ZFlipAgeOldPagesTask() {
-    ZGeneration::old()->increase_freelist_available_at_start(_free_list_available);
+    ZGeneration::old()->increase_freelist_available_at_start(_free_list_available.load_relaxed());
   }
 
   virtual void work() {
@@ -1555,7 +1555,7 @@ public:
       if (ZOldRefCount && ZMaintainOldFreeLists) {
         ZStatTimerWorker timer(ZSubPhaseConcurrentFreeListPageOld);
 
-        _free_list_available += object_iterate_and_construct_free_list(prev_page, aged_page, function);
+        _free_list_available.add_then_fetch(object_iterate_and_construct_free_list(prev_page, aged_page, function), memory_order_relaxed);
       } else {
         prev_page->object_iterate(function);
       }
@@ -1590,7 +1590,7 @@ class ZPromoteBarrierTask : public ZRestartableTask {
 private:
   ZArrayParallelIterator<ZPage*> _flip_promoted_iter;
   ZArrayParallelIterator<ZPage*> _relocate_promoted_iter;
-  size_t                         _free_list_available;
+  Atomic<size_t>                 _free_list_available;
 
 public:
   ZPromoteBarrierTask(const ZArray<ZPage*>* flip_promoted_pages,
@@ -1601,7 +1601,7 @@ public:
       _free_list_available(0) {}
 
   ~ZPromoteBarrierTask() {
-    ZGeneration::young()->increase_freelist_available_at_start(_free_list_available);
+    ZGeneration::young()->increase_freelist_available_at_start(_free_list_available.load_relaxed());
   }
 
   virtual void work() {
@@ -1622,7 +1622,7 @@ public:
 
           ZPage* const aged_page = ZHeap::heap()->page(ZOffset::address(page->start()));
 
-          _free_list_available += object_iterate_and_construct_free_list(page, aged_page, promote);
+          _free_list_available.add_then_fetch(object_iterate_and_construct_free_list(page, aged_page, promote), memory_order_relaxed);
         } else {
           page->object_iterate(promote);
         }
