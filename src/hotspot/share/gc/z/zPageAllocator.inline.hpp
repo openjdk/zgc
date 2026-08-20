@@ -34,11 +34,15 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t heuristic_max_capacity,
                                                 size_t used_generation,
                                                 size_t freelist_available_at_start,
                                                 size_t freelist_promoted,
+                                                size_t mutator_freelist_promoted,
                                                 size_t freelist_compacted,
+                                                size_t mutator_freelist_compacted,
                                                 size_t freed,
                                                 size_t promoted,
+                                                size_t mutator_promoted,
                                                 size_t flip_promoted,
                                                 size_t compacted,
+                                                size_t mutator_compacted,
                                                 size_t allocation_stalls)
   : _heuristic_max_capacity(heuristic_max_capacity),
     _capacity(capacity),
@@ -48,11 +52,15 @@ inline ZPageAllocatorStats::ZPageAllocatorStats(size_t heuristic_max_capacity,
     _used_generation(used_generation),
     _freelist_available_at_start(freelist_available_at_start),
     _freelist_promoted(freelist_promoted),
+    _mutator_freelist_promoted(mutator_freelist_promoted),
     _freelist_compacted(freelist_compacted),
+    _mutator_freelist_compacted(mutator_freelist_compacted),
     _freed(freed),
     _promoted(promoted),
+    _mutator_promoted(mutator_promoted),
     _flip_promoted(flip_promoted),
     _compacted(compacted),
+    _mutator_compacted(mutator_compacted),
     _allocation_stalls(allocation_stalls) {}
 
 inline size_t ZPageAllocatorStats::heuristic_max_capacity() const {
@@ -87,8 +95,16 @@ inline size_t ZPageAllocatorStats::freelist_promoted() const {
   return _freelist_promoted;
 }
 
+inline size_t ZPageAllocatorStats::mutator_freelist_promoted() const {
+  return _mutator_freelist_promoted;
+}
+
 inline size_t ZPageAllocatorStats::freelist_compacted() const {
   return _freelist_compacted;
+}
+
+inline size_t ZPageAllocatorStats::mutator_freelist_compacted() const {
+  return _mutator_freelist_compacted;
 }
 
 inline size_t ZPageAllocatorStats::freed() const {
@@ -99,12 +115,20 @@ inline size_t ZPageAllocatorStats::promoted() const {
   return _promoted;
 }
 
+inline size_t ZPageAllocatorStats::mutator_promoted() const {
+  return _mutator_promoted;
+}
+
 inline size_t ZPageAllocatorStats::flip_promoted() const {
   return _flip_promoted;
 }
 
 inline size_t ZPageAllocatorStats::compacted() const {
   return _compacted;
+}
+
+inline size_t ZPageAllocatorStats::mutator_compacted() const {
+  return _mutator_compacted;
 }
 
 inline size_t ZPageAllocatorStats::allocation_stalls() const {

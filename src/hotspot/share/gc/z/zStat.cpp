@@ -1261,6 +1261,11 @@ public:
       return next();
     }
 
+    template <typename T>
+    ZColumn right_percent(T numerator, T denominator) {
+      return denominator == T(0) ? right("N/A") : right("%.2f%%", percent_of(numerator, denominator));
+    }
+
     ZColumn center(const char* fmt, ...) ATTRIBUTE_PRINTF(2, 3) {
       va_list va;
 
@@ -1871,50 +1876,81 @@ void ZStatReferenceCounting::print() const {
 ZStatFreeList::ZStatFreeList(ZGenerationId id)
   : _id(id),
     _available_at_start(),
-    _freelist_promoted(),
-    _freelist_compacted(),
-    _promoted(),
-    _compacted() {}
+    _worker_freelist(),
+    _mutator_freelist(),
+    _worker_relocated(),
+    _mutator_relocated() {}
 
 void ZStatFreeList::at_relocate_end(const ZPageAllocatorStats& stats) {
   _available_at_start = stats.freelist_available_at_start();
-  _freelist_promoted = stats.freelist_promoted();
-  _freelist_compacted = stats.freelist_compacted();
-  assert(stats.flip_promoted() <= stats.promoted(), "Invalid promotion statistics");
-  _promoted = stats.promoted() - stats.flip_promoted() + _freelist_promoted;
-  _compacted = stats.compacted() + _freelist_compacted;
+
+  const bool is_young = _id == ZGenerationId::young;
+  assert(!is_young || stats.flip_promoted() <= stats.promoted(), "Invalid promotion statistics");
+
+  const size_t freelist = is_young ? stats.freelist_promoted() : stats.freelist_compacted();
+  const size_t mutator_freelist = is_young ? stats.mutator_freelist_promoted() : stats.mutator_freelist_compacted();
+  const size_t mutator_relocated = is_young ? stats.mutator_promoted() : stats.mutator_compacted();
+  const size_t relocated =
+      is_young ? stats.promoted() + stats.freelist_promoted() -
+                     stats.mutator_freelist_promoted() - stats.flip_promoted()
+               : stats.compacted() + stats.freelist_compacted() -
+                     stats.mutator_freelist_compacted();
+
+  assert(mutator_freelist <= freelist, "Invalid free-list statistics");
+  assert(mutator_freelist <= mutator_relocated, "Invalid mutator free-list statistics");
+  assert(mutator_relocated <= relocated, "Invalid mutator relocation statistics");
+
+  _worker_freelist = freelist - mutator_freelist;
+  _mutator_freelist = mutator_freelist;
+  _worker_relocated = relocated - mutator_relocated;
+  _mutator_relocated = mutator_relocated;
 }
 
 void ZStatFreeList::print() const {
-  const bool is_young = _id == ZGenerationId::young;
-  const size_t used = is_young ? _freelist_promoted : _freelist_compacted;
-  const size_t total = is_young ? _promoted : _compacted;
+  const size_t used = _worker_freelist + _mutator_freelist;
+  const size_t relocated = _worker_relocated + _mutator_relocated;
 
   precond(used <= _available_at_start);
-  precond(used <= total);
+  precond(used <= relocated);
 
   LogTarget(Info, gc, freelist) lt;
-  if (_available_at_start == 0 || total == 0 || !lt.is_enabled()) {
+  if (_available_at_start == 0 || relocated == 0 || !lt.is_enabled()) {
     return;
   }
 
   ZStatTablePrinter table(16, 16);
-  lt.print("Free List:");
+  lt.print("Free List (%s):", _id == ZGenerationId::young ? "Promoted" : "Compacted");
   lt.print("%s", table()
            .fill()
            .right("Available")
+           .right("Relocated")
            .right("Used")
-           .right("Total")
-           .right("Of Total")
            .right("Of Available")
+           .right("Of Relocated")
            .end());
   lt.print("%s", table()
-           .left(is_young ? "Promoted:" : "Compacted:")
+           .left("Worker:")
+           .right("-")
+           .right(PROPERFMT, PROPERFMTARGS(_worker_relocated))
+           .right(PROPERFMT, PROPERFMTARGS(_worker_freelist))
+           .right_percent(_worker_freelist, _available_at_start)
+           .right_percent(_worker_freelist, _worker_relocated)
+           .end());
+  lt.print("%s", table()
+           .left("Mutator:")
+           .right("-")
+           .right(PROPERFMT, PROPERFMTARGS(_mutator_relocated))
+           .right(PROPERFMT, PROPERFMTARGS(_mutator_freelist))
+           .right_percent(_mutator_freelist, _available_at_start)
+           .right_percent(_mutator_freelist, _mutator_relocated)
+           .end());
+  lt.print("%s", table()
+           .left("Total:")
            .right(PROPERFMT, PROPERFMTARGS(_available_at_start))
+           .right(PROPERFMT, PROPERFMTARGS(relocated))
            .right(PROPERFMT, PROPERFMTARGS(used))
-           .right(PROPERFMT, PROPERFMTARGS(total))
-           .right("%.2f%%", percent_of(used, total))
-           .right("%.2f%%", percent_of(used, _available_at_start))
+           .right_percent(used, _available_at_start)
+           .right_percent(used, relocated)
            .end());
 }
 
@@ -2045,8 +2081,13 @@ void ZStatHeap::at_relocate_start(const ZPageAllocatorStats& stats) {
   assert(stats.compacted() == 0, "Nothing should have been compacted");
   assert(stats.freelist_compacted() == 0, "Nothing should have been compacted");
 
-  const size_t promoted = stats.promoted() + stats.freelist_promoted();
-  const size_t compacted = stats.compacted() + stats.freelist_compacted();
+  assert(stats.mutator_freelist_promoted() <= stats.freelist_promoted(), "Invalid free-list statistics");
+  assert(stats.mutator_freelist_promoted() <= stats.mutator_promoted(), "Invalid mutator free-list statistics");
+  assert(stats.mutator_freelist_compacted() <= stats.freelist_compacted(), "Invalid free-list statistics");
+  assert(stats.mutator_freelist_compacted() <= stats.mutator_compacted(), "Invalid mutator free-list statistics");
+
+  const size_t promoted = stats.promoted() + stats.freelist_promoted() - stats.mutator_freelist_promoted();
+  const size_t compacted = stats.compacted() + stats.freelist_compacted() - stats.mutator_freelist_compacted();
 
   _at_relocate_start.capacity = stats.capacity();
   _at_relocate_start.free = free(stats.used(), stats.capacity());
@@ -2067,8 +2108,13 @@ void ZStatHeap::at_relocate_start(const ZPageAllocatorStats& stats) {
 void ZStatHeap::at_relocate_end(const ZPageAllocatorStats& stats, bool record_stats) {
   ZLocker<ZLock> locker(&_stat_lock);
 
-  const size_t promoted = stats.promoted() + stats.freelist_promoted();
-  const size_t compacted = stats.compacted() + stats.freelist_compacted();
+  assert(stats.mutator_freelist_promoted() <= stats.freelist_promoted(), "Invalid free-list statistics");
+  assert(stats.mutator_freelist_promoted() <= stats.mutator_promoted(), "Invalid mutator free-list statistics");
+  assert(stats.mutator_freelist_compacted() <= stats.freelist_compacted(), "Invalid free-list statistics");
+  assert(stats.mutator_freelist_compacted() <= stats.mutator_compacted(), "Invalid mutator free-list statistics");
+
+  const size_t promoted = stats.promoted() + stats.freelist_promoted() - stats.mutator_freelist_promoted();
+  const size_t compacted = stats.compacted() + stats.freelist_compacted() - stats.mutator_freelist_compacted();
 
   _at_relocate_end.capacity = stats.capacity();
   _at_relocate_end.capacity_high = capacity_high();

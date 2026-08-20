@@ -75,11 +75,15 @@ protected:
 
   Atomic<size_t>        _freed;
   Atomic<size_t>        _freelist_promoted;
+  Atomic<size_t>        _mutator_freelist_promoted;
   Atomic<size_t>        _freelist_compacted;
+  Atomic<size_t>        _mutator_freelist_compacted;
   Atomic<size_t>        _freelist_available_at_start;
   Atomic<size_t>        _promoted;
+  Atomic<size_t>        _mutator_promoted;
   Atomic<size_t>        _flip_promoted;
   Atomic<size_t>        _compacted;
+  Atomic<size_t>        _mutator_compacted;
 
   Phase                 _phase;
   uint32_t              _seqnum;
@@ -131,17 +135,25 @@ public:
   void increase_freed(size_t size);
   size_t freelist_promoted() const;
   void increase_freelist_promoted(size_t size);
+  size_t mutator_freelist_promoted() const;
+  void increase_mutator_freelist_promoted(size_t size);
   size_t freelist_compacted() const;
   void increase_freelist_compacted(size_t size);
+  size_t mutator_freelist_compacted() const;
+  void increase_mutator_freelist_compacted(size_t size);
   size_t freelist_available_at_start() const;
   void increase_freelist_available_at_start(size_t size);
   void set_freelist_available_at_start(size_t size);
   size_t promoted() const;
   void increase_promoted(size_t size);
+  size_t mutator_promoted() const;
+  void increase_mutator_promoted(size_t size);
   size_t flip_promoted() const;
   void increase_flip_promoted(size_t size);
   size_t compacted() const;
   void increase_compacted(size_t size);
+  size_t mutator_compacted() const;
+  void increase_mutator_compacted(size_t size);
 
   ConcurrentGCTimer* gc_timer() const;
   void set_gc_timer(ConcurrentGCTimer* gc_timer);

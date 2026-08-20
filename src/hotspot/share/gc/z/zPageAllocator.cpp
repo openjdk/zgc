@@ -1897,11 +1897,15 @@ ZPageAllocatorStats ZPageAllocator::stats_inner(ZGeneration* generation) const {
                              used_generation(generation->id()),
                              generation->freelist_available_at_start(),
                              generation->freelist_promoted(),
+                             generation->mutator_freelist_promoted(),
                              generation->freelist_compacted(),
+                             generation->mutator_freelist_compacted(),
                              generation->freed(),
                              generation->promoted(),
+                             generation->mutator_promoted(),
                              generation->flip_promoted(),
                              generation->compacted(),
+                             generation->mutator_compacted(),
                              _stalled.size());
 }
 

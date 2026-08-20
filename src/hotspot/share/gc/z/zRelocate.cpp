@@ -407,10 +407,9 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
   } else {
     if (free_list_allocation._address != zaddress::null) {
       if (forwarding->is_promotion()) {
-        // TODO: Cleanup these counters
-        ZGeneration::young()->increase_freelist_promoted(size);
+        ZGeneration::young()->increase_mutator_freelist_promoted(size);
       } else {
-        ZGeneration::old()->increase_freelist_compacted(size);
+        ZGeneration::old()->increase_mutator_freelist_compacted(size);
       }
     }
 
@@ -647,20 +646,20 @@ private:
   ZGeneration* const  _generation;
   size_t              _freelist_promoted;
   size_t              _freelist_compacted;
-  size_t              _other_promoted;
-  size_t              _other_compacted;
+  size_t              _mutator_promoted;
+  size_t              _mutator_compacted;
   ZStringDedupContext _string_dedup_context;
 
   size_t object_alignment() const {
     return (size_t)1 << _forwarding->object_alignment_shift();
   }
 
-  void increase_other_forwarded(size_t unaligned_object_size) {
+  void increase_mutator_forwarded(size_t unaligned_object_size) {
     const size_t aligned_size = align_up(unaligned_object_size, object_alignment());
     if (_forwarding->is_promotion()) {
-      _other_promoted += aligned_size;
+      _mutator_promoted += aligned_size;
     } else {
-      _other_compacted += aligned_size;
+      _mutator_compacted += aligned_size;
     }
   }
 
@@ -674,7 +673,7 @@ private:
       const zaddress to_addr = _forwarding->find(from_addr, &cursor);
       if (!is_null(to_addr)) {
         // Already relocated
-        increase_other_forwarded(size);
+        increase_mutator_forwarded(size);
         update_remset_for_fields(from_addr, to_addr, true /* was_mutator */);
         return to_addr;
       }
@@ -737,7 +736,7 @@ private:
         // _allocator->undo_alloc_object(to_page, to_addr, size);
       }
 
-      increase_other_forwarded(size);
+      increase_mutator_forwarded(size);
     } else if (free_list_allocation._address != zaddress::null) {
       if (_forwarding->is_promotion()) {
         _freelist_promoted += size;
@@ -1079,8 +1078,8 @@ public:
       _generation(generation),
       _freelist_promoted(0),
       _freelist_compacted(0),
-      _other_promoted(0),
-      _other_compacted(0) {}
+      _mutator_promoted(0),
+      _mutator_compacted(0) {}
 
   ~ZRelocateWork() {
     _targets->apply_and_clear_targets([&](ZPage* page) {
@@ -1090,8 +1089,8 @@ public:
     // Report statistics on-behalf of non-worker threads
     _generation->increase_freelist_promoted(_freelist_promoted);
     _generation->increase_freelist_compacted(_freelist_compacted);
-    _generation->increase_promoted(_other_promoted);
-    _generation->increase_compacted(_other_compacted);
+    _generation->increase_mutator_promoted(_mutator_promoted);
+    _generation->increase_mutator_compacted(_mutator_compacted);
   }
 
   void finish_in_place_relocation() {

@@ -146,10 +146,13 @@ ZGeneration::ZGeneration(ZGenerationId id, ZPageTable* page_table, ZPageAllocato
     _relocation_set(this),
     _freed(0),
     _freelist_promoted(0),
+    _mutator_freelist_promoted(0),
     _freelist_available_at_start(0),
     _promoted(0),
+    _mutator_promoted(0),
     _flip_promoted(0),
     _compacted(0),
+    _mutator_compacted(0),
     _phase(Phase::Relocate),
     _seqnum(1),
     _stat_heap(),
@@ -343,10 +346,14 @@ void ZGeneration::reset_statistics() {
 
   _freed.store_relaxed(0u);
   _freelist_promoted.store_relaxed(0u);
+  _mutator_freelist_promoted.store_relaxed(0u);
   _freelist_compacted.store_relaxed(0u);
+  _mutator_freelist_compacted.store_relaxed(0u);
   _promoted.store_relaxed(0u);
+  _mutator_promoted.store_relaxed(0u);
   _flip_promoted.store_relaxed(0u);
   _compacted.store_relaxed(0u);
+  _mutator_compacted.store_relaxed(0u);
 }
 
 size_t ZGeneration::freed() const {
@@ -365,12 +372,30 @@ void ZGeneration::increase_freelist_promoted(size_t size) {
   _freelist_promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
+size_t ZGeneration::mutator_freelist_promoted() const {
+  return _mutator_freelist_promoted.load_relaxed();
+}
+
+void ZGeneration::increase_mutator_freelist_promoted(size_t size) {
+  increase_freelist_promoted(size);
+  _mutator_freelist_promoted.add_then_fetch(size, memory_order_relaxed);
+}
+
 size_t ZGeneration::freelist_compacted() const {
   return _freelist_compacted.load_relaxed();;
 }
 
 void ZGeneration::increase_freelist_compacted(size_t size) {
   _freelist_compacted.add_then_fetch(size, memory_order_relaxed);
+}
+
+size_t ZGeneration::mutator_freelist_compacted() const {
+  return _mutator_freelist_compacted.load_relaxed();
+}
+
+void ZGeneration::increase_mutator_freelist_compacted(size_t size) {
+  increase_freelist_compacted(size);
+  _mutator_freelist_compacted.add_then_fetch(size, memory_order_relaxed);
 }
 
 size_t ZGeneration::freelist_available_at_start() const {
@@ -393,6 +418,15 @@ void ZGeneration::increase_promoted(size_t size) {
   _promoted.add_then_fetch(size, memory_order_relaxed);
 }
 
+size_t ZGeneration::mutator_promoted() const {
+  return _mutator_promoted.load_relaxed();
+}
+
+void ZGeneration::increase_mutator_promoted(size_t size) {
+  increase_promoted(size);
+  _mutator_promoted.add_then_fetch(size, memory_order_relaxed);
+}
+
 size_t ZGeneration::flip_promoted() const {
   return _flip_promoted.load_relaxed();
 }
@@ -407,6 +441,15 @@ size_t ZGeneration::compacted() const {
 
 void ZGeneration::increase_compacted(size_t size) {
   _compacted.add_then_fetch(size, memory_order_relaxed);
+}
+
+size_t ZGeneration::mutator_compacted() const {
+  return _mutator_compacted.load_relaxed();
+}
+
+void ZGeneration::increase_mutator_compacted(size_t size) {
+  increase_compacted(size);
+  _mutator_compacted.add_then_fetch(size, memory_order_relaxed);
 }
 
 ConcurrentGCTimer* ZGeneration::gc_timer() const {
