@@ -92,12 +92,12 @@ void ZLargePages::pd_initialize() {
   }
 
   if (UseLargePages) {
-    if (!ZAutomaticHeapSizing || ZAdaptiveHeap::explicit_max_capacity()) {
+    if (!ZAdaptiveHeapSizing || ZAdaptiveHeap::explicit_max_capacity()) {
       _state = Explicit;
       return;
     }
 
-    log_warning(gc, init)("UseLargePages requires a max heap size to be set (-Xmx) when running with Automatic Heap Sizing. "
+    log_warning(gc, init)("UseLargePages requires a max heap size to be set (-Xmx) when running with Adaptive Heap Sizing. "
                           "Disabling the use of explicit large pages for the heap");
   }
 

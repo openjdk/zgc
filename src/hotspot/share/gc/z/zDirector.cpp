@@ -116,7 +116,7 @@ static uint discrete_young_gc_workers(double gc_workers) {
 static double select_young_gc_workers(const ZDirectorStats& stats, double serial_gc_time, double parallelizable_gc_time, double alloc_rate_sd_percent, double time_until_oom) {
   // Use all workers until we're warm
   if (!stats._old_stats._cycle._is_warm) {
-    const double not_warm_gc_workers = ZAutomaticHeapSizing ? 1 : ZYoungGCThreads;
+    const double not_warm_gc_workers = ZAdaptiveHeapSizing ? 1 : ZYoungGCThreads;
     log_debug(gc, director)("Select Minor GC Workers (Not Warm), GCWorkers: %.3f", not_warm_gc_workers);
     return not_warm_gc_workers;
   }
@@ -233,7 +233,7 @@ static ZDriverRequest rule_soft_minor_allocation_rate_dynamic(const ZDirectorSta
 }
 
 static size_t heuristic_hard_capacity(const ZDirectorStats& stats) {
-  if (!ZAutomaticHeapSizing) {
+  if (!ZAdaptiveHeapSizing) {
     return stats._heap._current_max_capacity;
   }
 
@@ -433,7 +433,7 @@ static bool rule_major_warmup(const ZDirectorStats& stats) {
   // duration, which is needed by the other rules.
   const size_t heuristic_max_capacity = stats._heap._heuristic_max_capacity;
   const size_t used = stats._heap._used;
-  const double used_threshold_percent = ZAutomaticHeapSizing
+  const double used_threshold_percent = ZAdaptiveHeapSizing
       ? 0.75
       : ((stats._old_stats._cycle._nwarmup_cycles + 1) * 0.1);
   const size_t used_threshold = (size_t)(heuristic_max_capacity * used_threshold_percent);
@@ -801,7 +801,7 @@ static void adjust_gc(const ZDirectorStats& stats) {
 }
 
 static uint soft_initial_young_nworkers(uint proposed_soft_young_workers) {
-  if (!ZAutomaticHeapSizing) {
+  if (!ZAdaptiveHeapSizing) {
     return proposed_soft_young_workers;
   }
 
@@ -953,7 +953,7 @@ static ZDirectorStats sample_stats() {
 }
 
 static void adjust_capacity(const ZDirectorStats& stats, double sampling_interval) {
-  if (!ZAutomaticHeapSizing) {
+  if (!ZAdaptiveHeapSizing) {
     // We do not asynchronously adjust the capacity without adaptive heap sizing.
     return;
   }

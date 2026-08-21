@@ -338,7 +338,7 @@ public:
   size_t used_generation(ZGenerationId id) const;
   size_t unused() const;
 
-  // Automatic heap sizing
+  // Adaptive heap sizing
   enum class TruncationReason {
     Uncommit,
     CommitFailure,

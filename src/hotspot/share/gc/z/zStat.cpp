@@ -1838,7 +1838,7 @@ size_t ZStatHeap::capacity_low() const {
 }
 
 size_t ZStatHeap::free(size_t used, size_t capacity) const {
-  if (ZAutomaticHeapSizing) {
+  if (ZAdaptiveHeapSizing) {
     // When adapting, the max capacity is likely the whole machine/container,
     // so we compare against the currently committed capacity instead.
     return capacity - used;

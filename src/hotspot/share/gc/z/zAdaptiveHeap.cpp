@@ -69,7 +69,7 @@ double ZAdaptiveHeap::ZIntensitySmoother::record_and_smooth_gc_intensity(double 
 void ZAdaptiveHeap::initialize(bool explicit_max_capacity) {
   precond(!_initialized);
   _explicit_max_capacity = explicit_max_capacity;
-  if (ZAutomaticHeapSizing) {
+  if (ZAdaptiveHeapSizing) {
     _gc_intensities.initialize();
   }
   _initialized = true;
@@ -138,7 +138,7 @@ ZMachineMemoryInfo ZAdaptiveHeap::machine_memory_info() {
       static bool is_valid = _info._is_valid;
       if (_info._is_valid != is_valid) {
         log_warning(gc)("The data source for machine_memory_info is unstable (expected _is_valid to be %s, got %s). "
-                        "This behavior is unsupported for Automatic Heap Sizing. Please run without Automatic Heap Sizing using -XX:-ZAutomaticHeapSizing/-XX:ZGCIntensity=0",
+                        "This behavior is unsupported for Adaptive Heap Sizing. Please run without Adaptive Heap Sizing using -XX:-ZAdaptiveHeapSizing/-XX:ZGCIntensity=0",
                         BOOL_TO_STR(is_valid), BOOL_TO_STR(_info._is_valid));
         os::exit(1);
       }
@@ -213,7 +213,7 @@ static double cpu_latency_factor(int c, double rho, double unluckyness) {
 }
 
 ZMemoryPressureMetrics ZAdaptiveHeap::memory_pressure_metrics() {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
   const double unscaled_gc_intensity = clamp(AtomicAccess::load(&ZGCIntensity), MinZGCIntensity, MaxZGCIntensity);
 
   const ZMachineMemoryInfo machine_memory_info = ZAdaptiveHeap::machine_memory_info();
@@ -675,7 +675,7 @@ static double compute_cpu_vs_latency_pressure(const ZMemoryPressureMetrics& mem_
 }
 
 ZResourcePressure ZAdaptiveHeap::compute_pressures(const ZMemoryPressureMetrics& mem_metrics, const ZCpuPressureMetrics& cpu_metrics, size_t projected_process_used_memory) {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   const double mem_pressure = compute_memory_pressure(mem_metrics);
   const double cpu_vs_memory_pressure = compute_cpu_vs_memory_pressure(mem_metrics, cpu_metrics, projected_process_used_memory);
@@ -791,7 +791,7 @@ static double smoothing_function(double value, double warmness) {
 }
 
 size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, ZGenerationId generation) {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   const bool is_major = Thread::current() == ZDriver::major();
   const GCCause::Cause cause = is_major ? ZDriver::major()->gc_cause() : ZDriver::minor()->gc_cause();
@@ -965,7 +965,7 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
                      cpu_metrics._machine._avg_system_load * 100.0, cpu_metrics._machine._avg_process_load * 100.0,
                      cpu_metrics._avg_total_gc_cpu_overhead * cpu_metrics._machine._avg_process_load * 100.0);
 
-  if (ZAutomaticHeapSizing) {
+  if (ZAdaptiveHeapSizing) {
     log_info(gc, heap)("Process GC CPU Overhead: %.1f%%, Target Process GC CPU Overhead: %.1f%%",
                        cpu_metrics._avg_total_gc_cpu_overhead * 100.0, target_cpu_overhead * 100.0);
 
@@ -1092,7 +1092,7 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
 // infinity when there is no concerning memory pressure, then from ZUncommitDelay
 // when concerning down to 500 when high, and eventually 0 when critically low.
 uint64_t ZAdaptiveHeap::uncommit_delay() {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   const ZMemoryPressureMetrics mem_metrics = memory_pressure_metrics();
   ZStatSystemMemoryUsage::record(mem_metrics);
@@ -1119,13 +1119,13 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
 
   const uint64_t explicit_delay = free_heap / M * uint64_t(SoftRefLRUPolicyMSPerMB);
 
-  if (!ZAutomaticHeapSizing) {
-    // Use the good old policy we all know and love so much when automatic heap
+  if (!ZAdaptiveHeapSizing) {
+    // Use the good old policy we all know and love so much when adaptive heap
     // sizing is not in use.
     return explicit_delay;
   }
 
-  // With automatic heap sizing, there is a risk for a feedback loop when the amount
+  // With adaptive heap sizing, there is a risk for a feedback loop when the amount
   // of free memory decides how long soft references survive. More soft references
   // will lead to the heap growing, hence creating more free memory and suddenly
   // letting soft references live for longer. In order to cut this feedback loop,
@@ -1186,13 +1186,13 @@ uint64_t ZAdaptiveHeap::soft_ref_delay() {
 
 void ZAdaptiveHeap::print() {
   const char* status;
-  if (!ZAutomaticHeapSizing) {
+  if (!ZAdaptiveHeapSizing) {
     status = "Fixed";
   } else {
     if (explicit_max_capacity() || MinHeapSize != DefaultMinHeapSize) {
-      status = "Automatic (Explicit Boundaries)";
+      status = "Adaptive (Explicit Boundaries)";
     } else {
-      status = "Automatic (Implicit Boundaries)";
+      status = "Adaptive (Implicit Boundaries)";
     }
   }
   log_info_p(gc, init)("Heap Sizing: %s", status);

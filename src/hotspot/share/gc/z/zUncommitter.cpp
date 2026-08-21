@@ -43,7 +43,7 @@
 static const ZStatCounter ZCounterUncommit("Memory", "Uncommit", ZStatUnitBytesPerSecond);
 
 bool ZUncommitter::is_enabled() {
-  return ZUncommit && !ZAutomaticHeapSizing;
+  return ZUncommit && !ZAdaptiveHeapSizing;
 }
 
 ZUncommitter::ZUncommitter(uint32_t id, ZPartition* partition)

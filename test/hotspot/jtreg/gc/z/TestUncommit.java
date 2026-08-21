@@ -26,9 +26,9 @@ package gc.z;
 /*
  * @test TestUncommit
  * @requires vm.gc.Z
- * @requires vm.opt.ZAutomaticHeapSizing == null | !vm.opt.ZAutomaticHeapSizing
+ * @requires vm.opt.ZAdaptiveHeapSizing == null | !vm.opt.ZAdaptiveHeapSizing
  * @summary Test ZGC uncommit unused memory
- * @run main/othervm/timeout=480 -XX:+UseZGC -Xlog:gc*,gc+heap=debug,gc+stats=off -XX:-ZAutomaticHeapSizing -Xms128M -Xmx512M -XX:ZUncommitDelay=5 gc.z.TestUncommit
+ * @run main/othervm/timeout=480 -XX:+UseZGC -Xlog:gc*,gc+heap=debug,gc+stats=off -XX:-ZAdaptiveHeapSizing -Xms128M -Xmx512M -XX:ZUncommitDelay=5 gc.z.TestUncommit
  */
 
 import java.util.ArrayList;

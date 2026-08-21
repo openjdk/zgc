@@ -197,7 +197,7 @@ void ZGeneration::flip_age_pages(const ZRelocationSetSelector* selector) {
 
 static double fragmentation_limit(ZGenerationId generation) {
   double min_fragmentation = 0.0;
-  if (ZAutomaticHeapSizing && ZHeap::heap()->is_alloc_stalling()) {
+  if (ZAdaptiveHeapSizing && ZHeap::heap()->is_alloc_stalling()) {
     // It can be dangerous to defragment too much when the critical
     // reserve of machine memory is used.  When
     // stalling starts, there should be very limited amounts of
@@ -397,7 +397,7 @@ void ZGeneration::at_collection_start(ConcurrentGCTimer* gc_timer) {
 void ZGeneration::at_collection_end() {
   workers()->set_inactive();
   stat_cycle()->at_end(stat_workers(), should_record_stats());
-  if (should_record_stats() && ZAutomaticHeapSizing) {
+  if (should_record_stats() && ZAdaptiveHeapSizing) {
     ZHeap::heap()->adapt_heuristic_max_capacity(_id);
   }
   // The heap at collection end data is gathered at relocate end
@@ -797,7 +797,7 @@ uint ZGenerationYoung::compute_tenuring_threshold(ZRelocationSetSelectorStats st
 
   // The amount of CPU spent being spent collecting the young generation vs
   // the old generation. Since the CPU time of both generations contribute
-  // to the automatic heap sizing, we want to reduce the amount of time spent
+  // to the adaptive heap sizing, we want to reduce the amount of time spent
   // in the most dominant generation.
   const double young_to_old_gc_time_ratio = ZAdaptiveHeap::young_to_old_gc_time();
 

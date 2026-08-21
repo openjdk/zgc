@@ -34,15 +34,15 @@
                    range,                                                   \
                    constraint)                                              \
                                                                             \
-  product(bool, ZAutomaticHeapSizing, false,                                \
-          "Enable Automatic Heap Sizing")                                   \
+  product(bool, ZAdaptiveHeapSizing, false,                                 \
+          "Enable Adaptive Heap Sizing")                                    \
                                                                             \
   product(double, ZAllocationSpikeTolerance, 2.0,                           \
           "Allocation spike tolerance factor")                              \
           range(0, INT_MAX)                                                 \
                                                                             \
   product(double, ZGCIntensity, 0, MANAGEABLE,                              \
-          "Level of GC intensity, used for automatic heap sizing "          \
+          "Level of GC intensity, used for adaptive heap sizing "           \
           "policies to use either more CPU or memory")                      \
           range(0, DBL_MAX)                                                 \
           constraint(ZGCIntensityConstraintFunc, AfterErgo)                 \

@@ -24,11 +24,11 @@
 package gc.z;
 
 /**
- * @test TestAutomaticHeapSizingMode
+ * @test TestAdaptiveHeapSizingMode
  * @requires vm.gc.Z & vm.flagless
- * @summary Test that heap size flags affect ZGC Automatic Heap Sizing mode.
+ * @summary Test that heap size flags affect ZGC Adaptive Heap Sizing mode.
  * @library / /test/lib
- * @run driver gc.z.TestAutomaticHeapSizingMode
+ * @run driver gc.z.TestAdaptiveHeapSizingMode
  */
 
 import jdk.test.lib.JDKToolFinder;
@@ -40,11 +40,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class TestAutomaticHeapSizingMode {
+public class TestAdaptiveHeapSizingMode {
     private static List<String> createTestSpecificArgs(String... heapSizeArgs) {
       List<String> args = new ArrayList<>();
       args.add("-XX:+UseZGC");
-      args.add("-XX:+ZAutomaticHeapSizing");
+      args.add("-XX:+ZAdaptiveHeapSizing");
       args.add("-Xlog:gc+init");
       args.addAll(Arrays.asList(heapSizeArgs));
       args.add("--version");
@@ -89,8 +89,8 @@ public class TestAutomaticHeapSizingMode {
     }
 
     private static final String FIXED_MODE = "Fixed";
-    private static final String IMPLICIT_MODE = "Automatic (Implicit Boundaries)";
-    private static final String EXPLICIT_MODE = "Automatic (Explicit Boundaries)";
+    private static final String IMPLICIT_MODE = "Adaptive (Implicit Boundaries)";
+    private static final String EXPLICIT_MODE = "Adaptive (Explicit Boundaries)";
 
     public static void main(String[] args) throws Exception {
       // No flags

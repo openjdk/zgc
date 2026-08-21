@@ -37,7 +37,7 @@
 
 class ZPartition;
 
-// This worker is enabled with automatic heap sizing.
+// This worker is enabled with adaptive heap sizing.
 // Its responsibilities are:
 // * Change heap capacity
 //   - Commit memory concurrently when growing the heap

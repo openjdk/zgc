@@ -97,7 +97,7 @@ static const char* memory_worker_start_mode_name(ZMemoryWorkerMode mode) {
 }
 
 bool ZMemoryWorker::is_enabled() {
-  return ZAutomaticHeapSizing || ZMemoryHeating;
+  return ZAdaptiveHeapSizing || ZMemoryHeating;
 }
 
 ZMemoryWorker::ZMemoryWorker(uint32_t id, ZPartition* partition)
@@ -218,7 +218,7 @@ void ZMemoryWorker::clear_targeted_uncommit() {
 }
 
 void ZMemoryWorker::stop_heap_resizing() {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   // Remove requests to resize the capacity
   ZLocker<ZConditionLock> locker(&_lock);
@@ -227,7 +227,7 @@ void ZMemoryWorker::stop_heap_resizing() {
 }
 
 void ZMemoryWorker::stop_shrink_capacity_granule() {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   if (!ZUncommit) {
     // Uncommit turned off.
@@ -240,7 +240,7 @@ void ZMemoryWorker::stop_shrink_capacity_granule() {
 }
 
 void ZMemoryWorker::request_grow_capacity(size_t requested_capacity) {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   ZLocker<ZConditionLock> locker(&_lock);
   _target_commit_capacity = requested_capacity;
@@ -250,7 +250,7 @@ void ZMemoryWorker::request_grow_capacity(size_t requested_capacity) {
 }
 
 void ZMemoryWorker::request_shrink_capacity(size_t requested_capacity) {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   if (!ZUncommit) {
     // Uncommit turned off.
@@ -267,7 +267,7 @@ void ZMemoryWorker::request_shrink_capacity(size_t requested_capacity) {
 }
 
 void ZMemoryWorker::request_shrink_capacity_granule() {
-  precond(ZAutomaticHeapSizing);
+  precond(ZAdaptiveHeapSizing);
 
   if (!ZUncommit) {
     // Uncommit turned off.
@@ -580,7 +580,7 @@ private:
   Mode _mode;
 
   bool try_commit() {
-    precond(ZAutomaticHeapSizing);
+    precond(ZAdaptiveHeapSizing);
     precond(_mode == Mode::Commit);
 
     const bool targetless_uncommit = _worker->_targetless_uncommit;
@@ -620,7 +620,7 @@ private:
   }
 
   bool try_uncommit() {
-    precond(ZAutomaticHeapSizing);
+    precond(ZAdaptiveHeapSizing);
     precond(_mode == Mode::Uncommit);
     precond(ZUncommit);
 
@@ -636,7 +636,7 @@ private:
   }
 
   bool try_targetless_uncommit() {
-    precond(ZAutomaticHeapSizing);
+    precond(ZAdaptiveHeapSizing);
     precond(_mode == Mode::UncommitTargetless);
     precond(ZUncommit);
     precond(_target_capacity == 0);
@@ -710,7 +710,7 @@ public:
     {
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
       _init_time = Ticks::now();
-      if (ZAutomaticHeapSizing) {
+      if (ZAdaptiveHeapSizing) {
         _uncommit_delay = ZAdaptiveHeap::uncommit_delay();
       }
     }
@@ -723,7 +723,7 @@ public:
     if (target_commit_capacity > 0 && capacity < target_commit_capacity) {
       // First priority is committing memory
 
-      postcond(ZAutomaticHeapSizing);
+      postcond(ZAdaptiveHeapSizing);
       postcond(target_uncommit_capacity == 0);
 
       _mode = Mode::Commit;
@@ -731,7 +731,7 @@ public:
     } else if (target_uncommit_capacity > 0 && capacity > target_uncommit_capacity) {
       // Second priority is uncommitting memory
 
-      postcond(ZAutomaticHeapSizing);
+      postcond(ZAdaptiveHeapSizing);
       postcond(ZUncommit);
       postcond(target_commit_capacity == 0);
       postcond(target_uncommit_capacity >= min_capacity);
@@ -745,7 +745,7 @@ public:
           has_targetless_uncommit_matured(_init_time, _worker->_uncommit_request_time, _uncommit_delay);
 
       if (targetless_uncommit_matured && capacity != min_capacity) {
-        postcond(ZAutomaticHeapSizing);
+        postcond(ZAdaptiveHeapSizing);
         _mode = Mode::UncommitTargetless;
       } else if (_worker->has_heating_request()) {
         _mode = Mode::Heat;
@@ -786,7 +786,7 @@ public:
     {
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
       _update_time = Ticks::now();
-      if (ZAutomaticHeapSizing) {
+      if (ZAdaptiveHeapSizing) {
         _uncommit_delay = ZAdaptiveHeap::uncommit_delay();
       }
     }

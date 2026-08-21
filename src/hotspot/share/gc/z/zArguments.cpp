@@ -46,7 +46,7 @@ void ZArguments::initialize_alignments() {
 void ZArguments::initialize_heap_flags_and_sizes() {
   precond(!FLAG_IS_ERGO(SoftMaxHeapSize));
 
-  if (!ZAdaptiveHeap::explicit_max_capacity() && !ZAutomaticHeapSizing) {
+  if (!ZAdaptiveHeap::explicit_max_capacity() && !ZAdaptiveHeapSizing) {
     // We are really just guessing how much memory the program needs.
     // When that is the case, we don't want the soft and hard limits to be the same
     // as it can cause flakiness in the number of GC threads used, in order to keep
@@ -133,27 +133,27 @@ void ZArguments::set_heap_size() {
   // 100%, we will still satisfy it.
 
   const bool gc_intensity_was_zero = ZGCIntensity == 0.0;
-  const bool adaptive_is_explicit = !FLAG_IS_DEFAULT(ZAutomaticHeapSizing);
+  const bool adaptive_is_explicit = !FLAG_IS_DEFAULT(ZAdaptiveHeapSizing);
   const bool intensity_is_explicit = !FLAG_IS_DEFAULT(ZGCIntensity);
-  const bool adaptive_matches_intensity = ZAutomaticHeapSizing != gc_intensity_was_zero;
+  const bool adaptive_matches_intensity = ZAdaptiveHeapSizing != gc_intensity_was_zero;
 
   if ((adaptive_is_explicit || intensity_is_explicit) && !adaptive_matches_intensity) {
-    // The user has set ZAutomaticHeapSizing and/or ZGCIntensity AND their state
+    // The user has set ZAdaptiveHeapSizing and/or ZGCIntensity AND their state
     // does not match. For example:
-    // +ZAutomaticHeapSizing and ZGCIntensity  = 0 OR
-    // -ZAutomaticHeapSizing and ZGCIntensity != 0
+    // +ZAdaptiveHeapSizing and ZGCIntensity  = 0 OR
+    // -ZAdaptiveHeapSizing and ZGCIntensity != 0
 
     if (!adaptive_is_explicit && intensity_is_explicit) {
-      FLAG_SET_ERGO(ZAutomaticHeapSizing, !ZAutomaticHeapSizing);
+      FLAG_SET_ERGO(ZAdaptiveHeapSizing, !ZAdaptiveHeapSizing);
     } else if (adaptive_is_explicit && !intensity_is_explicit) {
-      FLAG_SET_ERGO(ZGCIntensity, ZAutomaticHeapSizing ? ZAdaptiveHeap::DefaultGCIntensity : 0.0);
+      FLAG_SET_ERGO(ZGCIntensity, ZAdaptiveHeapSizing ? ZAdaptiveHeap::DefaultGCIntensity : 0.0);
     } else {
       const double old_intensity = ZGCIntensity;
-      FLAG_SET_ERGO(ZGCIntensity, ZAutomaticHeapSizing ? ZAdaptiveHeap::DefaultGCIntensity : 0.0);
+      FLAG_SET_ERGO(ZGCIntensity, ZAdaptiveHeapSizing ? ZAdaptiveHeap::DefaultGCIntensity : 0.0);
 
       // Both were set, log a warning for mismatching configuration
-      log_warning(gc)("-XX:%cZAutomaticHeapSizing does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",
-                      ZAutomaticHeapSizing ? '+' : '-',  old_intensity, ZGCIntensity);
+      log_warning(gc)("-XX:%cZAdaptiveHeapSizing does not match value selected for -XX:ZGCIntensity=%f, setting ZGCIntensity to %f",
+                      ZAdaptiveHeapSizing ? '+' : '-',  old_intensity, ZGCIntensity);
     }
   }
 
@@ -165,7 +165,7 @@ void ZArguments::set_heap_size() {
 
   ZAdaptiveHeap::initialize(explicit_max_heap_size);
 
-  if (!ZAutomaticHeapSizing) {
+  if (!ZAdaptiveHeapSizing) {
     // Let the shared code setup the set the heap size when not adapting
     GCArguments::set_heap_size();
     return;
@@ -211,15 +211,15 @@ void ZArguments::set_heap_size() {
   }
 
   if (MaxHeapSize == MinHeapSize) {
-    if (!FLAG_IS_DEFAULT(ZAutomaticHeapSizing)) {
+    if (!FLAG_IS_DEFAULT(ZAdaptiveHeapSizing)) {
       log_warning(gc)("Adaptive heap sizing was enabled, but heap size is fixed. Disabling adaptive heap sizing.");
     }
 
-    FLAG_SET_ERGO(ZAutomaticHeapSizing, false);
+    FLAG_SET_ERGO(ZAdaptiveHeapSizing, false);
     FLAG_SET_ERGO(ZGCIntensity, 0.0);
   }
 
-  // Enable concurrent heating if ZAutomaticHeapSizing is turned on
+  // Enable concurrent heating if ZAdaptiveHeapSizing is turned on
   FLAG_SET_ERGO_IF_DEFAULT(ZMemoryHeating, true);
 }
 
