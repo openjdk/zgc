@@ -31,6 +31,8 @@
 #include "gc/z/zPageAllocator.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "gc/z/zVirtualMemory.inline.hpp"
+#include "logging/log.hpp"
+#include "logging/logHandle.hpp"
 #include "runtime/init.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -696,10 +698,18 @@ public:
                            _worker->_id, mode_string, processed_mb,
                            elapsed.seconds() * MILLIUNITS, process_rate_mb_per_sec);
       } else {
+        LogTargetHandle lt = [&]() -> LogTargetHandle {
+          if (_mode == ZMemoryWorkerMode::Heat) {
+            return LogTarget(Debug, gc, heap)();
+          } else {
+            return LogTarget(Info, gc, heap)();
+          }
+        }();
+
         const double percent_of_init_target = percent_of(_processed, _init_target_capacity);
-        log_info(gc, heap)("Memory Worker (%d) %s: %zuM(%.0f%%) in %.3fms (%.2f MiB/s)",
-                           _worker->_id, mode_string, processed_mb, percent_of_init_target,
-                           elapsed.seconds() * MILLIUNITS, process_rate_mb_per_sec);
+        lt.print("Memory Worker (%d) %s: %zuM(%.0f%%) in %.3fms (%.2f MiB/s)",
+                 _worker->_id, mode_string, processed_mb, percent_of_init_target,
+                 elapsed.seconds() * MILLIUNITS, process_rate_mb_per_sec);
       }
     }
   }
