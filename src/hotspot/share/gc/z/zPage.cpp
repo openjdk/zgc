@@ -34,6 +34,7 @@
 #include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
+#include "gc/z/zTree.inline.hpp"
 #include "gc/z/zUtils.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -56,7 +57,8 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _relocate_promoted(),
     _flip_aged(),
     _remset_flip_retained(),
-    _free_list_unused() {
+    _free_list_unused(),
+    _overflow_ref_counts() {
   assert(!_virtual.is_null(), "Should not be null");
   assert((_type == ZPageType::small && size() == ZPageSizeSmall) ||
          (_type == ZPageType::medium && ZPageSizeMediumMin <= size() && size() <= ZPageSizeMediumMax) ||

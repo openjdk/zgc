@@ -24,11 +24,13 @@
 #ifndef SHARE_GC_Z_ZPAGE_HPP
 #define SHARE_GC_Z_ZPAGE_HPP
 
+#include "gc/z/zAddress.hpp"
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zLiveMap.hpp"
 #include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zRememberedSet.hpp"
+#include "gc/z/zTree.hpp"
 #include "gc/z/zVirtualMemory.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -42,6 +44,7 @@ class ZFreeList;
 class ZPage : public CHeapObj<mtGC> {
   friend class VMStructs;
   friend class ZForwardingTest;
+  friend class ZReferenceCounting;
 
 private:
   const ZPageType               _type;
@@ -63,6 +66,8 @@ private:
     ZFreeList<ZPageType::small>*  _free_list_small;
     ZFreeList<ZPageType::medium>* _free_list_medium;
   };
+
+  ZTree<zaddress, int64_t, ZAddress> _overflow_ref_counts;
 
   const char* type_to_string() const;
 
@@ -235,6 +240,10 @@ public:
   void free_object_to_free_list(zaddress addr);
   zaddress alloc_object_from_free_list(size_t size);
   void print_free_list_on(outputStream* st) const;
+
+  // Reference counting support
+  int64_t increment_ref_count(zaddress addr);
+  int64_t decrement_ref_count(zaddress addr);
 
   bool undo_alloc_object(zaddress addr, size_t size);
   bool undo_alloc_object_atomic(zaddress addr, size_t size);

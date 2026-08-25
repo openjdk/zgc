@@ -303,8 +303,9 @@ public:
   void on_promotion(zaddress addr);
 
   void on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator);
-  void on_old_to_old(zaddress addr, bool was_mutator);
+  void on_old_to_old(zaddress from_addr, ZPage* from_page, zaddress to_addr, ZPage* to_page, bool was_mutator);
   void on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr);
+  void on_undo(zaddress addr, ZPage* page);
 
   ZReferenceCounting::FreeListAllocation free_list_alloc_object(size_t size, ZPageType type, ZPageAge to_age);
 

@@ -31,6 +31,7 @@
 #include "gc/z/zLock.hpp"
 #include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageType.hpp"
+#include "gc/z/zTree.hpp"
 #include "gc/z/zValue.hpp"
 #include "utilities/resizableHashTable.hpp"
 
@@ -78,12 +79,12 @@ private:
   State* state();
   const State* state() const;
 
-  void increment(zaddress addr);
-  // Returns the fetched value before the decrement
-  int decrement(zaddress addr);
+  // Returns the fetched value before the mutation
+  int64_t increment(zaddress addr, ZPage* page);
+  int64_t decrement(zaddress addr, ZPage* page);
 
   bool try_kill_root(ZPage* page, zaddress addr, size_t& pardoned);
-  bool try_kill_followed(ZPage* page, zaddress addr, size_t& pardoned, int observed_count);
+  bool try_kill_followed(ZPage* page, zaddress addr, size_t& pardoned, int64_t observed_count);
 
   class ZProcessDeathRowTask;
 
@@ -96,8 +97,9 @@ public:
 
   void on_promotion(zaddress addr);
   void on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, bool mutator);
-  void on_old_to_old(zaddress addr, bool was_mutator);
+  void on_old_to_old(zaddress from_addr, ZPage* from_page, zaddress to_addr, ZPage* to_page, bool was_mutator);
   void on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr);
+  void on_undo(zaddress addr, ZPage* page);
 
   void on_root(zaddress addr);
 

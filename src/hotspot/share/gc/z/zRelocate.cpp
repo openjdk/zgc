@@ -401,8 +401,10 @@ static zaddress relocate_object_inner(ZForwarding* forwarding, zaddress from_add
     if (free_list_allocation._address != zaddress::null) {
       // TODO: Change this so be symmtric, alloc gets FreeListAllocation, undo consumes it.
       free_list_allocation._page->undo_alloc_object_from_free_list(unsafe(to_addr), size);
+      ZGeneration::young()->on_undo(to_addr, free_list_allocation._page);
     } else {
       ZHeap::heap()->undo_alloc_object_for_relocation(to_addr, size);
+      ZGeneration::young()->on_undo(to_addr, ZHeap::heap()->page(to_addr));
     }
   } else {
     if (free_list_allocation._address != zaddress::null) {
@@ -732,9 +734,11 @@ private:
       if (free_list_allocation._address != zaddress::null) {
         // TODO: Change this so be symmtric, alloc gets FreeListAllocation, undo consumes it.
         free_list_allocation._page->undo_alloc_object_from_free_list(unsafe(allocated_addr), size);
+        ZGeneration::young()->on_undo(to_addr, free_list_allocation._page);
       } else {
         // TODO: Fix wrong address undo.
         // _allocator->undo_alloc_object(to_page, to_addr, size);
+        // ZGeneration::young()->on_undo(to_addr, to_page);
       }
 
       increase_mutator_forwarded(size);
@@ -976,7 +980,9 @@ private:
     // Need to deal with remset when moving objects to the old generation
     if (_forwarding->is_old_to_old()) {
       update_remset_old_to_old(from_addr, to_addr, was_mutator);
-      ZGeneration::young()->on_old_to_old(to_addr, was_mutator);
+      ZPage* from_page = _forwarding->page();
+      ZPage* to_page = ZHeap::heap()->page(to_addr); // TODO: Pass in from transitive caller
+      ZGeneration::young()->on_old_to_old(from_addr, from_page, to_addr, to_page, was_mutator);
       return;
     }
 
@@ -1554,7 +1560,7 @@ public:
       ZGeneration::old()->flip_survive(prev_page, aged_page);
 
       auto function = [&](oop obj) {
-        ZGeneration::young()->on_old_to_old(to_zaddress(obj), false /* was_mutator */); // TODO: More naming issues
+        ZGeneration::young()->on_old_to_old(to_zaddress(obj), prev_page, to_zaddress(obj), aged_page, false /* was_mutator */); // TODO: More naming issues
       };
 
       if (ZOldRefCount && ZMaintainOldFreeLists) {

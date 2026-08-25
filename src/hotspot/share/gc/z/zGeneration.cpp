@@ -24,9 +24,9 @@
 #include "classfile/classLoaderDataGraph.hpp"
 #include "code/nmethod.hpp"
 #include "gc/shared/classUnloadingContext.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcVMOperations.hpp"
-#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zAdaptiveHeap.inline.hpp"
@@ -1171,12 +1171,16 @@ void ZGenerationYoung::on_old_to_space_alloc(ZPage* to_page, zaddress to_addr, b
   _old_ref_count.on_old_to_space_alloc(to_page, to_addr, mutator);
 }
 
-void ZGenerationYoung::on_old_to_old(zaddress addr, bool was_mutator) {
-  _old_ref_count.on_old_to_old(addr, was_mutator);
+void ZGenerationYoung::on_old_to_old(zaddress from_addr, ZPage* from_page, zaddress to_addr, ZPage* to_page, bool was_mutator) {
+  _old_ref_count.on_old_to_old(from_addr, from_page, to_addr, to_page, was_mutator);
 }
 
 void ZGenerationYoung::on_mutator_old_to_old(ZForwarding* forwarding, zaddress from_addr, zaddress to_addr) {
   _old_ref_count.on_mutator_old_to_old(forwarding, from_addr, to_addr);
+}
+
+void ZGenerationYoung::on_undo(zaddress addr, ZPage* page) {
+  _old_ref_count.on_undo(addr, page);
 }
 
 ZReferenceCounting::FreeListAllocation ZGenerationYoung::free_list_alloc_object(size_t size, ZPageType type, ZPageAge to_age) {
