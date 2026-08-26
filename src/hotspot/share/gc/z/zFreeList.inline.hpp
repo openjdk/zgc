@@ -22,10 +22,11 @@
  *
  */
 
+#include "gc/z/zFreeList.hpp"
+
 #include "gc/z/zAddress.hpp"
 #include "gc/z/zAddress.inline.hpp"
 #include "gc/z/zArray.hpp"
-#include "gc/z/zFreeList.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
 #include "gc/z/zPageType.hpp"
@@ -41,7 +42,6 @@
 #include "utilities/integerCast.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/vmError.hpp"
-#include <cstdint>
 
 inline bool ZNextBlockDescriptor::is_null() const {
   return _size == 0;

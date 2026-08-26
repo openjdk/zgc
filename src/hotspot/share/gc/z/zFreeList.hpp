@@ -31,7 +31,6 @@
 #include "memory/allocation.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/globalDefinitions.hpp"
-#include <cstdint>
 
 class ZPage;
 class outputStream;

@@ -68,8 +68,10 @@
 #include "utilities/systemMemoryBarrier.hpp"
 #include "utilities/vmError.hpp"
 
-#include "gc/z/zThreadLocalData.hpp"
+#if INCLUDE_ZGC
 #include "gc/z/zStoreBarrierBuffer.hpp"
+#include "gc/z/zThreadLocalData.hpp"
+#endif // INCLUDE_ZGC
 
 static void post_safepoint_begin_event(EventSafepointBegin& event,
                                        uint64_t safepoint_id,
@@ -588,7 +590,7 @@ void SafepointSynchronize::block(JavaThread *thread) {
 
   if (UseZGC && (safepoint_id & 1) == 1) {
     // TODO: Proper interfacing
-    ZThreadLocalData::store_barrier_buffer(thread)->flush_for_safepoint(safepoint_id);
+    ZGC_ONLY(ZThreadLocalData::store_barrier_buffer(thread)->flush_for_safepoint(safepoint_id);)
   }
 
   // This part we can skip if we notice we miss or are in a future safepoint.
@@ -758,7 +760,7 @@ void ThreadSafepointState::account_safe_thread(uint64_t safepoint_count) {
 
   if (UseZGC) {
     // TODO: Proper interfacing
-    ZThreadLocalData::store_barrier_buffer(_thread)->flush_for_safepoint(safepoint_count);
+    ZGC_ONLY(ZThreadLocalData::store_barrier_buffer(_thread)->flush_for_safepoint(safepoint_count);)
   }
 }
 
