@@ -29,12 +29,12 @@
 #include "gc/z/zGeneration.inline.hpp"
 #include "gc/z/zGlobals.hpp"
 #include "gc/z/zPage.inline.hpp"
+#include "gc/z/zPageRefCounts.hpp"
 #include "gc/z/zPageAge.inline.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zRelocate.hpp"
 #include "gc/z/zRememberedSet.inline.hpp"
-#include "gc/z/zTree.inline.hpp"
 #include "gc/z/zUtils.hpp"
 #include "gc/z/zUtils.inline.hpp"
 #include "runtime/atomicAccess.hpp"
@@ -58,7 +58,7 @@ ZPage::ZPage(ZPageType type, ZPageAge age, const ZVirtualMemory& vmem, ZMultiPar
     _flip_aged(),
     _remset_flip_retained(),
     _free_list_unused(),
-    _overflow_ref_counts() {
+    _overflow_ref_counts(new ZPageRefCounts(start(), object_alignment_shift())) {
   assert(!_virtual.is_null(), "Should not be null");
   assert((_type == ZPageType::small && size() == ZPageSizeSmall) ||
          (_type == ZPageType::medium && ZPageSizeMediumMin <= size() && size() <= ZPageSizeMediumMax) ||
@@ -108,6 +108,7 @@ ZPage* ZPage::clone(ZPageAge age, ZRememberedSet* remset) {
 }
 
 ZPage::~ZPage() {
+  _overflow_ref_counts->release();
   if (_remset_flip_retained) {
     _remembered_set.uninitialize();
   }
@@ -138,6 +139,13 @@ ZPage* ZPage::flip_age() {
     precond(ZRelocate::compute_to_age(age()) == ZPageAge::old);
 
     ZPage* const page = clone(ZPageAge::old, &_remembered_set);
+    // Headers have not moved. Stale users of this descriptor must update
+    // the same stakes as users of the new descriptor. Both own the tables
+    // until safe page destruction drains their users. Actual in-place
+    // relocation deliberately keeps separate tables.
+    _overflow_ref_counts->retain();
+    page->_overflow_ref_counts->release();
+    page->_overflow_ref_counts = _overflow_ref_counts;
     AtomicAccess::store(&page->_flip_aged, true);
 
     // TODO: Make sure the old copy is safe deleted.

@@ -34,11 +34,11 @@
 #include "gc/z/zNUMA.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zPageAge.inline.hpp"
+#include "gc/z/zPageRefCounts.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zReferenceCounting.hpp"
 #include "gc/z/zStat.hpp"
 #include "gc/z/zTask.hpp"
-#include "gc/z/zTree.inline.hpp"
 #include "gc/z/zValue.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
@@ -58,14 +58,18 @@ static const ZStatSubPhase ZSubPhaseConcurrentCoalesceFreeList("Concurrent Coale
 static const ZStatSubPhase ZSubPhaseConcurrentDeathRowPage("Concurrent Death Row Page", ZGenerationId::young);
 static const ZStatSubPhase ZSubPhaseConcurrentCoalesceFreeListPage("Concurrent Coalesce Free List Page", ZGenerationId::young);
 
-// We use "crow reference counting". Crows can count 1, 2, 3, many. In other
-// words, it can't really distinguish between 4 and 5. For us, the counts get
-// blurred at 7, because we use 4 bits *signed* reference count. The signedness
-// is required due to races between mutators and the GC, causing periodic
-// instability in the reference counters. So reference count of over 7 means we
-// don't really know. Once this number is reached, we never change it, and the
-// object simply can not be reclaimed with reference counting. The reference
-// counts are embedded in the 4 bit age bits of the markWord of objects.
+// Object headers have a small 5 bit signed reference count stake. This
+// limited count may be insufficient. When it is insufficient, a per-page
+// ZConcurrentTree with 32 bit entries is used to extend the ref count
+// stake further. The maximum overhead of entries in this tree is 1/16
+// which is ~6% absolute worst case if every object in the heap has 16
+// and is the tree is at its worst balance uniformly across the pages.
+//
+// If this extra small reference count from the first level tree is not
+// enough, there is a next level tree per-page that maps zaddress to
+// a full int64_t. With this tiered reference counting technique, we can
+// ensure the native memory footprint is very small, while at the same
+// time handling arbitrary reference counts per object.
 struct ZHeaderRefCount : public AllStatic {
   static constexpr int RefCountBits = markWord::refc_bits;
   static constexpr int SignBit = RefCountBits - 1;
@@ -494,167 +498,82 @@ const ZReferenceCounting::State* ZReferenceCounting::state() const {
   return _state;
 }
 
-int64_t ZReferenceCounting::increment(zaddress addr, ZPage* page) {
+static bool adjust_ref_count(zaddress addr, ZPageRefCounts* counts, int64_t pending) {
   oop obj = to_oop(addr);
-
+  bool crossed_zero = false;
   for (;;) {
-    markWord mark = obj->mark();
-    int ref_count = ZHeaderRefCount::count(mark);
-
-    if (ref_count == ZHeaderRefCount::Max) {
-      int64_t table_stake;
-      page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-        table_stake = prev == nullptr ? 0 : *prev;
-        **updated = table_stake + 1;
-      });
-
-      OrderAccess::fence();
-
-      markWord mark_reloaded = obj->mark();
-      int ref_count_reloaded = ZHeaderRefCount::count(mark_reloaded);
-
-      if (ref_count == ref_count_reloaded) {
-        // Mark word still maxed out after populating table; table entry provably not redundant
-        return table_stake + ref_count;
-      }
-
-      page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-        const int64_t table_stake = prev == nullptr ? 0 : *prev;
-        const int64_t new_table_stake = table_stake - 1;
-        if (new_table_stake == 0) {
-          *updated = nullptr;
-        } else {
-          **updated = new_table_stake;
-        }
-      });
-
-      continue;
-    }
-
-    if (ref_count == ZHeaderRefCount::Min) {
-      int64_t table_stake;
-      page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-        table_stake = prev == nullptr ? 0 : *prev;
-        if (table_stake == 0 || table_stake == -1) {
-          *updated = nullptr;
-        } else {
-          **updated = table_stake + 1;
-        }
-      });
-
-      if (table_stake != 0) {
-        OrderAccess::fence();
-
-        markWord mark_reloaded = obj->mark();
-        int ref_count_reloaded = ZHeaderRefCount::count(mark_reloaded);
-
-        if (ref_count_reloaded == ref_count) {
-          // Mark word counters look the stable across table stake increment; return
-          return table_stake + ref_count;
-        }
-
-        page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-          const int64_t table_stake = prev == nullptr ? 0 : *prev;
-          const int64_t new_table_stake = table_stake - 1;
-          if (new_table_stake == 0) {
-            *updated = nullptr;
-          } else {
-            **updated = new_table_stake;
-          }
-        });
-
-        continue;
+    for (;;) {
+      const markWord mark = obj->mark();
+      const int old = ZHeaderRefCount::count(mark);
+      const int64_t applied = clamp(pending,
+                                    int64_t(ZHeaderRefCount::Min - old),
+                                    int64_t(ZHeaderRefCount::Max - old));
+      const int value = old + integer_cast<int>(applied);
+      const markWord next = ZHeaderRefCount::set_count(mark, value);
+      if (obj->cas_set_mark(next, mark, memory_order_relaxed) == mark) {
+        crossed_zero |= old > 0 && value <= 0;
+        pending -= applied;
+        break;
       }
     }
-
-    int new_ref_count = ref_count == ZHeaderRefCount::Max ? ZHeaderRefCount::Uncertain : (ref_count + 1);
-    markWord new_mark = ZHeaderRefCount::set_count(mark, new_ref_count);
-
-    if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      return ref_count;
+    counts->add(addr, pending);
+    OrderAccess::fence();
+    const int header = ZHeaderRefCount::count(obj->mark());
+    const int64_t small = counts->small_stake(addr);
+    if (small == 0 ||
+        (small > 0 && header == ZHeaderRefCount::Max) ||
+        (small < 0 && header == ZHeaderRefCount::Min)) {
+      return crossed_zero;
     }
+    pending = counts->take_small_stake(addr);
   }
 }
 
-int64_t ZReferenceCounting::decrement(zaddress addr, ZPage* page) {
+void ZReferenceCounting::increment(zaddress addr, ZPage* page) {
+  const bool crossed_zero = adjust_ref_count(addr, page->_overflow_ref_counts, 1);
+  if (crossed_zero && page->is_allocating()) {
+    page->set_death_row(addr);
+    _found_death_row.register_page(page);
+  }
+}
+
+void ZReferenceCounting::decrement(zaddress addr, ZPage* page) {
+  bool crossed_zero;
+  if (ZGeneration::young()->is_phase_mark_complete()) {
+    crossed_zero = decrement_monotonic(addr, page) == 1;
+  } else {
+    crossed_zero = adjust_ref_count(addr, page->_overflow_ref_counts, -1);
+  }
+  if (crossed_zero && page->is_allocating()) {
+    page->set_death_row(addr);
+    _found_death_row.register_page(page);
+  }
+}
+
+// Death-row traversal's monotonic operation with no racing increments.
+int64_t ZReferenceCounting::decrement_monotonic(zaddress addr, ZPage* page) {
+  assert(!ZGeneration::young()->is_phase_mark(), "the young marking phase isn't monotonic");
   oop obj = to_oop(addr);
-
   for (;;) {
-    markWord mark = obj->mark();
-    int ref_count = ZHeaderRefCount::count(mark);
+    const markWord mark = obj->mark();
+    const int header = ZHeaderRefCount::count(mark);
+    assert(header > 0,
+           "nonpositive refcount before monotonic decrement: count=%d object=%p mark=" INTPTR_FORMAT,
+           header, cast_from_oop<void*>(obj), mark.value());
 
-    if (ref_count == ZHeaderRefCount::Min) {
-      int64_t table_stake;
-      page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-        table_stake = prev == nullptr ? 0 : *prev;
-        **updated = table_stake - 1;
-      });
-
-      OrderAccess::fence();
-
-      markWord mark_reloaded = obj->mark();
-      int ref_count_reloaded = ZHeaderRefCount::count(mark_reloaded);
-
-      if (ref_count == ref_count_reloaded) {
-        // Mark word still maxed out after populating table; table entry provably not redundant
-        return table_stake + ref_count;
-      }
-
-      page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-        const int64_t table_stake = prev == nullptr ? 0 : *prev;
-        const int64_t new_table_stake = table_stake + 1;
-        if (new_table_stake == 0) {
-          *updated = nullptr;
-        } else {
-          **updated = new_table_stake;
-        }
-      });
-
-      continue;
-    }
-
-    if (ref_count == ZHeaderRefCount::Max) {
-      int64_t table_stake;
-      page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-        table_stake = prev == nullptr ? 0 : *prev;
-        if (table_stake == 0 || table_stake == 1) {
-          *updated = nullptr;
-        } else {
-          **updated = table_stake - 1;
-        }
-      });
-
-      if (table_stake != 0) {
-        OrderAccess::fence();
-
-        markWord mark_reloaded = obj->mark();
-        int ref_count_reloaded = ZHeaderRefCount::count(mark_reloaded);
-
-        if (ref_count_reloaded == ref_count) {
-          // Mark word counters look the stable across table stake increment; return
-          return table_stake + ref_count;
-        }
-
-        page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** updated) {
-          const int64_t table_stake = prev == nullptr ? 0 : *prev;
-          const int64_t new_table_stake = table_stake + 1;
-          if (new_table_stake == 0) {
-            *updated = nullptr;
-          } else {
-            **updated = new_table_stake;
-          }
-        });
-
-        continue;
+    if (header == ZHeaderRefCount::Max) {
+      const int64_t prev = page->_overflow_ref_counts->decrement_monotonic(addr);
+      if (prev != 0) {
+        return prev + ZHeaderRefCount::Max;
       }
     }
 
-    int new_ref_count = ref_count - 1;
-    markWord new_mark = ZHeaderRefCount::set_count(mark, new_ref_count);
-
-    if (obj->cas_set_mark(new_mark, mark, memory_order_relaxed) == mark) {
-      return ref_count;
+    if (header == 0) {
+      return 0;
     }
+
+    const markWord next = ZHeaderRefCount::set_count(mark, header - 1);
+    if (obj->cas_set_mark(next, mark, memory_order_relaxed) == mark) { return header; }
   }
 }
 
@@ -727,11 +646,7 @@ void ZReferenceCounting::on_remember(volatile zpointer* p, zaddress addr, bool r
     // pardon before decrementing.
     OrderAccess::release();
 
-    if (decrement(addr, addr_page) == 1 && addr_page->is_allocating()) {
-      // A decrement to zero requires a death row request
-      addr_page->set_death_row(addr);
-      _found_death_row.register_page(addr_page);
-    }
+    decrement(addr, addr_page);
   }
 }
 
@@ -810,24 +725,24 @@ void ZReferenceCounting::on_old_to_old(zaddress from_addr, ZPage* from_page, zad
   // Release to order setting pardon before the death row bit and decrement.
   OrderAccess::release();
 
-  // Only dereference the to oop in case of in-place relocation
-  int ref_count = ZHeaderRefCount::count(to_oop(to_addr)->mark());
-
-  if (!was_mutator && (ref_count == ZHeaderRefCount::Min || ref_count == ZHeaderRefCount::Max)) {
+  // A page flip shares both the unmoved header and its table owner. Importing
+  // those stakes would double-count them. Actual relocation has separate tables.
+  const bool shared_counts = from_page->_overflow_ref_counts == to_page->_overflow_ref_counts;
+  assert(!shared_counts || from_addr == to_addr, "shared counts require unmoved objects");
+  if (!was_mutator && !shared_counts) {
     int64_t overflow_count;
-    if (from_page->_overflow_ref_counts.find(from_addr, &overflow_count)) {
-      to_page->_overflow_ref_counts.update(to_addr, [&](int64_t* prev, int64_t** update) {
-        **update = overflow_count;
-      });
+    if (from_page->_overflow_ref_counts->find(from_addr, &overflow_count)) {
+      // Preserve stakes already acquired at the published destination.
+      const bool crossed_zero = adjust_ref_count(to_addr, to_page->_overflow_ref_counts, overflow_count);
+      if (crossed_zero) {
+        to_page->set_death_row(to_addr);
+        _found_death_row.register_page(to_page);
+      }
     }
   }
 
   if (was_mutator) {
-    if (decrement(to_addr, to_page) == 1) {
-      // Decrement to zero; register death row request
-      to_page->set_death_row(to_addr);
-      _found_death_row.register_page(to_page);
-    }
+    decrement(to_addr, to_page);
   } else if (ZHeaderRefCount::count(to_oop(to_addr)->mark()) == 0) {
     to_page->set_death_row(to_addr);
     _found_death_row.register_page(to_page);
@@ -839,17 +754,21 @@ void ZReferenceCounting::on_mutator_old_to_old(ZForwarding* forwarding, zaddress
   const bool before_young_mark = young_marks == 0;
 
   ZPage* const from_page = forwarding->page();
-  // Note: even with in-place relocation, the to_page could be another page
   ZPage* const to_page = ZHeap::heap()->page(to_addr);
 
-  // Move the overflow ref count stake to the new table
-  int ref_count = ZHeaderRefCount::count(to_oop(from_addr)->mark());
-  if (ref_count == ZHeaderRefCount::Min || ref_count == ZHeaderRefCount::Max) {
+  assert(from_page->_overflow_ref_counts != to_page->_overflow_ref_counts,
+         "actual relocation must have separate count tables");
+
+  // Add the observed source stake
+  {
     int64_t overflow_count;
-    if (from_page->_overflow_ref_counts.find(from_addr, &overflow_count)) {
-      to_page->_overflow_ref_counts.update(to_addr, [&](int64_t* prev, int64_t** update) {
-        **update = overflow_count;
-      });
+    if (from_page->_overflow_ref_counts->find(from_addr, &overflow_count)) {
+      // Preserve stakes already acquired at the published destination.
+      const bool crossed_zero = adjust_ref_count(to_addr, to_page->_overflow_ref_counts, overflow_count);
+      if (crossed_zero) {
+        to_page->set_death_row(to_addr);
+        _found_death_row.register_page(to_page);
+      }
     }
   }
 
@@ -899,12 +818,8 @@ void ZReferenceCounting::on_mutator_old_to_old(ZForwarding* forwarding, zaddress
 }
 
 void ZReferenceCounting::on_undo(zaddress addr, ZPage* page) {
-  int ref_count = ZHeaderRefCount::count(to_oop(addr)->mark());
-  if (ref_count == ZHeaderRefCount::Min || ref_count == ZHeaderRefCount::Max) {
-    page->_overflow_ref_counts.update(addr, [&](int64_t* prev, int64_t** update) {
-      *update = nullptr;
-    });
-  }
+  // Discard the abandoned allocation's single table mapping.
+  page->_overflow_ref_counts->remove(addr);
 }
 
 void ZReferenceCounting::on_root(zaddress addr) {
@@ -1156,7 +1071,7 @@ void ZReferenceCounting::ZProcessDeathRowTask::work() {
             return;
           }
 
-          int64_t ref_count = _reference_counting->decrement(a, obj_page);
+          int64_t ref_count = _reference_counting->decrement_monotonic(a, obj_page);
           assert(ref_count > 0, "should be positive: " INT64_FORMAT, ref_count);
           const size_t counter_index = ZPageAgeRangeOld.index(obj_page->age());
           // If we decrement an edge to zero, we traverse through more garbage.

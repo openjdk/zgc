@@ -734,7 +734,7 @@ private:
       if (free_list_allocation._address != zaddress::null) {
         // TODO: Change this so be symmtric, alloc gets FreeListAllocation, undo consumes it.
         free_list_allocation._page->undo_alloc_object_from_free_list(unsafe(allocated_addr), size);
-        ZGeneration::young()->on_undo(to_addr, free_list_allocation._page);
+        ZGeneration::young()->on_undo(allocated_addr, free_list_allocation._page);
       } else {
         // TODO: Fix wrong address undo.
         // _allocator->undo_alloc_object(to_page, to_addr, size);

@@ -31,7 +31,6 @@
 #include "gc/z/zLock.hpp"
 #include "gc/z/zPageAge.hpp"
 #include "gc/z/zPageType.hpp"
-#include "gc/z/zTree.hpp"
 #include "gc/z/zValue.hpp"
 #include "utilities/resizableHashTable.hpp"
 
@@ -79,9 +78,10 @@ private:
   State* state();
   const State* state() const;
 
-  // Returns the fetched value before the mutation
-  int64_t increment(zaddress addr, ZPage* page);
-  int64_t decrement(zaddress addr, ZPage* page);
+  // Mixed accounting registers all zero crossings, including carry repair.
+  void increment(zaddress addr, ZPage* page);
+  void decrement(zaddress addr, ZPage* page);
+  int64_t decrement_monotonic(zaddress addr, ZPage* page);
 
   bool try_kill_root(ZPage* page, zaddress addr, size_t& pardoned);
   bool try_kill_followed(ZPage* page, zaddress addr, size_t& pardoned, int64_t observed_count);

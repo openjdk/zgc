@@ -28,9 +28,9 @@
 #include "gc/z/zGenerationId.hpp"
 #include "gc/z/zLiveMap.hpp"
 #include "gc/z/zPageAge.hpp"
+#include "gc/z/zPageRefCounts.hpp"
 #include "gc/z/zPageType.hpp"
 #include "gc/z/zRememberedSet.hpp"
-#include "gc/z/zTree.hpp"
 #include "gc/z/zVirtualMemory.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
@@ -67,7 +67,7 @@ private:
     ZFreeList<ZPageType::medium>* _free_list_medium;
   };
 
-  ZTree<zaddress, int64_t, ZAddress> _overflow_ref_counts;
+  ZPageRefCounts* _overflow_ref_counts;
 
   const char* type_to_string() const;
 
