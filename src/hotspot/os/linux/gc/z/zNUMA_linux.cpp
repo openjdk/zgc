@@ -22,7 +22,6 @@
  */
 
 #include "gc/shared/gc_globals.hpp"
-#include "gc/z/zCPU.inline.hpp"
 #include "gc/z/zErrno.hpp"
 #include "gc/z/zNUMA.inline.hpp"
 #include "gc/z/zSyscall_linux.hpp"
@@ -156,23 +155,6 @@ void ZNUMA::pd_initialize() {
       : !FLAG_IS_DEFAULT(ZFakeNUMA)
             ? ZFakeNUMA
             : 1; // No NUMA nodes
-}
-
-// TODO: This could just be a share implementation: return ZNUMA::cpu_id_to_numa_id(ZPU::id())
-uint32_t ZNUMA::id() {
-  if (is_faked()) {
-    // ZFakeNUMA testing, ignores _enabled
-    return ZCPU::id() % ZFakeNUMA;
-  }
-
-  if (!_enabled) {
-    // NUMA support not enabled
-    return 0;
-  }
-
-  const uint32_t id = cpu_id_to_numa_id(ZCPU::id());
-  assert(id != (uint32_t)-1, "Unknown NUMA node");
-  return id;
 }
 
 uint32_t ZNUMA::memory_id(uintptr_t addr) {
