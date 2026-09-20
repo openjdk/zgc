@@ -47,6 +47,8 @@ ZAdaptiveHeap::ZIntensitySmoother ZAdaptiveHeap::_gc_intensities;
 
 Atomic<double> ZAdaptiveHeap::_young_to_old_gc_time(0.0);
 Atomic<double> ZAdaptiveHeap::_accumulated_young_gc_time(0.0);
+Atomic<double> ZAdaptiveHeap::_accumulated_mem_worker_time(0.0);
+Atomic<double> ZAdaptiveHeap::_avg_mem_worker_cpu_overhead(0.0);
 ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_young_data;
 ZAdaptiveHeap::ZGenerationOverhead ZAdaptiveHeap::_old_data;
 Atomic<uint> ZAdaptiveHeap::_initial_young_worker_cap;
@@ -526,6 +528,8 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
   ZStatCycleStats cycle_stats = ZGeneration::generation(generation)->stat_cycle()->stats();
   const double gc_time = cycle_stats._last_total_vtime + (is_young ? 0.0 : _accumulated_young_gc_time.load_relaxed());
   generation_data._gc_times.add(gc_time);
+  const double mem_worker_time = is_young ? ZStatMemoryWorkers::get_and_reset_vtime() : _accumulated_mem_worker_time.load_relaxed();
+  generation_data._mem_worker_times.add(mem_worker_time);
 
   const double avg_gc_time = generation_data._gc_times.avg();
   const double avg_time_since_last = generation_data._gc_times_since_last.avg();
@@ -551,6 +555,9 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
   // the heap efficiency for young generation collections.
   const double avg_total_gc_cpu_overhead = MIN2(avg_generation_gc_cpu_overhead / (is_young ? _young_to_old_gc_time.load_relaxed() : 1.0), 1.0);
 
+  const double avg_mem_worker_time = generation_data._mem_worker_times.avg();
+  const double avg_mem_worker_cpu_overhead = percent_of(avg_mem_worker_time, avg_gc_time);
+
   return {
     has_container_cpu_metrics,
     has_container_cpu_capacity_limit,
@@ -560,6 +567,8 @@ ZCpuPressureMetrics ZAdaptiveHeap::cpu_pressure_metrics(ZGenerationId generation
     avg_time_since_last,
     avg_process_time,
     gc_time,
+    mem_worker_time,
+    avg_mem_worker_cpu_overhead,
     {
       machine_ncpus,
       avg_machine_process_cpu_load,
@@ -824,6 +833,11 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
 
   // System CPU load
   const ZCpuPressureMetrics cpu_metrics = cpu_pressure_metrics(generation);
+  if (generation == ZGenerationId::young) {
+    _avg_mem_worker_cpu_overhead.store_relaxed(cpu_metrics._avg_mem_worker_cpu_overhead * ZAdaptiveHeap::young_to_old_gc_time());
+  } else {
+    _avg_mem_worker_cpu_overhead.store_relaxed(cpu_metrics._avg_mem_worker_cpu_overhead);
+  }
 
   // Heap size metrics
   const size_t soft_max_capacity = heap_metrics._soft_max_capacity;
@@ -914,10 +928,19 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
                         _accumulated_young_gc_time.compare_set(0.0, cpu_metrics._gc_time, memory_order_relaxed);
     assert(result, "Should have succeded, unexpected _accumulated_young_gc_time mutation, expected: %f or 0.0, current: %f",
            accumulated_young_gc_time, _accumulated_young_gc_time.load_relaxed());
+
+    const double accumulated_mem_worker_time = _accumulated_mem_worker_time.load_relaxed();
+    const double new_accumulated_mem_worker_time = accumulated_mem_worker_time + cpu_metrics._mem_worker_time;
+    const bool result2 = _accumulated_mem_worker_time.compare_set(accumulated_mem_worker_time, new_accumulated_mem_worker_time, memory_order_relaxed) ||
+                         _accumulated_mem_worker_time.compare_set(0.0, cpu_metrics._mem_worker_time, memory_order_relaxed);
+    assert(result2, "Should have succeded, unexpected _accumulated_mem_worker_time mutation, expected: %f or 0.0, current: %f",
+           accumulated_mem_worker_time, _accumulated_mem_worker_time.load_relaxed());
   } else {
     const double accumulated_young_gc_time = _accumulated_young_gc_time.exchange(0.0, memory_order_relaxed);
     const double young_to_old_gc_time = accumulated_young_gc_time / (accumulated_young_gc_time + cycle_stats._last_total_vtime);
     _young_to_old_gc_time.store_relaxed(young_to_old_gc_time);
+
+    _accumulated_mem_worker_time.exchange(0.0, memory_order_relaxed);
   }
 
   const double upper_smoothened_error = smoothing_function(upper_error_signal, warmness);
@@ -981,6 +1004,8 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
   if (ZAdaptiveHeapSizing) {
     log_info(gc, heap)("Process GC CPU Overhead: %.1f%%, Target Process GC CPU Overhead: %.1f%%",
                        cpu_metrics._avg_total_gc_cpu_overhead * 100.0, target_cpu_overhead * 100.0);
+    log_debug(gc, heap)("Memory Worker CPU Overhead: %.1f%% of GC CPU Time",
+                        cpu_metrics._avg_mem_worker_cpu_overhead);
 
     log_debug(gc, heap)("System CPU Pressure: %.1f, System Memory Pressure: %.1f",
                         cpu_pressure, mem_pressure);
@@ -1036,20 +1061,22 @@ size_t ZAdaptiveHeap::compute_heap_size(const ZHeapResizeMetrics& heap_metrics, 
   return heuristic_max_capacity;
 }
 
-uint64_t ZAdaptiveHeap::no_uncommit_delay() {
-  return std::numeric_limits<uint64_t>::max();
+uint64_t ZAdaptiveHeap::urgent_uncommit_rate() {
+  return 64; // MB per second
 }
 
-uint64_t ZAdaptiveHeap::urgent_uncommit_delay() {
-  return 500;
+uint64_t ZAdaptiveHeap::no_uncommit_delay() {
+  return std::numeric_limits<uint64_t>::max();
 }
 
 uint64_t ZAdaptiveHeap::critical_uncommit_delay() {
   return 0;
 }
 
-static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metrics, size_t capacity) {
-  const double capacity_fraction = clamp(double(capacity) / double(metrics._used_memory), 0.05, 1.0);
+static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metrics, size_t capacity, size_t uncommit_granule, double avg_mem_worker_cpu_overhead) {
+  const double capacity_scaling = clamp(double(capacity) / double(metrics._used_memory), 0.05, 1.0);
+  const double worker_scaling = clamp(1.0 - avg_mem_worker_cpu_overhead, 0.05, 1.0);
+  const double rate_scaling = capacity_scaling * worker_scaling;
 
   // The remaining memory reserve of the system
   const double available_fraction = metrics.available_fraction();
@@ -1066,7 +1093,8 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
     return ZAdaptiveHeap::no_uncommit_delay();
   }
 
-  const uint64_t urgent_delay = ZAdaptiveHeap::urgent_uncommit_delay();
+  const double scaled_urgent_rate =  ZAdaptiveHeap::urgent_uncommit_rate() * rate_scaling;
+  const uint64_t urgent_delay = uncommit_granule * MILLIUNITS / scaled_urgent_rate;
 
   // If we aren't using a high amount memory, uncommit memory rather slowly
   // and let the GC heuristics do most of the heavy lifting
@@ -1084,7 +1112,11 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
 
     // Scale the uncommit interval by memory urgency, so the pace of uncommitting
     // ramps up as the machine resources gets exhausted.
-    return uint64_t((1.0 - progression) * capacity_fraction * (ZUncommitDelay * MILLIUNITS - urgent_delay) + urgent_delay);
+    const double highest_rate = double(ZAdaptiveHeap::urgent_uncommit_rate());
+    const double lowest_rate = highest_rate / ZUncommitDelay;
+    const double interpolated_rate = lowest_rate * (1.0 - progression) + highest_rate * progression;
+    const double scaled_rate = interpolated_rate * rate_scaling;
+    return uncommit_granule * MILLIUNITS / scaled_rate;
   }
 
   // We use a policy where the uncommit delay drops off fairly quickly
@@ -1102,23 +1134,24 @@ static uint64_t system_uncommit_delay(const ZSystemMemoryPressureMetrics& metric
 }
 
 // How long to wait until it is time to uncommit memory. This goes towards
-// infinity when there is no concerning memory pressure, then from ZUncommitDelay
-// when concerning down to 500 when high, and eventually 0 when critically low.
-uint64_t ZAdaptiveHeap::uncommit_delay() {
+// infinity when there is no concerning memory pressure, then from 64 MB per
+// ZUncommitDelay 64 MB per second when high, and eventually 0 when critically low.
+uint64_t ZAdaptiveHeap::uncommit_delay(size_t uncommit_granule) {
   precond(ZAdaptiveHeapSizing);
 
   const ZMemoryPressureMetrics mem_metrics = memory_pressure_metrics();
   ZStatSystemMemoryUsage::record(mem_metrics);
 
   const size_t capacity = ZHeap::heap()->capacity();
+  const double avg_mem_worker_cpu_overhead = _avg_mem_worker_cpu_overhead.load_relaxed() / 100.0;
 
-  const uint64_t machine_uncommit_delay = system_uncommit_delay(mem_metrics._machine, capacity);
+  const uint64_t machine_uncommit_delay =  system_uncommit_delay(mem_metrics._machine, capacity, uncommit_granule, avg_mem_worker_cpu_overhead);
 
   if (!mem_metrics._is_containerized) {
     return machine_uncommit_delay;
   }
 
-  const uint64_t container_uncommit_delay = system_uncommit_delay(mem_metrics._container, capacity);
+  const uint64_t container_uncommit_delay = system_uncommit_delay(mem_metrics._container, capacity, uncommit_granule, avg_mem_worker_cpu_overhead);
   return MIN2(machine_uncommit_delay, container_uncommit_delay);
 }
 

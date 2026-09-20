@@ -142,11 +142,11 @@ size_t ZMemoryWorker::commit_granule(size_t target_capacity) {
   return clamp(align_up(target_capacity / 128, ZGranuleSize), smallest_granule, largest_granule);
 }
 
-size_t ZMemoryWorker::uncommit_granule() {
+size_t ZMemoryWorker::uncommit_granule(size_t target_capacity) {
   const size_t smallest_granule = ZGranuleSize;
   const size_t largest_granule = MAX2(ZPageSizeMediumMax, smallest_granule);
 
-  return largest_granule;
+  return clamp(align_up(target_capacity / 128, ZGranuleSize), smallest_granule, largest_granule);
 }
 
 bool ZMemoryWorker::has_heating_request() {
@@ -593,7 +593,7 @@ private:
         // This might cause _current_target_capacity to undershoot the current capacity.
         // So we might not uncommit the whole uncommit granule in this target capacity truncation.
         // We allow this discrepancy.
-        const size_t uncommit_size = _worker->uncommit_granule();
+        const size_t uncommit_size = _worker->uncommit_granule(_current_target_capacity);
         const size_t shrink_amount = MIN2(_current_target_capacity - min_capacity, uncommit_size);
 
         // Shrink heuristic max
@@ -626,7 +626,7 @@ private:
     precond(_mode == Mode::Uncommit);
     precond(ZUncommit);
 
-    const size_t uncommit_size = _worker->uncommit_granule();
+    const size_t uncommit_size = _worker->uncommit_granule(_current_target_capacity);
     const size_t processed = [&]() {
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
       return _worker->uncommit(uncommit_size);
@@ -644,7 +644,7 @@ private:
     precond(_target_capacity == 0);
     precond(_init_target_capacity == 0);
 
-    const size_t uncommit_size = _worker->uncommit_granule();
+    const size_t uncommit_size = _worker->uncommit_granule(_current_target_capacity);
     const size_t processed = [&]() {
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
       return _worker->uncommit(uncommit_size);
@@ -721,7 +721,8 @@ public:
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
       _init_time = Ticks::now();
       if (ZAdaptiveHeapSizing) {
-        _uncommit_delay = ZAdaptiveHeap::uncommit_delay();
+        const size_t uncommit_size = _worker->uncommit_granule(_current_target_capacity);
+        _uncommit_delay = ZAdaptiveHeap::uncommit_delay(uncommit_size);
       }
     }
 
@@ -797,7 +798,8 @@ public:
       ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
       _update_time = Ticks::now();
       if (ZAdaptiveHeapSizing) {
-        _uncommit_delay = ZAdaptiveHeap::uncommit_delay();
+        const size_t uncommit_size = _worker->uncommit_granule(_current_target_capacity);
+        _uncommit_delay = ZAdaptiveHeap::uncommit_delay(uncommit_size);
       }
     }
 
@@ -900,7 +902,8 @@ public:
         const Ticks request_time = _worker->_uncommit_request_time;
 
         ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
-        const uint64_t targeted_delay = targeted_uncommit_delay(ZAdaptiveHeap::uncommit_delay());
+        const size_t uncommit_size = _worker->uncommit_granule(_current_target_capacity);
+        const uint64_t targeted_delay = targeted_uncommit_delay(ZAdaptiveHeap::uncommit_delay(uncommit_size));
         return remaining_uncommit_wait_duration(request_time, targeted_delay);
       };
 
@@ -948,7 +951,8 @@ public:
         const Ticks request_time = _worker->_uncommit_request_time;
 
         ZUnlocker<ZConditionLock> unlocker(&_worker->_lock);
-        const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay();
+        const size_t uncommit_size = _worker->uncommit_granule(_current_target_capacity);
+        const uint64_t uncommit_delay = ZAdaptiveHeap::uncommit_delay(uncommit_size);
         return remaining_uncommit_wait_duration(request_time, uncommit_delay);
       };
 
@@ -1003,6 +1007,20 @@ public:
   }
 };
 
+class ZMemoryWorkerTimer {
+private:
+  jlong _start;
+
+public:
+  ZMemoryWorkerTimer()
+    : _start(os::current_thread_cpu_time(true /* user + sys */)) {}
+
+  ~ZMemoryWorkerTimer() {
+    jlong elapsed = os::current_thread_cpu_time(true /* user + sys */) - _start;
+    ZStatMemoryWorkers::add_accumulated_vtime(double(elapsed) / NANOSECS_PER_SEC);
+  }
+};
+
 void ZMemoryWorker::run_thread() {
   // We always hold the lock, except when interacting with the OS, or awaiting
   // more work.
@@ -1020,6 +1038,8 @@ void ZMemoryWorker::run_thread() {
     worker_state.select_mode();
 
     while (!_stop) {
+      ZMemoryWorkerTimer timer;
+
       if (!worker_state.update_targets()) {
         break;
       }

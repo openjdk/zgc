@@ -1515,6 +1515,31 @@ ZStatWorkersStats ZStatWorkers::stats() {
 }
 
 //
+// Stat memory workers
+//
+volatile double ZStatMemoryWorkers::_accumulated_vtime = 0.0;
+
+void ZStatMemoryWorkers::add_accumulated_vtime(double vtime) {
+  for (;;) {
+    double prev = AtomicAccess::load(&_accumulated_vtime);
+    double new_val = prev + vtime;
+    if (AtomicAccess::cmpxchg(&_accumulated_vtime, prev, new_val) == prev) {
+      return;
+    }
+  }
+}
+
+double ZStatMemoryWorkers::get_and_reset_vtime() {
+  for (;;) {
+    double prev = AtomicAccess::load(&_accumulated_vtime);
+    double new_val = 0.0;
+    if (AtomicAccess::cmpxchg(&_accumulated_vtime, prev, new_val) == prev) {
+      return prev;
+    }
+  }
+}
+
+//
 // Stat load
 //
 void ZStatLoad::print() {

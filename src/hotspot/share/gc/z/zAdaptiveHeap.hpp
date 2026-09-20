@@ -75,6 +75,8 @@ struct ZCpuPressureMetrics {
   const double _avg_gc_interval;
   const double _avg_process_time;
   const double _gc_time;
+  const double _mem_worker_time;
+  const double _avg_mem_worker_cpu_overhead;
   const ZSystemCpuPressureMetrics _machine;
   const ZSystemCpuPressureMetrics _container;
 };
@@ -138,6 +140,7 @@ private:
     TruncatedSeq _container_system_times;
     TruncatedSeq _gc_times;
     TruncatedSeq _gc_times_since_last;
+    TruncatedSeq _mem_worker_times;
 
     ZGenerationOverhead()
       : _last_machine_system_time(),
@@ -152,11 +155,14 @@ private:
         _machine_system_times(),
         _container_system_times(),
         _gc_times(),
-        _gc_times_since_last() {}
+        _gc_times_since_last(),
+        _mem_worker_times() {}
   };
 
   static Atomic<double> _young_to_old_gc_time;
   static Atomic<double> _accumulated_young_gc_time;
+  static Atomic<double> _accumulated_mem_worker_time;
+  static Atomic<double> _avg_mem_worker_cpu_overhead;
   static ZGenerationOverhead _young_data;
   static ZGenerationOverhead _old_data;
   static Atomic<uint> _initial_young_worker_cap;
@@ -194,9 +200,9 @@ public:
 
   // Uncommit support
   static uint64_t no_uncommit_delay();
-  static uint64_t urgent_uncommit_delay();
   static uint64_t critical_uncommit_delay();
-  static uint64_t uncommit_delay();
+  static uint64_t urgent_uncommit_rate();
+  static uint64_t uncommit_delay(size_t uncommit_granule);
 
   static uint64_t soft_ref_delay();
 

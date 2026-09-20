@@ -75,7 +75,7 @@ private:
   bool await_start();
   bool is_stop_requested();
   size_t commit_granule(size_t target_capacity);
-  size_t uncommit_granule();
+  size_t uncommit_granule(size_t target_capacity);
 
   size_t uncommit(size_t to_uncommit);
 

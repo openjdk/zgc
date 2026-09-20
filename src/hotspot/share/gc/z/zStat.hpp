@@ -523,6 +523,18 @@ public:
 };
 
 //
+// Stat memory workers
+//
+class ZStatMemoryWorkers : public AllStatic {
+private:
+  static volatile double _accumulated_vtime;
+
+public:
+  static void add_accumulated_vtime(double vtime);
+  static double get_and_reset_vtime();
+};
+
+//
 // Stat load
 //
 class ZStatLoad : public AllStatic {
