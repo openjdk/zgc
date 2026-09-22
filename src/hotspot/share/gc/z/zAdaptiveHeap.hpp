@@ -166,6 +166,15 @@ private:
   static double compute_memory_pressure(const ZMemoryPressureMetrics& metrics);
   static double smoothed_gc_intensity(double scaled_gc_intensity);
 
+  struct SystemCpuTime {
+    double _elapsed_time;
+    double _processor_count;
+  };
+  [[nodiscard]] static bool pd_machine_elapsed_system_cpu_time(SystemCpuTime& value);
+  [[nodiscard]] static bool pd_container_elapsed_system_cpu_time(SystemCpuTime& value);
+  [[nodiscard]] static bool machine_elapsed_system_cpu_time(SystemCpuTime& value);
+  [[nodiscard]] static bool container_elapsed_system_cpu_time(SystemCpuTime& value);
+
   static void pd_machine_memory_info(ZMachineMemoryInfo& info);
   static bool pd_machine_compressed_memory(physical_memory_size_type& value);
   static double machine_memory_compression_ratio(physical_memory_size_type machine_used_memory,

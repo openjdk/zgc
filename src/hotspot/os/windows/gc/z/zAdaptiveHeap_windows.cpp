@@ -22,11 +22,43 @@
  */
 
 #include "gc/z/zAdaptiveHeap.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
+
+#include <windows.h>
+#include <processthreadsapi.h>
 
 void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
   info._physical_memory = os::Machine::physical_memory();
   info._is_valid = os::Machine::available_memory(info._available_memory);
+}
+
+bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
+  const int processor_count = os::processor_count();
+
+  if (processor_count <= 0 || processor_count > 64) {
+    // GetSystemTimes is not accurate on systems with more than 64 cores.
+    return false;
+  }
+
+  FILETIME idle, kernel, user;
+  if (GetSystemTimes(&idle, &kernel, &user) == 0) {
+    assert(false, "this should not fail");
+    return false;
+  }
+
+  // Kernel time includes idle time
+  jlong ticks = jlong_from(user.dwHighDateTime, user.dwLowDateTime) +
+                jlong_from(kernel.dwHighDateTime, kernel.dwLowDateTime) -
+                jlong_from(idle.dwHighDateTime, idle.dwLowDateTime);
+
+  // Ticks are 100 ns
+  value._elapsed_time = double(ticks) / 1e7;
+  value._processor_count = double(processor_count);
+  return true;
+}
+
+bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(SystemCpuTime& value) {
+  ShouldNotReachHere();
 }
 
 bool ZAdaptiveHeap::pd_machine_compressed_memory(physical_memory_size_type& value) {

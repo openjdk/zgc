@@ -60,7 +60,6 @@
 #include "services/runtimeService.hpp"
 #include "signals_posix.hpp"
 #include "utilities/align.hpp"
-#include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/events.hpp"
@@ -824,31 +823,6 @@ void os::free_thread(OSThread* osthread) {
 
 ////////////////////////////////////////////////////////////////////////////////
 // time support
-
-#ifdef __APPLE__
-bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
-  mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
-  host_cpu_load_info_data_t load_data;
-
-  kern_return_t ret = host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t)&load_data, &count);
-  if (ret != KERN_SUCCESS) {
-    assert(false, "This should never happen");
-    return false;
-  }
-
-  natural_t ticks = load_data.cpu_ticks[CPU_STATE_USER] +
-                    load_data.cpu_ticks[CPU_STATE_NICE] +
-                    load_data.cpu_ticks[CPU_STATE_SYSTEM];
-
-  value._elapsed_time = double(ticks) / CLK_TCK;
-  value._processor_count = double(os::processor_count());
-  return value._processor_count > 0.0;
-}
-#else
-bool os::Machine::elapsed_system_cpu_time(os::SystemCpuTime& value) {
-  Unimplemented();
-}
-#endif
 
 #ifdef __APPLE__
 void os::Bsd::clock_init() {

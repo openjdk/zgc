@@ -26,8 +26,9 @@
 #include "gc/z/zNUMA.inline.hpp"
 #include "jvm_io.h"
 #include "logging/log.hpp"
+#include "osContainer_linux.hpp"
 #include "os_linux.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -126,6 +127,44 @@ void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
   }
 
   info._is_valid = true;
+}
+
+bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
+  os::Linux::CPUPerfTicks ticks;
+
+  if (!os::Linux::get_tick_information(&ticks, -1)) {
+    return false;
+  }
+
+  const int online_cpus = checked_cast<int>(::sysconf(_SC_NPROCESSORS_ONLN));
+
+  if (online_cpus == -1) {
+    assert(false, "This should never happen");
+    return false;
+  }
+  assert(online_cpus > 0, "Unespected online CPU count: %d", online_cpus);
+
+  const uint64_t sum = ticks.used + ticks.usedKernel;
+  value._elapsed_time = double(sum) / os::Posix::clock_tics_per_second();
+  value._processor_count = double(online_cpus);
+  return true;
+}
+
+bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(SystemCpuTime& value) {
+  precond(os::is_containerized());
+  uint64_t result;
+  double processors;
+  // os::Container::processor_count does not account for the processors
+  // availiable in the container, but for the process. This can give a scew as
+  // cpu_usage_in_micros is the whole container.
+  if (OSContainer::cpu_usage_in_micros(result) &&
+      os::Container::processor_count(processors)) {
+    value._elapsed_time = double(result) / MICROUNITS;
+    value._processor_count = processors;
+    return true;
+  }
+
+  return false;
 }
 
 bool ZAdaptiveHeap::pd_machine_compressed_memory(physical_memory_size_type& value) {

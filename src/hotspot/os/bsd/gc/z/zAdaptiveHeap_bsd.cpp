@@ -22,11 +22,46 @@
  */
 
 #include "gc/z/zAdaptiveHeap.hpp"
-#include "runtime/os.hpp"
+#include "runtime/os.inline.hpp"
+#include "utilities/debug.hpp"
 
 void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
   info._physical_memory = os::Machine::physical_memory();
   info._is_valid = os::Machine::available_memory(info._available_memory);
+}
+
+bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
+#ifdef __APPLE__
+  const int processor_count = os::processor_count();
+
+  if (processor_count <= 0) {
+    return false;
+  }
+
+  mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
+  host_cpu_load_info_data_t load_data;
+
+  kern_return_t ret = host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t)&load_data, &count);
+  if (ret != KERN_SUCCESS) {
+    assert(false, "This should never happen");
+    return false;
+  }
+
+  // The CPU ticks counters are 32-bit and may experience wrapping behaviour.
+  natural_t ticks = load_data.cpu_ticks[CPU_STATE_USER] +
+                    load_data.cpu_ticks[CPU_STATE_NICE] +
+                    load_data.cpu_ticks[CPU_STATE_SYSTEM];
+
+  value._elapsed_time = double(ticks) / CLK_TCK;
+  value._processor_count = double(processor_count);
+  return true;
+#else
+  Unimplemented();
+#endif
+}
+
+bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(SystemCpuTime& value) {
+  ShouldNotReachHere();
 }
 
 bool ZAdaptiveHeap::pd_machine_compressed_memory(physical_memory_size_type& value) {
