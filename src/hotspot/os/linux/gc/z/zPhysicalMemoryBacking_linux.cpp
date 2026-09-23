@@ -368,16 +368,18 @@ void ZPhysicalMemoryBacking::warn_max_map_count(size_t expected_capacity, size_t
   // fragmentation is at maximum, the mappings will be interleaved between being
   // backed by memory vs not being backed by memory.
   const size_t mappings_per_granule = 2;
+  const size_t expected_mappings = (expected_capacity / ZGranuleSize) * mappings_per_granule;
+  const size_t max_mappings = (max_capacity / ZGranuleSize) * mappings_per_granule;
 
   // The required max map count is impossible to calculate exactly since subsystems
   // other than ZGC are also creating memory mappings, and we have no control over that.
   // However, ZGC tends to create the most mappings and dominate the total count.
-  const size_t required_max_map_count = (expected_capacity / ZGranuleSize) * mappings_per_granule * 1.2;
+  const size_t required_max_map_count = expected_mappings + expected_mappings / 5;
   if (z_max_map_count >= required_max_map_count) {
     return;
   }
 
-  const size_t recommended_max_map_count = (max_capacity / ZGranuleSize) * mappings_per_granule * 1.2;
+  const size_t recommended_max_map_count = max_mappings + max_mappings / 5;
 
   const char* const filename = ZFILENAME_PROC_MAX_MAP_COUNT;
   log_warning_p(gc)("***** WARNING! INCORRECT SYSTEM CONFIGURATION DETECTED! *****");
@@ -625,6 +627,8 @@ ZErrno ZPhysicalMemoryBacking::fallocate(bool punch_hole, zbacking_offset offset
   return err;
 }
 
+static Atomic<bool> warned_failed_commit{false};
+
 bool ZPhysicalMemoryBacking::commit_inner(zbacking_offset offset, size_t length) const {
   log_trace(gc, heap)("Committing memory: %zuM-%zuM (%zuM)",
                       untype(offset) / M, untype(to_zbacking_offset_end(offset, length)) / M, length / M);
@@ -647,8 +651,7 @@ retry:
       goto retry;
     }
 
-    static Atomic<bool> warned_failed_commit{false};
-    if (warned_failed_commit.compare_exchange(false, true) == false) {
+    if (!warned_failed_commit.exchange(true, memory_order_relaxed)) {
       log_error_p(gc)("Failed to commit memory (%s)", err.to_string());
     }
 
