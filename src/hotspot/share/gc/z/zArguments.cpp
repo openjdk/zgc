@@ -44,6 +44,8 @@ void ZArguments::initialize_alignments() {
 }
 
 void ZArguments::initialize_heap_flags_and_sizes() {
+  GCArguments::initialize_heap_flags_and_sizes();
+
   precond(!FLAG_IS_ERGO(SoftMaxHeapSize));
 
   if (!ZAdaptiveHeap::explicit_max_capacity() && !ZAdaptiveHeapSizing) {
@@ -56,8 +58,6 @@ void ZArguments::initialize_heap_flags_and_sizes() {
     // This denotes there is no soft max heap size set.
     FLAG_SET_ERGO_IF_DEFAULT(SoftMaxHeapSize, 0);
   }
-
-  GCArguments::initialize_heap_flags_and_sizes();
 }
 
 void ZArguments::select_max_gc_threads() {
