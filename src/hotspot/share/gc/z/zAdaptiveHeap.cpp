@@ -81,7 +81,7 @@ void ZAdaptiveHeap::initialize_generation_data() {
   precond(!_initialized_generation_data);
 
   { // Setup initial machine_elapsed_system_cpu_time
-    SystemCpuTime machine_system_time_now;
+    ZSystemCpuTime machine_system_time_now;
     const bool has_machine_system_time_now = machine_elapsed_system_cpu_time(machine_system_time_now);
     if (has_machine_system_time_now) {
       _young_data._last_machine_system_time = machine_system_time_now._elapsed_time;
@@ -94,7 +94,7 @@ void ZAdaptiveHeap::initialize_generation_data() {
   }
 
   { // Setup initial container_elapsed_system_cpu_time
-    SystemCpuTime container_system_time_now;
+    ZSystemCpuTime container_system_time_now;
     const bool has_container_system_time = container_elapsed_system_cpu_time(container_system_time_now);
     if (has_container_system_time) {
       _young_data._last_container_system_time = container_system_time_now._elapsed_time;
@@ -444,7 +444,7 @@ bool ZAdaptiveHeap::is_memory_pressure_critical(const ZMemoryPressureMetrics& me
 void ZAdaptiveHeap::sample_generation_data(ZGenerationOverhead& generation_data) {
 
   { // Sample machine_elapsed_system_cpu_time
-    SystemCpuTime machine_system_time_now;
+    ZSystemCpuTime machine_system_time_now;
     const bool has_machine_system_time = machine_elapsed_system_cpu_time(machine_system_time_now);
     if (has_machine_system_time) {
       if (generation_data._has_last_machine_system_time) {
@@ -460,7 +460,7 @@ void ZAdaptiveHeap::sample_generation_data(ZGenerationOverhead& generation_data)
   }
 
   { // Sample container_elapsed_system_cpu_time
-    SystemCpuTime container_system_time_now;
+    ZSystemCpuTime container_system_time_now;
     const bool has_container_system_time = container_elapsed_system_cpu_time(container_system_time_now);
     if (has_container_system_time) {
       if (generation_data._has_last_container_system_time) {
@@ -704,11 +704,11 @@ double ZAdaptiveHeap::smoothed_gc_intensity(double scaled_gc_intensity) {
   return _gc_intensities.record_and_smooth_gc_intensity(scaled_gc_intensity);
 }
 
-bool ZAdaptiveHeap::machine_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::machine_elapsed_system_cpu_time(ZSystemCpuTime& value) {
   return pd_machine_elapsed_system_cpu_time(value);
 }
 
-bool ZAdaptiveHeap::container_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::container_elapsed_system_cpu_time(ZSystemCpuTime& value) {
   if (os::is_containerized()) {
     return pd_container_elapsed_system_cpu_time(value);
   }

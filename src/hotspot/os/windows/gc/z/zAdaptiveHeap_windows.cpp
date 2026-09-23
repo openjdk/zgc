@@ -32,7 +32,7 @@ void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
   info._is_valid = os::Machine::available_memory(info._available_memory);
 }
 
-bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(ZSystemCpuTime& value) {
   const int processor_count = os::processor_count();
 
   if (processor_count <= 0 || processor_count > 64) {
@@ -57,7 +57,7 @@ bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
   return true;
 }
 
-bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(ZSystemCpuTime& value) {
   ShouldNotReachHere();
 }
 

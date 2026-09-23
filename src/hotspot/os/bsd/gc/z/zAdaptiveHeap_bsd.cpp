@@ -30,7 +30,7 @@ void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
   info._is_valid = os::Machine::available_memory(info._available_memory);
 }
 
-bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(ZSystemCpuTime& value) {
 #ifdef __APPLE__
   const int processor_count = os::processor_count();
 
@@ -60,7 +60,7 @@ bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
 #endif
 }
 
-bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(ZSystemCpuTime& value) {
   ShouldNotReachHere();
 }
 

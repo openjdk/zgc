@@ -129,7 +129,7 @@ void ZAdaptiveHeap::pd_machine_memory_info(ZMachineMemoryInfo& info) {
   info._is_valid = true;
 }
 
-bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(ZSystemCpuTime& value) {
   os::Linux::CPUPerfTicks ticks;
 
   if (!os::Linux::get_tick_information(&ticks, -1)) {
@@ -150,7 +150,7 @@ bool ZAdaptiveHeap::pd_machine_elapsed_system_cpu_time(SystemCpuTime& value) {
   return true;
 }
 
-bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(SystemCpuTime& value) {
+bool ZAdaptiveHeap::pd_container_elapsed_system_cpu_time(ZSystemCpuTime& value) {
   precond(os::is_containerized());
   uint64_t result;
   double processors;
