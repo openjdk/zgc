@@ -186,17 +186,18 @@ void ZArguments::set_heap_size() {
   // When the user has specified MaxRAMPercentage explicitly, we dispatch to either
   // the container or machine's limit. If not explicitly specified, we use the machine's
   // limit as we might need to scale up to most of the underlying memory.
-  const double physical_memory = !FLAG_IS_DEFAULT(MaxRAMPercentage)
+  const double max_physical_memory = !FLAG_IS_DEFAULT(MaxRAMPercentage)
       ? checked_cast<double>(os::physical_memory())
       : checked_cast<double>(os::Machine::physical_memory());
+  const double initial_physical_memory = checked_cast<double>(os::physical_memory());
 
   FLAG_SET_ERGO_IF_DEFAULT(MaxRAMPercentage, ZAdaptiveHeap::DefaultMaxRAMPercentage);
   FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
 
-  const size_t max_size = align_down((size_t)(physical_memory * (MaxRAMPercentage / 100.)), ZGranuleSize);
+  const size_t max_size = align_down((size_t)(max_physical_memory * (MaxRAMPercentage / 100.)), ZGranuleSize);
   FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
 
-  const size_t initial_size = (size_t)(physical_memory * (InitialRAMPercentage / 100.));
+  const size_t initial_size = (size_t)(initial_physical_memory * (InitialRAMPercentage / 100.));
   FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
 
   // Ensure all heap sizes are ZGranuleSize aligned.
