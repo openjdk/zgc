@@ -78,10 +78,18 @@ static bool madv_collapse_available() {
 }
 
 void ZLargePages::pd_initialize() {
-  const bool can_collapse = ZMemoryHeating && madv_collapse_available();
+  // Evaluate if we should move madv collapse logic to os::Linux / HugePages so
+  // that validate_thps_configured can log the warning correctly if shmem THP
+  // is disabled.
+  // Maybe combined with a general GC callback. Let os::Linux / HugePages contain
+  // the OS logic, let the GC do the extra log warnings as part of the
+  // validation callback.
+  const auto can_collapse = []() {
+    return ZMemoryHeating && madv_collapse_available();
+  };
 
   if (os::Linux::thp_requested()) {
-    if (can_collapse) {
+    if (can_collapse()) {
       _state = Collapse;
       return;
     }
@@ -101,7 +109,15 @@ void ZLargePages::pd_initialize() {
                           "Disabling the use of explicit large pages for the heap");
   }
 
-  if (FLAG_IS_DEFAULT(UseTransparentHugePages) && can_collapse) {
+  // Because os::Linux::large_page_init does not set the origin, we cannot tell
+  // whether the user explicitly disabled large pages or explicitly requested
+  // large pages which the OS configuration did not support.
+  // Look into adding a similar cached user request as os::Linux::thp_requested
+  // for UseLargePages.
+  const bool large_pages_explicitly_disabled = !FLAG_IS_DEFAULT(UseLargePages) && !UseLargePages;
+  const bool thp_explicitly_disabled = !FLAG_IS_DEFAULT(UseTransparentHugePages) && !UseTransparentHugePages;
+
+  if (!large_pages_explicitly_disabled && !thp_explicitly_disabled && can_collapse()) {
     _state = Collapse;
     return;
   }
