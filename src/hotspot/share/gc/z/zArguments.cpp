@@ -195,7 +195,12 @@ void ZArguments::set_heap_size() {
   FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(MinHeapSize, ZAdaptiveHeap::DefaultMinHeapSize);
 
   const size_t max_size = align_down((size_t)(max_physical_memory * (MaxRAMPercentage / 100.)), ZGranuleSize);
-  FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
+  // GCArguments::initialize_heap_flags_and_sizes does not reject incompatible
+  // MaxHeapSize and InitialHeapSize if they originate from a user
+  // MaxRAMPercentage, so we set the MaxHeapSize to be at least InitialHeapSize
+  // as well.
+  assert(!FLAG_IS_DEFAULT(InitialHeapSize) || InitialHeapSize == 0, "Assumed in MaxHeapSize selection");
+  FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX3(max_size, MinHeapSize, InitialHeapSize));
 
   const size_t initial_size = (size_t)(initial_physical_memory * (InitialRAMPercentage / 100.));
   FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MIN2(MinHeapSize, MaxHeapSize), MaxHeapSize));
