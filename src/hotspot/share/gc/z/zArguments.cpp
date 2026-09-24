@@ -198,20 +198,10 @@ void ZArguments::set_heap_size() {
   FLAG_SET_ERGO_IF_DEFAULT(MaxHeapSize, MAX2(max_size, MinHeapSize));
 
   const size_t initial_size = (size_t)(initial_physical_memory * (InitialRAMPercentage / 100.));
-  FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MinHeapSize, MaxHeapSize));
+  FLAG_SET_ERGO_IF_DEFAULT_OR_ZERO(InitialHeapSize, clamp(initial_size, MIN2(MinHeapSize, MaxHeapSize), MaxHeapSize));
 
-  // Ensure all heap sizes are ZGranuleSize aligned.
-  if (!is_aligned(MinHeapSize, ZGranuleSize)) {
-    FLAG_SET_ERGO(MinHeapSize, align_up(MinHeapSize, ZGranuleSize));
-  }
-  if (!is_aligned(InitialHeapSize, ZGranuleSize)) {
-    FLAG_SET_ERGO(InitialHeapSize, align_up(InitialHeapSize, ZGranuleSize));
-  }
-  if (!is_aligned(MaxHeapSize, ZGranuleSize)) {
-    FLAG_SET_ERGO(MaxHeapSize, align_up(MaxHeapSize, ZGranuleSize));
-  }
-
-  if (MaxHeapSize == MinHeapSize) {
+  // GCArguments::initialize_heap_flags_and_sizes will align up the heap sizes.
+  if (align_up(MaxHeapSize, ZGranuleSize) == align_up(MinHeapSize, ZGranuleSize)) {
     if (!FLAG_IS_DEFAULT(ZAdaptiveHeapSizing)) {
       log_warning(gc)("Adaptive heap sizing was enabled, but heap size is fixed. Disabling adaptive heap sizing.");
     }
