@@ -25,6 +25,7 @@
 #define SHARE_GC_Z_ZADAPTIVEHEAP_INLINE_HPP
 
 #include "gc/z/zAdaptiveHeap.hpp"
+
 #include "utilities/globalDefinitions.hpp"
 
 inline physical_memory_size_type ZSystemMemoryPressureMetrics::available_memory() const {

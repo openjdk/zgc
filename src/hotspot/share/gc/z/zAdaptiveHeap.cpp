@@ -21,9 +21,9 @@
  * questions.
  */
 
-#include "gc/z/zAdaptiveHeap.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/gcLogPrecious.hpp"
+#include "gc/z/zAdaptiveHeap.hpp"
 #include "gc/z/zAdaptiveHeap.inline.hpp"
 #include "gc/z/zDriver.hpp"
 #include "gc/z/zGlobals.hpp"
