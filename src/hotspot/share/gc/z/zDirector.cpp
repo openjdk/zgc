@@ -261,7 +261,7 @@ static ZDriverRequest rule_hard_minor_allocation_rate_dynamic(const ZDirectorSta
                                             serial_gc_time_passed,
                                             parallel_gc_time_passed,
                                             true /* conservative_alloc_rate */,
-                                            heuristic_hard_capacity(stats) /* capacity */);
+                                            stats._heap._current_max_capacity /* capacity */);
 }
 
 static bool rule_minor_allocation_rate_static(const ZDirectorStats& stats) {
